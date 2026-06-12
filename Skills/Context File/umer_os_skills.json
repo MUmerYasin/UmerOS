@@ -1,0 +1,248 @@
+{
+  "project_name": "Umer OS",
+  "version": "2.0.0",
+  "ide": "Antigravity IDE",
+  "primary_language": "Python 3.12+",
+  "system_architecture": "Hybrid Microkernel + Quantum Simulation Layer + AI Orchestration",
+  "description": "A Python-first, hybrid classical-quantum, AI-native, cross-device operating system designed to replace existing OSes on all device classes.",
+
+  "feature_tiers": {
+    "TODAY": "Implementable now on classical hardware using simulation and existing libraries",
+    "EXPERIMENTAL": "Near-term; requires careful engineering; known instability possible",
+    "FUTURE": "Requires hardware (QPU, NPU) not yet mainstream on consumer devices"
+  },
+
+  "required_agent_skills": [
+    "Python 3.12+ asyncio and concurrent programming (asyncio.Lock, create_task, gather)",
+    "Python C-extension writing via ctypes and Cython for hardware-critical paths",
+    "Quantum circuit simulation with Qiskit, Cirq, and PennyLane",
+    "NumPy state-vector quantum simulation (complex arrays, Kronecker products, unitary gates)",
+    "Operating system microkernel architecture design (IPC, scheduling, memory management)",
+    "Hardware abstraction layer (HAL) engineering in Python with ctypes bindings",
+    "On-device machine learning inference with ONNX Runtime and llama-cpp-python",
+    "LSTM neural network design for time-series resource prediction",
+    "Post-quantum cryptography implementation (CRYSTALS-Kyber, Dilithium via liboqs)",
+    "AES-256-GCM and SHA3-512 cryptographic operations with the Python cryptography library",
+    "Zero-trust security architecture and capability-based permission systems",
+    "Containerisation technologies (Wine, QEMU user-mode, LXC) for app compatibility",
+    "Kivy cross-platform GUI framework for adaptive desktop/mobile UI",
+    "Local speech-to-text integration (Whisper-tiny, Vosk)",
+    "Async networking with aiohttp, DNS-over-HTTPS, mDNS/Zeroconf, and WireGuard",
+    "Content-addressable storage and multi-stage data compression (LZMA, delta encoding)",
+    "Semantic file search using sentence-transformers and vector similarity",
+    "pytest test suite authoring with fixtures, mocks, and async test support",
+    "Sphinx documentation generation from Python docstrings",
+    "Docker containerisation and GitHub Actions CI/CD pipeline configuration",
+    "QEMU virtual machine management for OS development and testing"
+  ],
+
+  "development_rules": [
+    "NEVER generate impossible hardware claims. Always use 'quantum-inspired', 'simulated', or 'classical approximation' language when true quantum hardware is unavailable.",
+    "ALWAYS label every feature with its tier: TODAY / EXPERIMENTAL / FUTURE. Unlabelled features are invalid output.",
+    "ALWAYS include try/except error handling, logging module calls, Python type hints, and Google-format docstrings in every generated file.",
+    "NEVER generate installer code that proceeds without first displaying the full EULA and requiring the user to type 'I AGREE' exactly.",
+    "ALWAYS separate simulation code from future QPU interface hooks using '# TODO: QPU integration' markers.",
+    "ALWAYS generate pytest tests for every module as part of the same stage that generates the module.",
+    "NEVER claim Python can replace C/ASM for bare-metal boot or context-switch code. Document C stubs as pseudocode; expose them via ctypes bindings.",
+    "ALWAYS enforce that AI training data stays on-device by default. Any cloud sync of AI data requires opt-in consent code.",
+    "NEVER allow the compatibility layer to claim full iOS/Apple support. Mark iPhone as BLOCKED due to Apple's Secure Enclave.",
+    "ALWAYS produce modular code — one class per responsibility, one file per subsystem, following clean architecture principles.",
+    "ALWAYS prioritise algorithmic efficiency over brute-force processing. Never claim to magically increase physical hardware speed.",
+    "ALWAYS include '# TODO' comments on all interfaces designed for future QPU hardware integration.",
+    "ALWAYS ensure HMAC-SHA256 signing is applied to all IPC messages in IPCBus.",
+    "NEVER include hard-coded credentials, API keys, or secrets in any generated file.",
+    "ALWAYS generate a rollback function alongside every installer action that modifies system state."
+  ],
+
+  "target_files": {
+    "stage1": [
+      "README.md",
+      "requirements.txt",
+      "setup.py",
+      "LICENSE",
+      "Full folder structure stubs (empty __init__.py in each package)"
+    ],
+    "stage2": [
+      "boot/bootloader.py",
+      "kernel/umer_kernel.py",
+      "kernel/scheduler.py",
+      "kernel/memory_manager.py",
+      "kernel/ipc_bus.py",
+      "kernel/capability_manager.py",
+      "quantum/quantum_sim.py",
+      "quantum/quantum_api.py",
+      "quantum/error_mitigation.py"
+    ],
+    "stage3": [
+      "ai/umer_ai.py",
+      "ai/resource_manager.py",
+      "ai/assistant.py",
+      "ai/self_healing.py",
+      "ai/firewall.py",
+      "ai/models/README.md",
+      "security/security.py",
+      "security/secure_boot.py",
+      "security/ipc_auth.py",
+      "quantum/crypto_pqc.py"
+    ],
+    "stage4": [
+      "fs/qfs.py",
+      "fs/compressor.py",
+      "fs/cas_store.py",
+      "fs/ai_indexer.py",
+      "compatibility/container_engine.py",
+      "compatibility/wine_shim.py",
+      "compatibility/android_container.py",
+      "compatibility/syscall_translator.py",
+      "installer/installer.py",
+      "installer/warning.txt",
+      "installer/rollback_tools/restore_bootloader.py",
+      "installer/rollback_tools/restore_partitions.py"
+    ],
+    "stage5": [
+      "ui/gui.py",
+      "ui/taskbar.py",
+      "ui/app_launcher.py",
+      "ui/voice_controller.py",
+      "ui/ai_ui_adapter.py",
+      "network/network_stack.py",
+      "network/vpn_client.py",
+      "network/dns_over_https.py",
+      "network/mdns_discovery.py",
+      "cloud/sync_agent.py",
+      "cloud/ota_updater.py",
+      "cloud/remote_ai.py",
+      "packages/umer_pkg.py",
+      "packages/package_registry.py",
+      "kernel/drivers/base_driver.py",
+      "kernel/drivers/keyboard_driver.py",
+      "kernel/drivers/network_driver.py",
+      "kernel/drivers/gpu_driver.py",
+      "kernel/drivers/storage_driver.py"
+    ],
+    "stage6": [
+      "tests/test_kernel.py",
+      "tests/test_quantum_sim.py",
+      "tests/test_ai.py",
+      "tests/test_security.py",
+      "tests/test_qfs.py",
+      "tests/test_compatibility.py",
+      "tests/test_installer.py",
+      "docs/architecture.md",
+      "docs/developer_guide.md",
+      "docs/quantum_tutorial.md",
+      "docs/driver_writing_guide.md",
+      "docs/user_manual.md",
+      "build/build.sh",
+      "build/Dockerfile",
+      "build/qemu_launcher.sh",
+      "build/ci_pipeline.yml",
+      "sdk/kernel_api.py",
+      "sdk/quantum_api.py",
+      "sdk/ai_api.py",
+      "sdk/ui_toolkit.py"
+    ]
+  },
+
+  "antigravity_commands": {
+    "stage1": "ag run stage1",
+    "stage2": "ag run stage2",
+    "stage3": "ag run stage3",
+    "stage4": "ag run stage4",
+    "stage5": "ag run stage5",
+    "stage6": "ag run stage6",
+    "test_all": "ag run test-all",
+    "build_image": "ag run build-image",
+    "deploy_qemu": "ag run deploy-qemu",
+    "package": "ag run package",
+    "generate_docs": "ag run docs"
+  },
+
+  "key_dependencies": {
+    "quantum": ["qiskit>=1.0.0", "qiskit-aer>=0.14.0", "cirq>=1.3.0", "pennylane>=0.35.0", "numpy>=1.26.0"],
+    "ai_ml": ["onnxruntime>=1.17.0", "transformers>=4.40.0", "sentence-transformers>=2.7.0", "llama-cpp-python>=0.2.0", "scikit-learn>=1.4.0", "torch>=2.2.0"],
+    "security_crypto": ["cryptography>=42.0.0", "liboqs-python>=0.9.0", "xxhash>=3.4.0"],
+    "ui": ["kivy>=2.3.0", "Pillow>=10.2.0"],
+    "networking": ["aiohttp>=3.9.0", "dnspython>=2.6.0", "zeroconf>=0.131.0"],
+    "build_tooling": ["cython>=3.0.0", "numba>=0.59.0", "pytest>=8.0.0", "sphinx>=7.2.0"],
+    "system_compat": ["wine (system package, LGPL)", "qemu-system-x86_64 (system package, GPL)"]
+  },
+
+  "licence_map": {
+    "qiskit": "Apache 2.0",
+    "cirq": "Apache 2.0",
+    "pennylane": "Apache 2.0",
+    "numpy": "BSD",
+    "onnxruntime": "MIT",
+    "transformers": "Apache 2.0",
+    "llama-cpp-python": "MIT",
+    "scikit-learn": "BSD",
+    "torch": "BSD",
+    "cryptography": "Apache/BSD",
+    "liboqs-python": "MIT",
+    "kivy": "MIT",
+    "aiohttp": "Apache 2.0",
+    "cython": "Apache 2.0",
+    "numba": "BSD",
+    "pytest": "MIT",
+    "sphinx": "BSD",
+    "wine": "LGPL",
+    "qemu": "GPL"
+  },
+
+  "code_style_requirements": {
+    "docstring_format": "Google",
+    "type_hints": "required on all function signatures",
+    "error_handling": "try/except on all I/O, hardware, and network operations",
+    "logging": "use Python logging module; DEBUG for internals, INFO for lifecycle events, WARNING/ERROR for failures",
+    "comments": "explain WHY not just WHAT; mark future hardware hooks with # TODO: QPU integration",
+    "testing": "pytest; aim for >80% coverage per module; include async tests with pytest-asyncio",
+    "architecture": "one class per responsibility; one module per subsystem; no circular imports",
+    "security": "never hardcode secrets; sanitise all external inputs; validate hashes before loading any binary",
+    "max_function_length": "50 lines (extract helpers if exceeded)",
+    "naming_convention": "snake_case for functions/variables; PascalCase for classes; UPPER_SNAKE for constants"
+  },
+
+  "quantum_constraints": {
+    "simulation_only_today": true,
+    "qpu_interface": "QuantumDevice abstract class in quantum/quantum_api.py",
+    "supported_backends_today": ["qiskit_aer_simulator", "cirq_simulator", "pennylane_default_qubit"],
+    "future_hardware_backends": ["ibm_quantum", "aws_braket", "azure_quantum", "ionq", "rigetti"],
+    "error_mitigation_required": true,
+    "zero_error_claim_forbidden": true,
+    "quantum_inspired_scheduling": "SuperpositionSchedulerAdapter in quantum/quantum_sim.py"
+  },
+
+  "security_constraints": {
+    "installer_eula_mandatory": true,
+    "eula_consent_string": "I AGREE",
+    "ipc_signing_algorithm": "HMAC-SHA256",
+    "hashing_algorithm": "SHA3-512",
+    "pqc_key_encapsulation": "CRYSTALS-Kyber (ML-KEM)",
+    "pqc_signatures": "CRYSTALS-Dilithium (ML-DSA)",
+    "symmetric_encryption": "AES-256-GCM",
+    "tls_version": "1.3 with post-quantum cipher suites",
+    "default_privilege_level": "least privilege (no root by default)",
+    "ios_support_status": "BLOCKED — Apple Secure Enclave prevents installation"
+  },
+
+  "ai_governance": {
+    "training_consent_required": true,
+    "data_stays_local_by_default": true,
+    "cloud_sync_opt_in_only": true,
+    "ai_action_log_path": "/var/log/umer_ai.log",
+    "privacy_db_path": "/etc/umer/privacy.db",
+    "erasure_command": "umer-privacy clear-all",
+    "compliance_standards": ["IEEE P7010", "FTC AI Principles", "GDPR Article 22"]
+  },
+
+  "performance_targets": {
+    "storage_reduction_today": "20-50% via QFS 3-stage compression",
+    "storage_reduction_future": "up to 90% (requires ML lossy compression for cold data)",
+    "ai_inference_speedup": "5-10x vs CPU-only via ONNX Runtime + GPU",
+    "kernel_hotpath_speedup": "10-50x vs pure Python via Cython/Numba",
+    "cache_miss_reduction": "15-30% via LSTM-predictive caching",
+    "cpu_utilisation_improvement": "10-20% via quantum-inspired scheduler",
+    "physical_limit_disclaimer": "Software cannot exceed physical hardware speed. All gains are algorithmic."
+  }
+}
