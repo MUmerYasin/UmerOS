@@ -1,0 +1,20 @@
+{
+  "project_name": "Umer OS Development",
+  "primary_language": "Python 3.12+",
+  "system_architecture": "Hybrid Microkernel",
+  "required_agent_skills": [
+    "Python C-extension writing (ctypes, Cython)",
+    "Quantum computing algorithm translation (Qiskit, Cirq to simulation)",
+    "Operating system kernel architecture",
+    "Hardware abstraction layer (HAL) engineering",
+    "Machine Learning model deployment (TensorFlow/PyTorch) for edge devices",
+    "Containerization technologies (Docker, Wine, Hypervisors)",
+    "UI/UX Frameworks (Kivy, PyQt)"
+  ],
+  "development_rules": [
+    "Never generate impossible hardware claims; use 'simulation' or 'inspired-by' for quantum logic.",
+    "Ensure all error handling includes AI self-healing logic comments.",
+    "Prioritize algorithmic efficiency over brute-force processing.",
+    "All installer code must prompt for user legal consent regarding warranties."
+  ]
+}

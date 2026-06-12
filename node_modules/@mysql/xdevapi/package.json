@@ -1,0 +1,119 @@
+{
+  "name": "@mysql/xdevapi",
+  "version": "8.0.35",
+  "description": "MySQL Connector/Node.js - A Node.js driver for MySQL using the X Protocol and X DevAPI.",
+  "contributors": [
+    {
+      "name": "Johannes Schlüter",
+      "email": "johannes.schlueter@oracle.com"
+    },
+    {
+      "name": "Rui Quelhas",
+      "email": "rui.quelhas@oracle.com"
+    },
+    {
+      "name": "Amitabh Das",
+      "email": "amitabh.das@oracle.com"
+    }
+  ],
+  "license": "GPL-2.0",
+  "main": "index.js",
+  "types": "types/index.d.ts",
+  "files": [
+    "CHANGES.txt",
+    "CONTRIBUTING.md",
+    "README.md",
+    "README.txt",
+    "docs/",
+    "lib/",
+    "test/",
+    "types/"
+  ],
+  "keywords": [
+    "MySQL",
+    "MySQL X DevAPI",
+    "mysqlx",
+    "Databases",
+    "Database"
+  ],
+  "homepage": "http://www.mysql.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mysql/mysql-connector-nodejs.git"
+  },
+  "bugs": {
+    "url": "http://bugs.mysql.com"
+  },
+  "scripts": {
+    "coverage": "nyc npm run test",
+    "coverage:functional": "nyc npm run test:functional",
+    "coverage:functional:all": "nyc npm run test:functional:all",
+    "coverage:functional:extended": "nyc npm run test:functional:extended",
+    "coverage:summary": "nyc report --reporter=text-summary",
+    "coverage:unit": "nyc npm run test:unit",
+    "fix:lib": "standardx --fix",
+    "fix:types": "eslint --fix -c types/.eslintrc.js .",
+    "lint:lib": "standardx --verbose | snazzy",
+    "lint:types": "eslint -c types/.eslintrc.js .",
+    "lint": "npm run lint:lib && npm run lint:types",
+    "mocha": "mocha --reporter spec --timeout 30000 --recursive",
+    "prepack": "node bin/prepack.js",
+    "test": "tsd && npm run mocha test/unit test/functional/default",
+    "test:all": "tsd && npm run mocha test/unit test/functional",
+    "test:functional": "npm run mocha test/functional/default",
+    "test:functional:all": "npm mocha test/functional",
+    "test:functional:extended": "npm run mocha test/functional/extended",
+    "test:unit": "npm run mocha test/unit",
+    "test:types": "tsd"
+  },
+  "dependencies": {
+    "google-protobuf": "3.19.4",
+    "lossless-json": "2.0.1",
+    "parsimmon": "1.18.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.13.0",
+    "@typescript-eslint/eslint-plugin": "4.33.0",
+    "chai": "4.3.7",
+    "dns2": "2.0.5",
+    "eslint-config-standard-with-typescript": "21.0.1",
+    "eslint-plugin-header": "3.1.1",
+    "eslint-plugin-tsdoc": "0.2.17",
+    "mocha": "10.2.0",
+    "nyc": "15.1.0",
+    "snazzy": "9.0.0",
+    "standardx": "7.0.0",
+    "testdouble": "3.16.8",
+    "ts-standard": "11.0.0",
+    "tsd": "0.25.0",
+    "typescript": "4.6.2"
+  },
+  "nyc": {
+    "branches": 75,
+    "check-coverage": true,
+    "exclude": [
+      "bin",
+      "lib/Protocol/Stubs",
+      "test",
+      "types"
+    ],
+    "functions": 75,
+    "lines": 75,
+    "reporter": [
+      "text",
+      "html"
+    ],
+    "statements": 75
+  },
+  "standardx": {
+    "ignore": [
+      "**/mysqlx*_pb.js"
+    ]
+  },
+  "tsd": {
+    "directory": "types/test"
+  }
+}
