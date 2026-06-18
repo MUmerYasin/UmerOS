@@ -10,6 +10,18 @@ import random
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Any
+import asyncio
+from dataclasses import dataclass
+from typing import Any, Dict
+from ai.assistant import AIAssistant
+from compatibility.container import CompatibilityLayer
+from filesystem.qfs import QuantumFileSystem
+from kernel.scheduler import HybridScheduler, Task
+from quantum.simulator import QuantumCircuitSimulator
+from security.sandbox import SecuritySandbox
+from update.update_system import UpdateManager
+from drivers.example_driver import ExampleDriver
+from ui.fluidic_ui import launch_ui
 
 @dataclass
 class Process:
@@ -17,6 +29,11 @@ class Process:
     name: str
     priority: int = 5
     state: str = "READY"
+
+@dataclass
+class KernelState:
+    booted: bool = False
+    safe_mode: bool = False
 
 class QuantumScheduler:
     """
@@ -99,18 +116,42 @@ class MemoryManager:
             print(f"[MEM] Freed memory of PID {pid}. Used: {self.used}/{self.total} MB")
 
 class UmerKernel:
-    def __init__(self):
+    def __init__(self, environment: Dict[str, Any]):
         self.scheduler = QuantumScheduler()
         self.memory = MemoryManager()
         self.running = True
+        self.environment = environment
+        self.state = KernelState()
+        self.ai = AIAssistant()
+        self.schedulerHybridScheduler = HybridScheduler()
+        self.quantum = QuantumCircuitSimulator(qubits=2)
+        self.security = SecuritySandbox()
+        self.fs = QuantumFileSystem()
+        self.compat = CompatibilityLayer()
+        self.updates = UpdateManager()
+        self.driver = ExampleDriver()
 
-    def start(self):
+async def start(self):
         print("[KERNEL] Umer Hybrid Quantum Kernel started.")
         # Start essential services
+        self.state.booted = True
+        await self.schedulerHybridScheduler.start(self.ai)
+
+        await self.schedulerHybridScheduler.add_task(Task(pid=1, name="ui", priorityfloat=1.0,id="",coro_factory=lambda: asyncio.sleep(0.1) ))
+        await self.schedulerHybridScheduler.add_task(Task(pid=2, name="ai", priorityfloat=0.9,id="",coro_factory=lambda: asyncio.sleep(0.1)))
+        await self.schedulerHybridScheduler.add_task(Task(pid=3, name="qfs", priorityfloat=0.8,id="",coro_factory=lambda: asyncio.sleep(0.1)))
+
         self.scheduler.add_process("UI Manager", 10)
         self.scheduler.add_process("Network Stack", 8)
         self.scheduler.add_process("AI Assistant", 9)
         self.scheduler.add_process("Quantum Simulator", 7)
+        self.security.register_process(pid=1, name="ui")
+        self.security.register_process(pid=2, name="ai")
+        self.security.register_process(pid=3, name="qfs")
+
+        self.fs.write("/system/welcome.txt", b"Welcome to Umer OS")
+        self.driver.initialize()
+
         # Main kernel loop
         while self.running:
             proc = self.scheduler.schedule()
@@ -128,10 +169,16 @@ class UmerKernel:
             if len(self.scheduler.processes) == 0:
                 print("[KERNEL] All processes finished. Shutting down.")
                 self.running = False
+        print("Umer Kernel started.")
+        print("AI:", self.ai.respond("status"))
+        print("Quantum measurement:", self.quantum.measure())
+
+        await launch_ui(self.environment)
+
 
 def main():
-    kernel = UmerKernel()
-    kernel.start()
+    kernel = UmerKernel(environment={})
+    asyncio.run(kernel.start())
     print("[KERNEL] Shutdown complete.")
 
 if __name__ == "__main__":

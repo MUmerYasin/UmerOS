@@ -8,6 +8,10 @@ import asyncio
 import time
 import uuid
 from typing import Callable, Dict, Optional, Any
+import math
+import random
+from typing import List
+
 
 @dataclass
 class Task:
@@ -74,3 +78,42 @@ class Scheduler:
 
     def stop(self):
         self._running = False
+
+
+class QuantumCircuitSimulator:
+    def __init__(self, qubits: int = 2):
+        self.qubits = qubits
+        self.state = [0.0] * (2**qubits)
+        self.state[0] = 1.0
+
+    def apply_hadamard(self, qubit: int):
+        new_state = [0.0] * len(self.state)
+        step = 2 ** qubit
+        block = step * 2
+        inv_sqrt2 = 1 / math.sqrt(2)
+
+        for base in range(0, len(self.state), block):
+            for i in range(step):
+                a = self.state[base + i]
+                b = self.state[base + i + step]
+                new_state[base + i] = (a + b) * inv_sqrt2
+                new_state[base + i + step] = (a - b) * inv_sqrt2
+        self.state = new_state
+
+    def measure(self) -> int:
+        probs = [abs(x) ** 2 for x in self.state]
+        total = sum(probs)
+        if total == 0:
+            return 0
+        probs = [p / total for p in probs]
+        r = random.random()
+        acc = 0.0
+        for idx, p in enumerate(probs):
+            acc += p
+            if r <= acc:
+                return idx
+        return len(probs) - 1
+
+    def evaluate_task_paths(self, tasks: List[str]) -> float:
+        self.apply_hadamard(0)
+        return float(self.measure() / max(1, (2**self.qubits - 1)))
