@@ -1,0 +1,23 @@
+fetch('https://openrouter.ai/api/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    Authorization: 'Bearer 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',
+    'HTTP-Referer': '<YOUR_SITE_URL>',
+    'X-Title': '<YOUR_SITE_NAME>',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'openai/gpt-4o',
+    messages: [
+      {
+        role: 'user',
+        content: 'What is the meaning of life?',
+      },
+    ],
+  }),
+});
+
+
+# The above code snippet demonstrates how to make a POST request to the OpenRouter API to get a chat completion using the,
+# Your https://openrouter.ai/ API Key
+# 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
