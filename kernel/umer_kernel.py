@@ -177,9 +177,5 @@ async def start(self):
 
 
 def main():
-    kernel = UmerKernel(environment={})
-    asyncio.run(kernel.start())
-    print("[KERNEL] Shutdown complete.")
-
-if __name__ == "__main__":
-    main()
+    if __name__ == "__main__":
+        main()

@@ -7,9 +7,13 @@ from dataclasses import dataclass, field
 import asyncio
 import time
 import uuid
-from typing import Callable, Dict, Optional, Any, Dict, Optional
+import ai.assistant
+from pathlib import Path
+
+from ai.assistant import AIAssistant
 
 
+from typing import Callable, Dict, Optional, Any
 
 @dataclass
 class Task:
@@ -19,11 +23,11 @@ class Task:
     created_at: float = field(default_factory=time.time)
     cpu_time: float = 0.0
     last_run: Optional[float] = None
-    quantum_state: Dict[str, float] = field(default_factory=dict)
+    quantum_state_float: Dict[str, float] = field(default_factory=dict)
     success_prob: float = 0.5  # predicted by AI Orchestrator (0..1)
     pid: int = 0
     name: str = ""
-    priority: float
+    priorityfloat: float = 0.0
     state: str = "READY"
     cpu_time: float = 0.0
     quantum_state: Dict = field(default_factory=lambda: {"superposition": 0.0})
@@ -90,19 +94,19 @@ class HybridScheduler:
     def __init__(self):
         self.tasks: Dict[int, Task] = {}
         self.lock = asyncio.Lock()
-        self.ai = None
+        self.ai = AIAssistant.__init__
         self.running = False
 
     async def start(self, ai_manager):
         self.ai = ai_manager
         self.running = True
-        asyncio.create_task(self._scheduler_loop())
+        # asyncio.create_task(self._scheduler_loop())
 
     async def add_task(self, task: Task):
         async with self.lock:
             self.tasks[task.pid] = task
             task.quantum_state["superposition"] = self.ai.predict_task_success(task)
-        async def _scheduler_loop(self):
+    async def _scheduler_loop(self):
         while self.running:
             async with self.lock:
                 ready = [t for t in self.tasks.values() if t.state == "READY"]
@@ -118,6 +122,8 @@ class HybridScheduler:
                     await self._execute_task(selected)
                     selected.state = "READY"
             await asyncio.sleep(0.01)
+
+    
 
     async def _execute_task(self, task: Task):
         start = time.perf_counter()
