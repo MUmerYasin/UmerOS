@@ -1,27 +1,24 @@
-import subprocess
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
+from .syscall_shim import SyscallShim
 
+class ZeroTrustContainer:
+    def __init__(self, container_id, capability_manager):
+        self.container_id = container_id
+        self.capabilities = capability_manager
+        self.shim = SyscallShim()
+        self.running = False
 
-@dataclass
-class CompatibilityResult:
-    success: bool
-    message: str
+    def execute_binary(self, binary_path, os_type="linux"):
+        print(f"[Container {self.container_id}] Initializing zero-trust sandbox for {os_type.upper()} binary: {binary_path}")
+        if not self.capabilities.check(self.container_id, "HARDWARE"):
+            print(f"[Container {self.container_id}] Restricting direct hardware access.")
+        
+        self.running = True
+        
+        # Simulating binary execution calling a legacy syscall
+        if os_type == "linux":
+            self.shim.intercept("sys_read", 0, 1024)
+        elif os_type == "windows":
+            self.shim.intercept("NtCreateFile", "C:\\temp.txt")
 
-
-class CompatibilityLayer:
-    def run_linux_binary(self, path: str) -> CompatibilityResult:
-        if not Path(path).exists():
-            return CompatibilityResult(False, "Binary not found.")
-        return CompatibilityResult(True, f"Linux binary simulated: {path}")
-
-    def run_windows_exe(self, path: str) -> CompatibilityResult:
-        if not Path(path).exists():
-            return CompatibilityResult(False, "EXE not found.")
-        return CompatibilityResult(True, f"Windows executable simulated: {path}")
-
-    def run_android_apk(self, path: str) -> CompatibilityResult:
-        if not Path(path).exists():
-            return CompatibilityResult(False, "APK not found.")
-        return CompatibilityResult(True, f"Android APK simulated: {path}")
+        print(f"[Container {self.container_id}] Binary execution complete.")
+        self.running = False

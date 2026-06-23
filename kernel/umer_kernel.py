@@ -13,6 +13,10 @@ from kernel.memory_manager import MemoryManager
 from kernel.ipc_bus import IPCBus
 from kernel.capability_manager import CapabilityManager
 from quantum.quantum_api import QuantumAPI
+from ai.assistant import AIAssistant
+from ai.resource_predictor import ResourcePredictor
+from ai.self_healing import SelfHealingService
+from compatibility.container import ZeroTrustContainer
 
 class UmerKernel:
     def __init__(self):
@@ -22,6 +26,10 @@ class UmerKernel:
         self.ipc = IPCBus()
         self.capabilities = CapabilityManager()
         self.quantum = QuantumAPI()
+        
+        self.ai_assistant = AIAssistant()
+        self.predictor = ResourcePredictor()
+        self.healer = SelfHealingService()
         
         self.running = False
 
@@ -39,6 +47,12 @@ class UmerKernel:
         seed = self.quantum.generate_random_seed()
         print(f"[KERNEL] Quantum Seed: {seed}")
         
+        # Simulating spawning a legacy app container
+        legacy_pid = self.scheduler.add_task("legacy_app", priority=5)
+        self.ipc.register_process(legacy_pid)
+        container = ZeroTrustContainer(legacy_pid, self.capabilities)
+        container.execute_binary("/bin/bash", os_type="linux")
+        
         # Main Kernel Loop
         await self.run_loop()
 
@@ -49,8 +63,23 @@ class UmerKernel:
             task = self.scheduler.get_next_task()
             if task:
                 print(f"[SCHEDULER] Executing Task: {task.name} (PID {task.pid}, Priority {task.priority})")
+                
+                # AI Predictive Memory check
+                self.predictor.log_usage(task.pid, 256, 15)
+                if self.predictor.predict_spike(task.pid):
+                    print(f"[KERNEL] Pre-emptively allocating swap for PID {task.pid} due to AI prediction.")
+                    
+                # Simulate task execution
                 await asyncio.sleep(0.5)
-                self.memory.free(task.pid)
+                
+                # Simulate a crash for the self-healer to handle occasionally
+                if task.name == "legacy_app" and ticks == 2:
+                    if self.healer.detect_anomaly(task.pid, "CRASHED"):
+                        self.healer.mitigate(task.pid)
+                        # Re-add to scheduler
+                        self.scheduler.add_task("legacy_app_recovered", priority=8)
+                else:
+                    self.memory.free(task.pid)
             else:
                 print("[SCHEDULER] Idle.")
                 await asyncio.sleep(1)
