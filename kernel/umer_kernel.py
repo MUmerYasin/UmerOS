@@ -2,9 +2,11 @@
 """
 Umer Hybrid Quantum Kernel (Simulation)
 Microkernel architecture with quantum-inspired task scheduling,
-AI orchestration, zero-trust containers, and quantum filesystem.
+AI orchestration, zero-trust containers, quantum filesystem,
+post-quantum cryptography, networking, and interactive shell.
 """
 
+import sys
 import asyncio
 from typing import Dict, Any
 
@@ -21,6 +23,11 @@ from fs.qfs import QuantumFileSystem
 from fs.vfs import VirtualFileSystem
 from security.crypto_engine import CryptoEngine
 from security.sandbox import SecuritySandbox
+from network.dns_resolver import DNSResolver
+from network.http_client import HTTPClient
+from network.vpn_tunnel import VPNTunnel
+from cloud.ota_updater.update_system import UpdateManager
+from ui.fluidic_ui import FluidicShell
 
 
 class UmerKernel:
@@ -45,6 +52,12 @@ class UmerKernel:
         self.crypto = CryptoEngine()
         self.sandbox = SecuritySandbox()
 
+        # ── Stage 5: Networking & Cloud ──
+        self.dns = DNSResolver()
+        self.http = HTTPClient()
+        self.vpn = VPNTunnel(self.crypto)
+        self.ota = UpdateManager(crypto_engine=self.crypto)
+
         self.running = False
 
     async def boot(self):
@@ -62,9 +75,10 @@ class UmerKernel:
         self.ipc.register_process(init_pid)
         self.capabilities.grant(init_pid, "HARDWARE")
         self.capabilities.grant(init_pid, "FS_WRITE")
+        self.capabilities.grant(init_pid, "NET")
         self.sandbox.register_process(init_pid, "init", fs_root="/")
 
-        # ── Mount filesystem & write system files ──
+        # ── Mount filesystem ──
         print("[KERNEL] Mounting Quantum File System via VFS...")
         self.vfs.mkdir("/system")
         self.vfs.mkdir("/user")
@@ -75,60 +89,61 @@ class UmerKernel:
         # ── Deduplication demo ──
         self.vfs.write_file("/system/welcome_copy.txt", b"Welcome to Umer OS v2.0.0-Quantum")
 
-        # ── Encrypt a sensitive file ──
+        # ── Crypto verification ──
         secret = b"Top-secret quantum state data"
         nonce, ciphertext = self.crypto.encrypt(secret)
         self.vfs.write_file("/system/secrets.enc", ciphertext)
-        # Verify round-trip
         decrypted = self.crypto.decrypt(nonce, ciphertext)
         assert decrypted == secret, "Crypto round-trip failed!"
         print("[KERNEL] Crypto round-trip verification: PASS")
 
-        # ── Sign the kernel state ──
         sig = self.crypto.sign(b"kernel_boot_state_ok")
         verified = self.crypto.verify(b"kernel_boot_state_ok", sig)
         print(f"[KERNEL] Kernel state signature verified: {verified}")
 
-        # ── List root filesystem ──
+        # ── VPN tunnel demo ──
+        self.vpn.connect("10.0.0.1", port=51820)
+        vpn_data = b"hello from kernel"
+        vpn_nonce, vpn_enc = self.crypto.encrypt(vpn_data)
+        self.vpn.send(vpn_data)
+        self.vpn.disconnect()
+
+        # ── OTA update check ──
+        self.ota.run_update_pipeline()
+
+        # ── Filesystem summary ──
         print(f"[VFS] Root contents: {self.vfs.ls('/')}")
-        print(f"[VFS] /system contents: {self.vfs.ls('/system')}")
         print(f"[QFS] Stats: {self.qfs.stats()}")
 
-        # ── Spawn legacy app container ──
+        # ── Legacy container ──
         legacy_pid = self.scheduler.add_task("legacy_app", priority=5)
         self.ipc.register_process(legacy_pid)
         self.sandbox.register_process(legacy_pid, "legacy_app", fs_root="/user")
         container = ZeroTrustContainer(legacy_pid, self.capabilities)
         container.execute_binary("/bin/bash", os_type="linux")
 
-        # ── Main kernel loop ──
+        # ── Main kernel loop (limited ticks for boot) ──
         await self.run_loop()
+
+        # ── Launch interactive shell ──
+        interactive = sys.stdin.isatty()
+        shell = FluidicShell(self)
+        shell.start(interactive=interactive)
 
     async def run_loop(self):
         print("[KERNEL] Entering main execution loop...")
         ticks = 0
-        while self.running and ticks < 5:
+        while self.running and ticks < 3:
             task = self.scheduler.get_next_task()
             if task:
                 print(f"[SCHEDULER] Executing Task: {task.name} (PID {task.pid}, Priority {task.priority})")
-
-                # AI predictive memory check
                 self.predictor.log_usage(task.pid, 256, 15)
                 if self.predictor.predict_spike(task.pid):
                     print(f"[KERNEL] Pre-emptively allocating swap for PID {task.pid}.")
-
-                await asyncio.sleep(0.3)
-
-                # Simulate crash for self-healer on tick 2
-                if task.name == "legacy_app" and ticks == 2:
-                    if self.healer.detect_anomaly(task.pid, "CRASHED"):
-                        self.healer.mitigate(task.pid)
-                        self.scheduler.add_task("legacy_app_recovered", priority=8)
-                else:
-                    self.memory.free(task.pid)
+                await asyncio.sleep(0.2)
+                self.memory.free(task.pid)
             else:
                 print("[SCHEDULER] Idle.")
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.3)
             ticks += 1
-
-        print("[KERNEL] Kernel Loop halted. System is in stable state.")
+        print("[KERNEL] Boot-time kernel loop complete.")
