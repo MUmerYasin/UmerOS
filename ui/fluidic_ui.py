@@ -73,7 +73,11 @@ class FluidicShell:
             "ai": self._cmd_ai,
             "qseed": self._cmd_qseed,
             "ota": self._cmd_ota,
+            "pkg": self._cmd_pkg,
+            "drivers": self._cmd_drivers,
             "sysinfo": self._cmd_sysinfo,
+            "startx": self._cmd_startx,
+            "gui": self._cmd_startx,
             "help": self._cmd_help,
             "exit": self._cmd_exit,
             "quit": self._cmd_exit,
@@ -174,6 +178,89 @@ class FluidicShell:
         print(f"  QFS Dedup    : {stats['dedup_hits']} hits, {stats['bytes_saved']}B saved")
         print(f"  Memory Used  : {sum(self.kernel.memory.allocated.values())} MB")
 
+    # ── Package Manager Commands ──────────────────────────────────────
+
+    def _cmd_pkg(self, args: str):
+        parts = args.strip().split(maxsplit=1)
+        if not parts:
+            print(Theme.styled("  Usage: pkg <install|remove|list|search|info> [name]", Theme.YELLOW))
+            return
+        subcmd = parts[0].lower()
+        name = parts[1] if len(parts) > 1 else ""
+
+        if subcmd == "install" and name:
+            self.kernel.pkg.install(name)
+        elif subcmd == "remove" and name:
+            self.kernel.pkg.remove(name)
+        elif subcmd == "list":
+            installed = self.kernel.pkg.list_installed()
+            if not installed:
+                print(Theme.styled("  No packages installed.", Theme.DIM))
+            else:
+                print(f"  {'PACKAGE':<25}{'VERSION':<15}")
+                print(f"  {'-------':<25}{'-------':<15}")
+                for pkg_name, ver in installed.items():
+                    print(f"  {Theme.BRIGHT_CYAN}{pkg_name:<25}{Theme.RESET}{ver}")
+        elif subcmd == "search" and name:
+            results = self.kernel.pkg.search(name)
+            if not results:
+                print(Theme.styled(f"  No packages matching '{name}'.", Theme.DIM))
+            else:
+                for p in results:
+                    print(f"  {Theme.BRIGHT_CYAN}{p.name:<20}{Theme.RESET}{p.version:<10}{p.description}")
+        elif subcmd == "info" and name:
+            info = self.kernel.pkg.info(name)
+            if not info:
+                print(Theme.styled(f"  Package '{name}' not found.", Theme.ERROR_COLOR))
+            else:
+                for k, v in info.items():
+                    print(f"  {Theme.BRIGHT_YELLOW}{k:<15}{Theme.RESET}{v}")
+        else:
+            print(Theme.styled("  Usage: pkg <install|remove|list|search|info> [name]", Theme.YELLOW))
+
+    # ── Driver Commands ───────────────────────────────────────────────
+
+    def _cmd_drivers(self, args: str):
+        parts = args.strip().split(maxsplit=1)
+        subcmd = parts[0].lower() if parts else "list"
+        name = parts[1] if len(parts) > 1 else ""
+
+        if subcmd == "list":
+            loaded = self.kernel.drivers.list_loaded()
+            if not loaded:
+                print(Theme.styled("  No drivers loaded.", Theme.DIM))
+            else:
+                print(f"  {'DRIVER':<20}{'VERSION':<10}{'TYPE':<20}{'STATUS':<10}")
+                print(f"  {'------':<20}{'-------':<10}{'----':<20}{'------':<10}")
+                for d in loaded:
+                    status = Theme.styled("LOADED", Theme.SUCCESS_COLOR)
+                    print(f"  {d['name']:<20}{d['version']:<10}{d['type']:<20}{status}")
+        elif subcmd == "available":
+            for name in self.kernel.drivers.list_available():
+                print(f"  {Theme.BRIGHT_CYAN}{name}{Theme.RESET}")
+        elif subcmd == "load" and name:
+            self.kernel.drivers.load_driver(name)
+        elif subcmd == "unload" and name:
+            self.kernel.drivers.unload_driver(name)
+        else:
+            print(Theme.styled("  Usage: drivers <list|available|load|unload> [name]", Theme.YELLOW))
+
+    # ── Help & Exit ───────────────────────────────────────────────────
+
+    def _cmd_startx(self, _args: str):
+        print(Theme.styled("  [GUI] Initializing graphical subsystem...", Theme.SYSTEM_COLOR))
+        try:
+            from kivy.app import App
+            from kivy.uix.label import Label
+            class UmerApp(App):
+                def build(self):
+                    return Label(text="Umer OS Graphical Shell (Stage 7 Demo)")
+            print(Theme.styled("  [GUI] Launching Kivy interface...", Theme.SUCCESS_COLOR))
+            UmerApp().run()
+        except ImportError:
+            print(Theme.styled("  [GUI] Error: Kivy not installed. Graphical shell unavailable.", Theme.ERROR_COLOR))
+            print(Theme.styled("  [GUI] Falling back to Fluidic Terminal Shell.", Theme.YELLOW))
+
     def _cmd_help(self, _args: str):
         print(Theme.styled("  Available Commands:", Theme.HEADER_COLOR))
         cmds = [
@@ -187,7 +274,10 @@ class FluidicShell:
             ("ai <query>", "Ask the AI Assistant"),
             ("qseed", "Generate quantum random seed"),
             ("ota", "Run OTA update check"),
+            ("pkg <sub> [name]", "Package manager (install/remove/list/search/info)"),
+            ("drivers <sub> [name]", "Driver manager (list/available/load/unload)"),
             ("sysinfo", "Show system information"),
+            ("startx / gui", "Launch graphical UI shell"),
             ("help", "Show this help"),
             ("exit / quit", "Shutdown the OS"),
         ]
