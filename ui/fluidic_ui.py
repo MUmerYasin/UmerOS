@@ -248,17 +248,14 @@ class FluidicShell:
     # ── Help & Exit ───────────────────────────────────────────────────
 
     def _cmd_startx(self, _args: str):
-        print(Theme.styled("  [GUI] Initializing graphical subsystem...", Theme.SYSTEM_COLOR))
+        print(Theme.styled("  [GUI] Initializing graphical subsystem (UmerDE)...", Theme.SYSTEM_COLOR))
         try:
-            from kivy.app import App
-            from kivy.uix.label import Label
-            class UmerApp(App):
-                def build(self):
-                    return Label(text="Umer OS Graphical Shell (Stage 7 Demo)")
-            print(Theme.styled("  [GUI] Launching Kivy interface...", Theme.SUCCESS_COLOR))
-            UmerApp().run()
-        except ImportError:
-            print(Theme.styled("  [GUI] Error: Kivy not installed. Graphical shell unavailable.", Theme.ERROR_COLOR))
+            from ui.umer_de import UmerDE
+            print(Theme.styled("  [GUI] Launching Tkinter Desktop Environment...", Theme.SUCCESS_COLOR))
+            desktop = UmerDE(self.kernel)
+            desktop.start()
+        except Exception as e:
+            print(Theme.styled(f"  [GUI] Error launching UmerDE: {e}", Theme.ERROR_COLOR))
             print(Theme.styled("  [GUI] Falling back to Fluidic Terminal Shell.", Theme.YELLOW))
 
     def _cmd_help(self, _args: str):
