@@ -1,5 +1,7 @@
 import hmac
 import hashlib
+import os
+import secrets
 
 class IPCMessage:
     def __init__(self, sender_pid, receiver_pid, data, signature):
@@ -9,8 +11,31 @@ class IPCMessage:
         self.signature = signature
 
 class IPCBus:
-    def __init__(self, secret_key=b'umer_os_zero_trust_key'):
-        self.secret_key = secret_key
+    """Secure IPC bus with HMAC message authentication.
+    
+    Uses environment variable UMEROS_IPC_SECRET or generates a secure random key.
+    """
+    
+    def __init__(self, secret_key=None):
+        """Initialize IPC bus with secure secret key.
+        
+        Args:
+            secret_key: Optional bytes key. If None, loads from environment
+                       or generates a new secure key.
+        """
+        if secret_key is not None:
+            self.secret_key = secret_key if isinstance(secret_key, bytes) else secret_key.encode()
+        else:
+            # Try to load from environment
+            env_key = os.environ.get('UMEROS_IPC_SECRET')
+            if env_key:
+                self.secret_key = env_key.encode()
+                print("[IPC] Loaded secret key from environment")
+            else:
+                # Generate secure random key
+                self.secret_key = secrets.token_bytes(32)
+                print("[IPC] WARNING: Generated new random key. Set UMEROS_IPC_SECRET for persistence.")
+        
         self.mailboxes = {}
 
     def register_process(self, pid):

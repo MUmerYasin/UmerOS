@@ -1,23 +1,81 @@
-qiskit>=1.0.0
-qiskit-aer>=0.14.0
-cirq>=1.3.0
-pennylane>=0.35.0
-numpy>=1.26.0
-onnxruntime>=1.17.0
-transformers>=4.40.0
-sentence-transformers>=2.7.0
-llama-cpp-python>=0.2.0
-scikit-learn>=1.4.0
-torch>=2.2.0
-cryptography>=42.0.0
-liboqs-python>=0.9.0
-xxhash>=3.4.0
-kivy>=2.3.0
-Pillow>=10.2.0
-aiohttp>=3.9.0
-dnspython>=2.6.0
-zeroconf>=0.131.0
-cython>=3.0.0
-numba>=0.59.0
-pytest>=8.0.0
-sphinx>=7.2.0
+# UmerOS Requirements
+# Python 3.12+
+# Install: pip install -r requirements.txt
+
+# ==============================================================================
+# QUANTUM COMPUTING & SIMULATION
+# ==============================================================================
+qiskit>=1.0.0                    # IBM's quantum computing framework
+qiskit-aer>=0.14.0               # Aer simulator for qiskit
+cirq>=1.3.0                      # Google's quantum computing framework
+pennylane>=0.35.0                # Xanadu quantum ML library
+qiskit-ibm-runtime>=0.20.0       # IBM quantum runtime integration
+
+# ==============================================================================
+# NUMERICAL & SCIENTIFIC COMPUTING
+# ==============================================================================
+numpy>=1.26.0                    # Numerical computing arrays
+scipy>=1.11.0                    # Scientific algorithms and optimization
+
+# ==============================================================================
+# MACHINE LEARNING & AI
+# ==============================================================================
+onnxruntime>=1.17.0              # ML model inference (ONNX runtime)
+transformers>=4.40.0             # Hugging Face NLP models
+sentence-transformers>=2.7.0     # Semantic text embeddings
+torch>=2.2.0                     # PyTorch deep learning framework
+llama-cpp-python>=0.2.0          # Local LLM inference (llama.cpp bindings)
+scikit-learn>=1.4.0              # Classical ML algorithms
+
+# ==============================================================================
+# CRYPTOGRAPHY & SECURITY
+# ==============================================================================
+cryptography>=42.0.0             # General-purpose crypto primitives
+liboqs-python>=0.9.0             # Post-quantum cryptography (NIST PQC)
+PyNaCl>=1.5.0                    # Libsodium bindings (modern crypto)
+
+# ==============================================================================
+# DATA STRUCTURES & HASHING
+# ==============================================================================
+xxhash>=3.4.0                    # Fast non-cryptographic hashing
+
+# ==============================================================================
+# USER INTERFACE
+# ==============================================================================
+kivy>=2.3.0                      # Cross-platform UI framework
+Pillow>=10.2.0                   # Image processing library
+
+# ==============================================================================
+# NETWORKING & ASYNC
+# ==============================================================================
+aiohttp>=3.9.0                   # Async HTTP client/server
+dnspython>=2.6.0                 # DNS operations
+zeroconf>=0.131.0                # mDNS service discovery
+
+# ==============================================================================
+# PERFORMANCE & COMPILATION
+# ==============================================================================
+cython>=3.0.0                    # C-extensions for Python
+numba>=0.59.0                    # JIT compilation for numerical code
+
+# ==============================================================================
+# TESTING & QUALITY ASSURANCE
+# ==============================================================================
+pytest>=8.0.0                    # Testing framework
+pytest-asyncio>=0.23.0           # Async test support for pytest
+pytest-cov>=4.1.0                # Code coverage for pytest
+
+# ==============================================================================
+# DOCUMENTATION
+# ==============================================================================
+sphinx>=7.2.0                    # Documentation generator
+sphinx-rtd-theme>=2.0.0          # ReadTheDocs theme for Sphinx
+
+# ==============================================================================
+# OPTIONAL: DEVELOPMENT TOOLS
+# ==============================================================================
+# Uncomment as needed:
+# black>=23.0.0                  # Code formatter
+# flake8>=6.0.0                  # Linter
+# mypy>=1.0.0                    # Static type checker
+# pylint>=3.0.0                  # Advanced linter

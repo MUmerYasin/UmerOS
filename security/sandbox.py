@@ -57,12 +57,39 @@ class SecuritySandbox:
         return allowed
 
     def resolve_path(self, pid: int, path: str) -> str:
-        """Translate a process-relative path into its jailed absolute path."""
+        """Translate a process-relative path into its jailed absolute path.
+        
+        Prevents directory traversal attacks by normalizing and validating paths.
+        """
+        import os
+        
         if pid not in self.processes:
             raise PermissionError(f"PID {pid} is not sandboxed.")
+        
         jail = self.processes[pid].fs_root.rstrip("/")
-        clean = path.lstrip("/")
-        resolved = f"{jail}/{clean}" if jail != "/" else f"/{clean}"
+        
+        # Normalize the path to resolve . and .. components
+        normalized = os.path.normpath(path)
+        
+        # Reject paths that try to escape with ..
+        if normalized.startswith("..") or "/../" in normalized or "\\..\\" in normalized:
+            raise PermissionError(f"Path traversal detected: {path}")
+        
+        # Remove leading slashes and normalize
+        clean = normalized.lstrip("/").lstrip(".")
+        
+        # Construct final path
+        if jail == "/":
+            resolved = f"/{clean}"
+        else:
+            resolved = f"{jail}/{clean}"
+        
+        # Final validation: resolved path must start with jail
+        real_jail = os.path.abspath(jail)
+        real_resolved = os.path.abspath(resolved)
+        if not real_resolved.startswith(real_jail):
+            raise PermissionError(f"Path escapes jail: {path} -> {resolved}")
+        
         return resolved
 
     def verify_signature(self, pid: int, signature: str) -> bool:
