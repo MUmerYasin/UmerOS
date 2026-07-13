@@ -9,7 +9,7 @@ interact with — they never touch QFS directly.
 Equivalent to Linux's VFS layer (fs/namei.c, fs/read_write.c).
 """
 
-from fs.qfs import QuantumFileSystem
+from fs.qfs import QFS, QuantumFileSystem
 
 
 class VFSNode:
@@ -29,8 +29,12 @@ class VirtualFileSystem:
     Supports mkdir, write, read, ls, stat, and delete.
     """
 
-    def __init__(self, qfs: QuantumFileSystem):
-        self._qfs = qfs
+    def __init__(self, qfs=None):
+        # Accept QFS, QuantumFileSystem (same class), or create a new one
+        if qfs is None:
+            self._qfs = QFS()
+        else:
+            self._qfs = qfs
         self._root = VFSNode("/", is_dir=True)
         print("[VFS] Virtual File System mounted on QFS.")
 
@@ -68,14 +72,14 @@ class VirtualFileSystem:
 
     def write_file(self, path: str, data: bytes) -> str:
         parent, filename = self._resolve_parent(path)
-        content_hash = self._qfs.write(path, data)
+        content_hash = self._qfs.write_file(path, data)
         file_node = VFSNode(filename, is_dir=False)
         file_node.content_hash = content_hash
         parent.children[filename] = file_node
         return content_hash
 
     def read_file(self, path: str) -> bytes:
-        return self._qfs.read(path)
+        return self._qfs.read_file(path)
 
     def exists(self, path: str) -> bool:
         try:
@@ -94,15 +98,27 @@ class VirtualFileSystem:
         parent, filename = self._resolve_parent(path)
         if filename in parent.children:
             del parent.children[filename]
-            self._qfs.delete(path)
+            self._qfs.delete_file(path)
             return True
         return False
 
     def stat(self, path: str) -> dict:
         node = self._resolve(path)
+        if node.is_dir:
+            return {
+                "name": node.name,
+                "type": "dir",
+                "is_dir": True,
+                "content_hash": None,
+                "children_count": len(node.children),
+                "size": 0,
+            }
+        info = self._qfs.file_info(path) or {}
         return {
             "name": node.name,
-            "is_dir": node.is_dir,
-            "content_hash": node.content_hash if not node.is_dir else None,
-            "children_count": len(node.children) if node.is_dir else 0,
+            "type": "file",
+            "is_dir": False,
+            "content_hash": node.content_hash,
+            "children_count": 0,
+            "size": info.get("size", 0),
         }
