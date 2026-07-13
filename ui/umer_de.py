@@ -42,25 +42,93 @@ class HostBridge:
             return False, str(e)
 
 
-# ── Umer Apps ──
-class UmerFiles(tk.Toplevel):
-    def __init__(self, master, kernel):
+# ── Base App Window (for Taskbar Tracking) ──
+class UmerAppWindow(tk.Toplevel):
+    def __init__(self, master, kernel, title_text, desktop):
         super().__init__(master)
         self.kernel = kernel
-        self.title("UmerFiles - File Browser")
-        self.geometry("600x400")
+        self.desktop = desktop
+        self.app_title = title_text
+        self.title(title_text)
         self.configure(bg="#1e1e2e")
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+        
+        # Register with Taskbar
+        self.desktop.register_window(self)
+        
+    def on_close(self):
+        self.desktop.unregister_window(self)
+        self.destroy()
+        
+    def toggle_minimize(self):
+        if self.state() == "withdrawn" or self.state() == "iconic":
+            self.deiconify()
+            self.lift()
+        else:
+            self.withdraw()
+
+
+# ── Umer Apps ──
+
+class UmerText(UmerAppWindow):
+    def __init__(self, master, kernel, desktop):
+        super().__init__(master, kernel, "UmerText - Editor", desktop)
+        self.geometry("600x500")
+        
+        toolbar = ttk.Frame(self)
+        toolbar.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(toolbar, text="VFS Path:").pack(side=tk.LEFT)
+        self.path_var = tk.StringVar(value="/user/notes.txt")
+        ttk.Entry(toolbar, textvariable=self.path_var, width=40).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(toolbar, text="Open", command=self.load_file).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Save", command=self.save_file).pack(side=tk.LEFT, padx=2)
+        
+        self.text_area = scrolledtext.ScrolledText(self, bg="#11111b", fg="#cdd6f4", font=("Consolas", 11), insertbackground="white")
+        self.text_area.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+    def load_file(self):
+        path = self.path_var.get()
+        try:
+            data = self.kernel.vfs.read_file(path)
+            if data is None:
+                messagebox.showerror("Error", "File not found.")
+                return
+            self.text_area.delete("1.0", tk.END)
+            self.text_area.insert(tk.END, data.decode('utf-8', errors='replace'))
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+            
+    def save_file(self):
+        path = self.path_var.get()
+        text = self.text_area.get("1.0", tk.END).strip()
+        try:
+            # Make dir if not exists
+            dir_path = "/".join(path.rstrip('/').split('/')[:-1])
+            if dir_path:
+                try:
+                    self.kernel.vfs.mkdir(dir_path)
+                except: pass
+            self.kernel.vfs.write_file(path, text.encode('utf-8'))
+            messagebox.showinfo("Success", f"Saved to {path}")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
+
+class UmerFiles(UmerAppWindow):
+    def __init__(self, master, kernel, desktop):
+        super().__init__(master, kernel, "UmerFiles", desktop)
+        self.geometry("600x400")
         
         self.current_path = "/"
         
-        # Toolbar
         toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=5, pady=5)
         ttk.Button(toolbar, text="Up", command=self.go_up).pack(side=tk.LEFT)
         self.path_lbl = ttk.Label(toolbar, text=self.current_path, font=("Consolas", 10, "bold"))
         self.path_lbl.pack(side=tk.LEFT, padx=10)
         
-        # File List
         columns = ("name", "type", "size")
         self.tree = ttk.Treeview(self, columns=columns, show="headings")
         self.tree.heading("name", text="Name")
@@ -103,6 +171,7 @@ class UmerFiles(tk.Toplevel):
             self.refresh()
             
     def on_double_click(self, event):
+        if not self.tree.selection(): return
         item = self.tree.selection()[0]
         name = self.tree.item(item, "values")[0]
         itype = self.tree.item(item, "values")[1]
@@ -112,22 +181,17 @@ class UmerFiles(tk.Toplevel):
             self.refresh()
         else:
             path = f"{self.current_path.rstrip('/')}/{name}"
-            # Open natively!
             success, msg = HostBridge.extract_and_open(self.kernel, path)
             if not success:
                 messagebox.showerror("Host Error", msg)
 
 
-class UmerDownloader(tk.Toplevel):
-    def __init__(self, master, kernel):
-        super().__init__(master)
-        self.kernel = kernel
-        self.title("UmerDownloader - Media Fetcher")
+class UmerDownloader(UmerAppWindow):
+    def __init__(self, master, kernel, desktop):
+        super().__init__(master, kernel, "UmerDownloader", desktop)
         self.geometry("500x200")
-        self.configure(bg="#1e1e2e")
         
         ttk.Label(self, text="URL:").pack(pady=(10,0))
-        # Default to a small test image just in case
         self.url_var = tk.StringVar(value="https://www.google.com/favicon.ico")
         ttk.Entry(self, textvariable=self.url_var, width=50).pack(pady=5)
         
@@ -145,7 +209,6 @@ class UmerDownloader(tk.Toplevel):
         
         def _dl():
             try:
-                # Ensure VFS dir exists
                 dir_path = "/".join(path.rstrip('/').split('/')[:-1])
                 if dir_path:
                     try:
@@ -156,9 +219,8 @@ class UmerDownloader(tk.Toplevel):
                 with urllib.request.urlopen(req) as response:
                     data = response.read()
                 
-                # Save to VFS
                 self.kernel.vfs.write_file(path, data)
-                self.after(0, lambda: messagebox.showinfo("Success", f"Downloaded {len(data)} bytes to VFS: {path}\nYou can now open it in UmerFiles or UmerMedia!"))
+                self.after(0, lambda: messagebox.showinfo("Success", f"Downloaded {len(data)} bytes to VFS: {path}"))
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Error", f"Failed to download:\n{e}"))
             finally:
@@ -167,13 +229,10 @@ class UmerDownloader(tk.Toplevel):
         threading.Thread(target=_dl, daemon=True).start()
 
 
-class UmerMedia(tk.Toplevel):
-    def __init__(self, master, kernel):
-        super().__init__(master)
-        self.kernel = kernel
-        self.title("UmerMedia - Native Player Bridge")
+class UmerMedia(UmerAppWindow):
+    def __init__(self, master, kernel, desktop):
+        super().__init__(master, kernel, "UmerMedia", desktop)
         self.geometry("500x200")
-        self.configure(bg="#1e1e2e")
         
         ttk.Label(self, text="VFS Media File Path (.mp4, .mp3, etc):").pack(pady=(20, 5))
         self.path_var = tk.StringVar(value="")
@@ -183,8 +242,7 @@ class UmerMedia(tk.Toplevel):
         
     def play(self):
         path = self.path_var.get()
-        if not path:
-            return
+        if not path: return
         success, msg = HostBridge.extract_and_open(self.kernel, path)
         if success:
             messagebox.showinfo("Playing", msg)
@@ -192,13 +250,10 @@ class UmerMedia(tk.Toplevel):
             messagebox.showerror("Playback Error", msg)
 
 
-class UmerDocs(tk.Toplevel):
-    def __init__(self, master, kernel):
-        super().__init__(master)
-        self.kernel = kernel
-        self.title("UmerDocs - Native Document Bridge")
+class UmerDocs(UmerAppWindow):
+    def __init__(self, master, kernel, desktop):
+        super().__init__(master, kernel, "UmerDocs", desktop)
         self.geometry("500x200")
-        self.configure(bg="#1e1e2e")
         
         ttk.Label(self, text="VFS Document Path (.pdf, .docx, .xlsx):").pack(pady=(20, 5))
         self.path_var = tk.StringVar(value="")
@@ -208,8 +263,7 @@ class UmerDocs(tk.Toplevel):
         
     def open_doc(self):
         path = self.path_var.get()
-        if not path:
-            return
+        if not path: return
         success, msg = HostBridge.extract_and_open(self.kernel, path)
         if success:
             messagebox.showinfo("Opened", msg)
@@ -225,11 +279,35 @@ class UmerDE:
     def __init__(self, kernel):
         self.kernel = kernel
         self.root = None
+        self.open_windows = []
+        self.taskbar_btns = {}
+        
+    def register_window(self, win):
+        self.open_windows.append(win)
+        self._rebuild_taskbar_windows()
+        
+    def unregister_window(self, win):
+        if win in self.open_windows:
+            self.open_windows.remove(win)
+        self._rebuild_taskbar_windows()
+        
+    def _rebuild_taskbar_windows(self):
+        # Clear old dynamic buttons
+        for btn in self.taskbar_btns.values():
+            btn.destroy()
+        self.taskbar_btns.clear()
+        
+        # Build new dynamic buttons on the taskbar_apps frame
+        for win in self.open_windows:
+            btn = ttk.Button(self.taskbar_apps, text=win.app_title.split()[0], 
+                             command=win.toggle_minimize, width=15)
+            btn.pack(side=tk.LEFT, padx=2)
+            self.taskbar_btns[win] = btn
         
     def _build_ui(self):
         self.root = tk.Tk()
         self.root.title("Umer OS - Desktop Environment")
-        self.root.geometry("900x650")
+        self.root.geometry("1000x700")
         self.root.configure(bg="#1e1e2e")
         
         style = ttk.Style()
@@ -238,6 +316,7 @@ class UmerDE:
         style.configure("TLabel", background="#1e1e2e", foreground="#cdd6f4", font=("Consolas", 10))
         style.configure("TButton", font=("Consolas", 10, "bold"), background="#89b4fa", foreground="#11111b")
         style.configure("Header.TLabel", font=("Consolas", 14, "bold"), foreground="#a6e3a1")
+        style.configure("Taskbar.TFrame", background="#11111b")
 
         # Top Bar (System Tray)
         tray_frame = ttk.Frame(self.root, padding=10)
@@ -252,15 +331,29 @@ class UmerDE:
         self.lbl_tasks = ttk.Label(tray_frame, text="Tasks: 0")
         self.lbl_tasks.pack(side=tk.RIGHT, padx=10)
         
-        # App Launcher (Dock)
-        dock_frame = ttk.Frame(self.root, padding=5)
-        dock_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        # Taskbar (Bottom)
+        taskbar_frame = ttk.Frame(self.root, padding=5, style="Taskbar.TFrame")
+        taskbar_frame.pack(side=tk.BOTTOM, fill=tk.X)
         
-        ttk.Label(dock_frame, text="Dock:").pack(side=tk.LEFT, padx=10)
-        ttk.Button(dock_frame, text="📁 UmerFiles", command=lambda: UmerFiles(self.root, self.kernel)).pack(side=tk.LEFT, padx=5)
-        ttk.Button(dock_frame, text="⬇️ Downloader", command=lambda: UmerDownloader(self.root, self.kernel)).pack(side=tk.LEFT, padx=5)
-        ttk.Button(dock_frame, text="▶️ UmerMedia", command=lambda: UmerMedia(self.root, self.kernel)).pack(side=tk.LEFT, padx=5)
-        ttk.Button(dock_frame, text="📄 UmerDocs", command=lambda: UmerDocs(self.root, self.kernel)).pack(side=tk.LEFT, padx=5)
+        # Launchers
+        launcher_frame = ttk.Frame(taskbar_frame, style="Taskbar.TFrame")
+        launcher_frame.pack(side=tk.LEFT)
+        ttk.Label(launcher_frame, text="Menu: ", background="#11111b").pack(side=tk.LEFT)
+        ttk.Button(launcher_frame, text="📝 UmerText", width=12, command=lambda: UmerText(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(launcher_frame, text="📁 Files", width=9, command=lambda: UmerFiles(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(launcher_frame, text="⬇️ Downloader", width=14, command=lambda: UmerDownloader(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(launcher_frame, text="▶️ Media", width=9, command=lambda: UmerMedia(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(launcher_frame, text="📄 Docs", width=9, command=lambda: UmerDocs(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
+
+        ttk.Separator(taskbar_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        
+        # Open Windows tracker
+        self.taskbar_apps = ttk.Frame(taskbar_frame, style="Taskbar.TFrame")
+        self.taskbar_apps.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        # Clock
+        self.lbl_clock = ttk.Label(taskbar_frame, text="00:00:00", background="#11111b", foreground="#f38ba8", font=("Consolas", 12, "bold"))
+        self.lbl_clock.pack(side=tk.RIGHT, padx=10)
 
         # Main Content Area
         content_frame = ttk.Frame(self.root)
@@ -289,7 +382,6 @@ class UmerDE:
         
         ttk.Label(proc_frame, text="Process Monitor", font=("Consolas", 12, "bold"), foreground="#89dceb").pack(anchor=tk.W)
         
-        # Treeview for processes
         columns = ("pid", "name", "priority", "mem")
         self.proc_tree = ttk.Treeview(proc_frame, columns=columns, show="headings")
         self.proc_tree.heading("pid", text="PID")
@@ -340,12 +432,18 @@ class UmerDE:
             time.sleep(1)
 
     def _update_stats(self):
+        # Update clock
+        current_time = time.strftime("%H:%M:%S")
+        self.lbl_clock.config(text=current_time)
+        
+        # Update System Tray
         mem_used = sum(self.kernel.memory.allocated.values())
         self.lbl_memory.config(text=f"Mem: {mem_used} MB / {self.kernel.memory.total} MB")
         
         queue_len = len(self.kernel.scheduler.task_queue)
         self.lbl_tasks.config(text=f"Tasks: {queue_len}")
         
+        # Update Process list
         for item in self.proc_tree.get_children():
             self.proc_tree.delete(item)
             

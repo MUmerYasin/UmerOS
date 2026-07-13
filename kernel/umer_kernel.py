@@ -11,6 +11,7 @@ Complete microkernel with all 6 stages integrated:
 
 import sys
 import asyncio
+import os
 
 from kernel.scheduler import HybridScheduler
 from kernel.memory_manager import MemoryManager

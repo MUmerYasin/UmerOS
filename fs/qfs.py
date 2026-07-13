@@ -13,6 +13,7 @@ quantum-native, AI-driven operating system.
 
 import hashlib
 import lzma
+import zlib
 import time
 from typing import Dict, Optional
 
@@ -56,10 +57,77 @@ class QuantumFileSystem:
         return hashlib.sha256(data).hexdigest()
 
     def _compress(self, data: bytes) -> bytes:
-        return lzma.compress(data)
+        """
+        Quantum-inspired compression: 'superpose' multiple strategies
+        and select the best outcome based on the smallest size.
+        """
+        if not data:
+            return b""
+        
+        strategies = [
+            lambda d: lzma.compress(d),
+            lambda d: zlib.compress(d, 9),
+            self._simple_rle
+        ]
+        
+        results = []
+        for strat in strategies:
+            try:
+                compressed = strat(data)
+                results.append(compressed)
+            except Exception:
+                continue
+                
+        if not results:
+            return data
+            
+        best = min(results, key=len)
+        strat_id = results.index(best)
+        # Prepend strategy id to the compressed data
+        return bytes([strat_id]) + best
 
     def _decompress(self, data: bytes) -> bytes:
-        return lzma.decompress(data)
+        if not data:
+            return b""
+        strat_id = data[0]
+        payload = data[1:]
+        
+        if strat_id == 0:
+            return lzma.decompress(payload)
+        elif strat_id == 1:
+            return zlib.decompress(payload)
+        elif strat_id == 2:
+            return self._rle_decompress(payload)
+        else:
+            raise ValueError(f"Unknown compression strategy ID: {strat_id}")
+
+    # --- Compression Strategy Helpers ---
+    def _simple_rle(self, data: bytes) -> bytes:
+        """Run-length encoding."""
+        if not data:
+            return b""
+        encoded = bytearray()
+        i = 0
+        while i < len(data):
+            count = 1
+            while i + count < len(data) and data[i + count] == data[i] and count < 255:
+                count += 1
+            encoded.append(data[i])
+            encoded.append(count)
+            i += count
+        return bytes(encoded)
+
+    def _rle_decompress(self, data: bytes) -> bytes:
+        if not data:
+            return b""
+        decoded = bytearray()
+        i = 0
+        while i < len(data) - 1:
+            byte_val = data[i]
+            count = data[i + 1]
+            decoded.extend([byte_val] * count)
+            i += 2
+        return bytes(decoded)
 
     # ------------------------------------------------------------------
     # Public API
