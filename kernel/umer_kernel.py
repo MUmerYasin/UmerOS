@@ -15,6 +15,7 @@ import sys
 import asyncio
 import os
 import logging
+import time
 
 # ── Claude-quality Kernel Subsystems ──────────────────────────────────────────
 from kernel.scheduler import HybridScheduler, Task, TaskState, NullAIManager
@@ -85,6 +86,7 @@ class MockPackageManager:
 class UmerKernel:
     def __init__(self):
         print("[KERNEL] Initializing Umer Microkernel...")
+        self._boot_time = time.monotonic()
 
         # ── Quantum layer (attach to scheduler for quantum-inspired scoring) ──
         self.quantum_sim = QuantumCircuitSimulator(n_qubits=4)
@@ -291,3 +293,38 @@ class UmerChat(UmerApp):
                 await asyncio.sleep(0.3)
             ticks += 1
         print("[KERNEL] Boot-time kernel loop complete.")
+
+    # ── Health / monitoring (cherry-picked from Claude kernel) ─────────────────
+
+    def uptime(self) -> float:
+        """Return seconds since the kernel was constructed.
+
+        Returns:
+            Float seconds since ``__init__``.
+        """
+        return time.monotonic() - self._boot_time
+
+    def status(self) -> dict:
+        """Return a health snapshot of the kernel.
+
+        Returns:
+            Dict with uptime_seconds, scheduler_tasks, memory stats, and
+            running flag.
+        """
+        mem = self.memory.stats()
+        return {
+            "uptime_seconds": round(self.uptime(), 3),
+            "scheduler_tasks": len(self.scheduler),
+            "memory": mem,
+            "running": self.running,
+        }
+
+    async def shutdown(self) -> None:
+        """Gracefully stop the scheduler and mark the kernel as halted.
+
+        Call after ``boot()`` completes (or from an external signal handler)
+        to release the background scheduling loop cleanly.
+        """
+        self.running = False
+        await self.scheduler.stop()
+        log.info("UmerKernel shut down cleanly.")

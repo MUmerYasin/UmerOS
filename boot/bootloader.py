@@ -196,11 +196,14 @@ def load_kernel(
 
     Args:
         total_memory_bytes: Simulated RAM to allocate (default 512 MiB).
+            NOTE: The main UmerKernel hardcodes 4 GiB; this parameter is
+            accepted for signature compatibility but not forwarded.
         quantum_simulator:  Optional QuantumCircuitSimulator for enhanced
                             scheduling (pass None for pure heuristic mode).
+            NOTE: Not forwarded; the main UmerKernel creates its own simulator.
 
     Returns:
-        Initialised UmerKernel instance (not yet running — call init() to start).
+        Initialised UmerKernel instance (not yet running — call boot() to start).
     """
     # Ensure the repo root is on sys.path so kernel package is importable
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -214,12 +217,8 @@ def load_kernel(
         raise
 
     log.info("Loading Umer Hybrid Quantum Kernel …")
-    kernel = UmerKernel(
-        total_memory_bytes=total_memory_bytes,
-        quantum_simulator=quantum_simulator,
-    )
-    log.info("✓ Kernel object created (RAM=%d MiB).",
-             total_memory_bytes // (1024 * 1024))
+    kernel = UmerKernel()
+    log.info("✓ Kernel object created.")
     return kernel
 
 
