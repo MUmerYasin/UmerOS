@@ -5,6 +5,10 @@ import time
 import os
 import urllib.request
 import urllib.error
+import yt_dlp
+import vlc
+import fitz  # PyMuPDF
+from PIL import Image, ImageTk
 
 # ── Host OS Integration Bridge ──
 class HostBridge:
@@ -29,6 +33,13 @@ class HostBridge:
             with open(host_path, "wb") as f:
                 f.write(data)
                 
+            return True, host_path
+        except Exception as e:
+            return False, str(e)
+            
+    @classmethod
+    def open_in_host(cls, host_path: str):
+        try:
             # Ask Windows to open it with the default app
             if os.name == 'nt':
                 os.startfile(host_path)
@@ -36,8 +47,7 @@ class HostBridge:
                 # Fallback for linux/mac if run there
                 import subprocess
                 subprocess.call(('xdg-open' if os.name == 'posix' else 'open', host_path))
-                
-            return True, f"Successfully handed off '{filename}' to Host OS."
+            return True, f"Successfully handed off to Host OS."
         except Exception as e:
             return False, str(e)
 
@@ -181,9 +191,18 @@ class UmerFiles(UmerAppWindow):
             self.refresh()
         else:
             path = f"{self.current_path.rstrip('/')}/{name}"
-            success, msg = HostBridge.extract_and_open(self.kernel, path)
+            success, result = HostBridge.extract_and_open(self.kernel, path)
             if not success:
-                messagebox.showerror("Host Error", msg)
+                messagebox.showerror("Host Error", result)
+                return
+                
+            ext = name.split('.')[-1].lower() if '.' in name else ""
+            if ext in ['mp4', 'mp3', 'wav', 'mkv', 'avi']:
+                UmerMedia(self.master, self.kernel, self.desktop, result).lift()
+            elif ext == 'pdf':
+                UmerPDFReader(self.master, self.kernel, self.desktop, result).lift()
+            else:
+                HostBridge.open_in_host(result)
 
 
 class UmerDownloader(UmerAppWindow):
@@ -209,18 +228,36 @@ class UmerDownloader(UmerAppWindow):
         
         def _dl():
             try:
+                # Use yt-dlp to download to host temp dir first
+                temp_dl_dir = os.path.join(HostBridge.HOST_DIR, "downloads")
+                os.makedirs(temp_dl_dir, exist_ok=True)
+                
+                ydl_opts = {
+                    'outtmpl': os.path.join(temp_dl_dir, '%(title)s.%(ext)s'),
+                    'quiet': True,
+                    'no_warnings': True
+                }
+                
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    info_dict = ydl.extract_info(url, download=True)
+                    dl_filename = ydl.prepare_filename(info_dict)
+                    
+                # Read the downloaded file and push to VFS
+                with open(dl_filename, "rb") as f:
+                    data = f.read()
+                
+                # Cleanup temp
+                os.remove(dl_filename)
+                
+                # Ensure VFS directory exists
                 dir_path = "/".join(path.rstrip('/').split('/')[:-1])
                 if dir_path:
                     try:
                         self.kernel.vfs.mkdir(dir_path)
                     except: pass
-                    
-                req = urllib.request.Request(url, headers={'User-Agent': 'UmerOS/2.0'})
-                with urllib.request.urlopen(req) as response:
-                    data = response.read()
                 
                 self.kernel.vfs.write_file(path, data)
-                self.after(0, lambda: messagebox.showinfo("Success", f"Downloaded {len(data)} bytes to VFS: {path}"))
+                self.after(0, lambda: messagebox.showinfo("Success", f"Downloaded video/audio to VFS: {path}"))
             except Exception as e:
                 self.after(0, lambda: messagebox.showerror("Error", f"Failed to download:\n{e}"))
             finally:
@@ -230,45 +267,107 @@ class UmerDownloader(UmerAppWindow):
 
 
 class UmerMedia(UmerAppWindow):
-    def __init__(self, master, kernel, desktop):
-        super().__init__(master, kernel, "UmerMedia", desktop)
-        self.geometry("500x200")
+    def __init__(self, master, kernel, desktop, media_path=""):
+        super().__init__(master, kernel, "UmerMedia - Player", desktop)
+        self.geometry("800x600")
         
-        ttk.Label(self, text="VFS Media File Path (.mp4, .mp3, etc):").pack(pady=(20, 5))
-        self.path_var = tk.StringVar(value="")
-        ttk.Entry(self, textvariable=self.path_var, width=50).pack(pady=5)
+        self.media_path = media_path
+        self.vlc_instance = vlc.Instance()
+        self.media_player = self.vlc_instance.media_player_new()
         
-        ttk.Button(self, text="▶ Play via Host OS", command=self.play).pack(pady=10)
+        # UI Setup
+        self.video_frame = tk.Frame(self, bg="black")
+        self.video_frame.pack(fill=tk.BOTH, expand=True)
         
-    def play(self):
-        path = self.path_var.get()
-        if not path: return
-        success, msg = HostBridge.extract_and_open(self.kernel, path)
-        if success:
-            messagebox.showinfo("Playing", msg)
+        ctrl_frame = ttk.Frame(self)
+        ctrl_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=5)
+        
+        ttk.Button(ctrl_frame, text="Play/Pause", command=self.toggle_play).pack(side=tk.LEFT, padx=5)
+        ttk.Button(ctrl_frame, text="Stop", command=self.stop).pack(side=tk.LEFT, padx=5)
+        
+        # Bind window ID to VLC
+        if os.name == 'nt':
+            self.media_player.set_hwnd(self.video_frame.winfo_id())
+        elif os.name == 'posix':
+            self.media_player.set_xwindow(self.video_frame.winfo_id())
+            
+        if self.media_path:
+            self.load_media(self.media_path)
+            
+    def load_media(self, path):
+        media = self.vlc_instance.media_new(path)
+        self.media_player.set_media(media)
+        self.media_player.play()
+        
+    def toggle_play(self):
+        if self.media_player.is_playing():
+            self.media_player.pause()
         else:
-            messagebox.showerror("Playback Error", msg)
+            self.media_player.play()
+            
+    def stop(self):
+        self.media_player.stop()
+        
+    def on_close(self):
+        self.media_player.stop()
+        super().on_close()
 
-
-class UmerDocs(UmerAppWindow):
-    def __init__(self, master, kernel, desktop):
-        super().__init__(master, kernel, "UmerDocs", desktop)
-        self.geometry("500x200")
+class UmerPDFReader(UmerAppWindow):
+    def __init__(self, master, kernel, desktop, pdf_path=""):
+        super().__init__(master, kernel, "UmerPDFReader", desktop)
+        self.geometry("800x800")
         
-        ttk.Label(self, text="VFS Document Path (.pdf, .docx, .xlsx):").pack(pady=(20, 5))
-        self.path_var = tk.StringVar(value="")
-        ttk.Entry(self, textvariable=self.path_var, width=50).pack(pady=5)
+        self.pdf_path = pdf_path
+        self.doc = None
+        self.current_page = 0
         
-        ttk.Button(self, text="📄 Open via Host OS", command=self.open_doc).pack(pady=10)
+        # Toolbar
+        toolbar = ttk.Frame(self)
+        toolbar.pack(fill=tk.X, side=tk.TOP, pady=5)
         
-    def open_doc(self):
-        path = self.path_var.get()
-        if not path: return
-        success, msg = HostBridge.extract_and_open(self.kernel, path)
-        if success:
-            messagebox.showinfo("Opened", msg)
-        else:
-            messagebox.showerror("Viewer Error", msg)
+        ttk.Button(toolbar, text="< Prev", command=self.prev_page).pack(side=tk.LEFT, padx=5)
+        self.page_lbl = ttk.Label(toolbar, text="Page: 0/0")
+        self.page_lbl.pack(side=tk.LEFT, padx=10)
+        ttk.Button(toolbar, text="Next >", command=self.next_page).pack(side=tk.LEFT, padx=5)
+        
+        # Canvas
+        self.canvas = tk.Canvas(self, bg="gray")
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        self.img_label = tk.Label(self.canvas, bg="gray")
+        self.img_label.pack(expand=True)
+        
+        if self.pdf_path:
+            self.load_pdf(self.pdf_path)
+            
+    def load_pdf(self, path):
+        try:
+            self.doc = fitz.open(path)
+            self.current_page = 0
+            self.show_page()
+        except Exception as e:
+            messagebox.showerror("PDF Error", f"Failed to load PDF: {e}")
+            
+    def show_page(self):
+        if not self.doc: return
+        
+        page = self.doc.load_page(self.current_page)
+        pix = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5)) # Zoom
+        
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        self.photo = ImageTk.PhotoImage(img)
+        
+        self.img_label.config(image=self.photo)
+        self.page_lbl.config(text=f"Page: {self.current_page + 1}/{len(self.doc)}")
+        
+    def prev_page(self):
+        if self.doc and self.current_page > 0:
+            self.current_page -= 1
+            self.show_page()
+            
+    def next_page(self):
+        if self.doc and self.current_page < len(self.doc) - 1:
+            self.current_page += 1
+            self.show_page()
 
 
 class UmerDE:
@@ -343,7 +442,7 @@ class UmerDE:
         ttk.Button(launcher_frame, text="📁 Files", width=9, command=lambda: UmerFiles(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
         ttk.Button(launcher_frame, text="⬇️ Downloader", width=14, command=lambda: UmerDownloader(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
         ttk.Button(launcher_frame, text="▶️ Media", width=9, command=lambda: UmerMedia(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
-        ttk.Button(launcher_frame, text="📄 Docs", width=9, command=lambda: UmerDocs(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
+        ttk.Button(launcher_frame, text="📄 PDF", width=9, command=lambda: UmerPDFReader(self.root, self.kernel, self)).pack(side=tk.LEFT, padx=2)
 
         ttk.Separator(taskbar_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
         
