@@ -17,7 +17,10 @@ import os
 import logging
 import time
 
-
+# ... other imports ...
+from kernel.scheduler import HybridScheduler, Task, TaskState, NullAIManager # <-- Make sure this line is correct
+from security.security import SecureBoot, IPCAuthenticator, AIBehavioralMonitor # <-- And this one
+# ... rest of the file ...
 
 
 # ── Claude-quality Kernel Subsystems ──────────────────────────────────────────

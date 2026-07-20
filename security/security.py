@@ -12,17 +12,8 @@ Zero-trust model:
   - Every operation requires a valid capability OR explicit kernel grant.
   - Every IPC message is signed; unsigned messages are dropped.
   - Every image loaded at boot is hash-verified against the trust store.
-
-Author:  Umer OS Project
-Licence: Apache 2.0
-"""
-
-"""
 UMER OS - Core Security Primitives
 Implements Secure Boot, IPC Authentication (with replay protection), and AI Behavioral Monitoring.
-"""
-
-"""
 Umer OS Security Subsystem [TODAY - zero-trust]
 ================================================
 Implements all security primitives for Umer OS:
@@ -31,7 +22,8 @@ Implements all security primitives for Umer OS:
 - IPCAuthenticator (HMAC-SHA3-512 message signing & anti-replay)
 - AIBehavioralMonitor (Real-time anomaly detection)
 """
-from __future__ import annotations
+# CRITICAL: __future__ imports must be at the very top
+from __future__ import annotations 
 import hashlib
 import hmac as _hmac
 import json
@@ -185,6 +177,164 @@ class AIBehavioralMonitor:
 
     def _trigger_quarantine(self, pid: int, process_name: str, reason: str) -> None:
         log.critical("🚨 [AI SECURITY] ANOMALY DETECTED: PID %d (%s) quarantined. Reason: %s", pid, process_name, reason)
+
+# --------------------------
+
+
+# from __future__ import annotations
+# import hashlib
+# import hmac as _hmac
+# import json
+# import logging
+# import os
+# import secrets
+# import threading
+# import time
+# from typing import Dict, List, Optional, Set
+
+# log = logging.getLogger("UmerOS.Security")
+
+# # ---------------------------------------------------------------------------
+# # SecureBoot (Upgraded with Strict Mode)
+# # ---------------------------------------------------------------------------
+# class SecureBoot:
+#     """Verifies kernel and service image integrity at boot time."""
+    
+#     def __init__(self, strict_mode: bool = True):
+#         self._store: Dict[str, str] = {}
+#         self._strict_mode = strict_mode
+#         self._measurements: List[Dict] = []  # TPM-style measurement log
+#         self._lock: threading.Lock = threading.Lock()
+#         log.info("SecureBoot initialised (Strict Mode: %s)", strict_mode)
+
+#     def load_trust_store(self, path: str) -> bool:
+#         try:
+#             with open(path, encoding="utf-8") as fh:
+#                 data = json.load(fh)
+#             with self._lock:
+#                 self._store.update(data)
+#             log.info("Trust store loaded from '%s' (%d entries).", path, len(data))
+#             return True
+#         except (OSError, json.JSONDecodeError) as exc:
+#             log.error("Failed to load trust store '%s': %s", path, exc)
+#             return False
+
+#     def verify_image(self, path: str, expected_hash: Optional[str] = None) -> bool:
+#         name = os.path.basename(path)
+#         stored = expected_hash or self._store.get(name)
+
+#         if stored is None:
+#             if self._strict_mode:
+#                 raise PermissionError(f"🚨 Zero-Trust Violation: Unknown component '{name}' blocked.")
+#             else:
+#                 log.warning("Dev Mode: Allowing unknown component '%s'.", name)
+#                 return True
+
+#         try:
+#             h = hashlib.sha3_512()  # Upgraded to SHA3-512 for quantum-resistant margin
+#             with open(path, "rb") as fh:
+#                 for chunk in iter(lambda: fh.read(65536), b""):
+#                     h.update(chunk)
+#             computed = h.hexdigest()
+#         except OSError as exc:
+#             log.error("SecureBoot: cannot read '%s': %s", path, exc)
+#             return False
+
+#         ok = _hmac.compare_digest(computed, stored.lower())
+#         self.record_measurement(name, computed)
+        
+#         if not ok:
+#             log.critical("🚨 SecureBoot VIOLATION: '%s' hash mismatch! Boot aborted.", path)
+#             raise PermissionError(f"Integrity check failed for {path}")
+            
+#         log.debug("SecureBoot OK: '%s'.", name)
+#         return ok
+
+#     def record_measurement(self, component: str, hash_hex: str) -> None:
+#         entry = {"component": component, "hash": hash_hex, "ts": time.time()}
+#         with self._lock:
+#             self._measurements.append(entry)
+
+# # ---------------------------------------------------------------------------
+# # IPCAuthenticator (Upgraded with Anti-Replay Protection)
+# # ---------------------------------------------------------------------------
+# class IPCAuthenticator:
+#     """Signs and verifies IPC messages with HMAC-SHA3-512 and nonce/timestamp."""
+    
+#     def __init__(self, key: Optional[bytes] = None):
+#         # 64-byte key (512-bit) for quantum-resistant security margin
+#         self._key = key if key is not None else secrets.token_bytes(64)
+#         self._seen_nonces: Set[str] = set()
+#         self._lock: threading.Lock = threading.Lock()
+#         self._nonce_ttl = 60  # Seconds
+
+#     def sign_message(self, msg: dict) -> dict:
+#         msg = msg.copy()
+#         msg['timestamp'] = time.time()
+#         msg['nonce'] = secrets.token_hex(16)
+        
+#         raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
+#         mac = _hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
+#         msg['mac'] = mac
+#         return msg
+
+#     def verify_message(self, msg: dict) -> bool:
+#         with self._lock:
+#             # 1. Check timestamp (prevent old messages)
+#             if time.time() - msg.get('timestamp', 0) > self._nonce_ttl:
+#                 log.warning("IPC Replay blocked: Message timestamp expired.")
+#                 return False
+            
+#             # 2. Check nonce (prevent exact replay)
+#             nonce = msg.get('nonce')
+#             if nonce in self._seen_nonces:
+#                 log.warning("IPC Replay blocked: Nonce already used.")
+#                 return False
+            
+#             # 3. Verify MAC
+#             mac = msg.pop('mac', None)
+#             if not mac:
+#                 return False
+            
+#             raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
+#             expected_mac = _hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
+            
+#             is_valid = _hmac.compare_digest(expected_mac, mac)
+            
+#             if is_valid:
+#                 self._seen_nonces.add(nonce)
+#                 # Memory management: clear old nonces periodically
+#                 if len(self._seen_nonces) > 50000:
+#                     self._seen_nonces.clear() 
+                    
+#             return is_valid
+
+# # ---------------------------------------------------------------------------
+# # AIBehavioralMonitor (New Feature)
+# # ---------------------------------------------------------------------------
+# class AIBehavioralMonitor:
+#     """AI-driven anomaly detection for real-time threat mitigation."""
+#     def __init__(self):
+#         self.suspicious_patterns = {
+#             ("text_editor", "network_access"),
+#             ("calculator", "kernel_module_load"),
+#             ("game", "filesystem_write_system"),
+#             ("media_player", "process_injection")
+#         }
+#         self.lock = threading.Lock()
+
+#     def analyze_action(self, pid: int, process_name: str, action: str, resource: str) -> bool:
+#         """Evaluates if a process action is anomalous. Returns True if safe, False if quarantined."""
+#         pattern = (process_name.lower(), action)
+        
+#         if pattern in self.suspicious_patterns or (process_name.lower(), resource) in self.suspicious_patterns:
+#             self._trigger_quarantine(pid, process_name, f"Anomalous behavior: {action} on {resource}")
+#             return False
+            
+#         return True
+
+#     def _trigger_quarantine(self, pid: int, process_name: str, reason: str) -> None:
+#         log.critical("🚨 [AI SECURITY] ANOMALY DETECTED: PID %d (%s) quarantined. Reason: %s", pid, process_name, reason)
 
 
 
