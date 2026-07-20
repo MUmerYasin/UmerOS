@@ -856,7 +856,6 @@ A: UmerOS is educational and experimental. Linux is production-grade. UmerOS exp
 
 - **IBM** - Qiskit framework for quantum computing
 - **Google** - Cirq quantum framework
-- **Hugging Face** - Transformer models and resources
 - **NIST** - Post-quantum cryptography standards
 - **Python Software Foundation** - Python and asyncio
 

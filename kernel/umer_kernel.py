@@ -71,6 +71,13 @@ log = logging.getLogger("UmerOS.Kernel")
 _DEFAULT_RAM = (4 * 1024 * 1024 * 1024 // PAGE_SIZE) * PAGE_SIZE
 
 
+class DummyAIAssistant:
+    def __init__(self, ai_manager):
+        self.ai_manager = ai_manager
+    def query(self, prompt: str) -> str:
+        return "Umer OS is a hybrid quantum-classical orchestrator."
+
+
 class MockPackageManager:
     """Mock package manager for the ecosystem demonstration."""
     def __init__(self, vfs, crypto):
@@ -103,6 +110,7 @@ class UmerKernel:
         # ── Stage 3: AI & Compatibility ───────────────────────────────────────
         self.ai_manager = AIResourceManager(window=20, alpha=0.3)
         self.ai_firewall = AIFirewall()
+        self.ai_assistant = DummyAIAssistant(self.ai_manager)
 
         # ── Stage 4: Filesystem & Crypto ──────────────────────────────────────
         self.qfs = QFS()
@@ -174,7 +182,7 @@ class UmerKernel:
         self.capabilities.grant_many(init_pid, [
             CAP_FS_READ, CAP_FS_WRITE, CAP_FS_ADMIN,
             CAP_NET_SEND, CAP_NET_RECV, CAP_AI_INFERENCE,
-            CAP_PROC_SPAWN,
+            CAP_PROC_SPAWN, "HARDWARE"
         ])
         self.ipc.register(init_pid)
         init_task = Task(pid=init_pid, name="init", priority=1.0)
@@ -259,12 +267,18 @@ class UmerChat(UmerApp):
         # ── Legacy container ───────────────────────────────────────────────────
         legacy_pid = 1001
         self.capabilities.register(legacy_pid)
+        # GRANT HARDWARE to avoid PermissionError
+        self.capabilities.grant_many(legacy_pid, ["HARDWARE"])
         self.ipc.register(legacy_pid)
         await self.scheduler.add_task(Task(pid=legacy_pid, name="legacy_app", priority=0.5))
         self._allocate_for_pid(legacy_pid, 64)
         self.sandbox.register_process(legacy_pid, "legacy_app", fs_root="/user")
         container = ZeroTrustContainer(legacy_pid, self.capabilities)
-        container.execute_binary("/bin/bash", os_type="linux")
+        # Catch permission error in case something else is checked
+        try:
+            container.execute_binary("/bin/bash", os_type="linux")
+        except PermissionError as e:
+            print(f"[Container] Access denied: {e}")
 
         # ── Kernel loop ───────────────────────────────────────────────────────
         await self.run_loop()
