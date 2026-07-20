@@ -32,7 +32,7 @@ from kernel.capability_manager import (
 from quantum.quantum_sim import QuantumCircuitSimulator, SuperpositionSchedulerAdapter
 
 # ── AI Layer ──────────────────────────────────────────────────────────────────
-from ai.umer_ai import AIResourceManager, NullAIResourceManager, AIFirewall
+from ai.umer_ai import AIResourceManager, NullAIResourceManager, AIFirewall, LocalAIAssistant
 
 # ── Filesystem ────────────────────────────────────────────────────────────────
 from fs.qfs import QFS, QuantumFileSystem
@@ -71,13 +71,6 @@ log = logging.getLogger("UmerOS.Kernel")
 _DEFAULT_RAM = (4 * 1024 * 1024 * 1024 // PAGE_SIZE) * PAGE_SIZE
 
 
-class DummyAIAssistant:
-    def __init__(self, ai_manager):
-        self.ai_manager = ai_manager
-    def query(self, prompt: str) -> str:
-        return "Umer OS is a hybrid quantum-classical orchestrator."
-
-
 class MockPackageManager:
     """Mock package manager for the ecosystem demonstration."""
     def __init__(self, vfs, crypto):
@@ -110,7 +103,7 @@ class UmerKernel:
         # ── Stage 3: AI & Compatibility ───────────────────────────────────────
         self.ai_manager = AIResourceManager(window=20, alpha=0.3)
         self.ai_firewall = AIFirewall()
-        self.ai_assistant = DummyAIAssistant(self.ai_manager)
+        self.ai_assistant = LocalAIAssistant()
 
         # ── Stage 4: Filesystem & Crypto ──────────────────────────────────────
         self.qfs = QFS()
