@@ -13,11 +13,17 @@ Equivalent to Linux's security/ + namespaces (security/apparmor, security/selinu
 UMER OS - Security Sandbox Module
 Provides Zero-Trust process isolation, capability management, and jailbreak prevention.
 """
-import os
+
+#!/usr/bin/env python3
+"""
+Security Sandbox with Filesystem Isolation
+Provides process-level isolation by restricting each sandboxed process
+to a virtual chroot within the VFS. 
+"""
 import hashlib
-import asyncio
+import os
 from dataclasses import dataclass, field
-from typing import Dict, Set, Optional
+from typing import Dict, Set
 
 @dataclass
 class ProcessRecord:
@@ -25,91 +31,180 @@ class ProcessRecord:
     name: str
     permissions: Set[str] = field(default_factory=lambda: {"read"})
     fs_root: str = "/"  # chroot-style filesystem jail
-    signature_verified: bool = False
 
 class SecuritySandbox:
     """
     Zero-trust process isolation manager.
-    Ensures no process is trusted by default. Every operation requires explicit capability grants.
+    Compatible with UmerKernel's initialization sequence.
     """
-
     def __init__(self):
         self.processes: Dict[int, ProcessRecord] = {}
-        self.lock = asyncio.Lock()
         print("[SECURITY] Sandbox initialized with Zero-Trust defaults.")
 
-    async def register_process(self, pid: int, name: str, fs_root: str = "/") -> None:
-        """Registers a new process in the sandbox with minimal default permissions."""
-        async with self.lock:
-            self.processes[pid] = ProcessRecord(pid=pid, name=name, fs_root=fs_root)
-        print(f"[SECURITY] Registered PID {pid} ('{name}') in sandbox.")
+    def register_process(self, pid: int, name: str, fs_root: str = "/"):
+        self.processes[pid] = ProcessRecord(pid=pid, name=name, fs_root=fs_root)
+        print(f"[SECURITY] Registered PID {pid} ('{name}') with fs_root='{fs_root}'")
 
-    async def grant_permission(self, pid: int, permission: str) -> None:
-        async with self.lock:
-            if pid in self.processes:
-                self.processes[pid].permissions.add(permission)
+    def grant_permission(self, pid: int, permission: str):
+        if pid in self.processes:
+            self.processes[pid].permissions.add(permission)
 
-    async def revoke_permission(self, pid: int, permission: str) -> None:
-        async with self.lock:
-            if pid in self.processes:
-                self.processes[pid].permissions.discard(permission)
+    def revoke_permission(self, pid: int, permission: str):
+        if pid in self.processes:
+            self.processes[pid].permissions.discard(permission)
 
-    async def check_permission(self, pid: int, permission: str) -> bool:
-        async with self.lock:
-            if pid not in self.processes:
-                print(f"[SECURITY] 🚫 DENIED: PID {pid} is not registered.")
-                return False
-            
-            if permission not in self.processes[pid].permissions:
-                print(f"[SECURITY] 🚫 DENIED: PID {pid} lacks '{permission}' permission.")
-                return False
-            return True
+    def check_permission(self, pid: int, permission: str) -> bool:
+        if pid not in self.processes:
+            print(f"[SECURITY] 🚫 DENIED: PID {pid} is not registered.")
+            return False
+        allowed = permission in self.processes[pid].permissions
+        if not allowed:
+            print(f"[SECURITY] 🚫 DENIED: PID {pid} lacks '{permission}' permission.")
+        return allowed
 
-    def resolve_path(self, pid: int, requested_path: str) -> str:
+    def resolve_path(self, pid: int, path: str) -> str:
         """
-        Translates a process-relative path into its jailed absolute path.
-        Uses os.path.realpath to resolve symlinks and prevent directory traversal attacks.
+        IMPROVED: Translates a process-relative path into its jailed absolute path.
+        Uses os.path.realpath and os.path.commonpath to prevent ALL directory 
+        traversal attacks (e.g., symlink escapes, complex '..' bypasses).
         """
-        with self.lock:  # Note: asyncio lock not needed here if called from async context, but kept for thread-safety
-            if pid not in self.processes:
-                raise PermissionError(f"PID {pid} is not sandboxed.")
-            
-            jail = os.path.realpath(self.processes[pid].fs_root)
-            
-            # Join jail and requested path, then resolve all symlinks and '..' components
-            target = os.path.realpath(os.path.join(jail, requested_path.lstrip('/')))
-            
-            # Secure check: target MUST be strictly inside the jail
-            try:
-                common = os.path.commonpath([jail, target])
-                if common != jail:
-                    raise PermissionError(f"🚫 Path traversal/jailbreak blocked: {requested_path} resolved to {target}")
-            except ValueError:
-                # Occurs on Windows if paths resolve to different drives
-                raise PermissionError(f"🚫 Invalid path resolution across drives: {requested_path}")
-            
-            return target
+        if pid not in self.processes:
+            raise PermissionError(f"PID {pid} is not sandboxed.")
+        
+        jail = os.path.realpath(self.processes[pid].fs_root)
+        # Join jail and requested path, then resolve all symlinks and '..' components
+        target = os.path.realpath(os.path.join(jail, path.lstrip('/')))
+        
+        # Secure check: target MUST be strictly inside the jail
+        try:
+            common = os.path.commonpath([jail, target])
+            if common != jail:
+                raise PermissionError(f"🚫 Path traversal/jailbreak blocked: {path} resolved to {target}")
+        except ValueError:
+            # Occurs on Windows if paths resolve to different drives
+            raise PermissionError(f"🚫 Invalid path resolution across drives: {path}")
+        
+        return target
 
-    async def verify_signature(self, pid: int, executable_payload: bytes, expected_hash: str) -> bool:
+    def verify_signature(self, pid: int, executable_payload: bytes, expected_hash: str) -> bool:
         """
-        Verifies the cryptographic signature of a process executable.
-        Replaces the flawed PID-hashing with actual payload hashing (Simulated SHA3-512 Code Signing).
+        IMPROVED: Verifies the cryptographic signature of a process executable.
+        Replaces the flawed PID-hashing with actual payload hashing (SHA3-512).
         """
         computed_hash = hashlib.sha3_512(executable_payload).hexdigest()
-        
         # Constant-time comparison to prevent timing attacks
         is_valid = hashlib.compare_digest(computed_hash, expected_hash)
         
-        async with self.lock:
-            if pid in self.processes:
-                self.processes[pid].signature_verified = is_valid
-                
         if not is_valid:
             print(f"[SECURITY] 🚨 CODE SIGNING FAILED: PID {pid} hash mismatch!")
         else:
             print(f"[SECURITY] ✅ Code signature verified for PID {pid}.")
             
         return is_valid
+
+# -------------------------------------------------------------------
+
+
+# import os
+# import hashlib
+# import asyncio
+# from dataclasses import dataclass, field
+# from typing import Dict, Set, Optional
+
+# @dataclass
+# class ProcessRecord:
+#     pid: int
+#     name: str
+#     permissions: Set[str] = field(default_factory=lambda: {"read"})
+#     fs_root: str = "/"  # chroot-style filesystem jail
+#     signature_verified: bool = False
+
+# class SecuritySandbox:
+#     """
+#     Zero-trust process isolation manager.
+#     Ensures no process is trusted by default. Every operation requires explicit capability grants.
+#     """
+
+#     def __init__(self):
+#         self.processes: Dict[int, ProcessRecord] = {}
+#         self.lock = asyncio.Lock()
+#         print("[SECURITY] Sandbox initialized with Zero-Trust defaults.")
+
+#     async def register_process(self, pid: int, name: str, fs_root: str = "/") -> None:
+#         """Registers a new process in the sandbox with minimal default permissions."""
+#         async with self.lock:
+#             self.processes[pid] = ProcessRecord(pid=pid, name=name, fs_root=fs_root)
+#         print(f"[SECURITY] Registered PID {pid} ('{name}') in sandbox.")
+
+#     async def grant_permission(self, pid: int, permission: str) -> None:
+#         async with self.lock:
+#             if pid in self.processes:
+#                 self.processes[pid].permissions.add(permission)
+
+#     async def revoke_permission(self, pid: int, permission: str) -> None:
+#         async with self.lock:
+#             if pid in self.processes:
+#                 self.processes[pid].permissions.discard(permission)
+
+#     async def check_permission(self, pid: int, permission: str) -> bool:
+#         async with self.lock:
+#             if pid not in self.processes:
+#                 print(f"[SECURITY] 🚫 DENIED: PID {pid} is not registered.")
+#                 return False
+            
+#             if permission not in self.processes[pid].permissions:
+#                 print(f"[SECURITY] 🚫 DENIED: PID {pid} lacks '{permission}' permission.")
+#                 return False
+#             return True
+
+#     def resolve_path(self, pid: int, requested_path: str) -> str:
+#         """
+#         Translates a process-relative path into its jailed absolute path.
+#         Uses os.path.realpath to resolve symlinks and prevent directory traversal attacks.
+#         """
+#         with self.lock:  # Note: asyncio lock not needed here if called from async context, but kept for thread-safety
+#             if pid not in self.processes:
+#                 raise PermissionError(f"PID {pid} is not sandboxed.")
+            
+#             jail = os.path.realpath(self.processes[pid].fs_root)
+            
+#             # Join jail and requested path, then resolve all symlinks and '..' components
+#             target = os.path.realpath(os.path.join(jail, requested_path.lstrip('/')))
+            
+#             # Secure check: target MUST be strictly inside the jail
+#             try:
+#                 common = os.path.commonpath([jail, target])
+#                 if common != jail:
+#                     raise PermissionError(f"🚫 Path traversal/jailbreak blocked: {requested_path} resolved to {target}")
+#             except ValueError:
+#                 # Occurs on Windows if paths resolve to different drives
+#                 raise PermissionError(f"🚫 Invalid path resolution across drives: {requested_path}")
+            
+#             return target
+
+#     async def verify_signature(self, pid: int, executable_payload: bytes, expected_hash: str) -> bool:
+#         """
+#         Verifies the cryptographic signature of a process executable.
+#         Replaces the flawed PID-hashing with actual payload hashing (Simulated SHA3-512 Code Signing).
+#         """
+#         computed_hash = hashlib.sha3_512(executable_payload).hexdigest()
+        
+#         # Constant-time comparison to prevent timing attacks
+#         is_valid = hashlib.compare_digest(computed_hash, expected_hash)
+        
+#         async with self.lock:
+#             if pid in self.processes:
+#                 self.processes[pid].signature_verified = is_valid
+                
+#         if not is_valid:
+#             print(f"[SECURITY] 🚨 CODE SIGNING FAILED: PID {pid} hash mismatch!")
+#         else:
+#             print(f"[SECURITY] ✅ Code signature verified for PID {pid}.")
+            
+#         return is_valid
+
+
+        # -------------------------------------------------------------------
 
 # import hashlib
 # from dataclasses import dataclass, field

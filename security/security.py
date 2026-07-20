@@ -21,45 +21,47 @@ Licence: Apache 2.0
 UMER OS - Core Security Primitives
 Implements Secure Boot, IPC Authentication (with replay protection), and AI Behavioral Monitoring.
 """
-import os
-import json
-import time
-import secrets
+
+"""
+Umer OS Security Subsystem [TODAY - zero-trust]
+================================================
+Implements all security primitives for Umer OS:
+- SecuritySandbox (in sandbox.py)
+- SecureBoot (image hash verification at startup)
+- IPCAuthenticator (HMAC-SHA3-512 message signing & anti-replay)
+- AIBehavioralMonitor (Real-time anomaly detection)
+"""
+from __future__ import annotations
 import hashlib
-import hmac
-import asyncio
+import hmac as _hmac
+import json
 import logging
+import os
+import secrets
+import threading
+import time
 from typing import Dict, List, Optional, Set
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger("UmerOS_Security")
-
-class SecurityViolationError(Exception):
-    """Raised when a Zero-Trust security policy is violated."""
-    pass
+log = logging.getLogger("UmerOS.Security")
 
 # ---------------------------------------------------------------------------
-# SecureBoot
+# SecureBoot (Upgraded with Strict Mode)
 # ---------------------------------------------------------------------------
 class SecureBoot:
-    """
-    Verifies kernel and service image integrity at boot time.
-    Enforces Zero-Trust: Unknown components are rejected in strict mode.
-    """
-
+    """Verifies kernel and service image integrity at boot time."""
+    
     def __init__(self, strict_mode: bool = True):
         self._store: Dict[str, str] = {}
         self._strict_mode = strict_mode
         self._measurements: List[Dict] = []  # TPM-style measurement log
-        self._lock = asyncio.Lock()
-        log.info("SecureBoot initialized (Strict Mode: %s)", strict_mode)
+        self._lock: threading.Lock = threading.Lock()
+        log.info("SecureBoot initialised (Strict Mode: %s)", strict_mode)
 
-    async def load_trust_store(self, path: str) -> bool:
-        """Load a JSON trust store mapping component names to SHA3-516 hex digests."""
+    def load_trust_store(self, path: str) -> bool:
         try:
             with open(path, encoding="utf-8") as fh:
                 data = json.load(fh)
-            async with self._lock:
+            with self._lock:
                 self._store.update(data)
             log.info("Trust store loaded from '%s' (%d entries).", path, len(data))
             return True
@@ -67,75 +69,67 @@ class SecureBoot:
             log.error("Failed to load trust store '%s': %s", path, exc)
             return False
 
-    async def verify_image(self, path: str, expected_hash: Optional[str] = None) -> bool:
-        """Hash a file and verify it against the trust store using SHA3-512."""
+    def verify_image(self, path: str, expected_hash: Optional[str] = None) -> bool:
         name = os.path.basename(path)
         stored = expected_hash or self._store.get(name)
 
         if stored is None:
             if self._strict_mode:
-                raise SecurityViolationError(f"Zero-Trust Violation: Unknown component '{name}' blocked.")
+                raise PermissionError(f"🚨 Zero-Trust Violation: Unknown component '{name}' blocked.")
             else:
                 log.warning("Dev Mode: Allowing unknown component '%s'.", name)
                 return True
 
         try:
-            h = hashlib.sha3_512()
+            h = hashlib.sha3_512()  # Upgraded to SHA3-512 for quantum-resistant margin
             with open(path, "rb") as fh:
                 for chunk in iter(lambda: fh.read(65536), b""):
                     h.update(chunk)
             computed = h.hexdigest()
         except OSError as exc:
-            log.error("SecureBoot: Cannot read '%s': %s", path, exc)
+            log.error("SecureBoot: cannot read '%s': %s", path, exc)
             return False
 
-        # Constant-time comparison
-        is_valid = hmac.compare_digest(computed, stored.lower())
-        await self.record_measurement(name, computed)
+        ok = _hmac.compare_digest(computed, stored.lower())
+        self.record_measurement(name, computed)
         
-        if not is_valid:
+        if not ok:
             log.critical("🚨 SecureBoot VIOLATION: '%s' hash mismatch! Boot aborted.", path)
-            raise SecurityViolationError(f"Integrity check failed for {path}")
+            raise PermissionError(f"Integrity check failed for {path}")
             
         log.debug("SecureBoot OK: '%s'.", name)
-        return is_valid
+        return ok
 
-    async def record_measurement(self, component: str, hash_hex: str) -> None:
-        """Append a measurement to the TPM-style boot log."""
+    def record_measurement(self, component: str, hash_hex: str) -> None:
         entry = {"component": component, "hash": hash_hex, "ts": time.time()}
-        async with self._lock:
+        with self._lock:
             self._measurements.append(entry)
 
 # ---------------------------------------------------------------------------
-# IPCAuthenticator (Quantum-Resistant Margin)
+# IPCAuthenticator (Upgraded with Anti-Replay Protection)
 # ---------------------------------------------------------------------------
 class IPCAuthenticator:
-    """
-    Signs and verifies IPC messages with HMAC-SHA3-512.
-    Includes nonce and timestamp to prevent Replay Attacks.
-    """
-
+    """Signs and verifies IPC messages with HMAC-SHA3-512 and nonce/timestamp."""
+    
     def __init__(self, key: Optional[bytes] = None):
         # 64-byte key (512-bit) for quantum-resistant security margin
         self._key = key if key is not None else secrets.token_bytes(64)
         self._seen_nonces: Set[str] = set()
-        self._lock = asyncio.Lock()
+        self._lock: threading.Lock = threading.Lock()
         self._nonce_ttl = 60  # Seconds
 
-    async def sign_message(self, msg: dict) -> dict:
-        """Compute HMAC-SHA3-512 over a dict payload with anti-replay fields."""
-        msg = msg.copy()  # Avoid mutating original
+    def sign_message(self, msg: dict) -> dict:
+        msg = msg.copy()
         msg['timestamp'] = time.time()
         msg['nonce'] = secrets.token_hex(16)
         
         raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
-        mac = hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
+        mac = _hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
         msg['mac'] = mac
         return msg
 
-    async def verify_message(self, msg: dict) -> bool:
-        """Verify a previously signed dict, checking for replay attacks."""
-        async with self._lock:
+    def verify_message(self, msg: dict) -> bool:
+        with self._lock:
             # 1. Check timestamp (prevent old messages)
             if time.time() - msg.get('timestamp', 0) > self._nonce_ttl:
                 log.warning("IPC Replay blocked: Message timestamp expired.")
@@ -153,9 +147,9 @@ class IPCAuthenticator:
                 return False
             
             raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
-            expected_mac = hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
+            expected_mac = _hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
             
-            is_valid = hmac.compare_digest(expected_mac, mac)
+            is_valid = _hmac.compare_digest(expected_mac, mac)
             
             if is_valid:
                 self._seen_nonces.add(nonce)
@@ -165,20 +159,11 @@ class IPCAuthenticator:
                     
             return is_valid
 
-    async def rotate_key(self) -> None:
-        """Generate a new random HMAC key for forward secrecy."""
-        self._key = secrets.token_bytes(64)
-        self._seen_nonces.clear()
-        log.info("IPCAuthenticator: HMAC key rotated for forward secrecy.")
-
 # ---------------------------------------------------------------------------
-# AI Behavioral Monitor (New Feature)
+# AIBehavioralMonitor (New Feature)
 # ---------------------------------------------------------------------------
 class AIBehavioralMonitor:
-    """
-    AI-driven anomaly detection for real-time threat mitigation.
-    Monitors permission requests and flags deviations from baseline behavior.
-    """
+    """AI-driven anomaly detection for real-time threat mitigation."""
     def __init__(self):
         self.suspicious_patterns = {
             ("text_editor", "network_access"),
@@ -186,29 +171,214 @@ class AIBehavioralMonitor:
             ("game", "filesystem_write_system"),
             ("media_player", "process_injection")
         }
-        self.lock = asyncio.Lock()
+        self.lock = threading.Lock()
 
-    async def analyze_action(self, pid: int, process_name: str, action: str, resource: str) -> bool:
-        """
-        Evaluates if a process action is anomalous.
-        Returns True if safe, False if quarantined.
-        """
-        # In a production OS, this would query an ONNX LSTM model.
-        # Here, we use heuristic rule-based AI simulation.
+    def analyze_action(self, pid: int, process_name: str, action: str, resource: str) -> bool:
+        """Evaluates if a process action is anomalous. Returns True if safe, False if quarantined."""
         pattern = (process_name.lower(), action)
         
         if pattern in self.suspicious_patterns or (process_name.lower(), resource) in self.suspicious_patterns:
-            await self._trigger_quarantine(pid, process_name, f"Anomalous behavior: {action} on {resource}")
+            self._trigger_quarantine(pid, process_name, f"Anomalous behavior: {action} on {resource}")
             return False
             
         return True
 
-    async def _trigger_quarantine(self, pid: int, process_name: str, reason: str) -> None:
-        """Automatically isolates the offending process."""
+    def _trigger_quarantine(self, pid: int, process_name: str, reason: str) -> None:
         log.critical("🚨 [AI SECURITY] ANOMALY DETECTED: PID %d (%s) quarantined. Reason: %s", pid, process_name, reason)
-        # Hook: In the full kernel, this would call sandbox.revoke_all_permissions(pid)
+
+
+
+# -------------------------------------------------------------------
+# import os
+# import json
+# import time
+# import secrets
+# import hashlib
+# import hmac
+# import asyncio
+# import logging
+# from typing import Dict, List, Optional, Set
+
+# logging.basicConfig(level=logging.INFO)
+# log = logging.getLogger("UmerOS_Security")
+
+# class SecurityViolationError(Exception):
+#     """Raised when a Zero-Trust security policy is violated."""
+#     pass
+
+# # ---------------------------------------------------------------------------
+# # SecureBoot
+# # ---------------------------------------------------------------------------
+# class SecureBoot:
+#     """
+#     Verifies kernel and service image integrity at boot time.
+#     Enforces Zero-Trust: Unknown components are rejected in strict mode.
+#     """
+
+#     def __init__(self, strict_mode: bool = True):
+#         self._store: Dict[str, str] = {}
+#         self._strict_mode = strict_mode
+#         self._measurements: List[Dict] = []  # TPM-style measurement log
+#         self._lock = asyncio.Lock()
+#         log.info("SecureBoot initialized (Strict Mode: %s)", strict_mode)
+
+#     async def load_trust_store(self, path: str) -> bool:
+#         """Load a JSON trust store mapping component names to SHA3-516 hex digests."""
+#         try:
+#             with open(path, encoding="utf-8") as fh:
+#                 data = json.load(fh)
+#             async with self._lock:
+#                 self._store.update(data)
+#             log.info("Trust store loaded from '%s' (%d entries).", path, len(data))
+#             return True
+#         except (OSError, json.JSONDecodeError) as exc:
+#             log.error("Failed to load trust store '%s': %s", path, exc)
+#             return False
+
+#     async def verify_image(self, path: str, expected_hash: Optional[str] = None) -> bool:
+#         """Hash a file and verify it against the trust store using SHA3-512."""
+#         name = os.path.basename(path)
+#         stored = expected_hash or self._store.get(name)
+
+#         if stored is None:
+#             if self._strict_mode:
+#                 raise SecurityViolationError(f"Zero-Trust Violation: Unknown component '{name}' blocked.")
+#             else:
+#                 log.warning("Dev Mode: Allowing unknown component '%s'.", name)
+#                 return True
+
+#         try:
+#             h = hashlib.sha3_512()
+#             with open(path, "rb") as fh:
+#                 for chunk in iter(lambda: fh.read(65536), b""):
+#                     h.update(chunk)
+#             computed = h.hexdigest()
+#         except OSError as exc:
+#             log.error("SecureBoot: Cannot read '%s': %s", path, exc)
+#             return False
+
+#         # Constant-time comparison
+#         is_valid = hmac.compare_digest(computed, stored.lower())
+#         await self.record_measurement(name, computed)
+        
+#         if not is_valid:
+#             log.critical("🚨 SecureBoot VIOLATION: '%s' hash mismatch! Boot aborted.", path)
+#             raise SecurityViolationError(f"Integrity check failed for {path}")
+            
+#         log.debug("SecureBoot OK: '%s'.", name)
+#         return is_valid
+
+#     async def record_measurement(self, component: str, hash_hex: str) -> None:
+#         """Append a measurement to the TPM-style boot log."""
+#         entry = {"component": component, "hash": hash_hex, "ts": time.time()}
+#         async with self._lock:
+#             self._measurements.append(entry)
+
+# # ---------------------------------------------------------------------------
+# # IPCAuthenticator (Quantum-Resistant Margin)
+# # ---------------------------------------------------------------------------
+# class IPCAuthenticator:
+#     """
+#     Signs and verifies IPC messages with HMAC-SHA3-512.
+#     Includes nonce and timestamp to prevent Replay Attacks.
+#     """
+
+#     def __init__(self, key: Optional[bytes] = None):
+#         # 64-byte key (512-bit) for quantum-resistant security margin
+#         self._key = key if key is not None else secrets.token_bytes(64)
+#         self._seen_nonces: Set[str] = set()
+#         self._lock = asyncio.Lock()
+#         self._nonce_ttl = 60  # Seconds
+
+#     async def sign_message(self, msg: dict) -> dict:
+#         """Compute HMAC-SHA3-512 over a dict payload with anti-replay fields."""
+#         msg = msg.copy()  # Avoid mutating original
+#         msg['timestamp'] = time.time()
+#         msg['nonce'] = secrets.token_hex(16)
+        
+#         raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
+#         mac = hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
+#         msg['mac'] = mac
+#         return msg
+
+#     async def verify_message(self, msg: dict) -> bool:
+#         """Verify a previously signed dict, checking for replay attacks."""
+#         async with self._lock:
+#             # 1. Check timestamp (prevent old messages)
+#             if time.time() - msg.get('timestamp', 0) > self._nonce_ttl:
+#                 log.warning("IPC Replay blocked: Message timestamp expired.")
+#                 return False
+            
+#             # 2. Check nonce (prevent exact replay)
+#             nonce = msg.get('nonce')
+#             if nonce in self._seen_nonces:
+#                 log.warning("IPC Replay blocked: Nonce already used.")
+#                 return False
+            
+#             # 3. Verify MAC
+#             mac = msg.pop('mac', None)
+#             if not mac:
+#                 return False
+            
+#             raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
+#             expected_mac = hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
+            
+#             is_valid = hmac.compare_digest(expected_mac, mac)
+            
+#             if is_valid:
+#                 self._seen_nonces.add(nonce)
+#                 # Memory management: clear old nonces periodically
+#                 if len(self._seen_nonces) > 50000:
+#                     self._seen_nonces.clear() 
+                    
+#             return is_valid
+
+#     async def rotate_key(self) -> None:
+#         """Generate a new random HMAC key for forward secrecy."""
+#         self._key = secrets.token_bytes(64)
+#         self._seen_nonces.clear()
+#         log.info("IPCAuthenticator: HMAC key rotated for forward secrecy.")
+
+# # ---------------------------------------------------------------------------
+# # AI Behavioral Monitor (New Feature)
+# # ---------------------------------------------------------------------------
+# class AIBehavioralMonitor:
+#     """
+#     AI-driven anomaly detection for real-time threat mitigation.
+#     Monitors permission requests and flags deviations from baseline behavior.
+#     """
+#     def __init__(self):
+#         self.suspicious_patterns = {
+#             ("text_editor", "network_access"),
+#             ("calculator", "kernel_module_load"),
+#             ("game", "filesystem_write_system"),
+#             ("media_player", "process_injection")
+#         }
+#         self.lock = asyncio.Lock()
+
+#     async def analyze_action(self, pid: int, process_name: str, action: str, resource: str) -> bool:
+#         """
+#         Evaluates if a process action is anomalous.
+#         Returns True if safe, False if quarantined.
+#         """
+#         # In a production OS, this would query an ONNX LSTM model.
+#         # Here, we use heuristic rule-based AI simulation.
+#         pattern = (process_name.lower(), action)
+        
+#         if pattern in self.suspicious_patterns or (process_name.lower(), resource) in self.suspicious_patterns:
+#             await self._trigger_quarantine(pid, process_name, f"Anomalous behavior: {action} on {resource}")
+#             return False
+            
+#         return True
+
+#     async def _trigger_quarantine(self, pid: int, process_name: str, reason: str) -> None:
+#         """Automatically isolates the offending process."""
+#         log.critical("🚨 [AI SECURITY] ANOMALY DETECTED: PID %d (%s) quarantined. Reason: %s", pid, process_name, reason)
+#         # Hook: In the full kernel, this would call sandbox.revoke_all_permissions(pid)
         # and notify the AI Orchestrator to spawn a clean replacement instance.
 
+
+# -------------------------------------------------------------------
 
 # from __future__ import annotations
 
