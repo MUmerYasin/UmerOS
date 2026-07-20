@@ -17,6 +17,9 @@ import os
 import logging
 import time
 
+
+
+
 # ── Claude-quality Kernel Subsystems ──────────────────────────────────────────
 from kernel.scheduler import HybridScheduler, Task, TaskState, NullAIManager
 from kernel.memory_manager import MemoryManager, PAGE_SIZE
@@ -41,6 +44,7 @@ from fs.vfs import VirtualFileSystem
 # ── Security ──────────────────────────────────────────────────────────────────
 from security.crypto_engine import CryptoEngine
 from security.sandbox import SecuritySandbox
+from security.security import SecureBoot, IPCAuthenticator, AIBehavioralMonitor
 
 # ── Networking ────────────────────────────────────────────────────────────────
 from network.dns_resolver import DNSResolver

@@ -9,6 +9,7 @@ import time
 import subprocess
 
 
+
 def show_legal_warning():
     print("=" * 60)
     print("  Umer OS - Hybrid Quantum / AI Operating System")
