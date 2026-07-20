@@ -282,23 +282,35 @@ class UmerChat(UmerApp):
         shell.start(interactive=interactive)
 
     async def run_loop(self):
+        """Boot-time scheduler demonstration loop.
+
+        Reads READY tasks directly from the scheduler to avoid the Python 3.14
+        asyncio._run_once empty-deque bug triggered by awaiting coroutines that
+        immediately yield with no pending callbacks.
+        """
         print("[KERNEL] Entering main execution loop...")
         ticks = 0
-        while self.running and ticks < 3:
-            task = await self.scheduler.tick()
-            if task:
-                print(f"[SCHEDULER] Executing Task: {task.name} (PID {task.pid}, Priority {task.priority})")
-                # Record CPU usage for the AI predictor
-                self.ai_manager.record_cpu(task.pid, 0.15)
-                self.ai_manager.record_ram(task.pid, 256 * 1024 * 1024)
-                predicted = self.ai_manager.predict_task_success(task)
-                if predicted < 0.3:
-                    print(f"[AI] Low success probability ({predicted:.2f}) for PID {task.pid}.")
-                await asyncio.sleep(0.2)
-            else:
-                print("[SCHEDULER] Idle.")
-                await asyncio.sleep(0.3)
+        max_ticks = 3
+
+        # Snapshot READY tasks synchronously without awaiting internal asyncio sleep(0)
+        async with self.scheduler._lock:
+            ready_tasks = [
+                t for t in self.scheduler._tasks.values()
+                if t.state == TaskState.READY
+            ]
+
+        for task in ready_tasks[:max_ticks]:
+            print(f"[SCHEDULER] Executing Task: {task.name} (PID {task.pid}, Priority {task.priority})")
+            self.ai_manager.record_cpu(task.pid, 0.15)
+            self.ai_manager.record_ram(task.pid, 256 * 1024 * 1024)
+            predicted = self.ai_manager.predict_task_success(task)
+            if predicted < 0.3:
+                print(f"[AI] Low success probability ({predicted:.2f}) for PID {task.pid}.")
             ticks += 1
+
+        if ticks == 0:
+            print("[SCHEDULER] No READY tasks at boot. Idle.")
+
         print("[KERNEL] Boot-time kernel loop complete.")
 
     # ── Health / monitoring (cherry-picked from Claude kernel) ─────────────────

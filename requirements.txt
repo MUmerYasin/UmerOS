@@ -26,6 +26,7 @@ sentence-transformers>=2.7.0     # Semantic text embeddings
 torch>=2.2.0                     # PyTorch deep learning framework
 llama-cpp-python>=0.2.0          # Local LLM inference (llama.cpp bindings)
 scikit-learn>=1.4.0              # Classical ML algorithms
+g4f>=0.4.0                       # Free GPT-4o/Claude access (no API key needed)
 
 # ==============================================================================
 # CRYPTOGRAPHY & SECURITY
