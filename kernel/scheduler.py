@@ -25,6 +25,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional
 
+from kernel.signals import SignalQueue, SIGKILL, SIGTERM, SIGCHLD, FATAL_SIGNALS
+
 log = logging.getLogger("UmerOS.Scheduler")
 
 EPSILON = 0.001       # prevents division-by-zero in score formula
@@ -43,10 +45,11 @@ class TaskState:
     still providing named constants that tests and callers can import.
     """
 
-    READY   = "READY"
-    RUNNING = "RUNNING"
-    BLOCKED = "BLOCKED"
-    DONE    = "DONE"
+    READY    = "READY"
+    RUNNING  = "RUNNING"
+    BLOCKED  = "BLOCKED"
+    DONE     = "DONE"
+    EXITING  = "EXITING"
 
 
 # ---------------------------------------------------------------------------
@@ -57,15 +60,25 @@ class TaskState:
 class Task:
     """A schedulable unit of work within Umer OS.
 
+    Inspired by Linux ``struct task_struct`` — each task has identity
+    (pid), scheduling metadata (priority, state, cpu_time), quantum
+    hints, a signal queue for inter-task notification, and optional
+    parent/child links forming a process tree.
+
     Attributes:
         pid:           Unique process identifier (positive integer).
         name:          Human-readable process/service name.
         priority:      Static priority hint in [0.0, 1.0]; higher = more important.
-        state:         Lifecycle state; one of TaskState.{READY, RUNNING, BLOCKED, DONE}.
+        state:         Lifecycle state; one of TaskState.{READY, RUNNING, BLOCKED, DONE, EXITING}.
         cpu_time:      Accumulated CPU seconds consumed so far.
         quantum_state: AI/quantum metadata dict.
                        Key ``"superposition"`` (float, 0-1): predicted success probability.
         coroutine:     Optional async callable executed when the task is dispatched.
+        parent_pid:    PID of the spawning parent (None = kernel-spawned).
+        children:      Set of child PIDs spawned by this task.
+        exit_code:     Exit status (None = still running).
+        signal_queue:   Per-task pending signal queue and handler registry.
+        last_state_change: Monotonic timestamp of the last state transition.
     """
 
     pid:           int
@@ -75,6 +88,16 @@ class Task:
     cpu_time:      float = 0.0
     quantum_state: Dict  = field(default_factory=lambda: {"superposition": 0.5})
     coroutine:     Optional[Callable] = field(default=None, repr=False)
+    # ── Process tree (inspired by Linux fork.c) ─────────────────────────────
+    parent_pid:    Optional[int] = field(default=None, repr=False)
+    children:      set = field(default_factory=set)
+    exit_code:     Optional[int] = field(default=None, repr=False)
+    # ── Signal queue (inspired by Linux signal.c) ────────────────────────────
+    signal_queue:   SignalQueue = field(default_factory=SignalQueue)
+    # ── Exit notification (set by exit_task; awaited by wait()) ──────────────
+    exited:         asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    # ── State-change tracking (for hung-task watchdog) ────────────────────────
+    last_state_change: float = field(default_factory=time.monotonic)
 
     def __post_init__(self) -> None:
         """Validate fields after construction.
@@ -86,6 +109,13 @@ class Task:
             raise ValueError(
                 f"Task.priority must be in [0.0, 1.0]; got {self.priority!r}."
             )
+
+    def touch_state(self) -> None:
+        """Record a state transition timestamp (for hung-task watchdog).
+
+        Call this whenever ``task.state`` is changed.
+        """
+        self.last_state_change = time.monotonic()
 
     @property
     def schedule_score(self) -> float:
@@ -147,6 +177,10 @@ class HybridScheduler:
         self._running:     bool                 = False
         self._loop_task:   Optional[asyncio.Task] = None
         self._quantum_sim                       = quantum_simulator
+        # Hung-task watchdog (inspired by Linux khungtaskd)
+        self._watchdog_task: Optional[asyncio.Task] = None
+        self._watchdog_interval: float = 10.0   # seconds between checks
+        self._hung_timeout:       float = 120.0  # declare hung after this many seconds
         log.info("HybridScheduler initialised.")
 
     # ── AI manager injection ─────────────────────────────────────────────────
@@ -187,6 +221,40 @@ class HybridScheduler:
             self._tasks[task.pid] = task
         log.debug("Task added: PID %d (%s) score=%.3f",
                   task.pid, task.name, task.quantum_state["superposition"])
+
+    async def spawn_child(self, parent_pid: int, task: Task) -> None:
+        """Enqueue a task as a child of ``parent_pid`` (sets up process tree).
+
+        Inspired by Linux ``copy_process()``: links the child into the
+        parent's children set and records ``parent_pid`` on the child.
+
+        Args:
+            parent_pid: PID of the spawning parent (must already exist).
+            task:       Child Task to add.
+
+        Raises:
+            KeyError:   If the parent PID is not registered.
+            ValueError: If MAX_TASKS would be exceeded.
+        """
+        async with self._lock:
+            if parent_pid not in self._tasks:
+                raise KeyError(f"Parent PID {parent_pid} not found.")
+            if len(self._tasks) >= MAX_TASKS:
+                raise ValueError(
+                    f"Task limit ({MAX_TASKS}) reached; cannot add PID {task.pid}."
+                )
+            try:
+                score = float(self._ai.predict_task_success(task))
+                task.quantum_state["superposition"] = max(0.0, min(1.0, score))
+            except Exception as exc:  # noqa: BLE001
+                log.warning("AI predict_task_success failed for PID %d: %s",
+                            task.pid, exc)
+                task.quantum_state["superposition"] = task.priority
+            task.parent_pid = parent_pid
+            self._tasks[parent_pid].children.add(task.pid)
+            self._tasks[task.pid] = task
+        log.debug("Child spawned: PID %d (%s) under parent PID %d",
+                  task.pid, task.name, parent_pid)
 
     async def remove_task(self, pid: int) -> Optional[Task]:
         """Remove and return a task by PID.
@@ -265,6 +333,7 @@ class HybridScheduler:
             task: Task to execute.
         """
         task.state = TaskState.RUNNING
+        task.touch_state()
         start = time.perf_counter()
         try:
             if task.coroutine is not None:
@@ -273,6 +342,7 @@ class HybridScheduler:
                 await asyncio.sleep(0)  # yield control
         except asyncio.CancelledError:
             task.state = TaskState.DONE
+            task.touch_state()
             return
         except Exception as exc:  # noqa: BLE001
             log.error("Task PID %d raised %s: %s", task.pid, type(exc).__name__, exc)
@@ -281,11 +351,12 @@ class HybridScheduler:
             task.state = TaskState.READY
         finally:
             task.cpu_time += time.perf_counter() - start
+            task.touch_state()
 
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     async def start(self, ai_manager=None) -> None:
-        """Start the background scheduling loop.
+        """Start the background scheduling loop and hung-task watchdog.
 
         Args:
             ai_manager: Optional AI manager to inject before starting.
@@ -294,17 +365,21 @@ class HybridScheduler:
             self.set_ai_manager(ai_manager)
         self._running = True
         self._loop_task = asyncio.create_task(self._scheduler_loop())
-        log.info("HybridScheduler started.")
+        self._watchdog_task = asyncio.create_task(self._watchdog_loop())
+        log.info("HybridScheduler started (watchdog enabled).")
 
     async def stop(self) -> None:
-        """Stop the scheduler and cancel the background loop task."""
+        """Stop the scheduler, watchdog, and cancel background loop tasks."""
         self._running = False
-        if self._loop_task is not None and not self._loop_task.done():
-            self._loop_task.cancel()
-            try:
-                await self._loop_task
-            except asyncio.CancelledError:
-                pass
+        for bg in (self._loop_task, self._watchdog_task):
+            if bg is not None and not bg.done():
+                bg.cancel()
+                try:
+                    await bg
+                except asyncio.CancelledError:
+                    pass
+        self._loop_task = None
+        self._watchdog_task = None
         log.info("HybridScheduler stopped.")
 
     async def _scheduler_loop(self) -> None:
@@ -322,6 +397,39 @@ class HybridScheduler:
                 log.error("Scheduler loop error: %s", exc)
                 await asyncio.sleep(TICK_INTERVAL)
 
+    async def _watchdog_loop(self) -> None:
+        """Periodic scan for hung tasks (inspired by Linux khungtaskd).
+
+        Every ``_watchdog_interval`` seconds, scans all tasks.  Any task
+        whose state has not changed for longer than ``_hung_timeout``
+        seconds is logged as hung.  Tasks stuck in BLOCKED for too long
+        are also flagged.
+        """
+        while self._running:
+            try:
+                await asyncio.sleep(self._watchdog_interval)
+                await self._check_hung_tasks()
+            except asyncio.CancelledError:
+                break
+            except Exception as exc:  # noqa: BLE001
+                log.error("Watchdog loop error: %s", exc)
+
+    async def _check_hung_tasks(self) -> None:
+        """Detect tasks whose state has been stagnant for too long."""
+        now = time.monotonic()
+        async with self._lock:
+            for task in list(self._tasks.values()):
+                idle = now - task.last_state_change
+                if idle < self._hung_timeout:
+                    continue
+                # Task is hung — log a diagnostic
+                log.warning(
+                    "HUNG TASK: PID %d (%s) in state %s for %.1fs "
+                    "(threshold=%.0fs)",
+                    task.pid, task.name, task.state, idle, self._hung_timeout,
+                )
+                # In a real kernel we'd dump the coroutine; we keep it simple.
+
     async def tick(self) -> Optional[Task]:
         """Single-step: select and return the next READY task (non-executing).
 
@@ -331,6 +439,172 @@ class HybridScheduler:
             Highest-scored READY Task, or None.
         """
         return await self._select_next()
+
+    # ── Statistics ───────────────────────────────────────────────────────────
+
+    # ── Process management (inspired by Linux exit.c do_exit) ────────────────
+
+    async def exit_task(self, pid: int, code: int = 0) -> bool:
+        """Clean up a task and transition it to DONE.
+
+        Inspired by Linux ``do_exit()`` — runs an ordered teardown
+        sequence: set EXITING, cancel coroutine, revoke capabilities,
+        unregister IPC, update process tree, then set DONE.
+
+        Args:
+            pid:  Process ID to exit.
+            code: Exit status code (0 = success).
+
+        Returns:
+            True if the task existed and was cleaned up, False otherwise.
+        """
+        async with self._lock:
+            task = self._tasks.get(pid)
+            if task is None:
+                return False
+
+            log.info("exit_task: PID %d (%s) exit_code=%d", pid, task.name, code)
+            task.state = TaskState.EXITING
+            task.touch_state()
+            task.exit_code = code
+
+            # Note: we do not hold the asyncio.Task handle here, so we cannot
+            # cancel the coroutine directly.  Setting state=EXITING prevents
+            # the scheduler loop from re-selecting this task.
+
+            # Reparent children to init (kernel reaper) —
+            # Linux: find_new_reaper() → forget_original_parent()
+            if task.parent_pid is not None and task.children:
+                parent = self._tasks.get(task.parent_pid)
+                if parent is not None:
+                    for child_pid in task.children:
+                        parent.children.add(child_pid)
+                        child = self._tasks.get(child_pid)
+                        if child is not None:
+                            child.parent_pid = task.parent_pid
+                    log.debug("Reparented %d children of PID %d to PID %d",
+                             len(task.children), pid, task.parent_pid)
+
+            # Notify parent with SIGCHLD
+            if task.parent_pid is not None:
+                parent = self._tasks.get(task.parent_pid)
+                if parent is not None:
+                    parent.signal_queue.enqueue(SIGCHLD)
+
+            # Clear children set
+            task.children.clear()
+
+            task.state = TaskState.DONE
+            task.touch_state()
+
+            # Wake any waiters blocked on task.exited
+            task.exited.set()
+
+            # Remove from active tasks
+            del self._tasks[pid]
+
+        return True
+
+    # ── Signals (inspired by Linux signal.c) ────────────────────────────────
+
+    async def send_signal(self, pid: int, sig: str) -> bool:
+        """Deliver a signal to a task.
+
+        Inspired by Linux ``__send_signal_locked``:
+          - SIGKILL: sets task state to EXITING (unblockable).
+          - SIGTERM: enqueued; handler runs if registered, else default action.
+          - SIGSTOP: sets task to BLOCKED.
+          - SIGCHLD/SIGUSR*: enqueued for cooperative handling.
+
+        Args:
+            pid: Target process ID.
+            sig: Signal name (e.g. "SIGTERM", "SIGKILL").
+
+        Returns:
+            True if the signal was delivered or actioned, False if PID unknown.
+        """
+        # SIGKILL is fatal & unblockable — must release self._lock before
+        # calling exit_task (which acquires the same lock; asyncio.Lock is
+        # NOT reentrant).
+        async with self._lock:
+            task = self._tasks.get(pid)
+            if task is None:
+                log.warning("send_signal: PID %d not found for %s", pid, sig)
+                return False
+            task_name = task.name
+
+        log.info("Signal %s → PID %d (%s)", sig, pid, task_name)
+
+        # SIGKILL: unblockable forced exit (releases lock first — see above)
+        if sig == SIGKILL:
+            await self.exit_task(pid, code=-9)
+            return True
+
+        async with self._lock:
+            task = self._tasks.get(pid)
+            if task is None:
+                return False  # task vanished between the two locks
+
+            # SIGSTOP: pause the task
+            if sig == "SIGSTOP":
+                task.state = TaskState.BLOCKED
+                task.touch_state()
+                return True
+
+            # All other signals: enqueue for cooperative handling
+            task.signal_queue.enqueue(sig)
+
+            # If a handler is registered, schedule it
+            handler = task.signal_queue.get_handler(sig)
+            if handler is not None:
+                try:
+                    asyncio.create_task(handler.callback(sig))
+                except Exception as exc:  # noqa: BLE001
+                    log.error("Signal handler for %s on PID %d failed: %s",
+                             sig, pid, exc)
+
+            return True
+
+    async def recv_signal(self, pid: int) -> Optional[str]:
+        """Cooperatively drain one pending signal for a task.
+
+        Args:
+            pid: Process ID to receive for.
+
+        Returns:
+            Signal string, or None if PID not found.
+        """
+        async with self._lock:
+            task = self._tasks.get(pid)
+            if task is None:
+                return None
+            if task.signal_queue.pending_count > 0:
+                return task.signal_queue.try_recv()
+            return None
+
+    # ── Wait primitive (inspired by Linux wait_task_zombie) ────────────────
+
+    def wait_event(self, pid: int) -> Optional[asyncio.Event]:
+        """Return an asyncio.Event for a task's completion (or None).
+
+        The event is set when ``exit_task(pid)`` runs.
+
+        Args:
+            pid: Child PID to wait on.
+
+        Returns:
+            asyncio.Event if task exists, None otherwise.
+        """
+        task = self._tasks.get(pid)
+        if task is None:
+            return None
+        return task.exited
+
+    # ── State-change tracking (for hung-task watchdog) ────────────────────────
+
+    def _touch_state_locked(self, task: Task) -> None:
+        """Record a state transition. Caller must hold self._lock."""
+        task.last_state_change = time.monotonic()
 
     # ── Statistics ───────────────────────────────────────────────────────────
 

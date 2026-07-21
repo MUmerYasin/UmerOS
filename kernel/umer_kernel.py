@@ -199,57 +199,104 @@ class FluidicShell:
         """Asynchronous version of the input listener."""
         while self.kernel.running:
             try:
-                # For async input, we might need a different approach or a helper library like aioconsole.
-                # For now, we keep the blocking input but handle shutdown correctly within the loop.
-                # A proper async input would require aioconsole: `pip install aioconsole`
-                # from aioconsole import ainput
-                # cmd = await ainput("UmerOS@root:~# ")
-                
-                # For this fix, we simulate non-blocking behavior poorly by polling.
-                # The better fix is to handle shutdown differently in the synchronous input loop.
-                # Let's revert to a synchronous loop but handle shutdown correctly.
                 print("UmerOS@root:~# ", end='', flush=True)
-                import select
                 import sys
-                # Note: select is Unix-specific. This won't work on Windows easily.
-                # A robust solution requires a dedicated async input library.
-                # For this fix, we will handle the exit command by setting a flag.
-                
-                # Simpler synchronous fix: Handle shutdown gracefully within the sync loop.
-                while self.kernel.running:
-                    try:
-                        cmd = input("").strip().lower()
-                        if cmd == 'exit':
-                            print("[KERNEL] Shutting down safely...")
-                            # DO NOT use asyncio.run here!
-                            # Instead, just call the shutdown coroutine directly or set a flag.
-                            # The boot sequence will handle shutdown when the loop exits naturally.
-                            self.kernel.request_shutdown() # Signal shutdown
-                            return # Exit the input loop
-                        elif cmd == 'status':
-                            stats = self.kernel.status()
-                            print(f"[KERNEL STATUS] Uptime: {stats['uptime_seconds']}s, Tasks: {stats['scheduler_tasks']}, Running: {stats['running']}")
-                        elif cmd == 'ai_predict':
-                            # Example of triggering the enhanced AI prediction
-                            incoming_tasks = ["UI_Render_Engine", "AI_Background_Trainer"]
-                            resource_map = self.kernel.ai_manager.predict_allocation(incoming_tasks)
-                            print(f"[AI] Predicted Allocations: {resource_map}")
-                        elif cmd == 'quantum_run':
-                            # Example of triggering the enhanced Quantum execution
-                            incoming_tasks = ["UI_Render_Engine", "AI_Background_Trainer"]
-                            resource_map = self.kernel.ai_manager.predict_allocation(incoming_tasks)
-                            self.kernel.q_scheduler.execute_superposition(resource_map)
-                        else:
-                            print(f"[KERNEL] Unknown command: {cmd}")
-                        print("UmerOS@root:~# ", end='', flush=True) # Print prompt again
-                    except EOFError: # Handle Ctrl+D (EOF)
-                        print("\n[KERNEL] Received EOF. Shutting down...")
+                # Note: Using standard input in an async loop like this is blocking.
+                # A true async solution requires aioconsole or similar.
+                # For this integration, we proceed with the blocking input.
+                try:
+                    cmd = input("").strip().lower()
+                    if cmd == 'exit':
+                        print("[KERNEL] Shutting down safely...")
                         self.kernel.request_shutdown() # Signal shutdown
                         return # Exit the input loop
+                    elif cmd == 'status':
+                        stats = self.kernel.status()
+                        print(f"[KERNEL STATUS] Uptime: {stats['uptime_seconds']}s, Tasks: {stats['scheduler_tasks']}, Running: {stats['running']}")
+                    elif cmd == 'ai_predict':
+                        incoming_tasks = ["UI_Render_Engine", "AI_Background_Trainer"]
+                        resource_map = self.kernel.ai_manager.predict_allocation(incoming_tasks)
+                        print(f"[AI] Predicted Allocations: {resource_map}")
+                    elif cmd == 'quantum_run':
+                        incoming_tasks = ["UI_Render_Engine", "AI_Background_Trainer"]
+                        resource_map = self.kernel.ai_manager.predict_allocation(incoming_tasks)
+                        self.kernel.q_scheduler.execute_superposition(resource_map)
+                    # --- NEW COMMAND ADDED HERE ---
+                    elif cmd == 'gui_start' or cmd == 'startx':
+                        print("[KERNEL] Switching to GUI mode...")
+                        # Call the new kernel method to launch the GUI
+                        await self.kernel.start_gui_shell()
+                        print("[KERNEL] Returned from GUI launch attempt. Kernel still running.")
+                    # --- END NEW COMMAND ---
+                    else:
+                        print(f"[KERNEL] Unknown command: {cmd}")
+                except EOFError: # Handle Ctrl+D (EOF)
+                    print("\n[KERNEL] Received EOF. Shutting down...")
+                    self.kernel.request_shutdown() # Signal shutdown
+                    return # Exit the input loop
             except Exception as e:
                 print(f"[SHELL] Error in input loop: {e}")
                 break # Exit loop on error
 
+# -------------------------------------------
+    # async def _listen_for_input_async(self):
+    #     """Asynchronous version of the input listener."""
+    #     while self.kernel.running:
+    #         try:
+    #             # For async input, we might need a different approach or a helper library like aioconsole.
+    #             # For now, we keep the blocking input but handle shutdown correctly within the loop.
+    #             # A proper async input would require aioconsole: `pip install aioconsole`
+    #             # from aioconsole import ainput
+    #             # cmd = await ainput("UmerOS@root:~# ")
+                
+    #             # For this fix, we simulate non-blocking behavior poorly by polling.
+    #             # The better fix is to handle shutdown differently in the synchronous input loop.
+    #             # Let's revert to a synchronous loop but handle shutdown correctly.
+    #             print("UmerOS@root:~# ", end='', flush=True)
+    #             import select
+    #             import sys
+    #             # Note: select is Unix-specific. This won't work on Windows easily.
+    #             # A robust solution requires a dedicated async input library.
+    #             # For this fix, we will handle the exit command by setting a flag.
+                
+    #             # Simpler synchronous fix: Handle shutdown gracefully within the sync loop.
+    #             while self.kernel.running:
+    #                 try:
+    #                     cmd = input("").strip().lower()
+    #                     if cmd == 'exit':
+    #                         print("[KERNEL] Shutting down safely...")
+    #                         # DO NOT use asyncio.run here!
+    #                         # Instead, just call the shutdown coroutine directly or set a flag.
+    #                         # The boot sequence will handle shutdown when the loop exits naturally.
+    #                         self.kernel.request_shutdown() # Signal shutdown
+    #                         return # Exit the input loop
+    #                     elif cmd == 'status':
+    #                         stats = self.kernel.status()
+    #                         print(f"[KERNEL STATUS] Uptime: {stats['uptime_seconds']}s, Tasks: {stats['scheduler_tasks']}, Running: {stats['running']}")
+    #                     elif cmd == 'ai_predict':
+    #                         # Example of triggering the enhanced AI prediction
+    #                         incoming_tasks = ["UI_Render_Engine", "AI_Background_Trainer"]
+    #                         resource_map = self.kernel.ai_manager.predict_allocation(incoming_tasks)
+    #                         print(f"[AI] Predicted Allocations: {resource_map}")
+    #                     elif cmd == 'quantum_run':
+    #                         # Example of triggering the enhanced Quantum execution
+    #                         incoming_tasks = ["UI_Render_Engine", "AI_Background_Trainer"]
+    #                         resource_map = self.kernel.ai_manager.predict_allocation(incoming_tasks)
+    #                         self.kernel.q_scheduler.execute_superposition(resource_map)
+    #                     else:
+    #                         print(f"[KERNEL] Unknown command: {cmd}")
+    #                     print("UmerOS@root:~# ", end='', flush=True) # Print prompt again
+    #                 except EOFError: # Handle Ctrl+D (EOF)
+    #                     print("\n[KERNEL] Received EOF. Shutting down...")
+    #                     self.kernel.request_shutdown() # Signal shutdown
+    #                     return # Exit the input loop
+    #         except Exception as e:
+    #             print(f"[SHELL] Error in input loop: {e}")
+    #             break # Exit loop on error
+
+
+
+# ------------------------------------------
     # OLD SYNC METHOD (BROKEN)
     # def listen_for_input(self):
     #     while self.kernel.running:
@@ -449,6 +496,44 @@ class UmerKernel:
         self.running = False
         await self.scheduler.stop()
         print("[KERNEL] UmerKernel shut down cleanly.")
+    
+    async def start_gui_shell(self):
+        """Attempts to launch the Flutter-based GUI shell."""
+        print("[KERNEL] Attempting to launch UmerOS GUI Shell...")
+        # Import the launcher script
+        try:
+            # Use importlib to run the script as a module
+            import importlib.util
+            import subprocess
+            import os
+
+            # Get the path to the launcher script
+            launcher_script_path = os.path.join(os.path.dirname(__file__), "..", "ui", "launch_gui.py")
+            launcher_script_path = os.path.abspath(launcher_script_path)
+
+            print(f"[KERNEL] Using launcher script: {launcher_script_path}")
+
+            # Option 1: Run as a subprocess (Recommended for isolation)
+            print("[KERNEL] Launching GUI in a separate process...")
+            process = subprocess.Popen([sys.executable, launcher_script_path])
+            print(f"[KERNEL] GUI process started with PID {process.pid}. Return to kernel shell to manage it.")
+            # Note: The kernel doesn't wait for the GUI process to finish.
+            # The GUI runs independently. The user might need to close the GUI window
+            # or use another mechanism (like a signal/file check) to know when it stops.
+            # For now, we just start it and return control.
+
+            # Option 2: Run inline (Less recommended, might block kernel)
+            # spec = importlib.util.spec_from_file_location("launch_gui", launcher_script_path)
+            # launcher_module = importlib.util.module_from_spec(spec)
+            # spec.loader.exec_module(launcher_module)
+            # launcher_module.main() # This would block the kernel until GUI closes
+
+        except ImportError as e:
+            print(f"[KERNEL] Failed to import GUI launcher: {e}")
+        except FileNotFoundError:
+            print(f"[KERNEL] GUI launcher script not found at expected location: {launcher_script_path}")
+        except Exception as e:
+            print(f"[KERNEL] An error occurred launching the GUI: {e}")
 
 # Standalone execution check
 if __name__ == "__main__":

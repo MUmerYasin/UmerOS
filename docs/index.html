@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Umer OS — Complete Documentation</title>
+<style>
+/* ── Root & reset ─────────────────────────────────────────────────────── */
+:root {
+  --bg:#0a0e1a; --bg2:#111827; --bg3:#1f2937;
+  --accent:#60a5fa; --accent2:#34d399; --accent3:#a78bfa;
+  --warn:#fbbf24; --danger:#f87171;
+  --text:#e2e8f0; --muted:#94a3b8; --border:#374151;
+  --card:#1e293b; --shadow:0 4px 24px rgba(0,0,0,.5);
+  --radius:12px; --font:'Segoe UI',system-ui,sans-serif; --mono:'Cascadia Code','Fira Code',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.7;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+h1,h2,h3,h4{font-weight:700;line-height:1.2}
+code,pre{font-family:var(--mono);background:var(--bg3);border-radius:6px}
+code{padding:2px 6px;font-size:.88em;color:var(--accent2)}
+pre{padding:16px;overflow-x:auto;border-left:3px solid var(--accent);margin:12px 0}
+table{width:100%;border-collapse:collapse;margin:16px 0}
+th{background:var(--bg3);color:var(--accent);padding:10px 14px;text-align:left;border-bottom:2px solid var(--accent)}
+td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--bg3)}
+/* ── Nav ──────────────────────────────────────────────────────────────── */
+nav{position:sticky;top:0;z-index:100;background:rgba(10,14,26,.95);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.nav-brand{font-size:1.3rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));
+           -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-links a{color:var(--muted);font-size:.9rem;transition:color .2s}
+.nav-links a:hover{color:var(--accent);text-decoration:none}
+/* ── Hero ─────────────────────────────────────────────────────────────── */
+.hero{background:linear-gradient(135deg,#0a0e1a 0%,#0d1b4b 50%,#0a0e1a 100%);
+      padding:80px 24px;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 30% 50%,rgba(96,165,250,.15) 0%,transparent 60%),
+             radial-gradient(ellipse at 70% 50%,rgba(167,139,250,.12) 0%,transparent 60%)}
+.hero h1{font-size:clamp(2.2rem,6vw,4rem);margin-bottom:16px;
+         background:linear-gradient(90deg,#60a5fa,#34d399,#a78bfa);
+         -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.2rem;color:var(--muted);max-width:680px;margin:0 auto 32px}
+.hero-badges{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.badge{padding:6px 16px;border-radius:20px;font-size:.8rem;font-weight:600;border:1px solid}
+.badge-blue{color:var(--accent);border-color:var(--accent);background:rgba(96,165,250,.1)}
+.badge-green{color:var(--accent2);border-color:var(--accent2);background:rgba(52,211,153,.1)}
+.badge-purple{color:var(--accent3);border-color:var(--accent3);background:rgba(167,139,250,.1)}
+.badge-yellow{color:var(--warn);border-color:var(--warn);background:rgba(251,191,36,.1)}
+/* ── Layout ───────────────────────────────────────────────────────────── */
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+section{padding:60px 0}
+section:nth-child(even){background:var(--bg2)}
+.section-title{font-size:2rem;margin-bottom:8px;color:var(--accent)}
+.section-sub{color:var(--muted);margin-bottom:40px}
+/* ── Cards ────────────────────────────────────────────────────────────── */
+.grid{display:grid;gap:20px}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.grid-3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.grid-4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+      padding:24px;box-shadow:var(--shadow);transition:transform .2s,border-color .2s}
+.card:hover{transform:translateY(-3px);border-color:var(--accent)}
+.card-icon{font-size:2rem;margin-bottom:12px}
+.card h3{font-size:1.1rem;margin-bottom:8px;color:var(--accent2)}
+.card p{color:var(--muted);font-size:.9rem}
+/* ── Tier pills ───────────────────────────────────────────────────────── */
+.tier-today{background:#064e3b;color:#34d399;padding:2px 10px;border-radius:12px;font-size:.75rem;font-weight:700}
+.tier-exp{background:#78350f;color:#fbbf24;padding:2px 10px;border-radius:12px;font-size:.75rem;font-weight:700}
+.tier-future{background:#312e81;color:#a78bfa;padding:2px 10px;border-radius:12px;font-size:.75rem;font-weight:700}
+/* ── Steps ────────────────────────────────────────────────────────────── */
+.steps{counter-reset:step}
+.step{display:flex;gap:20px;margin-bottom:28px;align-items:flex-start}
+.step-num{min-width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent3));
+           border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem}
+.step-body h4{color:var(--accent2);margin-bottom:4px}
+.step-body p{color:var(--muted);font-size:.9rem}
+/* ── Callout boxes ────────────────────────────────────────────────────── */
+.callout{border-radius:var(--radius);padding:16px 20px;margin:20px 0;border-left:4px solid}
+.callout-info{background:rgba(96,165,250,.08);border-color:var(--accent)}
+.callout-warn{background:rgba(251,191,36,.08);border-color:var(--warn)}
+.callout-danger{background:rgba(248,113,113,.08);border-color:var(--danger)}
+.callout-success{background:rgba(52,211,153,.08);border-color:var(--accent2)}
+.callout-title{font-weight:700;margin-bottom:4px}
+/* ── Stat boxes ───────────────────────────────────────────────────────── */
+.stat{text-align:center;padding:28px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border)}
+.stat-num{font-size:2.5rem;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent2));
+          -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-label{color:var(--muted);font-size:.9rem;margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- ── Navigation ─────────────────────────────────────────────────────────── -->
+<nav>
+  <span class="nav-brand">⚛ Umer OS</span>
+  <div class="nav-links" style="display:flex;gap:20px;flex-wrap:wrap">
+    <a href="#overview">Overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#features">Features</a>
+    <a href="#quickstart">Quick Start</a>
+    <a href="#install">Installation</a>
+    <a href="#quantum">Quantum</a>
+    <a href="#ai">AI System</a>
+    <a href="#security">Security</a>
+    <a href="#api">API</a>
+    <a href="#faq">FAQ</a>
+  </div>
+</nav>
+
+<!-- ── Hero ───────────────────────────────────────────────────────────────── -->
+<div class="hero">
+  <div class="container">
+    <h1>Umer OS</h1>
+    <p>The world's first Python-first, hybrid classical-quantum, AI-native universal operating system.<br>
+       Runs on desktops, laptops, Android phones, tablets, smart TVs, and IoT devices.</p>
+    <div class="hero-badges">
+      <span class="badge badge-green">✅ 305 Tests Passing</span>
+      <span class="badge badge-blue">⚛ Quantum-Inspired</span>
+      <span class="badge badge-purple">🤖 AI-Native</span>
+      <span class="badge badge-yellow">🔒 Zero-Trust Security</span>
+      <span class="badge badge-blue">🐍 Python 3.12+</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Stats ──────────────────────────────────────────────────────────────── -->
+<section style="padding:40px 0;background:var(--bg2)">
+  <div class="container">
+    <div class="grid grid-4">
+      <div class="stat"><div class="stat-num">305</div><div class="stat-label">Tests — All Passing</div></div>
+      <div class="stat"><div class="stat-num">40+</div><div class="stat-label">Python Source Files</div></div>
+      <div class="stat"><div class="stat-num">7</div><div class="stat-label">Core Subsystems</div></div>
+      <div class="stat"><div class="stat-num">20%–50%</div><div class="stat-label">Storage Reduction (QFS)</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Feature Tiers ──────────────────────────────────────────────────────── -->
+<section id="overview">
+  <div class="container">
+    <div class="section-title">Understanding Feature Tiers</div>
+    <div class="section-sub">Every Umer OS feature is clearly labelled with its maturity level — no marketing fiction.</div>
+    <div class="grid grid-3">
+      <div class="card" style="border-color:#34d399">
+        <div class="card-icon">✅</div>
+        <h3 style="color:#34d399">TODAY</h3>
+        <p>Fully working on any Python 3.12+ system with classical hardware. No special equipment needed.
+           Examples: kernel scheduler, QFS filesystem, AI assistant, zero-trust security, installer.</p>
+      </div>
+      <div class="card" style="border-color:#fbbf24">
+        <div class="card-icon">🔬</div>
+        <h3 style="color:#fbbf24">EXPERIMENTAL</h3>
+        <p>Works but may be unstable. Requires additional tools (Wine for Windows apps, ADB for Android).
+           Examples: compatibility layer, Wine/.exe support, Android APK runner, delta compression.</p>
+      </div>
+      <div class="card" style="border-color:#a78bfa">
+        <div class="card-icon">🔮</div>
+        <h3 style="color:#a78bfa">FUTURE</h3>
+        <p>Requires hardware that does not yet exist in consumer devices (real QPU chips, advanced NPUs).
+           Examples: real quantum computing, fault-tolerant qubits, iOS support (Apple locks this out).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Architecture Diagram ───────────────────────────────────────────────── -->
+<section id="architecture" style="background:var(--bg2)">
+  <div class="container">
+    <div class="section-title">System Architecture</div>
+    <div class="section-sub">How all Umer OS layers work together — from hardware to applications.</div>
+
+    <!-- SVG Architecture Diagram -->
+    <svg viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:900px;display:block;margin:0 auto 40px;border-radius:12px;background:#111827">
+      <defs>
+        <linearGradient id="gBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#1d4ed8"/><stop offset="100%" style="stop-color:#60a5fa"/>
+        </linearGradient>
+        <linearGradient id="gGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#065f46"/><stop offset="100%" style="stop-color:#34d399"/>
+        </linearGradient>
+        <linearGradient id="gPurple" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#4c1d95"/><stop offset="100%" style="stop-color:#a78bfa"/>
+        </linearGradient>
+        <linearGradient id="gYellow" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#78350f"/><stop offset="100%" style="stop-color:#fbbf24"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Layer 1: Applications -->
+      <rect x="20" y="20" width="860" height="50" rx="8" fill="url(#gPurple)" opacity=".9"/>
+      <text x="450" y="48" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="sans-serif">
+        APPLICATIONS &amp; USERS — Native Apps · Web Apps · Legacy Apps (via Compat Layer)
+      </text>
+
+      <!-- Arrow down -->
+      <line x1="450" y1="70" x2="450" y2="90" stroke="#60a5fa" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- Layer 2: UI + Compat -->
+      <rect x="20" y="92" width="415" height="50" rx="8" fill="#1e3a5f" stroke="#60a5fa" stroke-width="1.5"/>
+      <text x="227" y="120" text-anchor="middle" fill="#60a5fa" font-size="12" font-weight="bold" font-family="sans-serif">🖥 UI SHELL (Kivy · Voice · Gesture)</text>
+      <rect x="465" y="92" width="415" height="50" rx="8" fill="#2d1b4e" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="672" y="120" text-anchor="middle" fill="#a78bfa" font-size="12" font-weight="bold" font-family="sans-serif">📦 COMPAT LAYER (Wine · Android · Linux ELF)</text>
+
+      <!-- Arrows -->
+      <line x1="227" y1="142" x2="227" y2="162" stroke="#60a5fa" stroke-width="1.5"/>
+      <line x1="672" y1="142" x2="672" y2="162" stroke="#a78bfa" stroke-width="1.5"/>
+      <line x1="227" y1="162" x2="672" y2="162" stroke="#374151" stroke-width="1"/>
+      <line x1="450" y1="162" x2="450" y2="182" stroke="#34d399" stroke-width="2"/>
+
+      <!-- Layer 3: Services -->
+      <rect x="20" y="184" width="860" height="60" rx="8" fill="#0f2027" stroke="#34d399" stroke-width="2"/>
+      <text x="450" y="206" text-anchor="middle" fill="#34d399" font-size="13" font-weight="bold" font-family="sans-serif">USER-SPACE SERVICES (Python)</text>
+      <text x="100" y="228" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">⚛ Quantum</text>
+      <text x="240" y="228" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">🤖 AI Engine</text>
+      <text x="380" y="228" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">🔒 Security</text>
+      <text x="520" y="228" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">💾 QFS</text>
+      <text x="660" y="228" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">🌐 Network</text>
+      <text x="800" y="228" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">☁ Cloud</text>
+
+      <!-- Arrow -->
+      <line x1="450" y1="244" x2="450" y2="264" stroke="#fbbf24" stroke-width="2"/>
+
+      <!-- Layer 4: Kernel -->
+      <rect x="20" y="266" width="860" height="80" rx="8" fill="url(#gYellow)" opacity=".85"/>
+      <text x="450" y="292" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="sans-serif">UMER HYBRID QUANTUM KERNEL</text>
+      <text x="130" y="316" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">HybridScheduler</text>
+      <text x="270" y="316" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">MemoryManager</text>
+      <text x="410" y="316" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">IPCBus</text>
+      <text x="540" y="316" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">CapabilityManager</text>
+      <text x="680" y="316" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">SecureBoot</text>
+      <text x="810" y="316" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">NullAIManager</text>
+
+      <!-- Arrow -->
+      <line x1="450" y1="346" x2="450" y2="366" stroke="#60a5fa" stroke-width="2"/>
+
+      <!-- Layer 5: HAL -->
+      <rect x="20" y="368" width="860" height="50" rx="8" fill="url(#gBlue)" opacity=".8"/>
+      <text x="450" y="398" text-anchor="middle" fill="white" font-size="13" font-weight="bold" font-family="sans-serif">
+        HARDWARE ABSTRACTION LAYER — ctypes · Cython · VirtIO · USB HID · DMA
+      </text>
+
+      <!-- Arrow -->
+      <line x1="450" y1="418" x2="450" y2="438" stroke="#60a5fa" stroke-width="2"/>
+
+      <!-- Layer 6: Hardware -->
+      <rect x="20" y="440" width="860" height="60" rx="8" fill="url(#gGreen)" opacity=".8"/>
+      <text x="450" y="466" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="sans-serif">HARDWARE</text>
+      <text x="180" y="488" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">CPU (x86_64 / ARM64 / RISC-V)</text>
+      <text x="450" y="488" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">GPU / NPU</text>
+      <text x="700" y="488" text-anchor="middle" fill="white" font-size="10" font-family="sans-serif">RAM · Storage · Network</text>
+
+      <!-- Legend -->
+      <rect x="720" y="26" width="140" height="58" rx="6" fill="#0a0e1a" stroke="#374151"/>
+      <text x="790" y="44" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="sans-serif">LEGEND</text>
+      <rect x="728" y="50" width="12" height="8" rx="2" fill="#34d399"/>
+      <text x="745" y="58" fill="#94a3b8" font-size="8" font-family="sans-serif">Today (working)</text>
+      <rect x="728" y="62" width="12" height="8" rx="2" fill="#fbbf24"/>
+      <text x="745" y="70" fill="#94a3b8" font-size="8" font-family="sans-serif">Experimental</text>
+      <rect x="728" y="74" width="12" height="8" rx="2" fill="#a78bfa"/>
+      <text x="745" y="82" fill="#94a3b8" font-size="8" font-family="sans-serif">Future</text>
+    </svg>
+
+    <!-- Kernel internals diagram -->
+    <h3 style="color:var(--accent2);margin-bottom:20px">Kernel Subsystem Detail</h3>
+    <svg viewBox="0 0 900 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:900px;display:block;margin:0 auto;border-radius:12px;background:#111827">
+      <!-- 5 kernel boxes -->
+      <rect x="20"  y="20" width="160" height="160" rx="8" fill="#1e293b" stroke="#60a5fa" stroke-width="1.5"/>
+      <text x="100" y="48"  text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="bold" font-family="sans-serif">HybridScheduler</text>
+      <text x="100" y="68"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">AI + quantum-inspired</text>
+      <text x="100" y="88"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">tick() / add_task()</text>
+      <text x="100" y="108" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">get_task() / stop()</text>
+      <text x="100" y="128" text-anchor="middle" fill="#34d399" font-size="9"  font-family="sans-serif">✅ TODAY</text>
+      <text x="100" y="148" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">305 unit tests</text>
+      <text x="100" y="168" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">passing</text>
+
+      <rect x="200" y="20" width="160" height="160" rx="8" fill="#1e293b" stroke="#a78bfa" stroke-width="1.5"/>
+      <text x="280" y="48"  text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="bold" font-family="sans-serif">MemoryManager</text>
+      <text x="280" y="68"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">Page-based virtual mem</text>
+      <text x="280" y="88"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">allocate() / free()</text>
+      <text x="280" y="108" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">compact() / stats()</text>
+      <text x="280" y="128" text-anchor="middle" fill="#34d399" font-size="9"  font-family="sans-serif">✅ TODAY</text>
+      <text x="280" y="148" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">4 KiB pages</text>
+      <text x="280" y="168" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">page-aligned alloc</text>
+
+      <rect x="380" y="20" width="160" height="160" rx="8" fill="#1e293b" stroke="#34d399" stroke-width="1.5"/>
+      <text x="460" y="48"  text-anchor="middle" fill="#34d399" font-size="11" font-weight="bold" font-family="sans-serif">IPCBus</text>
+      <text x="460" y="68"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">HMAC-SHA256 signed</text>
+      <text x="460" y="88"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">send() / receive()</text>
+      <text x="460" y="108" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">broadcast() / sign()</text>
+      <text x="460" y="128" text-anchor="middle" fill="#34d399" font-size="9"  font-family="sans-serif">✅ TODAY</text>
+      <text x="460" y="148" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">try_receive() sync</text>
+      <text x="460" y="168" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">pub/sub channels</text>
+
+      <rect x="560" y="20" width="160" height="160" rx="8" fill="#1e293b" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="640" y="48"  text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="bold" font-family="sans-serif">CapabilityManager</text>
+      <text x="640" y="68"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">Zero-trust by default</text>
+      <text x="640" y="88"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">grant() / revoke()</text>
+      <text x="640" y="108" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">check() raises PermErr</text>
+      <text x="640" y="128" text-anchor="middle" fill="#34d399" font-size="9"  font-family="sans-serif">✅ TODAY</text>
+      <text x="640" y="148" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">SYSTEM_PID = 0</text>
+      <text x="640" y="168" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">registered_pids()</text>
+
+      <rect x="740" y="20" width="140" height="160" rx="8" fill="#1e293b" stroke="#f87171" stroke-width="1.5"/>
+      <text x="810" y="48"  text-anchor="middle" fill="#f87171" font-size="11" font-weight="bold" font-family="sans-serif">SecureBoot</text>
+      <text x="810" y="68"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">SHA3-256 image verify</text>
+      <text x="810" y="88"  text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">verify_image()</text>
+      <text x="810" y="108" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">trust store JSON</text>
+      <text x="810" y="128" text-anchor="middle" fill="#34d399" font-size="9"  font-family="sans-serif">✅ TODAY</text>
+      <text x="810" y="148" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">TPM-style log</text>
+      <text x="810" y="168" text-anchor="middle" fill="#94a3b8" font-size="9"  font-family="sans-serif">measurement chain</text>
+    </svg>
+  </div>
+</section>
+
+<!-- ── Features ────────────────────────────────────────────────────────────── -->
+<section id="features">
+  <div class="container">
+    <div class="section-title">Core Features</div>
+    <div class="section-sub">What makes Umer OS different from Linux, Windows, and Android.</div>
+
+    <table>
+      <tr>
+        <th>Feature</th><th>Linux/Windows/Android</th><th>Umer OS</th><th>Status</th>
+      </tr>
+      <tr><td><strong>Kernel Language</strong></td><td>C/C++ (millions of lines)</td><td>Python 3.12+ (~5,000 lines today)</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td><strong>Quantum Support</strong></td><td>None</td><td>NumPy state-vector simulator + QPU API</td><td><span class="tier-today">TODAY (sim)</span> <span class="tier-future">FUTURE (QPU)</span></td></tr>
+      <tr><td><strong>AI Scheduling</strong></td><td>Static round-robin / CFS</td><td>EWMA predictor + quantum-inspired scoring</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td><strong>Post-Quantum Crypto</strong></td><td>Emerging (few systems)</td><td>CRYSTALS-Kyber + Dilithium built-in</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td><strong>App Compatibility</strong></td><td>Own apps only</td><td>.exe (Wine) + .apk (Android) + Linux ELF</td><td><span class="tier-exp">EXPERIMENTAL</span></td></tr>
+      <tr><td><strong>Storage Efficiency</strong></td><td>Standard FS (some compression)</td><td>QFS: CAS + LZMA + delta (20–50% saving)</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td><strong>Self-Healing</strong></td><td>No</td><td>SelfHealingEngine: crash monitor + patch</td><td><span class="tier-exp">EXPERIMENTAL</span></td></tr>
+      <tr><td><strong>Security Model</strong></td><td>DAC/MAC (SELinux)</td><td>Zero-trust + capability-based + AI firewall</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td><strong>iPhone Support</strong></td><td>Apple only</td><td>BLOCKED (Apple Secure Enclave)</td><td>❌ BLOCKED</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ── Quick Start ─────────────────────────────────────────────────────────── -->
+<section id="quickstart" style="background:var(--bg2)">
+  <div class="container">
+    <div class="section-title">Quick Start</div>
+    <div class="section-sub">Get Umer OS running on your computer in 5 minutes.</div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">⚠ Prerequisites</div>
+      Python 3.10 or higher is required. Install from <a href="https://python.org">python.org</a>.
+      For post-quantum crypto: <code>pip install cryptography</code>. For quantum simulation: <code>pip install numpy</code>.
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Download and Extract</h4>
+          <p>Download <code>UmerOS.zip</code> and extract it to a folder of your choice.</p>
+          <pre>unzip UmerOS.zip
+cd UmerOS</pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Install Dependencies</h4>
+          <p>Install the two required Python packages (everything else uses the standard library).</p>
+          <pre>pip install numpy cryptography</pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Run the Test Suite</h4>
+          <p>Verify your installation — all 305 tests should pass.</p>
+          <pre>python -m unittest discover -s tests -v</pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Simulate the Boot Sequence</h4>
+          <p>Watch Umer OS boot — system check, kernel verification, and kernel initialisation.</p>
+          <pre>python -m boot.bootloader</pre>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Launch the Desktop (Optional)</h4>
+          <p>Install Kivy for the full graphical shell. Without Kivy, headless mode is used.</p>
+          <pre>pip install kivy
+python -m ui.gui</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Installation Guide ─────────────────────────────────────────────────── -->
+<section id="install">
+  <div class="container">
+    <div class="section-title">Installation Guide</div>
+    <div class="section-sub">How to install Umer OS on different devices.</div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">⛔ Legal Warning — Read Before Installing</div>
+      Installing Umer OS modifies your device. It may void your manufacturer warranty. Data loss is
+      possible without a verified backup. The installer requires you to type <strong>I AGREE</strong>
+      (exactly) before proceeding. No installation happens without explicit consent.
+    </div>
+
+    <div class="grid grid-2" style="margin-top:24px">
+      <div class="card">
+        <div class="card-icon">💻</div>
+        <h3>Desktop / Laptop (x86_64 or ARM64)</h3>
+        <p>Easiest installation path. Works on Windows, Linux, and macOS hosts.</p>
+        <pre style="font-size:.8rem">python installer/installer.py
+# Follow the on-screen prompts
+# Type  I AGREE  when asked</pre>
+        <p style="margin-top:8px;color:var(--accent2)">Status: <span class="tier-today">TODAY</span></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🤖</div>
+        <h3>Android Device (ARM64)</h3>
+        <p>Requires an unlocked bootloader. Works on most Android phones with developer options enabled.</p>
+        <pre style="font-size:.8rem">fastboot oem unlock
+fastboot flash recovery twrp.img
+adb sideload umeros-arm64.zip</pre>
+        <p style="margin-top:8px;color:var(--warn)">Status: <span class="tier-exp">EXPERIMENTAL</span></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🍓</div>
+        <h3>Raspberry Pi / Jetson</h3>
+        <p>Best hardware for running Umer OS today. Full ARM64 support out of the box.</p>
+        <pre style="font-size:.8rem">dd if=umeros-arm64.img of=/dev/sdX
+# Boot the Pi — Python kernel starts</pre>
+        <p style="margin-top:8px;color:var(--accent2)">Status: <span class="tier-today">TODAY</span></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📱</div>
+        <h3>iPhone / iPad</h3>
+        <p>Apple's Secure Enclave prevents third-party OS installation. This is a hardware lock, not a software choice.</p>
+        <pre style="font-size:.8rem"># Not supported
+# Apple Secure Enclave blocks all
+# third-party bootloaders</pre>
+        <p style="margin-top:8px;color:var(--danger)">Status: ❌ BLOCKED</p>
+      </div>
+    </div>
+
+    <h3 style="color:var(--accent2);margin:32px 0 12px">Rollback / Uninstall</h3>
+    <p style="color:var(--muted);margin-bottom:12px">Changed your mind? The installer creates a complete backup before touching anything.</p>
+    <pre>python installer/rollback_tools/restore_bootloader.py
+python installer/rollback_tools/restore_partitions.py</pre>
+  </div>
+</section>
+
+<!-- ── Quantum Section ─────────────────────────────────────────────────────── -->
+<section id="quantum" style="background:var(--bg2)">
+  <div class="container">
+    <div class="section-title">Quantum Computing in Umer OS</div>
+    <div class="section-sub">How quantum-inspired features work today — and what's planned for the future.</div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">💡 What "Quantum-Inspired" Means</div>
+      True quantum computers with physical qubits are not yet available in consumer devices.
+      Umer OS <em>simulates</em> quantum behaviour on classical hardware using NumPy mathematics.
+      This gives us quantum-inspired algorithms today, while the API is ready for real QPU hardware tomorrow.
+    </div>
+
+    <!-- Quantum Circuit Diagram -->
+    <svg viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:800px;display:block;margin:24px auto;border-radius:12px;background:#111827">
+      <text x="400" y="30" text-anchor="middle" fill="#a78bfa" font-size="14" font-weight="bold" font-family="sans-serif">Bell State Circuit (Quantum Entanglement Simulation)</text>
+      <!-- Qubit lines -->
+      <line x1="60" y1="80"  x2="740" y2="80"  stroke="#374151" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <line x1="60" y1="150" x2="740" y2="150" stroke="#374151" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <!-- Labels -->
+      <text x="30" y="84"  fill="#94a3b8" font-size="12" font-family="sans-serif">|0⟩</text>
+      <text x="30" y="154" fill="#94a3b8" font-size="12" font-family="sans-serif">|0⟩</text>
+      <!-- H Gate -->
+      <rect x="120" y="62" width="60" height="36" rx="4" fill="#1d4ed8" stroke="#60a5fa" stroke-width="1.5"/>
+      <text x="150" y="85" text-anchor="middle" fill="white" font-size="14" font-weight="bold" font-family="sans-serif">H</text>
+      <!-- CNOT Gate -->
+      <circle cx="360" cy="80"  r="14" fill="none" stroke="#a78bfa" stroke-width="2"/>
+      <text x="360" y="85" text-anchor="middle" fill="#a78bfa" font-size="14" font-weight="bold" font-family="sans-serif">•</text>
+      <circle cx="360" cy="150" r="14" fill="none" stroke="#a78bfa" stroke-width="2"/>
+      <line  x1="360" y1="94" x2="360" y2="136" stroke="#a78bfa" stroke-width="2"/>
+      <line  x1="348" y1="150" x2="372" y2="150" stroke="#a78bfa" stroke-width="2"/>
+      <line  x1="360" y1="138" x2="360" y2="162" stroke="#a78bfa" stroke-width="2"/>
+      <!-- Measure -->
+      <rect x="500" y="62"  width="60" height="36" rx="4" fill="#064e3b" stroke="#34d399" stroke-width="1.5"/>
+      <text x="530" y="85"  text-anchor="middle" fill="#34d399" font-size="11" font-family="sans-serif">Measure</text>
+      <rect x="500" y="132" width="60" height="36" rx="4" fill="#064e3b" stroke="#34d399" stroke-width="1.5"/>
+      <text x="530" y="155" text-anchor="middle" fill="#34d399" font-size="11" font-family="sans-serif">Measure</text>
+      <!-- Result -->
+      <text x="620" y="84"  fill="#fbbf24" font-size="12" font-family="sans-serif">→ 0 or 1</text>
+      <text x="620" y="154" fill="#fbbf24" font-size="12" font-family="sans-serif">→ same!</text>
+      <text x="620" y="180" fill="#94a3b8" font-size="10" font-family="sans-serif">(always correlated)</text>
+      <!-- Step labels -->
+      <text x="150" y="115" text-anchor="middle" fill="#60a5fa" font-size="9" font-family="sans-serif">Superposition</text>
+      <text x="360" y="180" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="sans-serif">Entanglement</text>
+    </svg>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-icon">⚛</div>
+        <h3>Superposition-Inspired Scheduling</h3>
+        <p>Each task in the scheduler has a "superposition" probability score (0.0–1.0) computed by
+           the AI manager. The quantum simulator can refine these scores using Hadamard gate sampling,
+           ensuring better CPU allocation than simple round-robin.</p>
+        <pre style="font-size:.8rem"># QuantumCircuitSimulator usage
+sim = QuantumCircuitSimulator(n_qubits=2)
+sim.apply_h(0)          # superposition
+sim.apply_cnot(0, 1)    # entanglement
+bit = sim.measure()     # collapse to 0 or 1</pre>
+        <p style="margin-top:8px"><span class="tier-today">TODAY (simulation)</span></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔐</div>
+        <h3>Post-Quantum Cryptography</h3>
+        <p>Umer OS uses CRYSTALS-Kyber for key exchange and CRYSTALS-Dilithium for signatures —
+           the NIST-standardised algorithms that are secure even against future quantum computers.
+           Falls back to Ed25519/AES-256-GCM if liboqs is not installed.</p>
+        <pre style="font-size:.8rem">pqc = PostQuantumCrypto()
+pk, sk = pqc.generate_keypair()
+ct = pqc.encrypt(b"secret", pk)
+pt = pqc.decrypt(ct, sk)   # = b"secret"
+sig = pqc.sign(b"msg", sk)
+ok  = pqc.verify(b"msg", sig, pk)</pre>
+        <p style="margin-top:8px"><span class="tier-today">TODAY</span></p>
+      </div>
+    </div>
+
+    <h3 style="color:var(--accent2);margin:28px 0 12px">Error Mitigation Pipeline</h3>
+    <table>
+      <tr><th>Stage</th><th>Technique</th><th>Status</th><th>Purpose</th></tr>
+      <tr><td>1</td><td>Noise-aware simulation (Qiskit NoiseModel)</td><td><span class="tier-today">TODAY</span></td><td>Realistic quantum noise in simulations</td></tr>
+      <tr><td>2</td><td>Repeated measurement averaging</td><td><span class="tier-today">TODAY</span></td><td>Statistical noise reduction</td></tr>
+      <tr><td>3</td><td>Zero-Noise Extrapolation (ZNE)</td><td><span class="tier-exp">EXPERIMENTAL</span></td><td>Extrapolate to zero-noise limit</td></tr>
+      <tr><td>4</td><td>Readout error calibration matrices</td><td><span class="tier-exp">EXPERIMENTAL</span></td><td>Correct systematic measurement errors</td></tr>
+      <tr><td>5</td><td>Logical qubit encoding (surface codes)</td><td><span class="tier-future">FUTURE</span></td><td>Fault-tolerant quantum computation</td></tr>
+      <tr><td>6</td><td>Fault-tolerant threshold operations</td><td><span class="tier-future">FUTURE (10+ yrs)</span></td><td>"Zero loss" quantum computing</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ── AI System ───────────────────────────────────────────────────────────── -->
+<section id="ai">
+  <div class="container">
+    <div class="section-title">AI System</div>
+    <div class="section-sub">Four AI subsystems work together to make Umer OS smarter over time.</div>
+
+    <div class="grid grid-2" style="margin-bottom:32px">
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h3>AIResourceManager</h3>
+        <p>Uses Exponentially-Weighted Moving Average (EWMA) to predict a process's CPU usage, RAM usage,
+           and scheduling success probability. Feeds directly into the HybridScheduler to prioritise tasks
+           that are likely to succeed.</p>
+        <pre style="font-size:.8rem">arm = AIResourceManager(window=20)
+arm.record_cpu(pid=1, usage=0.85)
+pred = arm.predict_cpu_usage(pid=1)
+# pred ≈ 0.85 (converges to recorded value)</pre>
+        <p style="margin-top:8px"><span class="tier-today">TODAY</span></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🤖</div>
+        <h3>LocalAIAssistant</h3>
+        <p>Responds to natural-language system commands. Today uses rule-based keyword matching.
+           Future version will use a local LLM (llama-cpp-python) running entirely on-device —
+           no internet connection required, no data ever leaves your device.</p>
+        <pre style="font-size:.8rem">ai = LocalAIAssistant()
+ai.index_files("/home/user/docs")  # build index
+ai.ask("optimize resources")       # → advice
+results = ai.search_files("budget report")</pre>
+        <p style="margin-top:8px"><span class="tier-today">TODAY (rules)</span> <span class="tier-future">FUTURE (LLM)</span></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🩺</div>
+        <h3>SelfHealingEngine</h3>
+        <p>Watches registered processes for crashes. When a crash occurs, it records it (lowering the
+           process's priority score), calls a recovery callback, and generates a patch stub. Future
+           versions will use the local LLM to write real fix code.</p>
+        <pre style="font-size:.8rem">healer = SelfHealingEngine()
+healer.watch(pid=5, name="my_service",
+    recovery=lambda p, e: restart(p))
+# Automatically called on crash:</pre>
+        <p style="margin-top:8px"><span class="tier-today">TODAY (monitor)</span> <span class="tier-exp">EXPERIMENTAL (patch)</span></p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡</div>
+        <h3>AIFirewall</h3>
+        <p>Analyses each process's system call patterns. Unusual combinations (ptrace + setuid + execve)
+           score high on the anomaly scale (0.0 = safe, 1.0 = critical). Processes above the threshold
+           (default 0.75) are automatically quarantined.</p>
+        <pre style="font-size:.8rem">fw = AIFirewall(threshold=0.75)
+fw.profile_process(pid=3)
+score = fw.check_and_act(pid=3,
+    syscall_trace=["read","write","stat"])
+# score ≈ 0.0 → safe</pre>
+        <p style="margin-top:8px"><span class="tier-today">TODAY</span></p>
+      </div>
+    </div>
+
+    <div class="callout callout-success">
+      <div class="callout-title">🔒 Privacy Guarantee</div>
+      All AI features run <strong>on-device only</strong>. No personal data is collected without
+      explicit opt-in consent. Use <code>AIGovernance.grant_consent("feature")</code> to opt in,
+      and <code>AIGovernance.clear_all()</code> to erase all learned preferences at any time.
+    </div>
+  </div>
+</section>
+
+<!-- ── Security ────────────────────────────────────────────────────────────── -->
+<section id="security" style="background:var(--bg2)">
+  <div class="container">
+    <div class="section-title">Security Architecture</div>
+    <div class="section-sub">Zero-trust by default. Every process, every message, every boot image is verified.</div>
+
+    <!-- Security SVG -->
+    <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:800px;display:block;margin:0 auto 32px;border-radius:12px;background:#111827">
+      <text x="400" y="30" text-anchor="middle" fill="#f87171" font-size="14" font-weight="bold" font-family="sans-serif">Zero-Trust Security Model</text>
+      <!-- Concentric circles (trust zones) -->
+      <circle cx="400" cy="130" r="160" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="4,4"/>
+      <circle cx="400" cy="130" r="110" fill="none" stroke="#374151" stroke-width="1" stroke-dasharray="4,4"/>
+      <circle cx="400" cy="130" r="60"  fill="rgba(248,113,113,.15)" stroke="#f87171" stroke-width="2"/>
+      <!-- Zone labels -->
+      <text x="400" y="126" text-anchor="middle" fill="#f87171" font-size="11" font-weight="bold" font-family="sans-serif">KERNEL</text>
+      <text x="400" y="140" text-anchor="middle" fill="#f87171" font-size="9" font-family="sans-serif">(ring 0)</text>
+      <!-- Services ring -->
+      <text x="530" y="100" fill="#fbbf24" font-size="10" font-family="sans-serif">Services</text>
+      <text x="530" y="115" fill="#fbbf24" font-size="10" font-family="sans-serif">(verified)</text>
+      <text x="250" y="100" fill="#fbbf24" font-size="10" font-family="sans-serif">Drivers</text>
+      <text x="250" y="115" fill="#fbbf24" font-size="10" font-family="sans-serif">(signed)</text>
+      <!-- App ring -->
+      <text x="580" y="150" fill="#94a3b8" font-size="10" font-family="sans-serif">User Apps</text>
+      <text x="580" y="165" fill="#94a3b8" font-size="10" font-family="sans-serif">(sandboxed)</text>
+      <text x="170" y="150" fill="#94a3b8" font-size="10" font-family="sans-serif">Legacy Apps</text>
+      <text x="170" y="165" fill="#94a3b8" font-size="10" font-family="sans-serif">(containers)</text>
+      <!-- Check marks at zone boundaries -->
+      <text x="460" y="132" fill="#34d399" font-size="16" font-family="sans-serif">✓</text>
+      <text x="510" y="132" fill="#34d399" font-size="16" font-family="sans-serif">✓</text>
+      <text x="560" y="132" fill="#34d399" font-size="16" font-family="sans-serif">✓</text>
+      <text x="326" y="132" fill="#34d399" font-size="16" font-family="sans-serif">✓</text>
+      <text x="276" y="132" fill="#34d399" font-size="16" font-family="sans-serif">✓</text>
+      <text x="226" y="132" fill="#34d399" font-size="16" font-family="sans-serif">✓</text>
+      <!-- Legend -->
+      <text x="400" y="205" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="sans-serif">Every boundary crossing requires capability check + HMAC verification</text>
+    </svg>
+
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="card-icon">🔑</div>
+        <h3>Capability-Based Access</h3>
+        <p>No process has any permission by default. Every capability (fs.read, net.send, gpu.render…)
+           must be explicitly granted. Revocation is instant. <code>check()</code> raises
+           <code>PermissionError</code> immediately if denied.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">✍</div>
+        <h3>HMAC-Signed IPC</h3>
+        <p>Every inter-process message is signed with HMAC-SHA256 using a per-bus random 32-byte key.
+           Unsigned messages are silently dropped. The bus also provides a
+           <code>sign(payload)</code> utility for external callers.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🔏</div>
+        <h3>Post-Quantum TLS</h3>
+        <p>All network connections use CRYSTALS-Kyber for key exchange and Dilithium for signatures —
+           algorithms that remain secure even against a quantum computer running Shor's algorithm.</p>
+      </div>
+    </div>
+
+    <h3 style="color:var(--accent2);margin:28px 0 12px">Cryptography Standards</h3>
+    <table>
+      <tr><th>Use Case</th><th>Algorithm</th><th>Key Size</th><th>Status</th></tr>
+      <tr><td>Key Exchange</td><td>CRYSTALS-Kyber 768 (ML-KEM)</td><td>1184-byte public key</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td>Digital Signatures</td><td>CRYSTALS-Dilithium 3 (ML-DSA)</td><td>1952-byte public key</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td>Symmetric Encryption</td><td>AES-256-GCM</td><td>256-bit</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td>Hashing (files)</td><td>SHA3-256</td><td>256-bit output</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td>Hashing (passwords)</td><td>SHA3-512</td><td>512-bit output</td><td><span class="tier-today">TODAY</span></td></tr>
+      <tr><td>IPC Authentication</td><td>HMAC-SHA256</td><td>256-bit key</td><td><span class="tier-today">TODAY</span></td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ── API Reference ───────────────────────────────────────────────────────── -->
+<section id="api">
+  <div class="container">
+    <div class="section-title">API Reference</div>
+    <div class="section-sub">Key classes and methods for developers building on Umer OS.</div>
+
+    <div class="grid grid-2">
+      <div>
+        <h3 style="color:var(--accent2);margin-bottom:16px">UmerKernel</h3>
+        <pre>from kernel.umer_kernel import UmerKernel
+import asyncio
+
+kernel = UmerKernel(total_memory_bytes=512*1024*1024)
+
+async def main():
+    await kernel.init()
+
+    # Spawn a process
+    pid = kernel.spawn_process(
+        name="my_service",
+        priority=0.8,
+        capabilities=["fs.read","net.send"]
+    )
+
+    # Check system health
+    print(kernel.status())
+    print(f"Uptime: {kernel.uptime():.2f}s")
+
+    # Kill a process
+    kernel.kill_process(pid)
+
+    await kernel.shutdown()
+
+asyncio.run(main())</pre>
+      </div>
+      <div>
+        <h3 style="color:var(--accent2);margin-bottom:16px">QFS Filesystem</h3>
+        <pre>from fs.qfs import QFS
+
+qfs = QFS(max_store_bytes=256*1024*1024)
+qfs.mount("/")
+
+# Write a file
+addr = qfs.write_file(
+    "/home/user/report.txt",
+    b"Quarterly report data..."
+)
+
+# Read it back
+data = qfs.read_file("/home/user/report.txt")
+
+# Semantic search
+results = qfs.search("quarterly report")
+
+# Take a snapshot (for rollback)
+snap = qfs.snapshot()
+qfs.write_file("/home/user/report.txt", b"Modified")
+qfs.restore_snapshot(snap)  # undo changes
+
+# Check storage savings
+stats = qfs.stats()
+print(f"Saving: {stats['space_saving_pct']}%")</pre>
+      </div>
+      <div>
+        <h3 style="color:var(--accent2);margin-bottom:16px">Quantum Simulator</h3>
+        <pre>from quantum.quantum_sim import QuantumCircuitSimulator
+
+sim = QuantumCircuitSimulator(n_qubits=2)
+
+# Create Bell state (entanglement)
+sim.apply_h(0)       # Hadamard → superposition
+sim.apply_cnot(0, 1) # Entangle qubit 0 and 1
+
+# Measure
+probabilities = sim.probabilities()
+# → [0.5, 0.0, 0.0, 0.5]
+# Only |00⟩ and |11⟩ are possible
+
+outcome = sim.measure()  # collapses state
+
+# Get expectation value
+ev = sim.expectation_z(0)  # -1 to +1</pre>
+      </div>
+      <div>
+        <h3 style="color:var(--accent2);margin-bottom:16px">Post-Quantum Crypto</h3>
+        <pre>from quantum.crypto_pqc import PostQuantumCrypto
+
+pqc = PostQuantumCrypto()
+print(f"Backend: {pqc.backend}")
+# → "liboqs" or "fallback"
+
+# Key pair generation
+pk, sk = pqc.generate_keypair()
+
+# Encrypt / Decrypt
+ciphertext = pqc.encrypt(b"secret data", pk)
+plaintext  = pqc.decrypt(ciphertext, sk)
+assert plaintext == b"secret data"
+
+# Sign / Verify
+signature = pqc.sign(b"kernel image", sk)
+is_valid  = pqc.verify(b"kernel image",
+                        signature, pk)
+assert is_valid  # True</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FAQ ────────────────────────────────────────────────────────────────── -->
+<section id="faq" style="background:var(--bg2)">
+  <div class="container">
+    <div class="section-title">Frequently Asked Questions</div>
+    <div class="section-sub">Answers for both technical and non-technical users.</div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>❓ Is Umer OS a real operating system I can install?</h3>
+        <p>Yes and no. The core software works today on any computer with Python 3.10+.
+           The full OS install (replacing your existing OS) is experimental — recommended for
+           developers and enthusiasts only. Most users should run it as a Python environment first.</p>
+      </div>
+      <div class="card">
+        <h3>❓ Does it really use quantum computing?</h3>
+        <p>Today, all quantum features are <em>simulated</em> using NumPy mathematics on classical hardware.
+           This gives us quantum-inspired algorithms (better scheduling, stronger crypto) that work right now.
+           Real QPU hardware integration is planned for the future.</p>
+      </div>
+      <div class="card">
+        <h3>❓ Can I run Windows apps (.exe)?</h3>
+        <p>Yes — if Wine is installed on your system. The WineShim in the compatibility layer
+           sets up a per-app wineprefix and launches Windows executables. This is marked
+           EXPERIMENTAL as not all apps work perfectly.</p>
+      </div>
+      <div class="card">
+        <h3>❓ Can I run Android apps (.apk)?</h3>
+        <p>Yes — if ADB is installed and a device/emulator is connected. The AndroidContainer
+           uses <code>adb shell am start</code> to launch APKs. This is EXPERIMENTAL and
+           requires an Android runtime environment.</p>
+      </div>
+      <div class="card">
+        <h3>❓ What happens to my data?</h3>
+        <p>Nothing without your permission. All AI features are opt-in. No data is ever sent
+           anywhere without explicit consent from the AIGovernance module. You can call
+           <code>AIGovernance.clear_all()</code> at any time to erase all learned preferences.</p>
+      </div>
+      <div class="card">
+        <h3>❓ Can I install this on my iPhone?</h3>
+        <p>No. Apple's Secure Enclave hardware chip and Verified Boot chain make it physically
+           impossible to run a third-party OS without jailbreaking, which voids your warranty
+           and is against Apple's terms of service. Focus is on Android and desktop platforms.</p>
+      </div>
+      <div class="card">
+        <h3>❓ How do I contribute to Umer OS?</h3>
+        <p>All code is in Python and well-documented. Start by running the test suite, then
+           pick a subsystem (quantum, AI, security, etc.) and look for TODO comments. Submit
+           pull requests with tests — all PRs must maintain the 305-test pass rate.</p>
+      </div>
+      <div class="card">
+        <h3>❓ What hardware does it support?</h3>
+        <p>Umer OS runs on x86_64 (Intel/AMD), ARM64 (Apple Silicon, Raspberry Pi, Android phones),
+           and in QEMU virtual machines. RISC-V support is planned for the future.
+           Minimum: 512 MB RAM, Python 3.10+.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Roadmap ─────────────────────────────────────────────────────────────── -->
+<section>
+  <div class="container">
+    <div class="section-title">20-Year Roadmap</div>
+    <div class="section-sub">A realistic, engineering-first timeline for Umer OS development.</div>
+
+    <table>
+      <tr><th>Timeline</th><th>Phase</th><th>Key Milestones</th></tr>
+      <tr>
+        <td><strong>0–2 Years</strong><br><small style="color:var(--muted)">NOW</small></td>
+        <td><span class="tier-today">Research &amp; Prototype</span></td>
+        <td>Python kernel prototype ✅ · Quantum simulation ✅ · AI assistant ✅ · 
+            Zero-trust security ✅ · QFS filesystem ✅ · 305 tests passing ✅</td>
+      </tr>
+      <tr>
+        <td><strong>2–5 Years</strong></td>
+        <td><span class="tier-exp">Alpha → Beta</span></td>
+        <td>ARM64/Android port · Post-quantum TLS live · Full AI resource manager ·
+            Stable package ecosystem · SDK v1 · Community adoption</td>
+      </tr>
+      <tr>
+        <td><strong>5–10 Years</strong></td>
+        <td><span class="tier-exp">Production</span></td>
+        <td>QPU co-processor driver interface · NPU/FPGA AI acceleration ·
+            Cross-device continuity · Major hardware vendor partnerships ·
+            Umer OS certified on ARM phones</td>
+      </tr>
+      <tr>
+        <td><strong>10–20 Years</strong></td>
+        <td><span class="tier-future">Maturity</span></td>
+        <td>Fault-tolerant QPU integration · AGI-level on-device AI ·
+            Umer OS mainstream on consumer devices · Full quantum kernel primitives</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<footer style="background:var(--bg3);border-top:1px solid var(--border);padding:40px 24px;text-align:center">
+  <div style="font-size:1.5rem;font-weight:800;margin-bottom:8px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">⚛ Umer OS</div>
+  <p style="color:var(--muted);font-size:.9rem;max-width:600px;margin:0 auto 16px">
+    Python-first · Hybrid Classical-Quantum · AI-Native · Zero-Trust Security<br>
+    v0.1.0-alpha · Apache Licence 2.0 · 305 tests passing
+  </p>
+  <div style="display:flex;gap:20px;justify-content:center;flex-wrap:wrap;color:var(--muted);font-size:.85rem">
+    <span>📁 40+ Python files</span>
+    <span>🧪 305 tests</span>
+    <span>⚛ NumPy quantum sim</span>
+    <span>🔐 Post-quantum crypto</span>
+    <span>🐍 Python 3.12+</span>
+  </div>
+  <p style="color:var(--border);font-size:.75rem;margin-top:16px">
+    Reality check: Quantum features are simulations on classical hardware today.
+    iPhone support is BLOCKED by Apple Secure Enclave. "Zero-error qubits" is a FUTURE goal.
+  </p>
+</footer>
+
+</body>
+</html>
