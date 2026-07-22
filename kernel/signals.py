@@ -50,7 +50,7 @@ DEFAULT_ACTIONS: Dict[str, str] = {
 }
 
 # Fatal signals that cannot be caught or ignored.
-FATAL_SIGNALS: frozenset({SIGKILL})
+FATAL_SIGNALS = frozenset({SIGKILL})
 
 
 # ── Signal Handler ────────────────────────────────────────────────────────────────

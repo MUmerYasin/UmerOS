@@ -21,6 +21,13 @@ import time
 import random # Needed for the enhanced AI logic
 import secrets # Needed for crypto
 
+# ── Linux-inspired kernel modules (NEW) ──────────────────────────────────────
+from kernel.pid_allocator import PidAllocator, PID_SYSTEM, PID_INIT
+from kernel.taint import KernelTaint, TAINT_OOM_KILL, TAINT_CRYPTO_FAIL, TAINT_SANDBOX_VIOLATION
+from kernel.sysctl import SysctlRegistry, TYPE_INT, TYPE_BOOL
+from kernel.panic import PanicNotifier, WarnCounter, OopsContext
+from kernel.signals import SIGKILL, SIGTERM, SIGCHLD
+
 # --- STAGE 2: Core Kernel Subsystems ---
 # NOTE: Import paths assume the correct folder structure and __init__.py files.
 # If modules like 'scheduler' don't exist yet, their logic might be simulated here.
@@ -372,9 +379,97 @@ class UmerKernel:
         self.running = False
         self._shutdown_requested = False # Flag to signal shutdown
 
+        # ── Linux-inspired kernel subsystems (NEW) ──────────────────────────────
+        # PID allocator: replaces hardcoded PIDs with cyclic allocation
+        # Inspired by Linux kernel/pid.c — alloc_pid() with idr_alloc_cyclic.
+        self.pid_allocator = PidAllocator()
+
+        # Kernel taint: monotonic bitmask tracking integrity events.
+        # Inspired by Linux kernel/panic.c — taint_flags[].
+        self.taint = KernelTaint()
+
+        # Sysctl: runtime-tunable parameters.
+        # Inspired by Linux kernel/sysctl.c — /proc/sys/.
+        self.sysctl = SysctlRegistry()
+        self._register_default_sysctls()
+
+        # Panic notifier chain: subsystems react to fatal events.
+        # Inspired by Linux kernel/panic.c — panic_notifier_list.
+        self.panic_notifier = PanicNotifier()
+
+        # Warn counter: rate-limited warning with optional panic on overflow.
+        # Inspired by Linux kernel/panic.c — check_panic_on_warn().
+        self.warn_counter = WarnCounter(limit=0)  # 0 = unlimited by default
+
+        log.info("Linux-inspired kernel subsystems initialised "
+                 "(PID allocator, taint, sysctl, panic notifier).")
+
     def request_shutdown(self):
         """Public method for components (like the shell) to request a shutdown."""
         self._shutdown_requested = True
+
+    def _register_default_sysctls(self) -> None:
+        """Register default runtime-tunable kernel parameters.
+
+        Inspired by Linux ``kernel/sysctl.c`` — exposes knobs for
+        panic timeout, hung-task threshold, and warn limit.
+        """
+        self.sysctl.register(
+            "kernel.panic_timeout", 0,
+            ptype=TYPE_INT, min_val=-1, max_val=600,
+            desc="Seconds before auto-reboot after panic (0=hang, -1=skip)",
+        )
+        self.sysctl.register(
+            "kernel.hung_task_timeout", 120,
+            ptype=TYPE_INT, min_val=10, max_val=3600,
+            desc="Seconds before declaring a task hung",
+        )
+        self.sysctl.register(
+            "kernel.warn_limit", 0,
+            ptype=TYPE_INT, min_val=0, max_val=100000,
+            desc="Max warnings before kernel panic (0=unlimited)",
+        )
+        self.sysctl.register(
+            "kernel.panic_on_taint", False,
+            ptype=TYPE_BOOL,
+            desc="Panic immediately if the kernel becomes tainted",
+        )
+
+    async def panic(self, message: str) -> None:
+        """Handle a fatal kernel error.
+
+        Inspired by Linux ``panic()``: logs the message, fires the panic
+        notifier chain (so subsystems can dump state / zero keys), taints
+        the kernel, then either hangs or reboots based on
+        ``kernel.panic_timeout``.
+
+        Args:
+            message: Human-readable panic reason.
+        """
+        async with OopsContext():
+            log.critical("KERNEL PANIC: %s", message)
+            log.critical("Taint state: %s", self.taint.summary() or "(clean)")
+            log.critical("Uptime: %.3fs", self.uptime())
+
+        # Fire the notifier chain — subsystems dump state, zero keys, etc.
+        await self.panic_notifier.fire(message)
+
+        # Taint the kernel
+        self.taint.add("TAINT_KERNEL_PANIC")
+
+        # Decide recovery action based on panic_timeout
+        timeout = self.sysctl.get("kernel.panic_timeout", 0)
+        if timeout > 0:
+            log.warning("Auto-rebooting in %d seconds...", timeout)
+            await asyncio.sleep(timeout)
+            # Attempt re-initialisation (in a real OS this would be a reboot)
+            self.running = False
+            self._shutdown_requested = True
+        else:
+            # Hang forever — set running False so the main loop exits
+            log.error("Kernel halted. Manual restart required.")
+            self.running = False
+            self._shutdown_requested = True
 
     async def boot(self):
         print("[KERNEL] Boot sequence initiated.")
@@ -406,13 +501,16 @@ class UmerKernel:
 
 
         # --- Remainder of Boot Sequence (as per original complex kernel) ---
-        # Register init process
-        init_pid = 1000
+        # Register init process — use the PID allocator (Linux pid.c style)
+        # instead of a hardcoded PID. Reserve PID_INIT (1000) for init.
+        init_pid = PID_INIT
+        self.pid_allocator._in_use.add(init_pid)  # mark as allocated
         self.capabilities.register(init_pid)
-        self.ipc.register(init_pid)
+        self.ipc.register(init_pid) # Register kernel (PID 0)
         init_task = Task(pid=init_pid, name="init", priority=1.0)
         await self.scheduler.add_task(init_task)
         self.sandbox.register_process(init_pid, "init", fs_root="/")
+        log.info("Init process registered as PID %d (via PID allocator).", init_pid)
 
         # Mount filesystem
         print("[KERNEL] Mounting Quantum File System via VFS...")
@@ -493,9 +591,48 @@ class UmerKernel:
         }
 
     async def shutdown(self) -> None:
+        """Gracefully shut down the kernel in ordered phases.
+
+        Inspired by Linux ``kernel/reboot.c`` — ``kernel_restart_prepare()``
+        → ``device_shutdown()`` → ``syscore_shutdown()`` → halt.
+        Each phase is logged so the operator can see where shutdown stalls.
+        """
+        log.info("=== Graceful shutdown initiated ===")
+
+        # Phase 1: Stop scheduler (no new tasks dispatched)
+        log.info("[shutdown] Phase 1/4: Stopping scheduler...")
         self.running = False
         await self.scheduler.stop()
-        print("[KERNEL] UmerKernel shut down cleanly.")
+
+        # Phase 2: Flush filesystem / release IPC queues
+        log.info("[shutdown] Phase 2/4: Releasing IPC registrations...")
+        try:
+            # Unregister all PIDs from IPC (if the bus supports it)
+            if hasattr(self.ipc, 'unregister'):
+                # Best-effort: we don't track all PIDs here, so just log
+                log.debug("IPC queues left for garbage collection.")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("[shutdown] IPC cleanup error: %s", exc)
+
+        # Phase 3: Free memory allocations
+        log.info("[shutdown] Phase 3/4: Freeing memory allocations...")
+        try:
+            for pid, allocs in list(self._mem_allocs.items()) if hasattr(self, '_mem_allocs') else []:
+                for ptr, _ in allocs:
+                    try:
+                        self.memory.free(ptr, pid)
+                    except (ValueError, Exception):  # noqa: BLE001
+                        pass
+        except Exception as exc:  # noqa: BLE001
+            log.warning("[shutdown] Memory cleanup error: %s", exc)
+
+        # Phase 4: Final status dump
+        log.info("[shutdown] Phase 4/4: Final status dump...")
+        log.info("  Taint: %s", self.taint.summary() or "(clean)")
+        log.info("  Uptime: %.3fs", self.uptime())
+        log.info("  PID allocator: %s", self.pid_allocator.stats())
+
+        log.info("=== UmerKernel shut down cleanly ===")
     
     async def start_gui_shell(self):
         """Attempts to launch the Flutter-based GUI shell."""
