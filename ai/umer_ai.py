@@ -28,6 +28,7 @@ from __future__ import annotations
 import collections
 import logging
 import math
+import os
 import time
 from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
 
@@ -257,16 +258,14 @@ Your role:
 """
 
 
+from ai.providers import AIConfigManager, OnlineProvider, OfflineProvider, MCPProvider
+
 class LocalAIAssistant:
     """Multi-tier generative AI assistant for Umer OS.
 
-    Tier 1: g4f (gpt4free) — free, no-API-key access to GPT-4o-mini and
-            dozens of other providers.  Works as long as any provider is
-            reachable.
-    Tier 2: Ollama local inference — if 'ollama' is running locally the
-            assistant silently switches to a fully offline model.
-    Tier 3: Advanced semantic heuristics — rich keyword rules covering all
-            Umer OS subsystems; never fails.
+    Dynamically uses user-configured API keys, offline downloaded models,
+    and Model Context Protocol (MCP) data through the Provider Architecture.
+    Falls back to semantic heuristics if all providers fail.
 
     Conversation history is maintained per session for contextual replies.
     """
@@ -300,109 +299,59 @@ class LocalAIAssistant:
 
     def __init__(self, model: str = "gpt-4o-mini") -> None:
         self._file_index: Dict[str, str] = {}   # path → content snippet
-        self._model     = model
         self._history: List[Dict[str, str]] = []  # conversation history
-        self._g4f_client = None
-        self._g4f_ok     = True   # optimistic: assume g4f works until it fails
-        log.info("LocalAIAssistant initialised (g4f engine, model=%s).", model)
+        
+        # Load new configuration architecture
+        self.config_manager = AIConfigManager()
+        config = self.config_manager.config
+        
+        self.providers = {}
+        
+        # Instantiate configured providers
+        if "online" in config:
+            self.providers["online"] = OnlineProvider(config["online"])
+        if "offline" in config:
+            self.providers["offline"] = OfflineProvider(config["offline"])
+            
+        # Wrap with MCP if data exists
+        mcp_path = config.get("mcp_data_path")
+        if mcp_path and os.path.exists(mcp_path):
+            for key in self.providers:
+                self.providers[key] = MCPProvider(self.providers[key], mcp_path)
+                
+        log.info("LocalAIAssistant initialised (Providers: %s).", list(self.providers.keys()))
 
     # ── Public API ────────────────────────────────────────────────────────
 
     def query(self, prompt: str) -> str:
         """Send a prompt to the AI and return a response.
 
-        Tries g4f first; falls back gracefully through semantic heuristics.
-
-        Args:
-            prompt: Natural-language question or OS command string.
-
-        Returns:
-            The assistant's response as a plain string.
+        Attempts to use providers in the order specified by fallback_order in ai_config.json.
+        Falls back gracefully through semantic heuristics.
         """
         prompt = prompt.strip()
         if not prompt:
             return "Please ask me a question!"
 
-        # Tier 1 — g4f (free GPT-4o-mini with conversation context)
-        if self._g4f_ok:
-            response = self._ask_g4f(prompt)
-            if response:
-                return response
-
-        # Tier 2 — Ollama local inference (fully offline)
-        response = self._ask_ollama(prompt)
-        if response:
-            return response
+        fallback_order = self.config_manager.config.get("fallback_order", ["online", "offline"])
+        
+        for provider_key in fallback_order:
+            if provider_key in self.providers and self.providers[provider_key].is_available:
+                log.info("Attempting query via %s provider...", provider_key)
+                response = self.providers[provider_key].query(prompt, self._history)
+                if response:
+                    self._history.append({"role": "user", "content": prompt})
+                    self._history.append({"role": "assistant", "content": response})
+                    return response
 
         # Tier 3 — semantic heuristics (always works)
+        log.warning("All dynamic providers failed or unavailable. Using semantic fallback.")
         return self._semantic_fallback(prompt)
 
     def reset_history(self) -> None:
         """Clear the conversation history to start a fresh session."""
         self._history.clear()
         log.info("Conversation history cleared.")
-
-    # ── Tier 1: g4f (gpt4free) ───────────────────────────────────────────
-
-    def _ask_g4f(self, prompt: str) -> Optional[str]:
-        """Query a free AI provider via the g4f library."""
-        try:
-            if self._g4f_client is None:
-                from g4f.client import Client   # type: ignore
-                self._g4f_client = Client()
-                log.info("g4f Client initialised.")
-
-            # Build message list: system prompt + rolling history + new user message
-            messages: List[Dict[str, str]] = [
-                {"role": "system", "content": _UMER_SYSTEM_PROMPT}
-            ] + self._history[-10:] + [   # keep last 10 exchanges for context
-                {"role": "user", "content": prompt}
-            ]
-
-            log.info("Querying g4f provider (model=%s)...", self._model)
-            resp = self._g4f_client.chat.completions.create(
-                model    = self._model,
-                messages = messages,
-            )
-            answer = resp.choices[0].message.content.strip()
-            if answer:
-                # Persist history for follow-up context
-                self._history.append({"role": "user",      "content": prompt})
-                self._history.append({"role": "assistant", "content": answer})
-                log.info("g4f response received (%d chars).", len(answer))
-                return answer
-        except Exception as exc:
-            log.warning("g4f query failed (%s) — trying Ollama fallback.", exc)
-            self._g4f_ok = False   # stop retrying g4f this session
-        return None
-
-    # ── Tier 2: Ollama (offline) ──────────────────────────────────────────
-
-    def _ask_ollama(self, prompt: str) -> Optional[str]:
-        """Query a locally running Ollama instance (fully offline)."""
-        try:
-            import urllib.request, json as _json
-            payload = _json.dumps({
-                "model":  "llama3",
-                "prompt": f"{_UMER_SYSTEM_PROMPT}\nUser: {prompt}\nAssistant:",
-                "stream": False,
-            }).encode()
-            req = urllib.request.Request(
-                "http://localhost:11434/api/generate",
-                data    = payload,
-                headers = {"Content-Type": "application/json"},
-            )
-            with urllib.request.urlopen(req, timeout=8) as res:
-                data   = _json.loads(res.read())
-                answer = data.get("response", "").strip()
-                if answer:
-                    self._history.append({"role": "user",      "content": prompt})
-                    self._history.append({"role": "assistant", "content": answer})
-                    log.info("Ollama response received (%d chars).", len(answer))
-                    return answer
-        except Exception:
-            pass  # Ollama not running — silently drop to Tier 3
-        return None
 
     # ── Tier 3: semantic heuristics ───────────────────────────────────────
 

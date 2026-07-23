@@ -1,0 +1,19 @@
+{
+    "fallback_order": [
+        "online",
+        "offline",
+        "heuristics"
+    ],
+    "online": {
+        "type": "openai",
+        "model": "gpt-4o-mini",
+        "api_key": "",
+        "endpoint": "https://api.openai.com/v1/chat/completions"
+    },
+    "offline": {
+        "engine": "ollama",
+        "model": "llama3",
+        "model_path": ""
+    },
+    "mcp_data_path": "mcp_context.txt"
+}
