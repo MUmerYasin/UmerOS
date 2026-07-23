@@ -152,11 +152,144 @@ class QFS: # Quantum File System (Placeholder)
     def mount(self, path): print(f"[QFS] Mounted at {path}")
     def stats(self): return {"compression_ratio": "90%"}
 
-class VirtualFileSystem: # VFS (Placeholder)
-    def __init__(self, underlying_fs): self.fs = underlying_fs
-    def mkdir(self, path): print(f"[VFS] Created directory: {path}")
-    def write_file(self, path, data): print(f"[VFS] Wrote file: {path}")
-    def ls(self, path): return ["welcome.txt", "kernel.sig"]
+class VFSNode:
+    def __init__(self, name, is_dir=False):
+        self.name = name
+        self.is_dir = is_dir
+        self.content = ""
+        self.children = {} if is_dir else None
+
+class VirtualFileSystem:
+    def __init__(self, underlying_fs):
+        self.fs = underlying_fs
+        self.root = VFSNode("/", is_dir=True)
+        self.cwd = "/"
+        # Pre-populate some directories
+        self.mkdir("/home")
+        self.mkdir("/home/umer")
+        self.mkdir("/etc")
+        self.mkdir("/bin")
+        self.touch("/etc/passwd")
+        self.cwd = "/home/umer"
+
+    def _resolve(self, path):
+        if not path: return self._resolve(self.cwd)
+        if not path.startswith("/"):
+            path = self.cwd.rstrip("/") + "/" + path
+        
+        parts = [p for p in path.split("/") if p and p != "."]
+        
+        # Resolve ..
+        resolved_parts = []
+        for p in parts:
+            if p == "..":
+                if resolved_parts: resolved_parts.pop()
+            else:
+                resolved_parts.append(p)
+                
+        curr = self.root
+        for p in resolved_parts:
+            if not curr.is_dir or p not in curr.children:
+                return None, None # Node not found
+            curr = curr.children[p]
+        return curr, "/" + "/".join(resolved_parts)
+
+    def cd(self, path):
+        node, abs_path = self._resolve(path)
+        if not node:
+            raise FileNotFoundError("No such file or directory")
+        if not node.is_dir:
+            raise NotADirectoryError("Not a directory")
+        self.cwd = abs_path if abs_path else "/"
+
+    def ls(self, path=None):
+        if path is None: path = self.cwd
+        node, _ = self._resolve(path)
+        if not node:
+            raise FileNotFoundError("No such file or directory")
+        if not node.is_dir:
+            return [node.name]
+        return list(node.children.keys())
+
+    def mkdir(self, path):
+        if not path.startswith("/"):
+            path = self.cwd.rstrip("/") + "/" + path
+            
+        parts = [p for p in path.split("/") if p]
+        if not parts: return
+        
+        parent_path = "/" + "/".join(parts[:-1])
+        name = parts[-1]
+        
+        parent, _ = self._resolve(parent_path)
+        if not parent or not parent.is_dir:
+            raise FileNotFoundError("Parent directory does not exist")
+        if name in parent.children:
+            raise FileExistsError("File exists")
+            
+        parent.children[name] = VFSNode(name, is_dir=True)
+
+    def touch(self, path):
+        if not path.startswith("/"):
+            path = self.cwd.rstrip("/") + "/" + path
+            
+        parts = [p for p in path.split("/") if p]
+        if not parts: return
+        
+        parent_path = "/" + "/".join(parts[:-1])
+        name = parts[-1]
+        
+        parent, _ = self._resolve(parent_path)
+        if not parent or not parent.is_dir:
+            raise FileNotFoundError("Parent directory does not exist")
+            
+        if name not in parent.children:
+            parent.children[name] = VFSNode(name, is_dir=False)
+
+    def write_file(self, path, data):
+        node, _ = self._resolve(path)
+        if not node:
+            self.touch(path)
+            node, _ = self._resolve(path)
+        if node.is_dir:
+            raise IsADirectoryError("Is a directory")
+        node.content = data
+
+    def read_file(self, path):
+        node, _ = self._resolve(path)
+        if not node:
+            raise FileNotFoundError("No such file or directory")
+        if node.is_dir:
+            raise IsADirectoryError("Is a directory")
+        return node.content
+
+    def rmdir(self, path):
+        self.rm(path, rmdir_only=True)
+        
+    def rm(self, path, recursive=False, rmdir_only=False):
+        if not path.startswith("/"):
+            path = self.cwd.rstrip("/") + "/" + path
+            
+        parts = [p for p in path.split("/") if p]
+        if not parts:
+            raise PermissionError("Cannot remove root")
+            
+        parent_path = "/" + "/".join(parts[:-1])
+        name = parts[-1]
+        
+        parent, _ = self._resolve(parent_path)
+        if not parent or name not in parent.children:
+            raise FileNotFoundError("No such file or directory")
+            
+        target = parent.children[name]
+        if rmdir_only and not target.is_dir:
+            raise NotADirectoryError("Not a directory")
+        if rmdir_only and target.is_dir and target.children:
+            raise OSError("Directory not empty")
+        if target.is_dir and not recursive and not rmdir_only:
+            raise IsADirectoryError("Is a directory")
+            
+        del parent.children[name]
 
 class CryptoEngine: # Crypto (Placeholder)
     def random_bytes(self, n): import secrets; return secrets.token_bytes(n)
@@ -196,61 +329,69 @@ class BuildTool:
 
 # --- STAGE 7: UI Shell (FIXED) ---
 class FluidicShell:
-    def __init__(self, kernel): self.kernel = kernel
+    def __init__(self, kernel):
+        self.kernel = kernel
+        self.current_user = "umer"  # Default simulated user
+        self.history = []
+        
+        # Load Command Registry
+        try:
+            from kernel.shell_commands import get_registry, CommandContext
+            self.registry = get_registry()
+            self.CommandContext = CommandContext
+        except ImportError as e:
+            print(f"[SHELL] Failed to load command registry: {e}")
+            self.registry = {}
+            self.CommandContext = None
+
     def start(self, interactive=True):
         if interactive:
-            print("\n[KERNEL] System Idle. Waiting for user input. Type 'exit' to shutdown, 'status' for kernel stats.")
-            # Use asyncio.run_coroutine_threadsafe if input is blocking,
-            # or run the listener in the existing event loop using a task.
-            # For simplicity here, we'll run the listener loop directly.
-            asyncio.create_task(self._listen_for_input_async()) # Create task in current loop
+            print("\n[KERNEL] System Idle. Waiting for user input. Type 'help' or 'exit'.")
+            asyncio.create_task(self._listen_for_input_async())
 
     async def _listen_for_input_async(self):
         """Asynchronous version of the input listener."""
         while self.kernel.running:
             try:
-                print("UmerOS@root:~# ", end='', flush=True)
-                import sys
-                # Note: Using standard input in an async loop like this is blocking.
-                # A true async solution requires aioconsole or similar.
-                # For this integration, we proceed with the blocking input.
+                prompt_str = f"{self.current_user}@UmerOS:{self.kernel.vfs.cwd}# "
+                print(prompt_str, end='', flush=True)
+                
                 try:
-                    cmd = input("").strip().lower()
+                    raw_input = input("").strip()
+                    if not raw_input: continue
+                    
+                    self.history.append(raw_input)
+                    parts = raw_input.split()
+                    cmd = parts[0].lower()
+                    args = parts[1:]
+
+                    # Built-in kernel-level commands
                     if cmd == 'exit':
                         print("[KERNEL] Shutting down safely...")
-                        self.kernel.request_shutdown() # Signal shutdown
-                        return # Exit the input loop
+                        self.kernel.request_shutdown()
+                        return
                     elif cmd == 'status':
                         stats = self.kernel.status()
                         print(f"[KERNEL STATUS] Uptime: {stats['uptime_seconds']}s, Tasks: {stats['scheduler_tasks']}, Running: {stats['running']}")
-                    elif cmd == 'ai_predict':
-                        incoming_tasks = ["UI_Render_Engine", "AI_Background_Trainer"]
-                        resource_map = self.kernel.ai_manager.predict_allocation(incoming_tasks)
-                        print(f"[AI] Predicted Allocations: {resource_map}")
-                    elif cmd == 'quantum_run':
-                        incoming_tasks = ["UI_Render_Engine", "AI_Background_Trainer"]
-                        resource_map = self.kernel.ai_manager.predict_allocation(incoming_tasks)
-                        self.kernel.q_scheduler.execute_superposition(resource_map)
-                    # --- NEW COMMAND ADDED HERE ---
                     elif cmd == 'gui_start' or cmd == 'startx':
                         print("[KERNEL] Switching to GUI mode...")
-                        # Call the new kernel method to launch the GUI
                         await self.kernel.start_gui_shell()
-                        print("[KERNEL] Returned from GUI launch attempt. Kernel still running.")
-                    # --- END NEW COMMAND ---
+                        print("[KERNEL] Returned from GUI.")
+                    # Dynamic Command Registry
+                    elif cmd in self.registry:
+                        ctx = self.CommandContext(self.kernel, self)
+                        output = self.registry[cmd].execute(ctx, args)
+                        if output:
+                            print(output)
                     else:
-                        print(f"[KERNEL] Unknown command: {cmd}")
-                except EOFError: # Handle Ctrl+D (EOF)
+                        print(f"{cmd}: command not found")
+                        
+                except EOFError:
                     print("\n[KERNEL] Received EOF. Shutting down...")
-                    self.kernel.request_shutdown() # Signal shutdown
-                    return # Exit the input loop
+                    self.kernel.request_shutdown()
+                    return
             except Exception as e:
                 print(f"[SHELL] Error in input loop: {e}")
-                break # Exit loop on error
-
-# -------------------------------------------
-    # async def _listen_for_input_async(self):
-    #     """Asynchronous version of the input listener."""
     #     while self.kernel.running:
     #         try:
     #             # For async input, we might need a different approach or a helper library like aioconsole.
