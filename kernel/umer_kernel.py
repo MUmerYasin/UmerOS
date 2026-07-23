@@ -27,6 +27,9 @@ from kernel.taint import KernelTaint, TAINT_OOM_KILL, TAINT_CRYPTO_FAIL, TAINT_S
 from kernel.sysctl import SysctlRegistry, TYPE_INT, TYPE_BOOL
 from kernel.panic import PanicNotifier, WarnCounter, OopsContext
 from kernel.signals import SIGKILL, SIGTERM, SIGCHLD
+from kernel.cgroup import CGroupManager
+from kernel.audit import AuditLogger
+from kernel.workqueue import WorkQueue
 
 # --- STAGE 2: Core Kernel Subsystems ---
 # NOTE: Import paths assume the correct folder structure and __init__.py files.

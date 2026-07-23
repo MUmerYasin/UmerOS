@@ -1,31 +1,16 @@
-"""
-Umer OS Network Stack  [TODAY]
-==============================
-Async networking layer for Umer OS.
-
-Components:
-  NetworkStack      — top-level manager (start/stop, connection tracking).
-  DNSOverHTTPS      — DoH resolver (Cloudflare + Google fallback).
-  VPNClient         — WireGuard wrapper stub.
-  MDNSDiscovery     — mDNS peer discovery for cross-device Umer ecosystem.
-  AINetworkQoS      — heuristic QoS manager (prioritises video/VoIP).
+#!/usr/bin/env python3
+"""UmerOS network stack.
 
 TODAY:
-  - Full async DNS-over-HTTPS resolution.
-  - TCP socket helpers (connect, send, receive).
-  - mDNS service announcement and discovery.
-  - WireGuard detection and configuration stub.
+    A pure-Python network facade for DNS, HTTP/HTTPS, TCP connections,
+    simulated VPN tunnel flows, local peer discovery, and heuristic QoS.
 
 EXPERIMENTAL:
-  - AI-driven traffic prioritisation.
+    AI traffic classification and real mDNS integration.
 
 FUTURE:
-  - Post-quantum TLS 1.3 cipher suites.
-  - Quantum key distribution (QKD) tunnelling.
-  - TODO: QPU integration — quantum-secure session negotiation.
-
-Author:  Umer OS Project
-Licence: Apache 2.0
+    Post-quantum TLS policy, QKD research hooks, and hardware offload.
+    # TODO: QPU integration for future quantum-secure session negotiation.
 """
 
 from __future__ import annotations
@@ -35,416 +20,425 @@ import json
 import logging
 import shutil
 import socket
+import subprocess
 import time
-import urllib.request
 import urllib.error
-from typing import Dict, List, Optional, Tuple
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional, Tuple
+
+try:
+    from .dns_resolver import DNSResolver
+    from .http_client import HTTPClient
+except ImportError:  # pragma: no cover - supports direct script execution
+    from dns_resolver import DNSResolver
+    from http_client import HTTPClient
 
 log = logging.getLogger("UmerOS.Network")
 
 
-# ---------------------------------------------------------------------------
-# DNS-over-HTTPS
-# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class ConnectionInfo:
+    """Metadata tracked for an outbound TCP connection."""
+
+    host: str
+    port: int
+    traffic_type: str
+    priority: int
+    opened_at: float
+
 
 class DNSOverHTTPS:
-    """Resolver that uses HTTPS to query DNS instead of plain UDP port 53.
+    """Small DNS-over-HTTPS resolver with system DNS fallback."""
 
-    Prevents DNS snooping and supports post-quantum TLS in the future.
-
-    Args:
-        primary:   Primary DoH endpoint URL.
-        secondary: Fallback DoH endpoint URL.
-        timeout:   Request timeout in seconds.
-    """
-
-    PRIMARY   = "https://cloudflare-dns.com/dns-query"
-    SECONDARY = "https://dns.google/dns-query"
+    PRIMARY = "https://cloudflare-dns.com/dns-query"
+    SECONDARY = "https://dns.google/resolve"
 
     def __init__(
         self,
-        primary:   str   = PRIMARY,
-        secondary: str   = SECONDARY,
-        timeout:   float = 3.0,
+        primary: str = PRIMARY,
+        secondary: str = SECONDARY,
+        timeout: float = 3.0,
+        cache_ttl: float = 300.0,
     ) -> None:
-        self._primary   = primary
-        self._secondary = secondary
-        self._timeout   = timeout
-        self._cache:    Dict[str, Tuple[List[str], float]] = {}  # name → (addrs, expiry)
+        """Initialize the DoH resolver."""
+        self.primary = primary
+        self.secondary = secondary
+        self.timeout = timeout
+        self.cache_ttl = cache_ttl
+        self._cache: Dict[tuple[str, str], tuple[List[str], float]] = {}
 
     def resolve(self, hostname: str, record_type: str = "A") -> List[str]:
-        """Resolve a hostname using DNS-over-HTTPS.
+        """Resolve a hostname through DoH, falling back to system DNS."""
+        name = self._normalize_hostname(hostname)
+        record = record_type.upper().strip() or "A"
+        cache_key = (name, record)
+        cached = self._cache.get(cache_key)
+        if cached and cached[1] > time.time():
+            return list(cached[0])
 
-        Results are cached for 60 seconds.
+        for endpoint in (self.primary, self.secondary):
+            answers = self._query_endpoint(endpoint, name, record)
+            if answers:
+                self._cache[cache_key] = (answers, time.time() + self.cache_ttl)
+                return answers
 
-        Args:
-            hostname:    Domain name to resolve.
-            record_type: DNS record type ("A", "AAAA", "CNAME", etc.).
+        answers = self._system_resolve(name, record)
+        if answers:
+            self._cache[cache_key] = (answers, time.time() + min(60.0, self.cache_ttl))
+        return answers
 
-        Returns:
-            List of resolved addresses/values, or empty list on failure.
-        """
-        cache_key = f"{hostname}:{record_type}"
-
-        # Check cache
-        if cache_key in self._cache:
-            addrs, expiry = self._cache[cache_key]
-            if time.time() < expiry:
-                log.debug("DNS cache hit for '%s'.", hostname)
-                return addrs
-
-        for endpoint in (self._primary, self._secondary):
-            try:
-                url = (f"{endpoint}?name={hostname}&type={record_type}"
-                       f"&ct=application/dns-json")
-                req = urllib.request.Request(
-                    url,
-                    headers={"Accept": "application/dns-json"},
-                )
-                with urllib.request.urlopen(req, timeout=self._timeout) as resp:
-                    data = json.loads(resp.read().decode())
-
-                answers = [
-                    a["data"]
-                    for a in data.get("Answer", [])
-                    if a.get("type") == self._rtype_int(record_type)
-                ]
-                if answers:
-                    self._cache[cache_key] = (answers, time.time() + 60)
-                    log.debug("DoH resolved '%s' → %s", hostname, answers)
-                    return answers
-            except (urllib.error.URLError, json.JSONDecodeError, KeyError) as exc:
-                log.debug("DoH endpoint '%s' failed: %s", endpoint, exc)
-
-        # Fallback: system resolver
-        try:
-            addr = socket.gethostbyname(hostname)
-            result = [addr]
-            self._cache[cache_key] = (result, time.time() + 30)
-            return result
-        except socket.gaierror:
-            return []
-
-    @staticmethod
-    def _rtype_int(rtype: str) -> int:
-        """Convert DNS record type name to integer code."""
-        return {"A": 1, "NS": 2, "CNAME": 5, "AAAA": 28, "MX": 15}.get(rtype.upper(), 1)
+    async def resolve_async(self, hostname: str, record_type: str = "A") -> List[str]:
+        """Async wrapper for ``resolve``."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, self.resolve, hostname, record_type)
 
     def flush_cache(self) -> None:
-        """Clear the DNS cache."""
+        """Clear DoH cache."""
         self._cache.clear()
-        log.debug("DNS cache flushed.")
 
+    def _query_endpoint(self, endpoint: str, hostname: str, record_type: str) -> List[str]:
+        """Query one DoH JSON endpoint."""
+        query = urllib.parse.urlencode({"name": hostname, "type": record_type})
+        separator = "&" if "?" in endpoint else "?"
+        url = f"{endpoint}{separator}{query}"
+        req = urllib.request.Request(url, headers={"Accept": "application/dns-json"})
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                payload = json.loads(resp.read().decode("utf-8"))
+        except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+            log.debug("DoH endpoint failed for %s via %s: %s", hostname, endpoint, exc)
+            return []
 
-# ---------------------------------------------------------------------------
-# VPN Client (WireGuard stub)
-# ---------------------------------------------------------------------------
+        expected_type = self._rtype_int(record_type)
+        answers: List[str] = []
+        for answer in payload.get("Answer", []):
+            if answer.get("type") == expected_type and "data" in answer:
+                answers.append(str(answer["data"]))
+        return self._dedupe(answers)
+
+    @staticmethod
+    def _system_resolve(hostname: str, record_type: str) -> List[str]:
+        """Use the host resolver as fallback."""
+        family = socket.AF_INET6 if record_type == "AAAA" else socket.AF_INET
+        try:
+            infos = socket.getaddrinfo(hostname, 0, family, socket.SOCK_STREAM)
+        except socket.gaierror:
+            return []
+        return DNSOverHTTPS._dedupe(sockaddr[0] for *_rest, sockaddr in infos)
+
+    @staticmethod
+    def _rtype_int(record_type: str) -> int:
+        """Convert a DNS record name to its integer code."""
+        return {"A": 1, "NS": 2, "CNAME": 5, "MX": 15, "AAAA": 28}.get(
+            record_type.upper(),
+            1,
+        )
+
+    @staticmethod
+    def _normalize_hostname(hostname: str) -> str:
+        """Normalize and validate a hostname."""
+        name = hostname.strip().rstrip(".").lower()
+        if not name:
+            raise ValueError("hostname must not be empty")
+        if any(ch.isspace() for ch in name):
+            raise ValueError(f"hostname contains whitespace: {hostname!r}")
+        return name
+
+    @staticmethod
+    def _dedupe(values: Any) -> List[str]:
+        """Preserve order while removing duplicates."""
+        seen: set[str] = set()
+        result: List[str] = []
+        for value in values:
+            text = str(value)
+            if text not in seen:
+                seen.add(text)
+                result.append(text)
+        return result
+
 
 class VPNClient:
-    """WireGuard VPN client wrapper.
+    """WireGuard command wrapper.
 
-    TODAY:   Detects WireGuard (`wg` / `wg-quick`) and provides
-             connect/disconnect scaffolding.
-    FUTURE:  Full Python WireGuard integration via wireguard-py or
-             subprocess management of wg-quick.
-
-    Args:
-        config_path: Path to a wg-quick configuration file.
+    The class never shells out through a string; it uses argv lists so config
+    paths are not interpreted by the shell.
     """
 
     def __init__(self, config_path: Optional[str] = None) -> None:
-        self._config   = config_path
-        self._wg       = shutil.which("wg-quick") or shutil.which("wg")
+        """Initialize the VPN wrapper."""
+        self.config_path = config_path
+        self._wg_quick = shutil.which("wg-quick")
+        self._wg = shutil.which("wg")
         self._connected = False
-        if self._wg:
-            log.info("VPNClient: WireGuard found at '%s'.", self._wg)
-        else:
-            log.info("VPNClient: WireGuard not installed (stub mode).")
 
     @property
     def is_available(self) -> bool:
-        """Return True if WireGuard tools are installed."""
-        return self._wg is not None
+        """Return True when WireGuard tooling is available."""
+        return bool(self._wg_quick or self._wg)
 
     @property
     def is_connected(self) -> bool:
-        """Return True if a VPN tunnel is active."""
+        """Return True when this wrapper has connected a tunnel."""
         return self._connected
 
     def connect(self, config_path: Optional[str] = None) -> bool:
-        """Bring up the WireGuard VPN tunnel.
-
-        Args:
-            config_path: Override the config file set at construction.
-
-        Returns:
-            True on success, False on failure.
-        """
-        cfg = config_path or self._config
-        if not self._wg:
-            log.warning("VPN connect: WireGuard not installed.")
+        """Bring up a WireGuard tunnel with ``wg-quick up``."""
+        cfg = config_path or self.config_path
+        if not self._wg_quick or not cfg:
+            log.warning("WireGuard connect unavailable: wg-quick=%s cfg=%s", self._wg_quick, cfg)
             return False
-        if not cfg:
-            log.error("VPN connect: no configuration file provided.")
-            return False
-        import subprocess
         try:
             result = subprocess.run(
-                [self._wg, "up", cfg],
-                capture_output=True, text=True, timeout=10,
+                [self._wg_quick, "up", cfg],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
             )
-            if result.returncode == 0:
-                self._connected = True
-                log.info("VPN connected via '%s'.", cfg)
-                return True
-            log.error("wg-quick up failed: %s", result.stderr)
+        except (OSError, subprocess.SubprocessError) as exc:
+            log.error("WireGuard connect failed: %s", exc)
             return False
-        except Exception as exc:
-            log.error("VPN connect error: %s", exc)
-            return False
+        self._connected = result.returncode == 0
+        if not self._connected:
+            log.error("wg-quick up failed: %s", result.stderr.strip())
+        return self._connected
 
     def disconnect(self, config_path: Optional[str] = None) -> bool:
-        """Tear down the WireGuard VPN tunnel.
-
-        Args:
-            config_path: Override the config file.
-
-        Returns:
-            True on success.
-        """
-        cfg = config_path or self._config
-        if not self._wg or not cfg:
+        """Bring down a WireGuard tunnel with ``wg-quick down``."""
+        cfg = config_path or self.config_path
+        if not self._wg_quick or not cfg:
             return False
-        import subprocess
         try:
-            subprocess.run([self._wg, "down", cfg], timeout=10)
-            self._connected = False
-            log.info("VPN disconnected.")
-            return True
-        except Exception as exc:
-            log.error("VPN disconnect error: %s", exc)
+            result = subprocess.run(
+                [self._wg_quick, "down", cfg],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            log.error("WireGuard disconnect failed: %s", exc)
             return False
+        if result.returncode == 0:
+            self._connected = False
+            return True
+        log.error("wg-quick down failed: %s", result.stderr.strip())
+        return False
 
     def status(self) -> dict:
-        """Return VPN status information."""
+        """Return VPN status metadata."""
         return {
-            "available":  self.is_available,
-            "connected":  self._connected,
-            "config":     self._config,
-            "wireguard":  self._wg,
+            "available": self.is_available,
+            "connected": self.is_connected,
+            "config": self.config_path,
+            "wg": self._wg,
+            "wg_quick": self._wg_quick,
         }
 
-
-# ---------------------------------------------------------------------------
-# mDNS Discovery
-# ---------------------------------------------------------------------------
 
 class MDNSDiscovery:
-    """Zero-configuration network discovery for cross-device Umer OS pairing.
+    """Local UmerOS peer registry with optional future mDNS backend."""
 
-    Uses multicast DNS (mDNS / Zeroconf) to announce this device and
-    discover other Umer OS devices on the local network.
-
-    TODAY:   In-memory peer registry with manual registration.
-    EXPERIMENTAL: Real mDNS via the ``zeroconf`` library when available.
-    """
-
-    _UMER_SERVICE_TYPE = "_umeros._tcp.local."
+    SERVICE_TYPE = "_umeros._tcp.local."
 
     def __init__(self) -> None:
-        self._peers:   Dict[str, dict] = {}   # name → info dict
-        self._zeroconf = None
-        self._running  = False
-        self._try_zeroconf()
+        """Initialize peer discovery."""
+        self._peers: Dict[str, dict] = {}
+        self._zeroconf_available = self._can_import_zeroconf()
 
-    def _try_zeroconf(self) -> None:
-        """Attempt to load the zeroconf library."""
-        try:
-            from zeroconf import Zeroconf, ServiceInfo, ServiceBrowser  # type: ignore
-            self._Zeroconf      = Zeroconf
-            self._ServiceInfo   = ServiceInfo
-            self._ServiceBrowser = ServiceBrowser
-            log.info("MDNSDiscovery: zeroconf library available.")
-        except ImportError:
-            log.info("MDNSDiscovery: zeroconf not installed (in-memory stub mode).")
-
-    def announce(self, device_name: str, port: int = 7374) -> bool:
-        """Announce this device on the local network.
-
-        Args:
-            device_name: Human-readable name for this Umer OS device.
-            port:        Port to advertise for Umer OS services.
-
-        Returns:
-            True if announced (or stub registered), False on error.
-        """
-        self._peers[device_name] = {
-            "name":      device_name,
-            "port":      port,
-            "type":      self._UMER_SERVICE_TYPE,
+    def announce(self, device_name: str, host: str = "127.0.0.1", port: int = 7374) -> bool:
+        """Announce or register this UmerOS node."""
+        name = device_name.strip()
+        if not name:
+            raise ValueError("device_name must not be empty")
+        self._peers[name] = {
+            "name": name,
+            "host": host,
+            "port": port,
+            "type": self.SERVICE_TYPE,
             "announced": True,
-            "ts":        time.time(),
+            "updated_at": time.time(),
         }
-        log.info("MDNSDiscovery: announced '%s' on port %d.", device_name, port)
         return True
 
     def discover(self, timeout: float = 2.0) -> List[dict]:
-        """Discover other Umer OS devices on the local network.
+        """Discover known UmerOS peers.
 
-        TODAY: Returns the in-memory stub registry.
-
-        Args:
-            timeout: Discovery window in seconds.
-
-        Returns:
-            List of peer info dicts.
+        ``timeout`` is accepted for API compatibility with real mDNS discovery.
         """
+        _ = timeout
         return list(self._peers.values())
 
     def register_peer(self, name: str, host: str, port: int) -> None:
-        """Manually register a peer device (for testing / static config).
-
-        Args:
-            name: Device name.
-            host: IP address or hostname.
-            port: Service port.
-        """
-        self._peers[name] = {"name": name, "host": host, "port": port,
-                              "ts": time.time()}
+        """Register a peer manually."""
+        if not name.strip() or not host.strip():
+            raise ValueError("name and host must not be empty")
+        self._peers[name.strip()] = {
+            "name": name.strip(),
+            "host": host.strip(),
+            "port": port,
+            "type": self.SERVICE_TYPE,
+            "updated_at": time.time(),
+        }
 
     def remove_peer(self, name: str) -> bool:
-        """Remove a peer from the registry."""
+        """Remove a peer by name."""
         return self._peers.pop(name, None) is not None
 
     def peer_count(self) -> int:
         """Return the number of known peers."""
         return len(self._peers)
 
+    def status(self) -> dict:
+        """Return discovery status."""
+        return {
+            "peers": self.peer_count(),
+            "zeroconf_available": self._zeroconf_available,
+            "service_type": self.SERVICE_TYPE,
+        }
 
-# ---------------------------------------------------------------------------
-# AI Network QoS
-# ---------------------------------------------------------------------------
+    @staticmethod
+    def _can_import_zeroconf() -> bool:
+        """Return True if zeroconf is installed."""
+        try:
+            import zeroconf  # noqa: F401
+            return True
+        except ImportError:
+            return False
+
 
 class AINetworkQoS:
-    """Heuristic network traffic prioritisation.
+    """Heuristic network traffic prioritization."""
 
-    TODAY:   Priority scoring based on connection type keywords.
-    EXPERIMENTAL: ML model to classify and prioritise flows.
-    FUTURE:  Kernel-level traffic shaping via netfilter/eBPF.
-
-    Args:
-        low_bandwidth_kbps: Below this threshold, QoS prioritisation activates.
-    """
-
-    # Priority tiers: higher = more important
-    _PRIORITY = {
+    PRIORITY = {
         "video_conference": 10,
-        "voip":             9,
-        "streaming":        7,
-        "interactive":      6,
-        "web_browse":       4,
-        "download":         2,
-        "background":       1,
+        "voip": 9,
+        "streaming": 7,
+        "interactive": 6,
+        "web_browse": 4,
+        "download": 2,
+        "background": 1,
     }
 
     def __init__(self, low_bandwidth_kbps: int = 1000) -> None:
-        self._low_bw_threshold = low_bandwidth_kbps
-        self._current_bw_kbps  = 10_000  # assume 10 Mbps initially
+        """Initialize QoS state."""
+        self.low_bandwidth_kbps = low_bandwidth_kbps
+        self.current_bandwidth_kbps = 10_000
 
     def classify_connection(self, dest_host: str, port: int) -> str:
-        """Classify a network connection into a traffic type.
-
-        Args:
-            dest_host: Destination hostname or IP.
-            port:      Destination port number.
-
-        Returns:
-            Traffic type string from _PRIORITY keys.
-        """
+        """Classify traffic by host and port."""
         host = dest_host.lower()
-        if port in (5004, 5005) or "meet" in host or "zoom" in host or "webex" in host:
+        if port in (5004, 5005) or any(token in host for token in ("meet", "zoom", "webex")):
             return "video_conference"
-        if port in (5060, 5061, 3478) or "sip" in host or "voip" in host:
+        if port in (5060, 5061, 3478) or any(token in host for token in ("sip", "voip")):
             return "voip"
-        if port == 1935 or "stream" in host or "rtmp" in host:
+        if port == 1935 or any(token in host for token in ("stream", "rtmp")):
             return "streaming"
+        if port in (22, 3389):
+            return "interactive"
         if port in (80, 443):
             return "web_browse"
-        if port == 21 or "download" in host or "update" in host:
+        if port == 21 or any(token in host for token in ("download", "update")):
             return "download"
         return "background"
 
     def get_priority(self, traffic_type: str) -> int:
-        """Return integer priority for a traffic type.
-
-        Args:
-            traffic_type: From ``classify_connection()``.
-
-        Returns:
-            Integer priority (higher = more important).
-        """
-        return self._PRIORITY.get(traffic_type, 1)
+        """Return priority score for a traffic type."""
+        return self.PRIORITY.get(traffic_type, 1)
 
     def update_bandwidth(self, measured_kbps: int) -> None:
-        """Update the measured available bandwidth.
-
-        Args:
-            measured_kbps: Current link speed in kbps.
-        """
-        self._current_bw_kbps = measured_kbps
-        if measured_kbps < self._low_bw_threshold:
-            log.warning("QoS: Low bandwidth detected (%d kbps) — strict mode.", measured_kbps)
+        """Update measured bandwidth."""
+        if measured_kbps < 0:
+            raise ValueError("measured_kbps must be >= 0")
+        self.current_bandwidth_kbps = measured_kbps
 
     def is_low_bandwidth(self) -> bool:
-        """Return True if the link is below the low-bandwidth threshold."""
-        return self._current_bw_kbps < self._low_bw_threshold
+        """Return True when measured bandwidth is below threshold."""
+        return self.current_bandwidth_kbps < self.low_bandwidth_kbps
 
     def status(self) -> dict:
         """Return QoS status."""
         return {
-            "bandwidth_kbps":    self._current_bw_kbps,
-            "low_bandwidth":     self.is_low_bandwidth(),
-            "threshold_kbps":    self._low_bw_threshold,
-            "priority_table":    dict(self._PRIORITY),
+            "bandwidth_kbps": self.current_bandwidth_kbps,
+            "low_bandwidth": self.is_low_bandwidth(),
+            "threshold_kbps": self.low_bandwidth_kbps,
+            "priority_table": dict(self.PRIORITY),
         }
 
 
-# ---------------------------------------------------------------------------
-# NetworkStack
-# ---------------------------------------------------------------------------
+class InternetAccessManager:
+    """High-level internet facade for UmerOS users and services."""
+
+    def __init__(self, http: HTTPClient, dns: DNSResolver) -> None:
+        """Initialize with shared HTTP and DNS services."""
+        self.http = http
+        self.dns = dns
+
+    async def fetch_text(self, url: str) -> str:
+        """Fetch text from an HTTP/HTTPS URL."""
+        response = await self.http.request("GET", url)
+        if not response.ok:
+            raise ConnectionError(f"GET {url} failed with HTTP {response.status}: {response.reason}")
+        return response.body
+
+    async def fetch_json(self, url: str) -> Any:
+        """Fetch and parse JSON from an HTTP/HTTPS URL."""
+        return await self.http.fetch_json(url)
+
+    async def download(self, url: str, destination: str | Path) -> Path:
+        """Download a URL to a local file."""
+        return await self.http.download(url, destination)
+
+    async def can_resolve(self, hostname: str = "example.com") -> bool:
+        """Return True if DNS can resolve a hostname."""
+        return bool(await self.dns.resolve_all(hostname))
+
+    async def check_http(self, url: str = "https://example.com") -> bool:
+        """Return True if an HTTP endpoint can be reached."""
+        response = await self.http.request("GET", url)
+        return response.ok
+
 
 class NetworkStack:
-    """Top-level Umer OS network manager.
-
-    Coordinates DNS, VPN, mDNS discovery, and QoS under a single facade.
-
-    Args:
-        vpn_config:          Optional WireGuard config path.
-        low_bandwidth_kbps:  QoS activation threshold.
-    """
+    """Top-level UmerOS network manager."""
 
     def __init__(
         self,
-        vpn_config:         Optional[str] = None,
-        low_bandwidth_kbps: int           = 1000,
+        vpn_config: Optional[str] = None,
+        low_bandwidth_kbps: int = 1000,
+        dns_timeout: float = 5.0,
+        http_timeout: float = 10.0,
     ) -> None:
-        self.dns      = DNSOverHTTPS()
-        self.vpn      = VPNClient(vpn_config)
-        self.mdns     = MDNSDiscovery()
-        self.qos      = AINetworkQoS(low_bandwidth_kbps)
+        """Initialize network services."""
+        self.resolver = DNSResolver(timeout=dns_timeout)
+        self.dns = DNSOverHTTPS(timeout=min(3.0, dns_timeout))
+        self.http = HTTPClient(timeout=http_timeout)
+        self.internet = InternetAccessManager(self.http, self.resolver)
+        self.vpn = VPNClient(vpn_config)
+        self.mdns = MDNSDiscovery()
+        self.qos = AINetworkQoS(low_bandwidth_kbps)
         self._running = False
-        self._connections: Dict[str, dict] = {}
-        log.info("NetworkStack initialised.")
+        self._connections: Dict[int, ConnectionInfo] = {}
+        self._writers: Dict[int, asyncio.StreamWriter] = {}
+
+    @property
+    def running(self) -> bool:
+        """Return True when the stack is active."""
+        return self._running
 
     def start(self) -> None:
         """Activate the network stack."""
         self._running = True
-        log.info("NetworkStack started.")
+        log.info("NetworkStack started")
 
-    def stop(self) -> None:
-        """Deactivate the network stack."""
+    async def stop(self) -> None:
+        """Deactivate the network stack and close open TCP writers."""
         self._running = False
-        log.info("NetworkStack stopped.")
+        await self.close_all()
+        log.info("NetworkStack stopped")
 
     async def connect(
         self,
@@ -452,64 +446,137 @@ class NetworkStack:
         port: int,
         timeout: float = 5.0,
     ) -> Optional[Tuple[asyncio.StreamReader, asyncio.StreamWriter]]:
-        """Open an async TCP connection.
+        """Open an async TCP connection using DNS and QoS metadata."""
+        if port < 1 or port > 65535:
+            raise ValueError("port must be between 1 and 65535")
 
-        Resolves the host via DoH, classifies the connection for QoS, then
-        opens an asyncio stream pair.
-
-        Args:
-            host:    Destination hostname or IP.
-            port:    Destination port.
-            timeout: Connection timeout in seconds.
-
-        Returns:
-            (reader, writer) tuple on success, or None on failure.
-        """
-        # Resolve hostname
-        addrs = self.dns.resolve(host)
-        target = addrs[0] if addrs else host
-
-        # QoS classification
+        addresses = await self.resolver.resolve_all(host, port=port)
+        targets = addresses or [host]
         traffic_type = self.qos.classify_connection(host, port)
-        priority     = self.qos.get_priority(traffic_type)
-        log.debug("Connecting to %s:%d — type=%s priority=%d",
-                  host, port, traffic_type, priority)
+        priority = self.qos.get_priority(traffic_type)
+        last_error: Exception | None = None
 
-        try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(target, port),
-                timeout=timeout,
+        for target in targets:
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(target, port),
+                    timeout=timeout,
+                )
+            except (OSError, asyncio.TimeoutError) as exc:
+                last_error = exc
+                continue
+
+            key = id(writer)
+            self._writers[key] = writer
+            self._connections[key] = ConnectionInfo(
+                host=host,
+                port=port,
+                traffic_type=traffic_type,
+                priority=priority,
+                opened_at=time.time(),
             )
-            conn_id = f"{host}:{port}:{id(writer)}"
-            self._connections[conn_id] = {
-                "host":    host,
-                "port":    port,
-                "type":    traffic_type,
-                "priority": priority,
-                "opened": time.time(),
-            }
             return reader, writer
-        except (asyncio.TimeoutError, ConnectionRefusedError, OSError) as exc:
-            log.error("Connection to %s:%d failed: %s", host, port, exc)
-            return None
 
-    def resolve(self, hostname: str) -> List[str]:
-        """Synchronous DNS resolution (convenience wrapper).
+        log.warning("Connection to %s:%d failed: %s", host, port, last_error)
+        return None
 
-        Args:
-            hostname: Domain name.
+    async def send_tcp(
+        self,
+        host: str,
+        port: int,
+        payload: bytes,
+        read_bytes: int = 4096,
+        timeout: float = 5.0,
+    ) -> bytes:
+        """Open a TCP connection, send payload, read one response, and close."""
+        connection = await self.connect(host, port, timeout=timeout)
+        if connection is None:
+            return b""
+        reader, writer = connection
+        try:
+            writer.write(payload)
+            await writer.drain()
+            return await asyncio.wait_for(reader.read(read_bytes), timeout=timeout)
+        finally:
+            await self.close_writer(writer)
 
-        Returns:
-            List of IP addresses.
+    async def close_writer(self, writer: asyncio.StreamWriter) -> None:
+        """Close a tracked stream writer."""
+        key = id(writer)
+        writer.close()
+        try:
+            await writer.wait_closed()
+        except OSError:
+            pass
+        self._writers.pop(key, None)
+        self._connections.pop(key, None)
+
+    async def close_all(self) -> None:
+        """Close all tracked TCP writers."""
+        writers = list(self._writers.values())
+        for writer in writers:
+            writer.close()
+        for writer in writers:
+            try:
+                await writer.wait_closed()
+            except OSError:
+                pass
+        self._writers.clear()
+        self._connections.clear()
+
+    async def resolve_async(self, hostname: str) -> List[str]:
+        """Resolve a hostname asynchronously through the system resolver."""
+        return await self.resolver.resolve_all(hostname)
+
+    def resolve(self, hostname: str, record_type: str = "A") -> List[str]:
+        """Resolve a hostname synchronously through DoH with fallback."""
+        return self.dns.resolve(hostname, record_type)
+
+    async def fetch_url(self, url: str) -> str:
+        """Fetch text from the internet."""
+        return await self.internet.fetch_text(url)
+
+    async def fetch_json(self, url: str) -> Any:
+        """Fetch JSON from the internet."""
+        return await self.internet.fetch_json(url)
+
+    async def download(self, url: str, destination: str | Path) -> Path:
+        """Download a URL to a local file."""
+        return await self.internet.download(url, destination)
+
+    async def check_internet(
+        self,
+        dns_host: str = "example.com",
+        http_url: str = "https://example.com",
+    ) -> dict:
+        """Check DNS and HTTP connectivity.
+
+        This can be used by the UI or assistant before telling the user that
+        internet access is available.
         """
-        return self.dns.resolve(hostname)
+        dns_ok = await self.internet.can_resolve(dns_host)
+        http_ok = await self.internet.check_http(http_url) if dns_ok else False
+        return {"dns": dns_ok, "http": http_ok, "online": dns_ok and http_ok}
 
     def status(self) -> dict:
         """Return network stack status."""
         return {
-            "running":       self._running,
-            "connections":   len(self._connections),
-            "vpn":           self.vpn.status(),
-            "mdns_peers":    self.mdns.peer_count(),
-            "qos":           self.qos.status(),
+            "running": self._running,
+            "connections": len(self._connections),
+            "vpn": self.vpn.status(),
+            "mdns": self.mdns.status(),
+            "qos": self.qos.status(),
         }
+
+    def connection_table(self) -> List[Mapping[str, Any]]:
+        """Return tracked TCP connection metadata."""
+        return [
+            {
+                "host": info.host,
+                "port": info.port,
+                "traffic_type": info.traffic_type,
+                "priority": info.priority,
+                "opened_at": info.opened_at,
+            }
+            for info in self._connections.values()
+        ]
