@@ -30,6 +30,10 @@ from kernel.signals import SIGKILL, SIGTERM, SIGCHLD
 from kernel.cgroup import CGroupManager
 from kernel.audit import AuditLogger
 from kernel.workqueue import WorkQueue
+from kernel.cred import CredentialStore, Credentials, ROOT_UID
+from kernel.reboot import RebootManager, SystemState
+from kernel.resource import ResourceManager, IORESOURCE_MEM, IORESOURCE_IO
+from kernel.softirq import SoftIRQManager, TaskletManager
 
 # --- STAGE 2: Core Kernel Subsystems ---
 # NOTE: Import paths assume the correct folder structure and __init__.py files.
@@ -373,11 +377,52 @@ class FluidicShell:
                     elif cmd == 'status':
                         stats = self.kernel.status()
                         print(f"[KERNEL STATUS] Uptime: {stats['uptime_seconds']}s, Tasks: {stats['scheduler_tasks']}, Running: {stats['running']}")
-                    elif cmd == 'gui_start' or cmd == 'startx':
-                        print("[KERNEL] Switching to GUI mode...")
-                        await self.kernel.start_gui_shell()
-                        print("[KERNEL] Returned from GUI.")
+
+
+
+                    # elif cmd == 'gui_start' or cmd == 'startx':
+                    #     print("[KERNEL] Switching to GUI mode...")
+                    #     await self.kernel.start_gui_shell()
+                    #     print("[KERNEL] Returned from GUI.")
+
+                    # # --- GUI COMMANDS ADDED HERE ---
+                    # elif cmd == 'gui_start' or cmd == 'startx':
+                    #     print("[KERNEL] Switching to GUI mode (Desktop default)...")
+                    #     await self.kernel.start_gui_shell(mode='desktop')
+                    #     print("[KERNEL] Returned from GUI launch attempt. Kernel still running.")
+                    # elif cmd == 'gui_android':
+                    #     print("[KERNEL] Attempting to launch GUI on Android device/emulator...")
+                    #     await self.kernel.start_gui_shell(mode='android')
+                    #     print("[KERNEL] Returned from Android GUI launch attempt.")
+                    # elif cmd == 'gui_ios':
+                    #     print("[KERNEL] Attempting to launch GUI on iOS simulator/device...")
+                    #     await self.kernel.start_gui_shell(mode='ios') # Only works if kernel runs on macOS
+                    #     print("[KERNEL] Returned from iOS GUI launch attempt.")
+                    # elif cmd == 'gui_web':
+                    #     print("[KERNEL] Attempting to launch GUI in Web Browser (Chrome)...")
+                    #     await self.kernel.start_gui_shell(mode='web')
+                    #     print("[KERNEL] Returned from Web GUI launch attempt.")
+                    # # --- END GUI COMMANDS ---
+
                     # Dynamic Command Registry
+                                        # --- GUI COMMANDS ADDED HERE ---
+                    elif cmd == 'gui_start' or cmd == 'startx':
+                        print("[KERNEL] Switching to GUI mode (Desktop default)...")
+                        await self.kernel.start_gui_shell(mode='desktop')
+                        print("[KERNEL] Returned from GUI launch attempt. Kernel still running.")
+                    elif cmd == 'gui_android':
+                        print("[KERNEL] Attempting to launch GUI on Android device/emulator...")
+                        await self.kernel.start_gui_shell(mode='android')
+                        print("[KERNEL] Returned from Android GUI launch attempt.")
+                    elif cmd == 'gui_ios':
+                        print("[KERNEL] Attempting to launch GUI on iOS simulator/device...")
+                        await self.kernel.start_gui_shell(mode='ios') # Only works if kernel runs on macOS
+                        print("[KERNEL] Returned from iOS GUI launch attempt.")
+                    elif cmd == 'gui_web':
+                        print("[KERNEL] Attempting to launch GUI in Web Browser (Chrome)...")
+                        await self.kernel.start_gui_shell(mode='web')
+                        print("[KERNEL] Returned from Web GUI launch attempt.")
+                    # --- END GUI COMMANDS ---
                     elif cmd in self.registry:
                         ctx = self.CommandContext(self.kernel, self)
                         output = self.registry[cmd].execute(ctx, args)
@@ -778,7 +823,7 @@ class UmerKernel:
 
         log.info("=== UmerKernel shut down cleanly ===")
     
-    async def start_gui_shell(self):
+    async def start_gui_shell(self, mode='desktop'): # Default to desktop
         """Attempts to launch the Flutter-based GUI shell."""
         print("[KERNEL] Attempting to launch UmerOS GUI Shell...")
         # Import the launcher script
@@ -793,11 +838,23 @@ class UmerKernel:
             launcher_script_path = os.path.abspath(launcher_script_path)
 
             print(f"[KERNEL] Using launcher script: {launcher_script_path}")
-
             # Option 1: Run as a subprocess (Recommended for isolation)
-            print("[KERNEL] Launching GUI in a separate process...")
-            process = subprocess.Popen([sys.executable, launcher_script_path])
-            print(f"[KERNEL] GUI process started with PID {process.pid}. Return to kernel shell to manage it.")
+            print(f"[KERNEL] Launching GUI ({mode}) in a separate process...")
+            # Pass the desired mode as a command-line argument to the launcher script
+            
+            process = subprocess.Popen([sys.executable, launcher_script_path], stdin=subprocess.PIPE, text=True)
+            # Send the mode choice via stdin to the launcher script
+            # The launcher script reads this input to decide the platform
+            process.stdin.write(f"{ {'desktop': '1', 'android': '2', 'ios': '3', 'web': '4'}.get(mode, '1') }\n")
+            process.stdin.flush() # Ensure the input is sent
+            process.stdin.close() # Close stdin after sending
+            print(f"[KERNEL] GUI ({mode}) process started with PID {process.pid}. Return to kernel shell to manage it.")
+
+           
+            # Option 1: Run as a subprocess (Recommended for isolation)
+            # print("[KERNEL] Launching GUI in a separate process...")
+            # process = subprocess.Popen([sys.executable, launcher_script_path])
+            # print(f"[KERNEL] GUI process started with PID {process.pid}. Return to kernel shell to manage it.")
             # Note: The kernel doesn't wait for the GUI process to finish.
             # The GUI runs independently. The user might need to close the GUI window
             # or use another mechanism (like a signal/file check) to know when it stops.
@@ -808,6 +865,8 @@ class UmerKernel:
             # launcher_module = importlib.util.module_from_spec(spec)
             # spec.loader.exec_module(launcher_module)
             # launcher_module.main() # This would block the kernel until GUI closes
+
+            
 
         except ImportError as e:
             print(f"[KERNEL] Failed to import GUI launcher: {e}")
