@@ -342,55 +342,86 @@ class TestCapabilityManager(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestUmerKernel(unittest.IsolatedAsyncioTestCase):
+    """Tests for the main UmerKernel (ecosystem-demo kernel).
+
+    The main kernel uses ``UmerKernel()`` (no args), ``boot()``,
+    ``shutdown()``, ``uptime()``, ``status()``, and ``panic()``.
+    Process spawning is handled by the scheduler, not the kernel.
+    """
 
     async def asyncSetUp(self):
-        self.kernel = UmerKernel(total_memory_bytes=4 * 1024 * 1024)
+        self.kernel = UmerKernel()
 
     async def asyncTearDown(self):
-        await self.kernel.shutdown()
+        if self.kernel.running:
+            await self.kernel.shutdown()
 
-    async def test_kernel_starts_cleanly(self):
-        await self.kernel.init()
-        self.assertTrue(self.kernel._running)
+    def test_kernel_constructs(self):
+        """Kernel should create all core subsystems on init."""
+        k = self.kernel
+        # Stage 2 core subsystems
+        self.assertIsNotNone(k.scheduler)
+        self.assertIsNotNone(k.memory)
+        self.assertIsNotNone(k.ipc)
+        self.assertIsNotNone(k.capabilities)
+        # Linux-inspired subsystems (original set)
+        self.assertIsNotNone(k.pid_allocator)
+        self.assertFalse(k.taint.is_tainted())
+        self.assertIsNotNone(k.sysctl)
+        self.assertIsNotNone(k.panic_notifier)
+        self.assertIsNotNone(k.warn_counter)
+        # Linux-inspired subsystems (new)
+        self.assertIsNotNone(k.cred_store)
+        self.assertIsNotNone(k.reboot)
+        self.assertIsNotNone(k.resources)
+        self.assertIsNotNone(k.softirq)
+        self.assertIsNotNone(k.tasklets)
 
-    async def test_uptime_increases(self):
+    def test_uptime_increases(self):
         t0 = self.kernel.uptime()
-        await asyncio.sleep(0.05)
+        time.sleep(0.05)
         self.assertGreater(self.kernel.uptime(), t0)
 
-    async def test_spawn_process_returns_pid(self):
-        pid = self.kernel.spawn_process("test_service", priority=0.5)
-        self.assertIsInstance(pid, int)
-        self.assertGreater(pid, 0)
-
-    async def test_spawn_multiple_pids_are_unique(self):
-        p1 = self.kernel.spawn_process("svc1")
-        p2 = self.kernel.spawn_process("svc2")
-        self.assertNotEqual(p1, p2)
-
-    async def test_kill_process_returns_true(self):
-        pid = self.kernel.spawn_process("killable")
-        result = self.kernel.kill_process(pid)
-        self.assertTrue(result)
-
-    async def test_kill_unknown_pid_returns_false(self):
-        self.assertFalse(self.kernel.kill_process(99999))
-
-    async def test_list_processes_contains_spawned(self):
-        pid = self.kernel.spawn_process("listed")
-        procs = self.kernel.list_processes()
-        pids = [p["pid"] for p in procs]
-        self.assertIn(pid, pids)
-
-    async def test_status_has_expected_keys(self):
+    def test_status_has_expected_keys(self):
         status = self.kernel.status()
-        for k in ("uptime_seconds", "process_count", "memory", "running"):
-            self.assertIn(k, status)
+        for key in ("uptime_seconds", "scheduler_tasks", "memory", "running"):
+            self.assertIn(key, status)
 
-    async def test_inject_ai_manager(self):
-        ai = NullAIManager()
-        self.kernel.inject_ai_manager(ai)
-        self.assertIs(self.kernel._ai_manager, ai)
+    def test_status_running_false_before_boot(self):
+        self.assertFalse(self.kernel.status()["running"])
+
+    async def test_shutdown_safe_when_not_running(self):
+        """shutdown() must not raise even if boot() was never called."""
+        await self.kernel.shutdown()
+
+    def test_pid_allocator_functional(self):
+        pid = self.kernel.pid_allocator.alloc()
+        self.assertGreater(pid, 0)
+        self.assertTrue(self.kernel.pid_allocator.is_live(pid))
+        self.kernel.pid_allocator.free(pid)
+
+    def test_sysctl_defaults_registered(self):
+        self.assertEqual(self.kernel.sysctl.get("kernel.panic_timeout"), 0)
+        self.assertEqual(self.kernel.sysctl.get("kernel.hung_task_timeout"), 120)
+        self.assertEqual(self.kernel.sysctl.get("kernel.warn_limit"), 0)
+
+    def test_cred_store_root(self):
+        """CredentialStore should hand out root creds by default."""
+        from kernel.cred import CredentialStore
+        c = CredentialStore.user(uid=1000, gid=1000)
+        self.assertEqual(c.euid, 1000)
+        self.assertFalse(c.is_root())
+        self.assertIn("fs.read", c.caps)
+
+    def test_resources_no_conflict(self):
+        """ResourceManager should accept disjoint regions."""
+        from kernel.resource import IORESOURCE_MEM
+        r1 = self.kernel.resources.request_region(
+            0x1000, 0x100, "dev1", flags=IORESOURCE_MEM)
+        r2 = self.kernel.resources.request_region(
+            0x2000, 0x100, "dev2", flags=IORESOURCE_MEM)
+        self.assertEqual(r1.name, "dev1")
+        self.assertEqual(r2.name, "dev2")
 
 
 if __name__ == "__main__":

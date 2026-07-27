@@ -590,8 +590,27 @@ class UmerKernel:
         # Inspired by Linux kernel/panic.c — check_panic_on_warn().
         self.warn_counter = WarnCounter(limit=0)  # 0 = unlimited by default
 
+        # ── NEW: More Linux-inspired subsystems ─────────────────────────────
+        # Credential store: per-task uid/gid/caps with copy-on-write + override.
+        # Inspired by Linux kernel/cred.c (David Howells).
+        self.cred_store = CredentialStore()
+
+        # Reboot manager: ordered reboot/halt/poweroff notifier chains.
+        # Inspired by Linux kernel/reboot.c.
+        self.reboot = RebootManager()
+
+        # Resource manager: I/O port / MMIO / IRQ / DMA region tracking.
+        # Inspired by Linux kernel/resource.c (<linux/ioport.h>).
+        self.resources = ResourceManager()
+
+        # SoftIRQ manager + tasklets: deferred interrupt bottom-halves.
+        # Inspired by Linux kernel/softirq.c.
+        self.softirq = SoftIRQManager()
+        self.tasklets = TaskletManager(self.softirq)
+
         log.info("Linux-inspired kernel subsystems initialised "
-                 "(PID allocator, taint, sysctl, panic notifier).")
+                 "(PID allocator, taint, sysctl, panic notifier, "
+                 "credentials, reboot, resources, softirq).")
 
     def request_shutdown(self):
         """Public method for components (like the shell) to request a shutdown."""
@@ -664,6 +683,12 @@ class UmerKernel:
         print("[KERNEL] Boot sequence initiated.")
         self.running = True
 
+        # ── Linux-inspired: transition system_state BOOTING → RUNNING,
+        # start softirq daemon (ksoftirqd) and register root credentials.
+        self.reboot.mark_running()
+        await self.softirq.start()
+        self.cred_store.register(PID_SYSTEM)  # kernel root cred
+
         # Inject the enhanced AI manager into the scheduler
         self.scheduler.set_ai_manager(self.ai_manager)
 
@@ -696,10 +721,11 @@ class UmerKernel:
         self.pid_allocator._in_use.add(init_pid)  # mark as allocated
         self.capabilities.register(init_pid)
         self.ipc.register(init_pid) # Register kernel (PID 0)
+        self.cred_store.register(init_pid)  # init gets root credentials
         init_task = Task(pid=init_pid, name="init", priority=1.0)
         await self.scheduler.add_task(init_task)
         self.sandbox.register_process(init_pid, "init", fs_root="/")
-        log.info("Init process registered as PID %d (via PID allocator).", init_pid)
+        log.info("Init process registered as PID %d (via PID allocator, root cred).", init_pid)
 
         # Mount filesystem
         print("[KERNEL] Mounting Quantum File System via VFS...")
@@ -788,23 +814,39 @@ class UmerKernel:
         """
         log.info("=== Graceful shutdown initiated ===")
 
+        # Phase 0: Trigger the reboot notifier chain (Linux reboot.c style).
+        log.info("[shutdown] Phase 0/5: Firing reboot notifiers...")
+        try:
+            from kernel.reboot import RebootAction
+            await self.reboot.reboot_notifiers.call(RebootAction.HALT, "shutdown")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("[shutdown] Reboot notifier error: %s", exc)
+
         # Phase 1: Stop scheduler (no new tasks dispatched)
-        log.info("[shutdown] Phase 1/4: Stopping scheduler...")
+        log.info("[shutdown] Phase 1/5: Stopping scheduler...")
         self.running = False
         await self.scheduler.stop()
 
-        # Phase 2: Flush filesystem / release IPC queues
-        log.info("[shutdown] Phase 2/4: Releasing IPC registrations...")
+        # Phase 2: Stop softirq daemon (ksoftirqd) and flush pending work.
+        log.info("[shutdown] Phase 2/5: Stopping softirq daemon...")
         try:
-            # Unregister all PIDs from IPC (if the bus supports it)
+            await self.softirq.stop()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("[shutdown] SoftIRQ stop error: %s", exc)
+
+        # Phase 3: Release credentials for all known tasks.
+        log.info("[shutdown] Phase 3/5: Releasing credentials & IPC...")
+        try:
+            # Best-effort: release root + init creds.
+            self.cred_store.unregister(PID_SYSTEM)
+            self.cred_store.unregister(PID_INIT)
             if hasattr(self.ipc, 'unregister'):
-                # Best-effort: we don't track all PIDs here, so just log
                 log.debug("IPC queues left for garbage collection.")
         except Exception as exc:  # noqa: BLE001
-            log.warning("[shutdown] IPC cleanup error: %s", exc)
+            log.warning("[shutdown] Cred/IPC cleanup error: %s", exc)
 
-        # Phase 3: Free memory allocations
-        log.info("[shutdown] Phase 3/4: Freeing memory allocations...")
+        # Phase 4: Free memory allocations
+        log.info("[shutdown] Phase 4/5: Freeing memory allocations...")
         try:
             for pid, allocs in list(self._mem_allocs.items()) if hasattr(self, '_mem_allocs') else []:
                 for ptr, _ in allocs:
@@ -815,11 +857,14 @@ class UmerKernel:
         except Exception as exc:  # noqa: BLE001
             log.warning("[shutdown] Memory cleanup error: %s", exc)
 
-        # Phase 4: Final status dump
-        log.info("[shutdown] Phase 4/4: Final status dump...")
+        # Phase 5: Final status dump + system_state transition
+        log.info("[shutdown] Phase 5/5: Final status dump...")
+        from kernel.reboot import SystemState as _SS
+        self.reboot.system_state = _SS.HALT
         log.info("  Taint: %s", self.taint.summary() or "(clean)")
         log.info("  Uptime: %.3fs", self.uptime())
         log.info("  PID allocator: %s", self.pid_allocator.stats())
+        log.info("  Resource tree: %s", self.resources.status())
 
         log.info("=== UmerKernel shut down cleanly ===")
     
