@@ -157,23 +157,45 @@ class QFS: # Quantum File System (Placeholder)
     def stats(self): return {"compression_ratio": "90%"}
 
 class VFSNode:
-    def __init__(self, name, is_dir=False):
+    def __init__(self, name, is_dir=False, owner="umer", group="umer", mode=None):
         self.name = name
         self.is_dir = is_dir
         self.content = ""
         self.children = {} if is_dir else None
+        self.owner = owner
+        self.group = group
+        self.mode = mode if mode else ("rwxr-xr-x" if is_dir else "rw-r--r--")
+        self.mtime = time.time()
+        self.atime = time.time()
+
+    @property
+    def size(self):
+        if self.is_dir:
+            return 4096
+        return len(self.content.encode('utf-8'))
 
 class VirtualFileSystem:
     def __init__(self, underlying_fs):
         self.fs = underlying_fs
         self.root = VFSNode("/", is_dir=True)
         self.cwd = "/"
-        # Pre-populate some directories
-        self.mkdir("/home")
-        self.mkdir("/home/umer")
-        self.mkdir("/etc")
-        self.mkdir("/bin")
-        self.touch("/etc/passwd")
+        # Pre-populate base Linux directories and system files
+        self.mkdir("/home", parents=True)
+        self.mkdir("/home/umer", parents=True)
+        self.mkdir("/etc", parents=True)
+        self.mkdir("/bin", parents=True)
+        self.mkdir("/usr/bin", parents=True)
+        self.mkdir("/var/log", parents=True)
+        self.mkdir("/tmp", parents=True)
+        self.mkdir("/proc", parents=True)
+        
+        self.write_file("/etc/passwd", "root:x:0:0:root:/root:/bin/bash\numer:x:1000:1000:umer:/home/umer:/bin/bash\n")
+        self.write_file("/etc/group", "root:x:0:\numer:x:1000:umer,sudo\nsudo:x:27:umer\n")
+        self.write_file("/etc/hostname", "UmerOS-Node1\n")
+        self.write_file("/etc/issue", "UmerOS v2.1.0 Quantum Kernel \\n \\l\n")
+        self.touch("/var/log/dmesg.log")
+        self.write_file("/var/log/dmesg.log", "[ 0.000000] Linux version 5.4.0-UmerOS (root@buildhost) (gcc version 9.3.0)\n[ 0.000005] Command line: BOOT_IMAGE=/vmlinuz-umer root=QFS quiet\n")
+
         self.cwd = "/home/umer"
 
     def _resolve(self, path):
@@ -215,23 +237,25 @@ class VirtualFileSystem:
             return [node.name]
         return list(node.children.keys())
 
-    def mkdir(self, path):
+    def mkdir(self, path, parents=False):
         if not path.startswith("/"):
             path = self.cwd.rstrip("/") + "/" + path
             
         parts = [p for p in path.split("/") if p]
         if not parts: return
         
-        parent_path = "/" + "/".join(parts[:-1])
-        name = parts[-1]
-        
-        parent, _ = self._resolve(parent_path)
-        if not parent or not parent.is_dir:
-            raise FileNotFoundError("Parent directory does not exist")
-        if name in parent.children:
-            raise FileExistsError("File exists")
-            
-        parent.children[name] = VFSNode(name, is_dir=True)
+        curr = self.root
+        for i, part in enumerate(parts):
+            if part not in curr.children:
+                if i < len(parts) - 1 and not parents:
+                    raise FileNotFoundError("Parent directory does not exist")
+                new_node = VFSNode(part, is_dir=True)
+                curr.children[part] = new_node
+                curr = new_node
+            else:
+                curr = curr.children[part]
+                if i == len(parts) - 1 and not parents:
+                    raise FileExistsError("File exists")
 
     def touch(self, path):
         if not path.startswith("/"):
@@ -249,6 +273,8 @@ class VirtualFileSystem:
             
         if name not in parent.children:
             parent.children[name] = VFSNode(name, is_dir=False)
+        else:
+            parent.children[name].mtime = time.time()
 
     def write_file(self, path, data):
         node, _ = self._resolve(path)
@@ -258,6 +284,7 @@ class VirtualFileSystem:
         if node.is_dir:
             raise IsADirectoryError("Is a directory")
         node.content = data
+        node.mtime = time.time()
 
     def read_file(self, path):
         node, _ = self._resolve(path)
@@ -265,6 +292,7 @@ class VirtualFileSystem:
             raise FileNotFoundError("No such file or directory")
         if node.is_dir:
             raise IsADirectoryError("Is a directory")
+        node.atime = time.time()
         return node.content
 
     def rmdir(self, path):
@@ -294,6 +322,86 @@ class VirtualFileSystem:
             raise IsADirectoryError("Is a directory")
             
         del parent.children[name]
+
+    def stat(self, path):
+        node, abs_path = self._resolve(path)
+        if not node:
+            raise FileNotFoundError("No such file or directory")
+        return {
+            "name": node.name,
+            "path": abs_path,
+            "is_dir": node.is_dir,
+            "size": node.size,
+            "owner": node.owner,
+            "group": node.group,
+            "mode": node.mode,
+            "mtime": node.mtime,
+            "atime": node.atime,
+        }
+
+    def chmod(self, path, mode_str):
+        node, _ = self._resolve(path)
+        if not node:
+            raise FileNotFoundError("No such file or directory")
+        node.mode = mode_str
+
+    def chown(self, path, owner, group=None):
+        node, _ = self._resolve(path)
+        if not node:
+            raise FileNotFoundError("No such file or directory")
+        node.owner = owner
+        if group:
+            node.group = group
+
+    def cp(self, src_path, dest_path, recursive=False):
+        src_node, _ = self._resolve(src_path)
+        if not src_node:
+            raise FileNotFoundError(f"cannot stat '{src_path}': No such file or directory")
+        if src_node.is_dir and not recursive:
+            raise IsADirectoryError(f"-r not specified; omitting directory '{src_path}'")
+
+        dest_node, _ = self._resolve(dest_path)
+        if dest_node and dest_node.is_dir:
+            target_path = dest_path.rstrip("/") + "/" + src_node.name
+        else:
+            target_path = dest_path
+
+        def _copy_recursive(node, target):
+            if not node.is_dir:
+                self.write_file(target, node.content)
+                self.chmod(target, node.mode)
+                self.chown(target, node.owner, node.group)
+            else:
+                self.mkdir(target, parents=True)
+                for child_name, child_node in node.children.items():
+                    _copy_recursive(child_node, target.rstrip("/") + "/" + child_name)
+
+        _copy_recursive(src_node, target_path)
+
+    def mv(self, src_path, dest_path):
+        src_node, _ = self._resolve(src_path)
+        if not src_node:
+            raise FileNotFoundError(f"cannot stat '{src_path}': No such file or directory")
+        
+        self.cp(src_path, dest_path, recursive=True)
+        self.rm(src_path, recursive=True)
+
+    def find(self, path=".", name_pattern=None):
+        start_node, base_abs_path = self._resolve(path)
+        if not start_node:
+            raise FileNotFoundError(f"'{path}': No such file or directory")
+        
+        results = []
+        def _walk(node, current_path):
+            if name_pattern is None or name_pattern in node.name or name_pattern == "*":
+                results.append(current_path)
+            if node.is_dir:
+                for child_name, child_node in node.children.items():
+                    sub = (current_path.rstrip("/") + "/" + child_name) if current_path != "/" else "/" + child_name
+                    _walk(child_node, sub)
+
+        _walk(start_node, base_abs_path if base_abs_path else "/")
+        return results
 
 class CryptoEngine: # Crypto (Placeholder)
     def random_bytes(self, n): import secrets; return secrets.token_bytes(n)
@@ -564,6 +672,7 @@ class UmerKernel:
         self.pkg = MockPackageManager()
         self.drivers = DriverManager()
         self.sdk = BuildTool(vfs=self.vfs)
+        self.shell = FluidicShell(self)
 
         self.running = False
         self._shutdown_requested = False # Flag to signal shutdown
