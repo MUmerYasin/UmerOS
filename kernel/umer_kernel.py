@@ -157,7 +157,7 @@ class QFS: # Quantum File System (Placeholder)
     def stats(self): return {"compression_ratio": "90%"}
 
 class VFSNode:
-    def __init__(self, name, is_dir=False, owner="umer", group="umer", mode=None):
+    def __init__(self, name, is_dir=False, owner="umer", group="umer", mode=None, is_symlink=False, symlink_target=None):
         self.name = name
         self.is_dir = is_dir
         self.content = ""
@@ -167,6 +167,8 @@ class VFSNode:
         self.mode = mode if mode else ("rwxr-xr-x" if is_dir else "rw-r--r--")
         self.mtime = time.time()
         self.atime = time.time()
+        self.is_symlink = is_symlink
+        self.symlink_target = symlink_target
 
     @property
     def size(self):
@@ -188,6 +190,8 @@ class VirtualFileSystem:
         self.mkdir("/var/log", parents=True)
         self.mkdir("/tmp", parents=True)
         self.mkdir("/proc", parents=True)
+        self.mkdir("/dev", parents=True)
+        self.mkdir("/sys", parents=True)
         
         self.write_file("/etc/passwd", "root:x:0:0:root:/root:/bin/bash\numer:x:1000:1000:umer:/home/umer:/bin/bash\n")
         self.write_file("/etc/group", "root:x:0:\numer:x:1000:umer,sudo\nsudo:x:27:umer\n")
@@ -195,6 +199,13 @@ class VirtualFileSystem:
         self.write_file("/etc/issue", "UmerOS v2.1.0 Quantum Kernel \\n \\l\n")
         self.touch("/var/log/dmesg.log")
         self.write_file("/var/log/dmesg.log", "[ 0.000000] Linux version 5.4.0-UmerOS (root@buildhost) (gcc version 9.3.0)\n[ 0.000005] Command line: BOOT_IMAGE=/vmlinuz-umer root=QFS quiet\n")
+
+        # Proc virtual files
+        self.write_file("/proc/cpuinfo", "processor\t: 0\nvendor_id\t: QuantumGenuineIntel\ncpu family\t: 6\nmodel name\t: UmerOS Quantum AI Accelerator CPU @ 3.40GHz\nstepping\t: 3\ncpu MHz\t\t: 3400.000\ncache size\t: 16384 KB\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 cdp_l3 invpcid_single intel_pt ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rtm mpx rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves split_lock_detect wbnoinvd dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req avx512_vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm md_clear flush_l1d arch_capabilities\n\n")
+        self.write_file("/proc/meminfo", "MemTotal:        4194304 kB\nMemFree:         2097152 kB\nMemAvailable:    2883584 kB\nBuffers:          112230 kB\nCached:          1011846 kB\nSwapTotal:       2097152 kB\nSwapFree:        2097152 kB\nDirty:                 0 kB\nWriteback:             0 kB\nAnonPages:       1048576 kB\nMapped:           262144 kB\nShmem:             16384 kB\nSlab:             131072 kB\nSReclaimable:      98304 kB\nSUnreclaim:        32768 kB\nKernelStack:       16384 kB\nPageTables:        32768 kB\n")
+        self.write_file("/proc/mounts", "qfs_root / qfs rw,relatime 0 0\nproc /proc proc rw,nosuid,nodev,noexec,relatime 0 0\nsysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0\ndevtmpfs /dev devtmpfs rw,nosuid,size=2000000k,nr_inodes=500000,mode=755 0 0\ntmpfs /run tmpfs rw,nosuid,nodev,mode=755 0 0\n")
+        self.write_file("/proc/uptime", "3600.00 7100.00\n")
+        self.write_file("/proc/version", "Linux version 5.4.0-UmerOS (root@buildhost) (gcc version 9.3.0) #1 SMP PREEMPT 2026\n")
 
         self.cwd = "/home/umer"
 
