@@ -1982,7 +1982,7 @@ COMMANDS = [
     DfCommand(), FdiskCommand(), MountCommand(), FindmntCommand(), DuCommand(),
     
     # SSH & Remote
-    SshCommand(), SshKeygenCommand(), ServiceCommand(), TelnetCommand(),
+    SshCommand(), SshKeygenCommand(), ServiceCommand(), TelnetCommand(), InsmodCommand(),
     PingCommand(), IfconfigCommand(), IpCommand(), NetstatCommand(), SsCommand(), HostnameCommand(), TracerouteCommand(), DigCommand(), NslookupCommand(),
     
     # Permissions

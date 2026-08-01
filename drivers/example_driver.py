@@ -9,6 +9,19 @@ Equivalent to Linux's drivers/ subsystem and modprobe.
 """
 
 
+from typing import Protocol, runtime_checkable, Dict, Any
+
+# Global registry for character devices
+CHAR_DEVICES: Dict[str, Any] = {}
+
+@runtime_checkable
+class FileOperations(Protocol):
+    """Mimic Linux file_operations for character devices."""
+    def open(self, mode: str = "r") -> None: ...
+    def read(self, size: int = -1) -> str: ...
+    def write(self, data: str) -> int: ...
+    def release(self) -> None: ...
+
 class DriverBase:
     """Abstract base class for all Umer OS drivers."""
 
@@ -17,11 +30,17 @@ class DriverBase:
         self.version = version
         self.hardware_type = hardware_type
         self.loaded = False
+        # Optional file operations for character devices
+        self.file_ops: FileOperations | None = None
 
     def load(self) -> bool:
         """Initialize the driver hardware connection."""
         self.loaded = True
         print(f"[DRIVER] Loaded: {self.name} v{self.version} ({self.hardware_type})")
+        # If this driver implements FileOperations, register it as a char device
+        if isinstance(self, FileOperations):
+            self.file_ops = self  # type: ignore[assignment]
+            CHAR_DEVICES[self.name] = self
         return True
 
     def unload(self) -> bool:
@@ -107,6 +126,9 @@ class DriverManager:
         driver = cls()
         driver.load()
         self._drivers[name] = driver
+        # If driver provides character device ops, ensure it's in CHAR_DEVICES
+        if hasattr(driver, 'file_ops') and driver.file_ops:
+            CHAR_DEVICES[driver.name] = driver
         return True
 
     def unload_driver(self, name: str) -> bool:
@@ -115,6 +137,8 @@ class DriverManager:
             return False
         self._drivers[name].unload()
         del self._drivers[name]
+        # Remove from CHAR_DEVICES if present
+        CHAR_DEVICES.pop(name, None)
         return True
 
     def list_loaded(self) -> list:
@@ -127,3 +151,7 @@ class DriverManager:
         """Load all default drivers during boot."""
         for name in self._available:
             self.load_driver(name)
+        # Ensure any char devices from loaded drivers are registered
+        for drv in self._drivers.values():
+            if hasattr(drv, 'file_ops') and drv.file_ops:
+                CHAR_DEVICES[drv.name] = drv
