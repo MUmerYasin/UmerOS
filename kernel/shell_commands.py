@@ -1860,6 +1860,77 @@ class AtCommand(ShellCommand):
         return "job 1 at " + time.strftime("%H:%M")
 
 
+# Network Commands
+
+class PingCommand(ShellCommand):
+    name = "ping"
+    help_text = "Send ICMP ECHO_REQUEST to network hosts"
+    category = "Network"
+    def execute(self, ctx, args):
+        target = args[0] if args else "localhost"
+        return f"PING {target} (127.0.0.1): 56 data bytes"
+
+class IfconfigCommand(ShellCommand):
+    name = "ifconfig"
+    help_text = "Configure network interfaces"
+    category = "Network"
+    def execute(self, ctx, args):
+        return "eth0      Link encap:Ethernet  HWaddr 00:0c:29:68:22:1a\n          inet addr:192.168.1.10  Bcast:192.168.1.255  Mask:255.255.255.0"
+
+class IpCommand(ShellCommand):
+    name = "ip"
+    help_text = "Show / manipulate routing, devices, policy routing and tunnels"
+    category = "Network"
+    def execute(self, ctx, args):
+        if args and args[0] == "addr":
+            return "2: eth0    inet 192.168.1.10/24 brd 192.168.1.255 scope global eth0"
+        return "Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }"
+
+class NetstatCommand(ShellCommand):
+    name = "netstat"
+    help_text = "Print network connections, routing tables, interface statistics"
+    category = "Network"
+    def execute(self, ctx, args):
+        return "Proto Recv-Q Send-Q Local Address           Foreign Address         State\ntcp        0      0 127.0.0.1:3306          0.0.0.0:*               LISTEN"
+
+class SsCommand(ShellCommand):
+    name = "ss"
+    help_text = "Utility to investigate sockets"
+    category = "Network"
+    def execute(self, ctx, args):
+        return "State      Recv-Q Send-Q   Local Address:Port   Peer Address:Port\nLISTEN     0      128      *:22                *:*"
+
+class HostnameCommand(ShellCommand):
+    name = "hostname"
+    help_text = "Show or set the system's host name"
+    category = "Network"
+    def execute(self, ctx, args):
+        return "UmerOS-Node1"
+
+class TracerouteCommand(ShellCommand):
+    name = "traceroute"
+    help_text = "Print the route packets take to network host"
+    category = "Network"
+    def execute(self, ctx, args):
+        target = args[0] if args else "8.8.8.8"
+        return f"traceroute to {target} (8.8.8.8), 30 hops max\n 1  192.168.1.1  1 ms  1 ms  1 ms\n 2  10.0.0.1  10 ms  10 ms  10 ms"
+
+class DigCommand(ShellCommand):
+    name = "dig"
+    help_text = "DNS lookup utility"
+    category = "Network"
+    def execute(self, ctx, args):
+        domain = args[0] if args else "example.com"
+        return f"; <<>> DiG 9.16.1-Ubuntu <<>> {domain}\n;; ANSWER SECTION:\n{domain}.  86400 IN A 93.184.216.34"
+
+class NslookupCommand(ShellCommand):
+    name = "nslookup"
+    help_text = "Query Internet domain name servers"
+    category = "Network"
+    def execute(self, ctx, args):
+        domain = args[0] if args else "example.com"
+        return f"Server:  8.8.8.8\nAddress: 8.8.8.8#53\n\nNon-authoritative answer:\nName: {domain}\nAddress: 93.184.216.34"
+
 # ============================================================================
 # EXPORT ALL COMMANDS
 # ============================================================================
@@ -1912,6 +1983,7 @@ COMMANDS = [
     
     # SSH & Remote
     SshCommand(), SshKeygenCommand(), ServiceCommand(), TelnetCommand(),
+    PingCommand(), IfconfigCommand(), IpCommand(), NetstatCommand(), SsCommand(), HostnameCommand(), TracerouteCommand(), DigCommand(), NslookupCommand(),
     
     # Permissions
     ChmodCommand(), ChownCommand(),
