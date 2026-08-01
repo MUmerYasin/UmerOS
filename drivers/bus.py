@@ -1,4 +1,5 @@
 from typing import Dict, List, Optional
+from .device import Device
 
 # Global bus registry: maps bus name to Bus instance
 BUS_REGISTRY: Dict[str, "Bus"] = {}
