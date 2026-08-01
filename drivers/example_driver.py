@@ -12,7 +12,7 @@ Equivalent to Linux's drivers/ subsystem and modprobe.
 from typing import Protocol, runtime_checkable, Dict, Any
 
 from .device import Device
-from .platform_driver import PlatformDriver
+
 from .bus import BUS_REGISTRY
 
 # Global registry for character devices

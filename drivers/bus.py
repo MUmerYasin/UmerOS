@@ -33,3 +33,6 @@ class Bus:
 
     def __repr__(self):
         return f"<Bus {self.name}: {len(self.drivers)} drivers, {len(self.devices)} devices>"
+
+# Default platform bus instance for platform devices
+platform_bus = Bus('platform')

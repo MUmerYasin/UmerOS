@@ -1,34 +1,44 @@
-from typing import Dict, Any, Optional
+#!/usr/bin/env python3
+"""
+Umer OS Device Model
+
+Defines a generic Device class representing a hardware device that can be bound to a driver.
+"""
+
+from typing import Optional
 
 class Device:
-    """Represents a hardware device instance.
-    It can be attached to a Bus, bound to a Driver, and hold generic resources.
-    """
+    """Represents a hardware device (e.g., platform device, PCI device)."""
 
-    def __init__(self, name: str, bus: Optional["Bus"] = None):
+    def __init__(self, name: str, hardware_type: str, bus: Optional[object] = None):
         self.name = name
-        self.bus = bus
-        self.driver: Optional[object] = None  # Assigned when bound
-        self.resources: Dict[str, Any] = {}
+        self.hardware_type = hardware_type
+        self.bus = bus  # Reference to Bus instance, if any
+        self.driver: Optional[object] = None
+        # Register with bus if provided
+        if bus is not None:
+            from .bus import BUS_REGISTRY
+            if isinstance(bus, str):
+                if bus in BUS_REGISTRY:
+                    bus_obj = BUS_REGISTRY[bus]
+                else:
+                    from .bus import Bus
+                    bus_obj = Bus(bus)
+                self.bus = bus_obj
+            else:
+                bus_obj = bus
+            bus_obj.register_device(self)
 
     def bind_driver(self, driver: object) -> None:
-        """Associate a driver with this device.
-        If the driver defines a ``probe`` method, it will be called for initialization.
-        """
+        """Bind a driver to this device."""
         self.driver = driver
-        if hasattr(driver, "probe"):
-            driver.probe(self)
+        print(f"[DEVICE] {self.name} bound to driver {driver.name}")
 
     def unbind_driver(self) -> None:
-        """Detach the driver and invoke ``remove`` if present for cleanup."""
-        if self.driver and hasattr(self.driver, "remove"):
-            self.driver.remove(self)
+        """Unbind any driver from this device."""
+        if self.driver:
+            print(f"[DEVICE] {self.name} unbound from driver {self.driver.name}")
         self.driver = None
 
-    def add_resource(self, key: str, resource: Any) -> None:
-        """Attach a generic resource (e.g., memory, IRQ) to the device."""
-        self.resources[key] = resource
-
-    def release_resources(self) -> None:
-        """Release all stored resources."""
-        self.resources.clear()
+    def __repr__(self) -> str:
+        return f"<Device {self.name} ({self.hardware_type}) driver={self.driver.name if self.driver else None}>"
