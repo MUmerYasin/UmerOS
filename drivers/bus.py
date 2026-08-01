@@ -31,6 +31,13 @@ class Bus:
                 drv.bind(device)
                 break
 
+    def unregister_device(self, device):
+        """Unregister a device from this bus and trigger its release."""
+        if device in self.devices:
+            self.devices.remove(device)
+            from .device_registry import device_unregister
+            device_unregister(device)
+
     def __repr__(self):
         return f"<Bus {self.name}: {len(self.drivers)} drivers, {len(self.devices)} devices>"
 
