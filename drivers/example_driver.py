@@ -57,39 +57,7 @@ class DriverBase:
     def unbind(self, device: Device) -> None:
         """Unbind this driver from the device (cleanup)."""
         device.unbind_driver()
-    """Abstract base class for all Umer OS drivers."""
 
-    def __init__(self, name: str, version: str, hardware_type: str):
-        self.name = name
-        self.version = version
-        self.hardware_type = hardware_type
-        self.loaded = False
-        # Optional file operations for character devices
-        self.file_ops: FileOperations | None = None
-
-    def load(self) -> bool:
-        """Initialize the driver hardware connection."""
-        self.loaded = True
-        print(f"[DRIVER] Loaded: {self.name} v{self.version} ({self.hardware_type})")
-        # If this driver implements FileOperations, register it as a char device
-        if isinstance(self, FileOperations):
-            self.file_ops = self  # type: ignore[assignment]
-            CHAR_DEVICES[self.name] = self
-        return True
-
-    def unload(self) -> bool:
-        """Release the hardware."""
-        self.loaded = False
-        print(f"[DRIVER] Unloaded: {self.name}")
-        return True
-
-    def status(self) -> dict:
-        return {
-            "name": self.name,
-            "version": self.version,
-            "type": self.hardware_type,
-            "loaded": self.loaded,
-        }
 
 
 # ── Built-in Drivers ─────────────────────────────────────────────────
