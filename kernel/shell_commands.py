@@ -20,6 +20,7 @@ Implements comprehensive Linux commands covering:
 import time
 import os
 import re
+from .power_manager import POWER_MANAGER
 
 class CommandContext:
     """Provides execution context (kernel access, shell state) to commands."""
@@ -1934,6 +1935,15 @@ class NslookupCommand(ShellCommand):
 # ============================================================================
 # EXPORT ALL COMMANDS
 # ============================================================================
+class CpuIdleCommand(ShellCommand):
+    name = "cpu_idle"
+    help_text = "Enter CPU idle state via cpuidle driver"
+    category = "Power Management"
+
+    def execute(self, ctx, args):
+        # Use the global POWER_MANAGER to perform cpu idle
+        return POWER_MANAGER.cpu_idle()
+
 
 COMMANDS = [
     # Hardware Info
