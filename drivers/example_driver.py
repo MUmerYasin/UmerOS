@@ -13,12 +13,94 @@ from typing import Protocol, runtime_checkable, Dict, Any
 
 from .device import Device
 
+# Import the global device registry
+from .device_registry import DEVICE_REGISTRY
+
 from .bus import BUS_REGISTRY
 
 # Global registry for character devices
 CHAR_DEVICES: Dict[str, Any] = {}
-# Global registry for devices (platform devices, etc.)
-DEVICE_REGISTRY: Dict[str, Device] = {}
+# Note: DEVICE_REGISTRY is now imported from device_registry module
+
+@runtime_checkable
+class FileOperations(Protocol):
+    """Mimic Linux file_operations for character devices."""
+    def open(self, mode: str = "r") -> None: ...
+    def read(self, size: int = -1) -> str: ...
+    def write(self, data: str) -> int: ...
+    def release(self) -> None: ...
+
+class DriverBase:
+    """Abstract base class for all Umer OS drivers."""
+
+    def __init__(self, name: str, version: str, hardware_type: str):
+        self.name = name
+        self.version = version
+        self.hardware_type = hardware_type
+        self.loaded = False
+        # Optional file operations for character devices
+        self.file_ops: FileOperations | None = None
+
+    # Existing methods (load, unload, status) remain unchanged
+
+    # ----- New driver‑bus interaction hooks -----
+    def can_bind(self, device: Device) -> bool:
+        """Return True if this driver can manage the given device.
+        Subclasses (e.g., PlatformDriver) should override this.
+        """
+        return False
+
+    def bind(self, device: Device) -> None:
+        """Bind this driver to the device. Called after can_bind returns True.
+        Subclasses may implement driver‑specific initialization.
+        """
+        device.bind_driver(self)
+
+    def unbind(self, device: Device) -> None:
+        """Unbind this driver from the device (cleanup)."""
+        device.unbind_driver()
+
+    # ----- End of driver‑bus hooks -----
+
+    # ... (rest of class definitions unchanged) ...
+
+    # ── Driver Manager ───────────────────────────────────────────────────
+
+class DriverManager:
+    """Manages loading, unloading, and querying of hardware drivers, and device binding."""
+
+    def __init__(self):
+        self._drivers = {}
+        self._available = {
+            "umer-display": DisplayDriver,
+            "umer-storage": StorageDriver,
+            "umer-nic": NetworkDriver,
+            "umer-audio": AudioDriver,
+        }
+        print(f"[DRIVER-MGR] Driver manager initialized ({len(self._available)} drivers available).")
+
+    # ... load_driver unchanged ...
+
+    def unload_driver(self, name: str) -> bool:
+        if name not in self._drivers:
+            print(f"[DRIVER-MGR] '{name}' is not loaded.")
+            return False
+        driver = self._drivers[name]
+        driver.unload()
+        # Unbind driver from any devices it managed and unregister those devices
+        for dev in list(DEVICE_REGISTRY.values()):
+            if dev.driver == driver:
+                dev.unbind_driver()
+                # Optionally unregister the device if it is no longer needed
+                dev.unregister()
+                # Remove from registry
+                DEVICE_REGISTRY.pop(dev.dev_id, None)
+        del self._drivers[name]
+        # Remove from CHAR_DEVICES if present
+        CHAR_DEVICES.pop(name, None)
+        return True
+
+    # ... remaining methods unchanged ...
 
 @runtime_checkable
 class FileOperations(Protocol):
