@@ -26,5 +26,16 @@ class PlatformDriver(DriverBase):
         """
         return device.hardware_type == self.hardware_type
 
-    # ``bind`` and ``unbind`` are inherited from ``DriverBase`` and simply delegate
-    # to the ``Device`` instance.
+    def bind(self, device: Device) -> None:
+        """Bind the driver to the device and invoke ``probe``."""
+        super().bind(device)
+        self.probe(device)
+
+    def probe(self, device: Device) -> None:
+        """Driver‑specific initialization. Must be overridden by subclasses."""
+        raise NotImplementedError(f"{self.__class__.__name__}.probe must be implemented")
+
+    def remove(self, device: Device) -> None:
+        """Optional clean‑up when the device is removed."""
+        # Default implementation does nothing.
+        pass
