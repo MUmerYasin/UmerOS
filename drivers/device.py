@@ -115,5 +115,13 @@ class Device:
         for link in list(self._supplier_links):
             link.consumer.remove_device_link(link)
 
+    def ioctl(self, cmd: int, *args, **kwargs) -> any:
+        """Dispatch an ioctl command to the registered handler.
+
+        Raises ``KeyError`` if the command is not registered for this device.
+        """
+        from .ioctl import handle_ioctl
+        return handle_ioctl(self, cmd, *args, **kwargs)
+
     def __repr__(self) -> str:
         return f"<Device {self.name} ({self.hardware_type}) driver={self.driver.name if self.driver else None}>"
