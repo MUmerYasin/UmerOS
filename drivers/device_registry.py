@@ -3,9 +3,11 @@
 Umer OS Device Registry – core registration helpers used by the driver model.
 """
 
-from typing import Dict, Optional
+from __future__ import annotations
+from typing import TYPE_CHECKING, Dict, Optional
 
-from .device import Device
+if TYPE_CHECKING:
+    from .device import Device
 
 # Global registry mapping a unique device identifier to the Device instance
 DEVICE_REGISTRY: Dict[str, Device] = {}

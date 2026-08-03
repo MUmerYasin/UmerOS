@@ -294,9 +294,52 @@ UmerOS/
 │   ├── test_ipc.py                   # IPC broker tests
 │   └── conftest.py                   # Pytest fixtures
 │
-├── 📂 drivers/                       # Low-level drivers
-│   ├── libumerhal.so                 # Compiled HAL library (C)
-│   └���─ build.sh                      # Build script
+├── 📂 drivers/                       # Linux-like driver subsystems (33 modules)
+│   ├── cpuidle.py                    # CPU idle management & governors
+│   ├── cpuidle_driver_advanced.py    # Advanced CPUidle driver features
+│   ├── cpuidle_governor.py           # CPUidle governor framework
+│   ├── cpuidle_governor_advanced.py  # Advanced governor algorithms
+│   ├── example_cpuidle_driver.py     # CPUidle driver example
+│   ├── thermal.py                    # Thermal management & cooling
+│   ├── spi.py                        # SPI bus controller & devices
+│   ├── console.py                    # Kernel console subsystem
+│   ├── pinctrl.py                    # Pin control & GPIO muxing
+│   ├── nvmem.py                      # Non-volatile memory (EEPROM/OTP)
+│   ├── phy.py                        # Physical layer transceivers
+│   ├── reset.py                      # Reset controller framework
+│   ├── iio.py                        # Industrial I/O (ADC/DAC/sensors)
+│   ├── mailbox.py                    # Mailbox messaging framework
+│   ├── clock.py                      # Clock tree & frequency management
+│   ├── edac.py                       # Error Detection And Correction
+│   ├── crypto.py                     # Hardware crypto acceleration
+│   ├── device_io.py                  # MMIO, Port I/O, DMA buffers
+│   ├── dmabuf.py                     # DMA buffer sharing framework
+│   ├── gpio.py                       # GPIO controller & descriptors
+│   ├── i2c.py                        # I2C/SMBus bus & devices
+│   ├── input.py                      # Input subsystem (keyboard/mouse/touch)
+│   ├── irq.py                        # Interrupt request handling
+│   ├── tty.py                        # TTY/Serial port subsystem
+│   ├── usb.py                        # USB host controller & devices
+│   ├── pci.py                        # PCI bus enumeration & drivers
+│   ├── mtd.py                        # Memory Technology Devices (NOR/NAND)
+│   ├── devfreq.py                    # Dynamic Voltage/Frequency Scaling
+│   ├── component.py                  # Component binding framework
+│   ├── firmware.py                   # Firmware loading & caching
+│   ├── virtio.py                     # Virtual I/O (virtio devices)
+│   ├── rtc.py                        # Real-Time Clock
+│   ├── pwm.py                        # Pulse Width Modulation
+│   ├── regulator.py                  # Voltage/current regulators
+│   ├── counter.py                    # Hardware counters & encoders
+│   ├── nfc.py                        # Near Field Communication
+│   ├── pci_endpoint.py               # PCI Endpoint controller
+│   ├── device.py                     # Core device model & registry
+│   ├── device_registry.py            # Device registration helpers
+│   ├── device_link.py                # Device dependency links
+│   ├── bus.py                        # Bus abstraction layer
+│   ├── devres.py                     # Device-managed resource helpers
+│   ├── platform_driver.py            # Platform device/driver framework
+│   ├── device_tree.py                # Device tree parsing
+│   └── resource_manager.py           # Resource allocation manager
 │
 ├── 📄 setup.py                       # Package setup & metadata
 ├── 📄 requirements.txt               # Python dependencies
