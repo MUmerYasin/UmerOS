@@ -1,363 +1,327 @@
 """
-UmerOS Virtio Framework
+UmerOS VirtIO Subsystem
 ========================
-Linux kernel Virtio virtual I/O subsystem.
-Implements virtio devices, drivers, virtqueues,
-and transport layers (PCI, MMIO, channel I/O).
+Linux kernel-like VirtIO subsystem for para-virtualized drivers.
+Implements VirtIO devices, virtqueues, and guest-host communication.
+
+Reference: drivers/virtio/
 """
 
 from __future__ import annotations
 
-import logging
-import struct
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
-
-log = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Virtio Constants
-# ---------------------------------------------------------------------------
-VIRTIO_F_VERSION_1: int = 32
-VIRTIO_F_IOMMU_PLATFORM: int = 33
-VIRTIO_F_ORDER_PLATFORM: int = 34
-
-# Device IDs
-VIRTIO_ID_NET: int = 1
-VIRTIO_ID_BLOCK: int = 2
-VIRTIO_ID_CONSOLE: int = 3
-VIRTIO_ID_RNG: int = 4
-VIRTIO_ID_BALLOON: int = 5
-VIRTIO_ID_SCSI: int = 8
-VIRTIO_ID_9P: int = 16
-
-# Status bits
-VIRTIO_STATUS_ACKNOWLEDGE: int = 0x01
-VIRTIO_STATUS_DRIVER: int = 0x02
-VIRTIO_STATUS_DRIVER_OK: int = 0x04
-VIRTIO_STATUS_FEATURES_OK: int = 0x08
-VIRTIO_STATUS_DRIVER_FEATURES_OK: int = 0x10
-VIRTIO_STATUS_FAILED: int = 0x80
-
-# Queue constants
-VIRTIO_QUEUE_SIZE: int = 256
-VIRTIO_VRING_DESC_F_NEXT: int = 1
-VIRTIO_VRING_DESC_F_WRITE: int = 2
-VIRTIO_VRING_DESC_F_INDIRECT: int = 4
-
-# ---------------------------------------------------------------------------
-# Global Registries
-# ---------------------------------------------------------------------------
-_devices: Dict[str, VirtioDevice] = {}
-_drivers: Dict[str, VirtioDriver] = {}
-_virtqueues: Dict[str, Virtqueue] = {}
+from enum import IntEnum, auto
+from typing import Any, Callable, Dict, List, Optional
+import time
 
 
-# ---------------------------------------------------------------------------
-# Dataclasses
-# ---------------------------------------------------------------------------
-@dataclass
-class VirtioDevice:
-    """Virtio virtual device"""
-    name: str
-    device_id: int
-    device_name: str = ""
-    vendor_id: int = 0x1AF4  # Red Hat
-    device_version: int = 1
-    status: int = 0
-    features: int = 0
-    driver_features: int = 0
-    is_registered: bool = False
-    transport: str = "pci"  # pci, mmio, ccw
-    _queues: List[str] = field(default_factory=list)
-    _config: Dict[int, bytes] = field(default_factory=dict)
-    _isr: int = 0
-    _ops: Dict[str, Callable] = field(default_factory=dict)
+# ============================================================================
+# VirtIO Constants
+# ============================================================================
 
+VIRTIO_SUCCESS: int = 0
+VIRTIO_ERROR: int = 1
+VIRTIO_NOT_FOUND: int = 2
+VIRTIO_BUSY: int = 3
+
+VIRTIO_MAX_DEVICES: int = 32
+VIRTIO_MAX_VIRTQUEUES: int = 32
+VIRTIO_MAX_FEATURES: int = 64
+VIRTIO_QUEUE_SIZE: int = 128
+VIRTIO_QUEUE_ALIGN: int = 4096
+
+
+class VirtIODeviceType(IntEnum):
+    """VirtIO device types (virtio_ids.h)."""
+    NET: int = 1
+    BLOCK: int = 2
+    CONSOLE: int = 3
+    RNG: int = 4
+    BALLOON: int = 5
+    INPUT: int = 6
+    TIMER: int = 7
+    GPIO: int = 18
+    FS: int = 26
+    GPU: int = 16
+    I2C: int = 34
+    PMEM: int = 27
+    VIDEO_ENCODER: int = 20
+    VIDEO_DECODER: int = 21
+    CRYPTO: int = 22
+
+
+class VirtIOStatus(IntEnum):
+    """VirtIO device status bits."""
+    RESET: int = 0
+    ACKNOWLEDGE: int = 1
+    DRIVER: int = 2
+    FEATURES_OK: int = 8
+    DRIVER_OK: int = 4
+    FEATURES_FAILED: int = 128
+
+
+class VirtqueueState(IntEnum):
+    """Virtqueue state."""
+    FREE: int = 0
+    ACTIVE: int = 1
+    STOPPED: int = 2
+
+
+# ============================================================================
+# VirtIO Buffer
+# ============================================================================
 
 @dataclass
-class VirtioDriver:
-    """Virtio device driver"""
-    name: str
-    device_id: int
-    features_required: int = 0
-    features_optional: int = 0
-    is_registered: bool = False
-    _probe: Optional[Callable] = None
-    _remove: Optional[Callable] = None
-    _config_changed: Optional[Callable] = None
+class VirtIOBuffer:
+    """VirtIO buffer (mirrors struct vring_desc)."""
+    addr: int = 0
+    length: int = 0
+    flags: int = 0
+    next: int = 0
+    data: bytes = b''
 
+    def set_data(self, data: bytes) -> None:
+        self.data = data
+        self.length = len(data)
+
+    def get_data(self) -> bytes:
+        return self.data
+
+
+# ============================================================================
+# Virtqueue
+# ============================================================================
 
 @dataclass
 class Virtqueue:
-    """Virtio virtqueue"""
-    name: str
-    device_name: str
+    """Virtqueue (mirrors struct vring_virtqueue)."""
     index: int
     size: int = VIRTIO_QUEUE_SIZE
-    is_enabled: bool = False
-    is_running: bool = False
-    _num_free: int = VIRTIO_QUEUE_SIZE
-    _num_used: int = 0
-    _callbacks: Dict[int, Callable] = field(default_factory=dict)
-    _data: Dict[int, Any] = field(default_factory=dict)
+    state: VirtqueueState = VirtqueueState.FREE
+    vring_desc: List[VirtIOBuffer] = field(default_factory=list)
+    vring_avail: List[int] = field(default_factory=list)
+    vring_used: List[VirtIOBuffer] = field(default_factory=list)
+    avail_idx: int = 0
+    used_idx: int = 0
+    free_head: int = 0
+    num_free: int = 0
+    callback: Optional[Callable] = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        self.vring_desc = [VirtIOBuffer() for _ in range(self.size)]
+        self.num_free = self.size
+        for i in range(self.size - 1):
+            self.vring_desc[i].next = i + 1
+
+    def alloc_buffer(self) -> Optional[VirtIOBuffer]:
+        if self.num_free == 0:
+            return None
+        buf = self.vring_desc[self.free_head]
+        self.free_head = buf.next
+        self.num_free -= 1
+        return buf
+
+    def free_buffer(self, buf: VirtIOBuffer) -> None:
+        buf.next = self.free_head
+        self.free_head = buf.index if hasattr(buf, 'index') else 0
+        self.num_free += 1
+
+    def add_buf(self, buf: VirtIOBuffer) -> int:
+        if self.num_free == 0:
+            return VIRTIO_ERROR
+        self.vring_avail.append(self.avail_idx)
+        self.avail_idx = (self.avail_idx + 1) % self.size
+        return VIRTIO_SUCCESS
+
+    def get_buf(self) -> Optional[VirtIOBuffer]:
+        if self.used_idx == self.used_idx:
+            return None
+        buf = self.vring_used[0] if self.vring_used else None
+        if self.vring_used:
+            self.vring_used.pop(0)
+        self.used_idx = (self.used_idx + 1) % self.size
+        return buf
+
+    def kick(self) -> int:
+        if self.callback:
+            self.callback(self.index)
+        return VIRTIO_SUCCESS
+
+    def notify(self) -> None:
+        if self.callback:
+            self.callback(self.index)
+
+    def get_info(self) -> Dict[str, Any]:
+        return {
+            "index": self.index,
+            "size": self.size,
+            "state": self.state.name,
+            "free": self.num_free,
+            "avail_idx": self.avail_idx,
+            "used_idx": self.used_idx,
+        }
 
 
-# ---------------------------------------------------------------------------
-# Registration Functions
-# ---------------------------------------------------------------------------
-def register_device(name: str, device_id: int, transport: str = "pci") -> VirtioDevice:
-    """Register a virtio device"""
-    if name in _devices:
-        log.warning("Device %s already registered", name)
-        return _devices[name]
+# ============================================================================
+# VirtIO Device
+# ============================================================================
 
-    device_names = {
-        VIRTIO_ID_NET: "network",
-        VIRTIO_ID_BLOCK: "block",
-        VIRTIO_ID_CONSOLE: "console",
-        VIRTIO_ID_RNG: "random",
-        VIRTIO_ID_BALLOON: "memory-balloon",
-        VIRTIO_ID_SCSI: "scsi",
-        VIRTIO_ID_9P: "9p",
-    }
+@dataclass
+class VirtIODevice:
+    """VirtIO device (mirrors struct virtio_device)."""
+    name: str
+    index: int
+    device_type: VirtIODeviceType = VirtIODeviceType.NET
+    status: VirtIOStatus = VirtIOStatus.RESET
+    features: int = 0
+    feature_bits: List[int] = field(default_factory=list)
+    virtqueues: Dict[int, Virtqueue] = field(default_factory=dict)
+    config: Dict[str, Any] = field(default_factory=dict)
+    registered: bool = False
+    _ops: Dict[str, Callable] = field(default_factory=dict, repr=False)
+    _listeners: List[Callable] = field(default_factory=list, repr=False)
 
-    device = VirtioDevice(
-        name=name,
-        device_id=device_id,
-        device_name=device_names.get(device_id, "unknown"),
-        transport=transport,
-        is_registered=True,
-    )
-    device.status = VIRTIO_STATUS_ACKNOWLEDGE
-    _devices[name] = device
-    log.info("Registered virtio device: %s (id=%d, transport=%s)",
-             name, device_id, transport)
-    return device
+    def reset(self) -> int:
+        self.status = VirtIOStatus.RESET
+        self._notify("reset")
+        return VIRTIO_SUCCESS
 
+    def acknowledge(self) -> int:
+        self.status = VirtIOStatus.ACKNOWLEDGE
+        return VIRTIO_SUCCESS
 
-def register_driver(name: str, device_id: int,
-                    features_required: int = 0) -> VirtioDriver:
-    """Register a virtio driver"""
-    if name in _drivers:
-        log.warning("Driver %s already registered", name)
-        return _drivers[name]
+    def set_driver(self) -> int:
+        self.status = VirtIOStatus.DRIVER
+        return VIRTIO_SUCCESS
 
-    driver = VirtioDriver(
-        name=name,
-        device_id=device_id,
-        features_required=features_required,
-        is_registered=True,
-    )
-    _drivers[name] = driver
-    log.info("Registered virtio driver: %s (id=%d)", name, device_id)
-    return driver
+    def set_features_ok(self) -> int:
+        self.status = VirtIOStatus.FEATURES_OK
+        return VIRTIO_SUCCESS
 
+    def set_driver_ok(self) -> int:
+        self.status = VirtIOStatus.DRIVER_OK
+        self._notify("driver_ok")
+        return VIRTIO_SUCCESS
 
-def unregister_device(name: str) -> bool:
-    """Unregister a virtio device"""
-    if name not in _devices:
-        log.warning("Device %s not found", name)
-        return False
-    del _devices[name]
-    log.info("Unregistered virtio device: %s", name)
-    return True
+    def set_features_failed(self) -> int:
+        self.status = VirtIOStatus.FEATURES_FAILED
+        return VIRTIO_SUCCESS
 
+    def get_status(self) -> int:
+        return int(self.status)
 
-def unregister_driver(name: str) -> bool:
-    """Unregister a virtio driver"""
-    if name not in _drivers:
-        log.warning("Driver %s not found", name)
-        return False
-    del _drivers[name]
-    log.info("Unregistered virtio driver: %s", name)
-    return True
+    def has_feature(self, feature: int) -> bool:
+        return (self.features & (1 << feature)) != 0
 
+    def set_feature(self, feature: int) -> None:
+        self.features |= (1 << feature)
 
-def get_device(name: str) -> Optional[VirtioDevice]:
-    """Get a registered virtio device"""
-    return _devices.get(name)
+    def clear_feature(self, feature: int) -> None:
+        self.features &= ~(1 << feature)
 
+    def negotiate_features(self, driver_features: int) -> int:
+        self.features = driver_features & self.features
+        self.feature_bits = [i for i in range(VIRTIO_MAX_FEATURES) if self.has_feature(i)]
+        return VIRTIO_SUCCESS
 
-def get_driver(name: str) -> Optional[VirtioDriver]:
-    """Get a registered virtio driver"""
-    return _drivers.get(name)
+    def add_virtqueue(self, vq: Virtqueue) -> int:
+        if len(self.virtqueues) >= VIRTIO_MAX_VIRTQUEUES:
+            return VIRTIO_ERROR
+        self.virtqueues[vq.index] = vq
+        return VIRTIO_SUCCESS
 
+    def get_virtqueue(self, index: int) -> Optional[Virtqueue]:
+        return self.virtqueues.get(index)
 
-def list_devices() -> List[str]:
-    """List all registered virtio devices"""
-    return list(_devices.keys())
-
-
-def list_drivers() -> List[str]:
-    """List all registered virtio drivers"""
-    return list(_drivers.keys())
-
-
-# ---------------------------------------------------------------------------
-# Virtqueue Operations
-# ---------------------------------------------------------------------------
-def create_virtqueue(device_name: str, queue_index: int,
-                     queue_size: int = VIRTIO_QUEUE_SIZE) -> Virtqueue:
-    """Create a virtqueue for a device"""
-    vq_name = f"{device_name}.vq{queue_index}"
-
-    if vq_name in _virtqueues:
-        log.warning("Virtqueue %s already exists", vq_name)
-        return _virtqueues[vq_name]
-
-    vq = Virtqueue(
-        name=vq_name,
-        device_name=device_name,
-        index=queue_index,
-        size=queue_size,
-        _num_free=queue_size,
-    )
-    _virtqueues[vq_name] = vq
-
-    device = get_device(device_name)
-    if device is not None:
-        device._queues.append(vq_name)
-
-    log.info("Created virtqueue: %s (size=%d)", vq_name, queue_size)
-    return vq
-
-
-def enable_virtqueue(vq_name: str) -> bool:
-    """Enable a virtqueue"""
-    vq = _virtqueues.get(vq_name)
-    if vq is None:
-        log.error("Virtqueue %s not found", vq_name)
-        return False
-
-    vq.is_enabled = True
-    vq.is_running = True
-    log.info("Enabled virtqueue: %s", vq_name)
-    return True
-
-
-def add_buf(vq_name: str, data: bytes, callback: Optional[Callable] = None) -> int:
-    """Add a buffer to the virtqueue, returns descriptor index"""
-    vq = _virtqueues.get(vq_name)
-    if vq is None:
-        log.error("Virtqueue %s not found", vq_name)
-        return -1
-
-    if vq._num_free == 0:
-        log.warning("Virtqueue %s full", vq_name)
-        return -1
-
-    desc_idx = vq.size - vq._num_free
-    vq._num_free -= 1
-    vq._data[desc_idx] = data
-
-    if callback is not None:
-        vq._callbacks[desc_idx] = callback
-
-    log.debug("Added buffer to %s: desc=%d, size=%d", vq_name, desc_idx, len(data))
-    return desc_idx
-
-
-def get_buf(vq_name: str) -> Optional[Tuple[int, bytes]]:
-    """Get a used buffer from the virtqueue"""
-    vq = _virtqueues.get(vq_name)
-    if vq is None:
+    def find_virtqueue(self) -> Optional[Virtqueue]:
+        for vq in self.virtqueues.values():
+            if vq.state == VirtqueueState.FREE:
+                return vq
         return None
 
-    if vq._num_used == 0:
-        return None
+    def read_config(self, offset: int, size: int) -> bytes:
+        if "read_config" in self._ops:
+            return self._ops["read_config"](offset, size)
+        return b'\x00' * size
 
-    # Simulated used buffer
-    vq._num_used -= 1
-    return (0, b"\x00" * 64)
+    def write_config(self, offset: int, data: bytes) -> int:
+        if "write_config" in self._ops:
+            return self._ops["write_config"](offset, data)
+        return VIRTIO_ERROR
 
+    def register_ops(self, ops: Dict[str, Callable]) -> None:
+        self._ops.update(ops)
 
-# ---------------------------------------------------------------------------
-# Device Operations
-# ---------------------------------------------------------------------------
-def set_status(device_name: str, status: int) -> bool:
-    """Set device status"""
-    device = get_device(device_name)
-    if device is None:
-        return False
+    def register_listener(self, callback: Callable) -> None:
+        self._listeners.append(callback)
 
-    device.status = status
-    log.debug("Device %s status: 0x%02X", device_name, status)
-    return True
+    def _notify(self, event: str) -> None:
+        for cb in self._listeners:
+            cb(self.name, event)
 
-
-def get_status(device_name: str) -> int:
-    """Get device status"""
-    device = get_device(device_name)
-    if device is None:
-        return 0
-    return device.status
-
-
-def negotiate_features(device_name: str, driver_features: int) -> bool:
-    """Negotiate device/driver features"""
-    device = get_device(device_name)
-    if device is None:
-        return False
-
-    device.driver_features = driver_features & device.features
-    device.status |= VIRTIO_STATUS_FEATURES_OK
-    log.info("Device %s features negotiated: 0x%08X",
-             device_name, device.driver_features)
-    return True
+    def get_info(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "type": self.device_type.name,
+            "status": self.status.name,
+            "features": hex(self.features),
+            "virtqueues": len(self.virtqueues),
+        }
 
 
-def read_config(device_name: str, offset: int, size: int) -> bytes:
-    """Read device configuration space"""
-    device = get_device(device_name)
-    if device is None:
-        return b"\x00" * size
+# ============================================================================
+# VirtIO Subsystem
+# ============================================================================
 
-    data = b""
-    for i in range(size):
-        data += bytes([device._config.get(offset + i, 0)])
-    return data
+class VirtIOSubsystem:
+    """Central VirtIO subsystem managing devices."""
+
+    def __init__(self) -> None:
+        self._devices: Dict[str, VirtIODevice] = {}
+        self._next_index: int = 0
+
+    def register_device(self, device: VirtIODevice) -> int:
+        device.index = self._next_index
+        device.registered = True
+        self._devices[device.name] = device
+        self._next_index += 1
+        return VIRTIO_SUCCESS
+
+    def unregister_device(self, name: str) -> int:
+        self._devices.pop(name, None)
+        return VIRTIO_SUCCESS
+
+    def get_device(self, name: str) -> Optional[VirtIODevice]:
+        return self._devices.get(name)
+
+    def enumerate_devices(self) -> List[VirtIODevice]:
+        return list(self._devices.values())
+
+    def get_topology(self) -> Dict[str, Any]:
+        return {
+            "devices": len(self._devices),
+            "device_names": list(self._devices.keys()),
+        }
 
 
-def write_config(device_name: str, offset: int, data: bytes) -> bool:
-    """Write to device configuration space"""
-    device = get_device(device_name)
-    if device is None:
-        return False
+# ============================================================================
+# Global VirtIO Instance
+# ============================================================================
 
-    for i, byte in enumerate(data):
-        device._config[offset + i] = byte
-    return True
+_global_virtio: Optional[VirtIOSubsystem] = None
 
 
-# ---------------------------------------------------------------------------
-# Demo
-# ---------------------------------------------------------------------------
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    print("=== UmerOS Virtio Framework Demo ===\n")
+def get_global_virtio() -> VirtIOSubsystem:
+    global _global_virtio
+    if _global_virtio is None:
+        _global_virtio = VirtIOSubsystem()
+    return _global_virtio
 
-    # Register devices
-    net_dev = register_device("eth0", VIRTIO_ID_NET)
-    blk_dev = register_device("vda", VIRTIO_ID_BLOCK)
-    rng_dev = register_device("rng0", VIRTIO_ID_RNG)
 
-    # Register drivers
-    register_driver("virtio_net", VIRTIO_ID_NET)
-    register_driver("virtio_blk", VIRTIO_ID_BLOCK)
-    register_driver("virtio_rng", VIRTIO_ID_RNG)
+def register_virtio_device(device: VirtIODevice) -> int:
+    return get_global_virtio().register_device(device)
 
-    print(f"Devices: {list_devices()}")
-    print(f"Drivers: {list_drivers()}")
 
-    # Create virtqueues
-    vq = create_virtqueue("eth0", 0)
-    enable_virtqueue(vq.name)
-
-    # Negotiate features
-    negotiate_features("eth0", 0xFFFFFFFF)
-
-    # Add buffer
-    desc = add_buf(vq.name, b"Hello Virtio!", callback=lambda d: print(f"  Callback: {d}"))
-    print(f"\nAdded buffer: desc={desc}")
-    print(f"Device eth0 status: 0x{get_status('eth0'):02X}")
+def virtio_get_info(device_name: str) -> Optional[Dict[str, Any]]:
+    dev = get_global_virtio().get_device(device_name)
+    return dev.get_info() if dev else None
