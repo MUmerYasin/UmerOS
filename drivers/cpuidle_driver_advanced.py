@@ -259,7 +259,7 @@ class AdvancedCpuidleDriver(CpuidleDriver):
             if result == 0:
                 device.governor = governor
                 self.devices.append(device)
-        self.active = True
+        self._active = True
 
     def unregister_devices(self) -> None:
         """Unregister all devices managed by this driver.
@@ -269,7 +269,7 @@ class AdvancedCpuidleDriver(CpuidleDriver):
         for dev in self.devices:
             dev.disable()
         self.devices.clear()
-        self.active = False
+        self._active = False
 
     def pause_and_lock(self) -> None:
         """Temporarily disable CPUIdle for state updates.
@@ -407,22 +407,22 @@ if __name__ == "__main__":
 
     print("=== UmerOS Advanced CPU Idle Driver Demo ===\n")
 
-    # Define idle state entry functions
-    def wfi_enter():
+    # Define idle state entry functions (kernel-compatible signature)
+    def wfi_enter(dev, drv, idx):
         time.sleep(0.001)
-        print("[CPUIdle] Entered WFI state")
+        print(f"[CPUIdle] Entered WFI state (cpu={dev.cpu_id})")
 
-    def stop_enter():
+    def stop_enter(dev, drv, idx):
         time.sleep(0.005)
-        print("[CPUIdle] Entered STOP state")
+        print(f"[CPUIdle] Entered STOP state (cpu={dev.cpu_id})")
 
-    def polling_enter():
+    def polling_enter(dev, drv, idx):
         time.sleep(0.0001)
-        print("[CPUIdle] Entered POLLING state")
+        print(f"[CPUIdle] Entered POLLING state (cpu={dev.cpu_id})")
 
-    def s2idle_enter():
+    def s2idle_enter(dev, drv, idx):
         time.sleep(0.01)
-        print("[CPUIdle] Entered S2IDLE state")
+        print(f"[CPUIdle] Entered S2IDLE state (cpu={dev.cpu_id})")
 
     # Create idle states with kernel-like attributes
     wfi_state = CpuidleState(

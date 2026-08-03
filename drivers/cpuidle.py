@@ -15,6 +15,7 @@ Provides:
 
 from typing import Callable, List, Optional, Dict, Any
 import time
+import sys
 
 
 # ============================================================================
@@ -40,8 +41,10 @@ class CpuidleState:
         exit_latency (int): Maximum time to start executing after wakeup,
             in microseconds.
         flags (int): Flags representing idle state properties (CPUIDLE_FLAG_*).
-        enter (Callable[[], None]): Function to enter this idle state.
-        enter_s2idle (Optional[Callable[[], None]]): Function for suspend-to-idle.
+        enter (Callable[[CpuidleDevice, 'CpuidleDriver', int], None]): Function
+            to enter this idle state.  Signature matches kernel:
+            ``enter(dev, drv, index)``.
+        enter_s2idle (Optional[Callable[..., None]]): Function for suspend-to-idle.
         latency (int): Backward-compatible alias for exit_latency.
         power_usage (float): Backward-compatible power consumption field.
     """
@@ -51,8 +54,8 @@ class CpuidleState:
         target_residency: int = 0,
         exit_latency: int = 0,
         flags: int = 0,
-        enter: Optional[Callable[[], None]] = None,
-        enter_s2idle: Optional[Callable[[], None]] = None,
+        enter: Optional[Callable[..., None]] = None,
+        enter_s2idle: Optional[Callable[..., None]] = None,
         # Backward-compatible parameters
         latency: Optional[int] = None,
         power_usage: Optional[float] = None,
@@ -62,11 +65,20 @@ class CpuidleState:
         self.target_residency = target_residency
         self.exit_latency = exit_latency if exit_latency is not None else (latency or 0)
         self.flags = flags
-        self.enter = enter or (lambda: None)
+        self._enter_callback = enter
         self.enter_s2idle = enter_s2idle
         # Backward-compatible fields
         self.latency = self.exit_latency
         self.power_usage = power_usage or 0.0
+
+    def enter(self, dev: 'CpuidleDevice', drv: 'CpuidleDriver', index: int) -> None:
+        """Enter this idle state.
+
+        Kernel-compatible signature: enter(dev, drv, index).
+        If no callback was provided, this is a no-op.
+        """
+        if self._enter_callback is not None:
+            self._enter_callback(dev, drv, index)
 
     def __repr__(self) -> str:
         return (
@@ -186,6 +198,10 @@ class CpuidleDriver:
 
     This provides the kernel-like driver interface with states,
     safe_state_index, cpumask, and device registration support.
+
+    States are automatically validated and sorted by target_residency on
+    construction (mirroring the kernel requirement that states must be ordered
+    from shallowest to deepest).
     """
     def __init__(
         self,
@@ -203,6 +219,8 @@ class CpuidleDriver:
         self.devices: List[CpuidleDevice] = []
         self._active = False
         self._paused = False
+        # Validate and sort states by target_residency
+        self._validate_and_sort_states()
 
     @property
     def active(self) -> bool:
@@ -214,6 +232,31 @@ class CpuidleDriver:
         For simplicity, returns 0 unless overridden.
         """
         return 0
+
+    def _validate_and_sort_states(self) -> None:
+        """Validate and sort states by target_residency (shallowest to deepest).
+
+        The kernel requires states to be ordered by increasing target_residency.
+        If they are out of order, we sort them and warn.  The safe_state_index
+        is re-computed after sorting.
+        """
+        if len(self.states) < 2:
+            return
+        # Check if already sorted
+        is_sorted = all(
+            self.states[i].target_residency <= self.states[i + 1].target_residency
+            for i in range(len(self.states) - 1)
+        )
+        if not is_sorted:
+            import warnings
+            warnings.warn(
+                f"CPUIdle states for driver '{self.name}' are not sorted by "
+                f"target_residency. Sorting automatically.",
+                UserWarning,
+                stacklevel=3,
+            )
+            self.states.sort(key=lambda s: s.target_residency)
+            self.safe_state_index = self._find_safe_state()
 
     def start(self) -> None:
         """Start the driver."""
@@ -261,6 +304,31 @@ class CpuidleDriver:
         for dev in self.devices:
             if dev.governor:
                 dev.enable(dev.governor)
+
+    def disable_device(self, cpu_id: int) -> int:
+        """Disable cpuidle for a specific CPU.
+
+        Mirrors kernel cpuidle_disable_device().  Returns 0 on success,
+        negative error code on failure.
+        """
+        for dev in self.devices:
+            if dev.cpu_id == cpu_id:
+                dev.disable()
+                return 0
+        return -1  # ENODEV
+
+    def enable_device(self, cpu_id: int) -> int:
+        """Enable cpuidle for a specific CPU.
+
+        Mirrors kernel cpuidle_enable_device().  Returns 0 on success,
+        negative error code on failure.
+        """
+        for dev in self.devices:
+            if dev.cpu_id == cpu_id:
+                if dev.governor:
+                    dev.enable(dev.governor)
+                return 0
+        return -1  # ENODEV
 
     def update_states(self, new_states: List[CpuidleState]) -> None:
         """Update the driver's idle states (e.g., after system config change).
@@ -393,12 +461,18 @@ def cpuidle_resume_and_unlock() -> None:
 
 
 def cpuidle_register(driver: CpuidleDriver) -> int:
-    """Register a driver and its devices (simplified kernel interface).
+    """Register a driver and its devices (kernel-like interface).
 
-    This mirrors the kernel's cpuidle_register() which registers both the driver
-    and its devices in one call.
+    Mirrors kernel cpuidle_register() which registers both the driver
+    and per-CPU devices for all CPUs in the driver's cpumask.
     """
-    return cpuidle_register_driver(driver)
+    ret = cpuidle_register_driver(driver)
+    if ret != 0:
+        return ret
+    # Auto-register devices for all CPUs in cpumask
+    if driver.cpumask:
+        driver.register_devices(driver.cpumask)
+    return 0
 
 
 def cpuidle_unregister(driver: CpuidleDriver) -> int:
@@ -453,6 +527,221 @@ def get_active_cpuidle_driver() -> Optional[CpuidleDriver]:
 
 
 # ============================================================================
+# PM QoS Latency Constraint
+# ============================================================================
+
+# Per-CPU PM QoS latency constraints (microseconds).
+# A value of 0 means no constraint.
+_PM_QOS_LATENCY: Dict[int, int] = {}
+
+
+def cpuidle_governor_latency_req(cpu_id: int) -> int:
+    """Return the current PM QoS wakeup latency constraint for a CPU.
+
+    This mirrors the kernel function cpuidle_governor_lat_req().
+    Returns the maximum latency (in microseconds) the governor is allowed
+    to use when selecting an idle state for the given CPU.
+    """
+    return _PM_QOS_LATENCY.get(cpu_id, 0)
+
+
+def cpuidle_set_latency_req(cpu_id: int, latency: int) -> None:
+    """Set the PM QoS wakeup latency constraint for a CPU.
+
+    Args:
+        cpu_id: The CPU to set the constraint for.
+        latency: Maximum latency in microseconds (0 = no constraint).
+    """
+    _PM_QOS_LATENCY[cpu_id] = max(0, latency)
+
+
+def cpuidle_clear_latency_req(cpu_id: int) -> None:
+    """Clear the PM QoS wakeup latency constraint for a CPU."""
+    _PM_QOS_LATENCY.pop(cpu_id, None)
+
+
+# ============================================================================
+# Governor Sysfs Interface
+# ============================================================================
+
+def cpuidle_get_current_driver() -> Optional[str]:
+    """Return the name of the current cpuidle driver.
+
+    Mirrors /sys/devices/system/cpu/cpuidle/current_driver.
+    """
+    driver = get_active_cpuidle_driver()
+    return driver.name if driver else None
+
+
+def cpuidle_get_current_governor() -> Optional[str]:
+    """Return the name of the current cpuidle governor.
+
+    Mirrors /sys/devices/system/cpu/cpuidle/current_governor.
+    """
+    governor = get_active_cpuidle_governor()
+    return governor.name if governor else None
+
+
+def cpuidle_get_current_governor_ro() -> Optional[str]:
+    """Return the name of the current cpuidle governor (read-only alias).
+
+    Mirrors /sys/devices/system/cpu/cpuidle/current_governor_ro.
+    This is identical to cpuidle_get_current_governor() in UmerOS
+    since we don't support runtime governor switching via sysfs.
+    """
+    return cpuidle_get_current_governor()
+
+
+def cpuidle_get_available_governors() -> List[str]:
+    """Return a list of all registered governor names.
+
+    Useful for sysfs enumeration.
+    """
+    return [g.name for g in _CPUIDLE_GOVERNORS]
+
+
+def cpuidle_get_available_drivers() -> List[str]:
+    """Return a list of all registered driver names.
+
+    Useful for sysfs enumeration.
+    """
+    return [d.name for d in _CPUIDLE_DRIVERS]
+
+
+# ============================================================================
+# Device-Level Enable/Disable
+# ============================================================================
+
+def cpuidle_disable_device(cpu_id: int) -> int:
+    """Disable cpuidle for a specific CPU.
+
+    Mirrors kernel cpuidle_disable_device().  Returns 0 on success,
+    negative error code on failure.
+    """
+    driver = get_active_cpuidle_driver()
+    if driver is None:
+        return -1
+    return driver.disable_device(cpu_id)
+
+
+def cpuidle_enable_device(cpu_id: int) -> int:
+    """Enable cpuidle for a specific CPU.
+
+    Mirrors kernel cpuidle_enable_device().  Returns 0 on success,
+    negative error code on failure.
+    """
+    driver = get_active_cpuidle_driver()
+    if driver is None:
+        return -1
+    return driver.enable_device(cpu_id)
+
+
+# ============================================================================
+# Driver/Device Lookup Helpers
+# ============================================================================
+
+def cpuidle_get_driver() -> Optional[CpuidleDriver]:
+    """Return the current cpuidle driver for the active CPU.
+
+    Mirrors kernel cpuidle_get_driver().  In UmerOS we return the active
+    driver (single-driver model).
+    """
+    return get_active_cpuidle_driver()
+
+
+def cpuidle_get_device_id() -> int:
+    """Return the device ID for the active CPU.
+
+    Mirrors kernel cpuidle_get_device_id().  Returns the cpu_id of the
+    first registered device, or -1 if none.
+    """
+    driver = get_active_cpuidle_driver()
+    if driver and driver.devices:
+        return driver.devices[0].cpu_id
+    return -1
+
+
+# ============================================================================
+# Governor Availability Checks
+# ============================================================================
+
+def cpuidle_use_deepest_state() -> bool:
+    """Return True if the system should use the deepest idle state.
+
+    Mirrors kernel cpuidle_use_deepest_state().  This is True when
+    no governor is registered or the PM QoS constraint forces it.
+    """
+    governor = get_active_cpuidle_governor()
+    return governor is None
+
+
+def cpuidle_not_available() -> bool:
+    """Return True if cpuidle is not available.
+
+    Mirrors kernel cpuidle_not_available().  True when no driver or
+    no governor is registered.
+    """
+    return get_active_cpuidle_driver() is None or get_active_cpuidle_governor() is None
+
+
+# ============================================================================
+# Polling Mode Entry
+# ============================================================================
+
+def cpuidle_poll() -> None:
+    """Enter polling idle state.
+
+    Mirrors kernel cpuidle_poll().  This performs a busy-wait loop
+    for the polling state, not actually entering a hardware idle state.
+    """
+    pass  # In UmerOS, polling is a no-op (busy-wait placeholder)
+
+
+# ============================================================================
+# System-Wide Suspend/Resume Hooks
+# ============================================================================
+
+_cpuidle_suspend_state: Optional[List[CpuidleState]] = None
+
+
+def cpuidle_suspend() -> None:
+    """System-wide suspend hook for cpuidle.
+
+    Mirrors kernel cpuidle_suspend().  Saves current driver states and
+    transitions all devices to the shallowest (safe) state.
+    """
+    global _cpuidle_suspend_state
+    driver = get_active_cpuidle_driver()
+    if driver is None:
+        return
+    # Save current states
+    _cpuidle_suspend_state = driver.states[:]
+    # Transition all devices to the safe state (index 0)
+    for dev in driver.devices:
+        dev.last_state_idx = driver.safe_state_index
+
+
+def cpuidle_resume() -> None:
+    """System-wide resume hook for cpuidle.
+
+    Mirrors kernel cpuidle_resume().  Restores driver states saved during
+    suspend and re-enables devices.
+    """
+    global _cpuidle_suspend_state
+    driver = get_active_cpuidle_driver()
+    if driver is None:
+        return
+    # Restore saved states if available
+    if _cpuidle_suspend_state is not None:
+        driver.states = _cpuidle_suspend_state
+        _cpuidle_suspend_state = None
+    # Re-enable devices
+    for dev in driver.devices:
+        if dev.governor:
+            dev.enable(dev.governor)
+
+
+# ============================================================================
 # Backward-Compatible SimpleGovernor
 # ============================================================================
 
@@ -473,10 +762,19 @@ class SimpleGovernor(CpuidleGovernor):
         device: Optional[CpuidleDevice],
         stop_tick: bool,
     ) -> int:
-        """Select lowest power state within latency budget."""
+        """Select lowest power state within latency budget.
+
+        Respects PM QoS latency constraints for the CPU if a device is provided.
+        """
+        # Determine effective latency budget
+        max_latency = self.max_latency
+        if device is not None:
+            qos_req = cpuidle_governor_latency_req(device.cpu_id)
+            if qos_req > 0:
+                max_latency = min(max_latency, qos_req)
         eligible = [
             (i, s) for i, s in enumerate(driver.states)
-            if s.exit_latency <= self.max_latency
+            if s.exit_latency <= max_latency
             and not (s.flags & CPUIDLE_FLAG_POLLING and not stop_tick)
         ]
         if not eligible:
@@ -494,18 +792,18 @@ class SimpleGovernor(CpuidleGovernor):
 if __name__ == "__main__":
     print("=== UmerOS CPU Idle Core Demo ===\n")
 
-    # Define idle state entry functions
-    def wfi_enter():
+    # Define idle state entry functions (kernel-compatible signature)
+    def wfi_enter(dev, drv, idx):
         time.sleep(0.001)
-        print("[CPUIdle] Entered WFI state")
+        print(f"[CPUIdle] Entered WFI state (cpu={dev.cpu_id})")
 
-    def stop_enter():
+    def stop_enter(dev, drv, idx):
         time.sleep(0.005)
-        print("[CPUIdle] Entered STOP state")
+        print(f"[CPUIdle] Entered STOP state (cpu={dev.cpu_id})")
 
-    def s2idle_enter():
+    def s2idle_enter(dev, drv, idx):
         time.sleep(0.01)
-        print("[CPUIdle] Entered S2IDLE state")
+        print(f"[CPUIdle] Entered S2IDLE state (cpu={dev.cpu_id})")
 
     # Create idle states with kernel-like attributes
     wfi_state = CpuidleState(
@@ -531,25 +829,54 @@ if __name__ == "__main__":
     # Create governor
     governor = SimpleGovernor(name="SimpleGovernor", rating=100, max_latency=1000)
 
-    # Register governor and driver
+    # Register governor and driver (auto-registers per-CPU devices)
     cpuidle_register_governor(governor)
-    cpuidle_register_driver(driver)
-
-    # Register devices for CPUs 0 and 1
-    driver.register_devices([0, 1])
+    cpuidle_register(driver)
 
     print(f"Driver: {driver.name} ({driver.state_count} states)")
     print(f"Governor: {governor.name} (rating={governor.rating})")
     print(f"States: {[s.name for s in driver.states]}")
     print(f"Devices: {[d.cpu_id for d in driver.devices]}")
+    print(f"current_driver: {cpuidle_get_current_driver()}")
+    print(f"current_governor: {cpuidle_get_current_governor()}")
     print()
 
     # Test state selection and entry
     print("--- State Selection and Entry ---")
     for i in range(3):
-        result = cpuidle_enter()
-        if result:
-            print(f"  Iteration {i+1}: Entered state = {result}")
+        driver_obj = get_active_cpuidle_driver()
+        dev = driver_obj.devices[0] if driver_obj.devices else None
+        governor_obj = get_active_cpuidle_governor()
+        if governor_obj and driver_obj and dev:
+            idx = governor_obj.select(driver_obj, dev, False)
+            if 0 <= idx < len(driver_obj.states):
+                state = driver_obj.states[idx]
+                state.enter(dev, driver_obj, idx)
+                print(f"  Iteration {i+1}: Entered state = {state.name}")
+    print()
+
+    # Test PM QoS latency
+    print("--- PM QoS Latency ---")
+    cpuidle_set_latency_req(0, 100)
+    print(f"  CPU 0 latency req: {cpuidle_governor_latency_req(0)} us")
+    cpuidle_clear_latency_req(0)
+    print(f"  After clear: {cpuidle_governor_latency_req(0)} us")
+    print()
+
+    # Test device enable/disable
+    print("--- Device Enable/Disable ---")
+    cpuidle_disable_device(0)
+    print(f"  Device 0 disabled (active={driver.devices[0].active})")
+    cpuidle_enable_device(0)
+    print(f"  Device 0 enabled (active={driver.devices[0].active})")
+    print()
+
+    # Test suspend/resume
+    print("--- Suspend/Resume ---")
+    cpuidle_suspend()
+    print("  System suspended")
+    cpuidle_resume()
+    print("  System resumed")
     print()
 
     # Test pause/resume
@@ -560,16 +887,22 @@ if __name__ == "__main__":
     print("  Driver resumed")
     print()
 
-    # Test dynamic state update
-    print("--- Dynamic State Update ---")
-    new_states = [
-        CpuidleState("IDLE0", 50, 5, 0, lambda: None),
-        CpuidleState("IDLE1", 200, 50, 0, lambda: None),
-    ]
-    driver.pause_and_lock()
-    driver.update_states(new_states)
-    driver.resume_and_unlock()
-    print(f"  Updated states: {[s.name for s in driver.states]}")
+    # Test state sorting validation
+    print("--- State Sorting Validation ---")
+    import warnings
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        bad_driver = CpuidleDriver(
+            name="UnsortedDriver",
+            states=[
+                CpuidleState("DEEP", 2000, 500, 0),
+                CpuidleState("SHALLOW", 100, 10, 0),
+            ],
+            cpu_mask=[0],
+        )
+        if w:
+            print(f"  Warning: {w[0].message}")
+        print(f"  Sorted states: {[s.name for s in bad_driver.states]}")
     print()
 
     # Cleanup

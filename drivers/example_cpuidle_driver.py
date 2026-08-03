@@ -29,22 +29,22 @@ import time
 # Idle State Entry Functions
 # ============================================================================
 
-def wfi_enter():
+def wfi_enter(dev, drv, idx):
     """Wait For Interrupt - shallowest idle state."""
     time.sleep(0.001)
-    print('[CPUIdle] Entered WFI state')
+    print(f'[CPUIdle] Entered WFI state (cpu={dev.cpu_id})')
 
 
-def stop_enter():
+def stop_enter(dev, drv, idx):
     """STOP - deeper idle state with higher entry/exit latency."""
     time.sleep(0.005)
-    print('[CPUIdle] Entered STOP state')
+    print(f'[CPUIdle] Entered STOP state (cpu={dev.cpu_id})')
 
 
-def s2idle_enter():
+def s2idle_enter(dev, drv, idx):
     """Suspend-to-idle - deepest idle state."""
     time.sleep(0.01)
-    print('[CPUIdle] Entered S2IDLE state')
+    print(f'[CPUIdle] Entered S2IDLE state (cpu={dev.cpu_id})')
 
 
 # ============================================================================
