@@ -1,16 +1,33 @@
-from .cpuidle import CpuidleGovernor, CpuidleState, CpuidleDriver
+"""CPU Idle Governor for UmerOS.
 
-class SimpleGovernor(CpuidleGovernor):
-    """Select the idle state with the lowest power usage within a latency budget.
+This module provides the advanced CPU idle governor with PM QoS support,
+selection accuracy tracking, and governor rating system.
 
-    The default max_latency is 1000 microseconds. It can be overridden by setting the
-    ``max_latency`` attribute on the instance.
-    """
-    def __init__(self, max_latency: int = 1000):
-        self.max_latency = max_latency
+Re-exports:
+- AdvancedCpuidleGovernor: Governor with PM QoS, accuracy tracking, reflection
+- SimpleGovernor: Backward-compatible governor (from cpuidle.py)
+- CpuidleGovernor: Base governor class (from cpuidle.py)
+"""
 
-    def select_state(self, driver: CpuidleDriver) -> CpuidleState:
-        eligible = [s for s in driver.states if s.latency <= self.max_latency]
-        if not eligible:
-            return min(driver.states, key=lambda s: s.latency)
-        return min(eligible, key=lambda s: s.power_usage)
+try:
+    from .cpuidle import CpuidleGovernor, CpuidleState, CpuidleDriver, CpuidleDevice, SimpleGovernor
+    from .cpuidle_driver_advanced import (
+        AdvancedCpuidleGovernor,
+        PmQosLatencyConstraint,
+        CPUIDLE_FLAG_POLLING,
+    )
+except ImportError:
+    from cpuidle import CpuidleGovernor, CpuidleState, CpuidleDriver, CpuidleDevice, SimpleGovernor
+    from cpuidle_driver_advanced import (
+        AdvancedCpuidleGovernor,
+        PmQosLatencyConstraint,
+        CPUIDLE_FLAG_POLLING,
+    )
+
+__all__ = [
+    "CpuidleGovernor",
+    "SimpleGovernor",
+    "AdvancedCpuidleGovernor",
+    "PmQosLatencyConstraint",
+    "CPUIDLE_FLAG_POLLING",
+]
