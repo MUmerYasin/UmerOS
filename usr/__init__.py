@@ -32,6 +32,13 @@ from .local_software import LocalSoftwareManager, get_global_local_software
 from .header_files import HeaderFilesManager, get_global_header_files
 from .config_files import ConfigFilesManager, get_global_config_files
 from .binary_exec import BinaryExecManager, get_global_binary_exec
+from .lib_manager import LibraryManager, get_global_lib_manager
+from .source_manager import SourceManager, get_global_source_manager
+from .doc_browser import DocBrowser, get_global_doc_browser
+from .info_pages import InfoPagesManager, get_global_info_manager
+from .x11_manager import X11Manager, get_global_x11_manager
+from .tmp_manager import TmpManager, get_global_tmp_manager
+from .games_manager import GamesManager, get_global_games_manager
 
 
 __all__ = [
@@ -97,4 +104,25 @@ __all__ = [
     # binary_exec
     "BinaryExecManager",
     "get_global_binary_exec",
+    # lib_manager (/usr/lib)
+    "LibraryManager",
+    "get_global_lib_manager",
+    # src_manager (/usr/src)
+    "SourceManager",
+    "get_global_source_manager",
+    # doc_browser (/usr/share/doc)
+    "DocBrowser",
+    "get_global_doc_browser",
+    # info_pages (/usr/share/info)
+    "InfoPagesManager",
+    "get_global_info_manager",
+    # x11_manager (/usr/X11R6)
+    "X11Manager",
+    "get_global_x11_manager",
+    # tmp_manager (/usr/tmp)
+    "TmpManager",
+    "get_global_tmp_manager",
+    # games_manager (/usr/games)
+    "GamesManager",
+    "get_global_games_manager",
 ]
