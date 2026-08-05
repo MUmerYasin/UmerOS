@@ -58,6 +58,19 @@ from .user_help_manager import UserHelpManager, get_global_user_help_manager
 from .xdg_manager import XDGSessionManager, get_global_xdg_session_manager
 from .wayland_manager import WaylandProtocolManager, get_global_wayland_protocol_manager
 from .dconf_manager import DConfManager, get_global_dconf_manager
+from .dict_manager import DictManager, dict_manager as get_global_dict_manager
+from .terminfo_manager import TerminfoManager, terminfo_manager as get_global_terminfo_manager
+from .nls_manager import NLSManager, nls_manager as get_global_nls_manager
+from .ppd_manager import PPDManager, ppd_manager as get_global_ppd_manager
+from .xml_manager import XMLManager, xml_manager as get_global_xml_manager
+from .tmac_manager import TmacManager, tmac_manager as get_global_tmac_manager
+from .misc_data_manager import MiscDataManager, misc_data_manager as get_global_misc_data_manager
+from .games_data_manager import GamesDataManager, games_data_manager as get_global_games_data_manager
+from .bsd_compat_manager import BSDCompatManager, bsd_compat_manager as get_global_bsd_compat_manager
+from .interpreter_manager import InterpreterManager, interpreter_manager as get_global_interpreter_manager
+from .sendmail_manager import SendmailManager, sendmail_manager as get_global_sendmail_manager
+from .spool_manager import SpoolManager, spool_manager as get_global_spool_manager
+from .icc_profile_manager import ICCProfileManager, icc_profile_manager as get_global_icc_profile_manager
 
 
 __all__ = [
@@ -201,4 +214,43 @@ __all__ = [
     # dconf_manager (/usr/share/dconf)
     "DConfManager",
     "get_global_dconf_manager",
+    # dict_manager (/usr/share/dict)
+    "DictManager",
+    "get_global_dict_manager",
+    # terminfo_manager (/usr/share/terminfo)
+    "TerminfoManager",
+    "get_global_terminfo_manager",
+    # nls_manager (/usr/share/nls)
+    "NLSManager",
+    "get_global_nls_manager",
+    # ppd_manager (/usr/share/ppd)
+    "PPDManager",
+    "get_global_ppd_manager",
+    # xml_manager (/usr/share/xml)
+    "XMLManager",
+    "get_global_xml_manager",
+    # tmac_manager (/usr/share/tmac)
+    "TmacManager",
+    "get_global_tmac_manager",
+    # misc_data_manager (/usr/share/misc)
+    "MiscDataManager",
+    "get_global_misc_data_manager",
+    # games_data_manager (/usr/share/games)
+    "GamesDataManager",
+    "get_global_games_data_manager",
+    # bsd_compat_manager (/usr/include/bsd)
+    "BSDCompatManager",
+    "get_global_bsd_compat_manager",
+    # interpreter_manager (/usr/bin interpreters)
+    "InterpreterManager",
+    "get_global_interpreter_manager",
+    # sendmail_manager (/usr/lib/sendmail)
+    "SendmailManager",
+    "get_global_sendmail_manager",
+    # spool_manager (/usr/spool symlinks)
+    "SpoolManager",
+    "get_global_spool_manager",
+    # icc_profile_manager (/usr/share/color/icc)
+    "ICCProfileManager",
+    "get_global_icc_profile_manager",
 ]
