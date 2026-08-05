@@ -18,6 +18,7 @@ from etc.config_manager import ConfigManager, get_config_manager
 from etc.passwd_group import PasswdGroupManager
 from etc.network_config import NetworkConfigManager
 from etc.shell_config import ShellConfigManager
+from etc.critical_files import CriticalFilesManager
 
 __all__ = [
     "ConfigManager",
@@ -25,4 +26,5 @@ __all__ = [
     "PasswdGroupManager",
     "NetworkConfigManager",
     "ShellConfigManager",
+    "CriticalFilesManager",
 ]

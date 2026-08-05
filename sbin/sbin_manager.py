@@ -53,11 +53,18 @@ SBIN_COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "reboot": ("boot", "RebootCommand"),
     "shutdown": ("boot", "ShutdownCommand"),
     "getty": ("boot", "GettyCommand"),
+    "lilo": ("boot", "LiloCommand"),
+    "fastboot": ("boot", "FastbootCommand"),
+    "fasthalt": ("boot", "FasthaltCommand"),
+    "update": ("boot", "UpdateCommand"),
     # filesystem.py
     "fdisk": ("filesystem", "FdiskCommand"),
     "fsck": ("filesystem", "FsckCommand"),
     "mkfs": ("filesystem", "MkfsCommand"),
     "swapon": ("filesystem", "SwaponCommand"),
+    "swapoff": ("filesystem", "SwapoffCommand"),
+    "mkswap": ("filesystem", "MkswapCommand"),
+    "chroot": ("filesystem", "ChrootCommand"),
     # network.py
     "ifconfig": ("network", "IfconfigCommand"),
     "ip": ("network", "IpCommand"),
@@ -69,6 +76,8 @@ SBIN_COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "rmmod": ("modules", "RmmodCommand"),
     # system.py
     "sysctl": ("system", "SysctlCommand"),
+    "hwclock": ("system", "HwclockCommand"),
+    "ldconfig": ("system", "LdconfigCommand"),
 }
 
 

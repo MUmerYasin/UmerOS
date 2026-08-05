@@ -87,3 +87,51 @@ class SwaponCommand(SbinCommand):
             return 0
         print(f"swapon: enabling '{args[0]}'")
         return 0
+
+
+class SwapoffCommand(SbinCommand):
+    """Disable swap devices and files."""
+    name = "swapoff"
+    description = "Disable swap devices and files"
+    usage = "swapoff [-a] [-v] device"
+
+    def execute(self, args: Optional[List[str]] = None) -> int:
+        if not args or args[0] == "-a":
+            print("[*] swapoff: disabling all swap devices")
+            return 0
+        print(f"swapoff: disabling '{args[0]}'")
+        return 0
+
+
+class MkswapCommand(SbinCommand):
+    """Set up a swap area."""
+    name = "mkswap"
+    description = "Set up a Linux swap area"
+    usage = "mkswap [-c] [-f] [-p pagesize] [-L label] device [size]"
+
+    def execute(self, args: Optional[List[str]] = None) -> int:
+        if not args:
+            print("mkswap: missing device operand", file=sys.stderr)
+            return 1
+        device = args[0]
+        size = args[1] if len(args) > 1 else "8192kB"
+        print(f"mkswap: Swapspace size = {size}")
+        print(f"mkswap: setting up swapspace version 1, size = {size}")
+        print(f"mkswap: {device}: no label")
+        return 0
+
+
+class ChrootCommand(SbinCommand):
+    """Run command in a changed root directory."""
+    name = "chroot"
+    description = "Run command with a different root directory"
+    usage = "chroot NEWROOT [COMMAND [ARG]...]"
+
+    def execute(self, args: Optional[List[str]] = None) -> int:
+        if not args:
+            print("chroot: missing operand", file=sys.stderr)
+            return 1
+        newroot = args[0]
+        command = args[1] if len(args) > 1 else "/bin/sh"
+        print(f"[*] chroot: running '{command}' in {newroot}")
+        return 0

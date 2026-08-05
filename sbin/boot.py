@@ -120,3 +120,49 @@ class GettyCommand(SbinCommand):
     def execute(self, args: Optional[List[str]] = None) -> int:
         print("[*] getty: waiting for login...", file=sys.stderr)
         return 0
+
+
+class LiloCommand(SbinCommand):
+    """Linux loader installer."""
+    name = "lilo"
+    description = "Install the Linux loader (LILO) boot manager"
+    usage = "lilo [-A|-E|-I|-J|-R|-W] [-b device] [-c config] [-d delay] [-D label] [-f file] [-i boot] [-I label] [-l] [-m map] [-P fix] [-q] [-r root] [-s file] [-S file] [-t] [-v]"
+
+    def execute(self, args: Optional[List[str]] = None) -> int:
+        print("LILO version 24.2")
+        print("LILO: installing boot loader on /dev/sda")
+        print("[*] lilo: boot loader installed")
+        return 0
+
+
+class FastbootCommand(SbinCommand):
+    """Reboot without checking filesystems."""
+    name = "fastboot"
+    description = "Reboot the system without checking filesystems"
+    usage = "fastboot [-n] [-w] [-d] [-f]"
+
+    def execute(self, args: Optional[List[str]] = None) -> int:
+        print("[*] fastboot: rebooting without filesystem check", file=sys.stderr)
+        return 0
+
+
+class FasthaltCommand(SbinCommand):
+    """Halt without checking filesystems."""
+    name = "fasthalt"
+    description = "Halt the system without checking filesystems"
+    usage = "fasthalt [-n] [-w] [-d] [-f]"
+
+    def execute(self, args: Optional[List[str]] = None) -> int:
+        print("[*] fasthalt: halting without filesystem check", file=sys.stderr)
+        return 0
+
+
+class UpdateCommand(SbinCommand):
+    """Update boot block files."""
+    name = "update"
+    description = "Periodically update /etc/utmp and /var/log/wtmp"
+    usage = "update [-s seconds] [-f frequency] [-b burst] [-i interval] [-w]"
+
+    def execute(self, args: Optional[List[str]] = None) -> int:
+        print("[*] update: starting periodic updates")
+        return 0
