@@ -187,6 +187,39 @@ class ManEntry:
     source_path: str = ""
 
 
+@dataclass
+class CatPage:
+    """Represents a pre-formatted (cat) page.
+
+    FHS 3.0 Section 4.4: Cat pages are pre-compiled man pages stored
+    in /usr/share/man/<section>/cat<name>.n.<section> for fast display
+    without re-running groff/nroff.
+
+    Cat pages SHOULD be generated at install time by the package manager
+    and SHOULD be in the same section directory as the source man page.
+    """
+    name: str = ""
+    section: int = 1
+    path: Optional[str] = None
+    status: ManPageStatus = ManPageStatus.MISSING
+    file_size: int = 0
+    source_man_page: Optional[str] = None
+    last_modified: float = 0.0
+    encoding: str = "utf-8"
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "section": self.section,
+            "path": self.path,
+            "status": self.status.value,
+            "file_size": self.file_size,
+            "source_man_page": self.source_man_page,
+            "last_modified": self.last_modified,
+            "encoding": self.encoding,
+        }
+
+
 # ============================================================================
 # Parser
 # ============================================================================
@@ -517,6 +550,137 @@ class ManPageManager:
         if sec is None:
             return f"No {heading} section in {name}({section})"
         return sec.content
+
+    # -- Cat Page Management (FHS 3.0 Section 4.4) --
+
+    def _cat_path(self, name: str, section: int) -> str:
+        """Compute cat page path per FHS 3.0 naming convention.
+
+        Pattern: <man_path>/<section>/cat<name>.<section>
+        """
+        return os.path.join(self._base_path, str(section), f"cat{name}.{section}")
+
+    def generate_cat_page(self, name: str, section: int,
+                          force: bool = False) -> Optional[CatPage]:
+        """Generate a cat page from a source man page.
+
+        FHS 3.0: Cat pages are pre-compiled man pages for fast display.
+        They should be generated at install time and stored alongside
+        the source man page in the section directory.
+
+        Args:
+            name: Man page name (e.g., "ls")
+            section: Section number (1-8)
+            force: Regenerate even if cat page exists
+
+        Returns:
+            CatPage if generated/exists, None if source missing
+        """
+        # Find the source man page
+        pages = self.lookup(name, section)
+        if not pages:
+            return None
+
+        source_page = pages[0]
+        cat_path = self._cat_path(name, section)
+
+        # Check if cat page already exists
+        if os.path.exists(cat_path) and not force:
+            stat = os.stat(cat_path)
+            return CatPage(
+                name=name,
+                section=section,
+                path=cat_path,
+                status=ManPageStatus.PARSED,
+                file_size=stat.st_size,
+                source_man_page=source_page.source_path,
+                last_modified=stat.st_mtime,
+            )
+
+        # Generate cat content from source
+        try:
+            content = source_page.to_text()
+            os.makedirs(os.path.dirname(cat_path), exist_ok=True)
+            with open(cat_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            stat = os.stat(cat_path)
+            return CatPage(
+                name=name,
+                section=section,
+                path=cat_path,
+                status=ManPageStatus.PARSED,
+                file_size=stat.st_size,
+                source_man_page=source_page.source_path,
+                last_modified=stat.st_mtime,
+            )
+        except Exception:
+            return None
+
+    def read_cat_page(self, name: str, section: int) -> Optional[CatPage]:
+        """Read an existing cat page without regeneration.
+
+        Returns:
+            CatPage if found, None otherwise
+        """
+        cat_path = self._cat_path(name, section)
+        if not os.path.exists(cat_path):
+            return None
+        try:
+            stat = os.stat(cat_path)
+            return CatPage(
+                name=name,
+                section=section,
+                path=cat_path,
+                status=ManPageStatus.PARSED,
+                file_size=stat.st_size,
+                last_modified=stat.st_mtime,
+            )
+        except Exception:
+            return None
+
+    def get_all_cat_pages(self) -> List[CatPage]:
+        """List all cat pages across all sections."""
+        results: List[CatPage] = []
+        for subdir in os.listdir(self._base_path):
+            section_path = os.path.join(self._base_path, subdir)
+            if not os.path.isdir(section_path):
+                continue
+            for fname in os.listdir(section_path):
+                if fname.startswith("cat") and "." in fname:
+                    full_path = os.path.join(section_path, fname)
+                    stat = os.stat(full_path)
+                    # Parse name and section from cat<name>.<section>
+                    base = fname[3:]  # strip "cat"
+                    parts = base.rsplit(".", 1)
+                    if len(parts) == 2:
+                        page_name, sec_str = parts
+                        try:
+                            sec = int(sec_str)
+                        except ValueError:
+                            sec = 0
+                    else:
+                        page_name = base
+                        sec = 0
+                    results.append(CatPage(
+                        name=page_name,
+                        section=sec,
+                        path=full_path,
+                        status=ManPageStatus.PARSED,
+                        file_size=stat.st_size,
+                        last_modified=stat.st_mtime,
+                    ))
+        return results
+
+    def remove_cat_page(self, name: str, section: int) -> bool:
+        """Remove a cat page."""
+        cat_path = self._cat_path(name, section)
+        if os.path.exists(cat_path):
+            try:
+                os.remove(cat_path)
+                return True
+            except Exception:
+                return False
+        return False
 
     # -- Aliases --
 
