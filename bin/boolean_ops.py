@@ -67,6 +67,42 @@ class FalseCommand:
 
 # ─── test/[ Command ──────────────────────────────────────────────────────────
 
+class BracketTestCommand:
+    """
+    [ - evaluate conditional expression (POSIX.2 required).
+
+    Usage: [ EXPRESSION ]
+           [[ EXPRESSION ]]
+
+    This is the bracket form of the test command, required by POSIX.2.
+    Must end with a closing ] as the last argument.
+
+    Exit codes:
+      0 - expression is true
+      1 - expression is false
+      2 - error (missing ] or invalid expression)
+    """
+
+    def execute(self, args: List[str] | None = None) -> int:
+        if not args:
+            print("[: missing `]'", file=sys.stderr)
+            return 2
+
+        # Check for closing bracket
+        if args[-1] != "]":
+            print("[: missing `]'", file=sys.stderr)
+            return 2
+
+        # Strip the [ and ] to get the expression
+        expr_args = args[:-1]  # remove closing ]
+        if not expr_args:
+            return 1  # empty expression is false
+
+        # Delegate to TestCommand logic
+        test_cmd = TestCommand()
+        return test_cmd.execute(expr_args)
+
+
 class TestCommand:
     """
     test / [ - evaluate conditional expression.

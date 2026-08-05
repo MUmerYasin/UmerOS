@@ -823,17 +823,17 @@ class EchoCommand:
     Backslash escapes:
       \a     alert (bell)
       \b     backspace
-      \c     suppress further output
-      \e     escape character
+      \\c     suppress further output
+      \\e     escape character
       \f     form feed
       \n     newline
       \r     carriage return
       \t     horizontal tab
       \v     vertical tab
       \\     backslash
-      \0NNN  byte with octal value NNN (1 to 3 digits)
-      \xHH   byte with hexadecimal value HH (1 to 2 digits)
-      \uHHHH unicode character with hex value HHHH (1 to 4 hex digits)
+      \\0NNN  byte with octal value NNN (1 to 3 digits)
+      \\xHH   byte with hexadecimal value HH (1 to 2 digits)
+      \\uHHHH unicode character with hex value HHHH (1 to 4 hex digits)
     """
 
     ESCAPE_SEQUENCES = {

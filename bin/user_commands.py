@@ -295,7 +295,7 @@ class LoginCommand:
 
     def _check_securetty(self) -> bool:
         try:
-            with open("/etc/securetty", "r") as None:
+            with open("/etc/securetty", "r") as f:
                 ttys = [line.strip() for line in f if line.strip()]
             current_tty = os.ttyname(0) if os.isatty(0) else ""
             return not ttys or current_tty in ttys

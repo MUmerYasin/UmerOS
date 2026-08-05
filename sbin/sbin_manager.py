@@ -74,6 +74,7 @@ SBIN_COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "lsmod": ("modules", "LsmodCommand"),
     "modprobe": ("modules", "ModprobeCommand"),
     "rmmod": ("modules", "RmmodCommand"),
+    "depmod": ("modules", "DepmodCommand"),
     # system.py
     "sysctl": ("system", "SysctlCommand"),
     "hwclock": ("system", "HwclockCommand"),

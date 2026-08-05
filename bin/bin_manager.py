@@ -24,13 +24,19 @@ Module Registry:
   - process.py: PsCommand, KillCommand, MountCommand, UmountCommand,
     SttyCommand, SyncCommand
   - user_commands.py: SuCommand, LoginCommand
-  - boolean_ops.py: TrueCommand, FalseCommand, TestCommand, YesCommand,
-    PrintenvCommand, EnvCommand
-  - shell.py: ShCommand, SedCommand, TarCommand, GzipCommand, GunzipCommand,
-    ZcatCommand, NetstatCommand, PingCommand
+  - boolean_ops.py: TrueCommand, FalseCommand, TestCommand, BracketTestCommand,
+    YesCommand, PrintenvCommand, EnvCommand
+  - shell.py: ShCommand, SedCommand, GzipCommand, GunzipCommand, ZcatCommand,
+    NetstatCommand, PingCommand
   - device.py: MknodCommand
   - archive.py: TarCommand
   - network_cmds.py: IfconfigCommand, IpCommand, RouteCommand, ArpCommand
+  - csh.py: CshCommand
+  - ed.py: EdCommand
+  - usr_commands.py: 60+ utilities (cpio, fold, nohup, grep, less, find, awk,
+    diff, du, file, stat, free, w, uptime, pkill, pgrep, useradd, usermod,
+    userdel, groupadd, groupdel, groupmod, chfn, chsh, chage, gpasswd,
+    newgrp, mesg, last, lastlog, patch, locate, updatedb, and more)
 """
 
 from __future__ import annotations
@@ -120,6 +126,7 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "true": ("boolean_ops", "TrueCommand"),
     "false": ("boolean_ops", "FalseCommand"),
     "test": ("boolean_ops", "TestCommand"),
+    "[": ("boolean_ops", "BracketTestCommand"),
     "yes": ("boolean_ops", "YesCommand"),
     "printenv": ("boolean_ops", "PrintenvCommand"),
     "env": ("boolean_ops", "EnvCommand"),
@@ -134,6 +141,8 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "gzip": ("shell", "GzipCommand"),
     "gunzip": ("shell", "GunzipCommand"),
     "zcat": ("shell", "ZcatCommand"),
+    "netstat": ("shell", "NetstatCommand"),
+    "ping": ("shell", "PingCommand"),
     # network_cmds.py
     "ifconfig": ("network_cmds", "IfconfigCommand"),
     "ip": ("network_cmds", "IpCommand"),
@@ -175,6 +184,37 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "chroot": ("usr_commands", "ChrootCommand"),
     "renice": ("usr_commands", "ReniceCommand"),
     "timeout": ("usr_commands", "TimeoutCommand"),
+    # usr_commands.py — new TLDP 30 utilities
+    "grep": ("usr_commands", "GrepCommand"),
+    "less": ("usr_commands", "LessCommand"),
+    "find": ("usr_commands", "FindCommand"),
+    "awk": ("usr_commands", "AwkCommand"),
+    "diff": ("usr_commands", "DiffCommand"),
+    "du": ("usr_commands", "DuCommand"),
+    "file": ("usr_commands", "FileCommand"),
+    "stat": ("usr_commands", "StatCommand"),
+    "free": ("usr_commands", "FreeCommand"),
+    "w": ("usr_commands", "WCommand"),
+    "uptime": ("usr_commands", "UptimeCommand"),
+    "pkill": ("usr_commands", "PkillCommand"),
+    "pgrep": ("usr_commands", "PgrepCommand"),
+    "useradd": ("usr_commands", "UseraddCommand"),
+    "usermod": ("usr_commands", "UsermodCommand"),
+    "userdel": ("usr_commands", "UserdelCommand"),
+    "groupadd": ("usr_commands", "GroupaddCommand"),
+    "groupdel": ("usr_commands", "GroupdelCommand"),
+    "groupmod": ("usr_commands", "GroupmodCommand"),
+    "chfn": ("usr_commands", "ChfnCommand"),
+    "chsh": ("usr_commands", "ChshCommand"),
+    "chage": ("usr_commands", "ChageCommand"),
+    "gpasswd": ("usr_commands", "GpasswdCommand"),
+    "newgrp": ("usr_commands", "NewgrpCommand"),
+    "mesg": ("usr_commands", "MesgCommand"),
+    "last": ("usr_commands", "LastCommand"),
+    "lastlog": ("usr_commands", "LastlogCommand"),
+    "patch": ("usr_commands", "PatchCommand"),
+    "locate": ("usr_commands", "LocateCommand"),
+    "updatedb": ("usr_commands", "UpdatedbCommand"),
 }
 
 
