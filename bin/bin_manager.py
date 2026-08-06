@@ -434,6 +434,53 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "yum-daemon": ("usr_sbin_cmds", "YUMDAEMONCommand"),
     "zdump": ("usr_share", "ZDUMPCommand"),
     "zic": ("usr_share", "ZICCommand"),
+    # usr_libexec.py - FHS 3.0 §4.2.6
+    "libexec": ("usr_libexec", "LIBEXECCommand"),
+    "pppoe-discovery": ("usr_libexec", "PPPODCommand"),
+    "sendmail.libexec": ("usr_libexec", "SENDMAILCommand"),
+    "lpd.conf": ("usr_libexec", "LPDCCommand"),
+    "miniupnpd": ("usr_libexec", "MINIUPNPCCommand"),
+    # usr_libqual.py - FHS 3.0 §4.2.3
+    "lib64": ("usr_libqual", "LIB64Command"),
+    "lib32": ("usr_libqual", "LIB32Command"),
+    "libx32": ("usr_libqual", "LIBX32Command"),
+    # usr_share_color.py - FHS 3.0 §4.11.3
+    "color-profiles": ("usr_share_color", "COLORPROFILESCommand"),
+    "colormgr": ("usr_share_color", "COLORMANAGERCommand"),
+    "oyranos-monitor": ("usr_share_color", "OYRANOSCommand"),
+    # usr_share_dict.py - FHS 3.0 §4.11.4
+    "look": ("usr_share_dict", "DICTCommand"),
+    "dict-ls": ("usr_share_dict", "DICLSCommand"),
+    "ispell": ("usr_share_dict", "ISpellCommand"),
+    "aspell": ("usr_share_dict", "ASpellCommand"),
+    "hunspell": ("usr_share_dict", "HUNSPELLCommand"),
+    # usr_share_doc.py - FHS 3.0 §4.11.5
+    "doc-dir": ("usr_share_doc", "DOCDIRCommand"),
+    "doc-list": ("usr_share_doc", "LSCOMMAND"),
+    "pkg-doc-info": ("usr_share_doc", "PKGDOCCOMMAND"),
+    "pkg-changes": ("usr_share_doc", "PKGCHANGESCommand"),
+    # usr_share_games.py - FHS 3.0 §4.11.6
+    "game-data": ("usr_share_games", "GAMEDATADIRCommand"),
+    "nethack-data": ("usr_share_games", "NETHACKCommand"),
+    "mahjongg-data": ("usr_share_games", "MAHJOCommand"),
+    # usr_share_info.py - FHS 3.0 §4.11.7
+    "info-dir": ("usr_share_info", "INFODIRCommand"),
+    "info-pages": ("usr_share_info", "INFODIR2Command"),
+    "makeinfo-texi": ("usr_share_info", "MAKEINFOCommand"),
+    # usr_share_locale.py - FHS 3.0 §4.11.8
+    "locale-dir": ("usr_share_locale", "LOCALEDIRCommand"),
+    "locale-list": ("usr_share_locale", "LOCALELISTCommand"),
+    "gettext": ("usr_share_locale", "GETTEXTCommand"),
+    "msgfmt": ("usr_share_locale", "MSGFMTCommand"),
+    "msgunfmt": ("usr_share_locale", "MSGUNFMTCommand"),
+    # usr_share_nls.py - FHS 3.0 §4.11.9
+    "nls-dir": ("usr_share_nls", "NLSCommand"),
+    "nls-list": ("usr_share_nls", "NLSLISTCommand"),
+    # usr_share_ppd.py - FHS 3.0 §4.11.10
+    "ppd-dir": ("usr_share_ppd", "PPDDIRCommand"),
+    "lpadmin": ("usr_share_ppd", "LPADMINCommand"),
+    "lpinfo": ("usr_share_ppd", "LPINFOCommand"),
+    "foomatic": ("usr_share_ppd", "FOOMATICCommand"),
 }
 
 
