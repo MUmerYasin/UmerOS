@@ -199,9 +199,40 @@ class X11R6LibModulesCommand(Command):
     privileges = ["user"]
 
     def execute(self, *args):
+        if args and args[0] in ("-h", "--help"):
+            return (
+                "Usage: x11r6-lib-modules [options]\n"
+                "Display X11R6 modules directory contents.\n"
+                "\nOptions:\n"
+                "  -l, --long    Show detailed module info\n"
+                "  -c, --categories  Group by module category\n"
+            )
+        if args and args[0] in ("-l", "--long"):
+            return (
+                "/usr/X11R6/lib/modules: 8 module categories\n"
+                "  video4linux/     12 modules  Video capture devices\n"
+                "  drivers/         24 modules  GPU drivers (nvidia, ati, intel)\n"
+                "  extensions/      18 modules  X extension modules\n"
+                "  input/           15 modules  Input device drivers\n"
+                "  libglx.so         2.4M  GLX extension module\n"
+                "  libdri.so         840K  DRI extension module\n"
+                "  libglx_nvidia.so  4.2M  NVIDIA GLX module\n"
+                "  libglx_mesa.so    1.8M  Mesa GLX module\n"
+            )
+        if args and args[0] in ("-c", "--categories"):
+            return (
+                "Module categories:\n"
+                "  video4linux/     Video capture (v4l, radio, tv)\n"
+                "  drivers/         GPU drivers (nvidia, ati, intel, nouveau)\n"
+                "  extensions/      X extensions (glx, dri, randr, composite)\n"
+                "  input/           Input drivers (keyboard, mouse, synaptics)\n"
+                "  libglx.so        GLX module (main)\n"
+                "  libdri.so        DRI module (main)\n"
+            )
         return (
             "/usr/X11R6/lib/modules/ - X11 loadable modules\n"
             "  video4linux, DRI, GLX extensions, input device drivers\n"
+            "  Use --long for detailed listing, --categories for grouping\n"
         )
 
 
@@ -214,10 +245,54 @@ class X11R6FontsCommand(Command):
     privileges = ["user"]
 
     def execute(self, *args):
+        if args and args[0] in ("-h", "--help"):
+            return (
+                "Usage: x11r6-fonts [options]\n"
+                "Display X11R6 fonts directory contents.\n"
+                "\nOptions:\n"
+                "  -l, --long       Show detailed font info\n"
+                "  -f, --families   List font families\n"
+                "  --stats          Show font statistics\n"
+            )
+        if args and args[0] in ("-l", "--long"):
+            return (
+                "/usr/X11R6/lib/X11/fonts: 6 font directories\n"
+                "  Type1/           845 fonts   PostScript Type 1 fonts\n"
+                "  TrueType/       1230 fonts   TrueType fonts\n"
+                "  Misc/            312 fonts   Miscellaneous bitmap fonts\n"
+                "  75dpi/           286 fonts   75 DPI bitmap fonts\n"
+                "  100dpi/          286 fonts   100 DPI bitmap fonts\n"
+                "  CID/             145 fonts   CID-keyed fonts\n"
+                "\n"
+                "  Total:          3104 fonts\n"
+                "  Encoding:       UTF-8\n"
+                "  Server:         xfs (X Font Server)\n"
+            )
+        if args and args[0] in ("-f", "--families"):
+            return (
+                "Font families:\n"
+                "  Type1:         Courier, Helvetica, Times-Roman, Symbol,\n"
+                "                 ZapfDingbats, Palatino, Bookman, Century\n"
+                "  TrueType:      DejaVu Sans, DejaVu Serif, Liberation Sans,\n"
+                "                 Liberation Serif, Liberation Mono, Noto Sans\n"
+                "  Misc:          cursor, fixed, term, lucidatypewriter\n"
+                "  75dpi/100dpi:  various bitmap sizes\n"
+            )
+        if args and args[0] in ("--stats",):
+            return (
+                "Font statistics:\n"
+                "  Total fonts:    3104\n"
+                "  Type1:          845 (27%)\n"
+                "  TrueType:      1230 (40%)\n"
+                "  Bitmap:         1029 (33%)\n"
+                "  Families:        48\n"
+                "  Total size:    124.5 MB\n"
+            )
         return (
             "/usr/X11R6/lib/X11/fonts/ - X11 fonts\n"
             "  Type1/, TrueType/, Misc/, 75dpi/, 100dpi/\n"
             "  Managed by xfs (X Font Server)\n"
+            "  Use --long for details, --families for list, --stats for info\n"
         )
 
 
@@ -230,9 +305,54 @@ class X11R6DocCommand(Command):
     privileges = ["user"]
 
     def execute(self, *args):
+        if args and args[0] in ("-h", "--help"):
+            return (
+                "Usage: x11r6-doc [options]\n"
+                "Display X11R6 documentation directory contents.\n"
+                "\nOptions:\n"
+                "  -l, --long       Show detailed doc info\n"
+                "  --topics         List documentation topics\n"
+                "  --search TERM    Search docs by keyword\n"
+            )
+        if args and args[0] in ("-l", "--long"):
+            return (
+                "/usr/X11R6/lib/X11/doc: 42 documentation files\n"
+                "  PROTOCOL/          X protocol specifications\n"
+                "    PROTOCOL         Core X11 protocol (187 pages)\n"
+                "    RandR            RandR extension protocol\n"
+                "    GLX              GLX extension protocol\n"
+                "  LIB/               Library documentation\n"
+                "    libX11           Xlib programming manual\n"
+                "    libXt            Xt toolkit reference\n"
+                "  FONTS/             Font documentation\n"
+                "    fonts.txt        Font naming conventions\n"
+                "  HOWTOs/            Configuration guides\n"
+                "    xorg.conf        X server config guide\n"
+                "  Total size:        4.2 MB\n"
+            )
+        if args and args[0] in ("--topics",):
+            return (
+                "Documentation topics:\n"
+                "  PROTOCOL          X11 protocol specs (core + extensions)\n"
+                "  LIB               Library APIs (Xlib, Xt, Xmu, Xft)\n"
+                "  FONTS             Font handling and configuration\n"
+                "  HOWTOs            Setup and configuration guides\n"
+                "  FAQ               Frequently asked questions\n"
+                "  CONTRIBUTING      Developer guidelines\n"
+            )
+        if args and args[0] in ("--search",) and len(args) > 1:
+            term = args[1]
+            return (
+                f"Searching docs for '{term}'...\n"
+                f"Found 3 matches:\n"
+                f"  PROTOCOL/PROTOCOL - line 45: {term}\n"
+                f"  LIB/libX11.txt - line 12: {term}\n"
+                f"  HOWTOs/xorg.conf - line 8: {term}\n"
+            )
         return (
             "/usr/X11R6/lib/X11/doc/ - X11 documentation\n"
             "  Protocol specs, library docs, font docs\n"
+            "  Use --long for details, --topics for index, --search TERM\n"
         )
 
 
@@ -245,6 +365,69 @@ class XorgCommand(Command):
     privileges = ["user"]
 
     def execute(self, *args):
+        if args and args[0] in ("-h", "--help"):
+            return (
+                "Usage: xorg [options]\n"
+                "X.Org X Window System server.\n"
+                "\nOptions:\n"
+                "  --version       Show X server version\n"
+                "  --config FILE   Use specified config file\n"
+                "  -configure       Generate xorg.conf\n"
+                "  -listvideo       List available video drivers\n"
+                "  -query           Query connected displays\n"
+            )
         if args and args[0] == "--version":
-            return "X.Org X Server 1.21.1.8\n"
-        return "xorg: X server not available in headless UmerOS\n"
+            return (
+                "X.Org X Server 1.21.1.8\n"
+                "Release Date: 2022-10-15\n"
+                "X Protocol Version 11, Revision 0\n"
+                "Build Operating System: Linux 5.15.0 x86_64\n"
+                "Current OS: UmerOS 1.0 (Unix-like)\n"
+            )
+        if args and args[0] in ("-configure",):
+            return (
+                "Generating xorg.conf...\n"
+                "Section \"Device\"\n"
+                "    Identifier  \"Default Device\"\n"
+                "    Driver      \"modesetting\"\n"
+                "EndSection\n"
+                "Section \"Monitor\"\n"
+                "    Identifier  \"Default Monitor\"\n"
+                "    HorizSync    28.0-160.0\n"
+                "    VertRefresh  48.0-75.0\n"
+                "EndSection\n"
+                "Section \"Screen\"\n"
+                "    Identifier  \"Default Screen\"\n"
+                "    Device      \"Default Device\"\n"
+                "    Monitor     \"Default Monitor\"\n"
+                "    DefaultDepth 24\n"
+                "EndSection\n"
+                "Configuration saved to /etc/X11/xorg.conf\n"
+            )
+        if args and args[0] in ("--config",) and len(args) > 1:
+            return f"xorg: using config file '{args[1]}'\n"
+        if args and args[0] in ("-listvideo",):
+            return (
+                "Available video drivers:\n"
+                "  modesetting    - Kernel mode setting (default)\n"
+                "  intel          - Intel integrated graphics\n"
+                "  amdgpu         - AMD GPU (GCN/RDNA)\n"
+                "  radeon         - AMD legacy (RADEON/R100-R700)\n"
+                "  nouveau        - NVIDIA (open source)\n"
+                "  nvidia         - NVIDIA (proprietary)\n"
+                "  fbdev          - Framebuffer device\n"
+                "  vesa           - VESA BIOS Emulation\n"
+            )
+        if args and args[0] in ("-query",):
+            return (
+                "Connected displays:\n"
+                "  DP-1:          connected (1920x1080@60Hz)\n"
+                "  HDMI-1:        disconnected\n"
+                "  DP-2:          disconnected\n"
+            )
+        return (
+            "xorg: X server not available in headless UmerOS\n"
+            "  Use --version to check version\n"
+            "  Use -configure to generate xorg.conf\n"
+            "  Use -listvideo to list video drivers\n"
+        )
