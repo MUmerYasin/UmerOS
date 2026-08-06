@@ -1721,6 +1721,23 @@ class FindmntCommand(ShellCommand):
             "└─/dev  devtmpfs devtmpfs rw,nosuid,mode=755"
         )
 
+class DuCommand(ShellCommand):
+    name = "du"
+    help_text = "Estimate file and directory space usage"
+    category = "Disk Usage"
+    
+    def execute(self, ctx, args):
+        target = args[0] if args else "."
+        return (
+            f"4\t{target}\n"
+            f"12\t{target}/kernel\n"
+            f"8\t{target}/ui\n"
+            f"4\t{target}/usr\n"
+            f"4\t{target}/boot\n"
+            f"4\t{target}/tests\n"
+            f"36\t{target}"
+        )
+
 # ============================================================================
 # 12. SSH & REMOTE COMMANDS
 # ============================================================================
@@ -1764,6 +1781,43 @@ class TelnetCommand(ShellCommand):
     def execute(self, ctx, args):
         host = args[0] if args else "127.0.0.1"
         return f"Trying {host}...\nConnected to {host}.\nEscape character is '^]'."
+
+# ============================================================================
+# 12B. PERMISSION COMMANDS
+# ============================================================================
+
+class ChmodCommand(ShellCommand):
+    name = "chmod"
+    help_text = "Change file mode bits (e.g. chmod 755 file)"
+    category = "Permissions"
+    
+    def execute(self, ctx, args):
+        if len(args) < 2: return "chmod: missing operand"
+        mode, path = args[0], args[-1]
+        return f"chmod: changed permissions of '{path}' to {mode}"
+
+class ChownCommand(ShellCommand):
+    name = "chown"
+    help_text = "Change file owner and group"
+    category = "Permissions"
+    
+    def execute(self, ctx, args):
+        if len(args) < 2: return "chown: missing operand"
+        owner, path = args[0], args[-1]
+        return f"chown: changed ownership of '{path}' to {owner}"
+
+# ============================================================================
+# 12C. KERNEL MODULE COMMAND
+# ============================================================================
+
+class InsmodCommand(ShellCommand):
+    name = "insmod"
+    help_text = "Insert a kernel module"
+    category = "SSH & Remote"
+    
+    def execute(self, ctx, args):
+        if not args: return "usage: insmod <module>"
+        return f"insmod: inserted module '{args[0]}' successfully"
 
 # ============================================================================
 # 13. VARIABLE & SHELL MANAGEMENT COMMANDS
@@ -1859,6 +1913,40 @@ class AtCommand(ShellCommand):
     category = "Variables & Shell"
     def execute(self, ctx, args):
         return "job 1 at " + time.strftime("%H:%M")
+
+
+# ============================================================================
+# 13B. CLEAR, HELP, MAN COMMANDS
+# ============================================================================
+
+class ClearCommand(ShellCommand):
+    name = "clear"
+    help_text = "Clear the terminal screen"
+    category = "Variables & Shell"
+    def execute(self, ctx, args):
+        return "\033[2J\033[H"
+
+class HelpCommand(ShellCommand):
+    name = "help"
+    help_text = "Display available commands and their descriptions"
+    category = "Variables & Shell"
+    def execute(self, ctx, args):
+        lines = ["UmerOS Shell — available commands:", ""]
+        for cmd in sorted(COMMANDS, key=lambda c: c.name):
+            lines.append(f"  {cmd.name:<20} {cmd.help_text}")
+        return "\n".join(lines)
+
+class ManCommand(ShellCommand):
+    name = "man"
+    help_text = "Display manual page for a command"
+    category = "Variables & Shell"
+    def execute(self, ctx, args):
+        if not args: return "What manual page do you want?"
+        cmd_name = args[0]
+        cmd_obj = ctx.registry.get(cmd_name)
+        if cmd_obj is None:
+            return f"No manual entry for {cmd_name}"
+        return f"{cmd_name}(1) — {cmd_obj.help_text}\n\nCategory: {cmd_obj.category}"
 
 
 # Network Commands

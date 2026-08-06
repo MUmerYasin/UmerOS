@@ -35,7 +35,7 @@ class _FileManagerAppState extends State<FileManagerApp> {
       {'name': '.config', 'type': 'folder', 'icon': Icons.folder, 'size': '--'},
       {'name': 'README.md', 'type': 'file', 'icon': Icons.description, 'size': '2.4 KB'},
       {'name': 'config.json', 'type': 'file', 'icon': Icons.code, 'size': '1.1 KB'},
-      {'name': 'script.sh', 'type': 'file', 'icon: Icons.terminal, 'size': '512 B'},
+      {'name': 'script.sh', 'type': 'file', 'icon': Icons.terminal, 'size': '512 B'},
     ],
     '/home/user/Documents': [
       {'name': 'report.pdf', 'type': 'file', 'icon': Icons.picture_as_pdf, 'size': '1.2 MB'},
