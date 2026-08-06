@@ -481,6 +481,41 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "lpadmin": ("usr_share_ppd", "LPADMINCommand"),
     "lpinfo": ("usr_share_ppd", "LPINFOCommand"),
     "foomatic": ("usr_share_ppd", "FOOMATICCommand"),
+
+    # usr_share_sgml.py - FHS 3.0 §4.11.11
+    "sgml-dir": ("usr_share_sgml", "SgmlDirCommand"),
+    "sgml-catalog": ("usr_share_sgml", "SgmlCatalogCommand"),
+    "docbook": ("usr_share_sgml", "DocbookCommand"),
+    "sgml-entities": ("usr_share_sgml", "SgmlEntitiesCommand"),
+
+    # usr_share_xml.py - FHS 3.0 §4.11.12
+    "xml-dir": ("usr_share_xml", "XmlDirCommand"),
+    "xmlcatalog": ("usr_share_xml", "XmlCatalogCommand"),
+    "xml-core": ("usr_share_xml", "XmlCoreCommand"),
+    "xml-docbook": ("usr_share_xml", "XmlDocBookCommand"),
+
+    # usr_share_templates.py - FHS 3.0 §4.11.13
+    "templates-dir": ("usr_share_templates", "TemplatesDirCommand"),
+    "template-list": ("usr_share_templates", "TemplateListCommand"),
+    "template-show": ("usr_share_templates", "TemplateShowCommand"),
+
+    # usr_include.py - new header commands
+    "linux-asm": ("usr_include", "LinuxAsmCommand"),
+    "drm-headers": ("usr_include", "DrmHeadersCommand"),
+    "mtd-headers": ("usr_include", "MtdHeadersCommand"),
+    "rdma-headers": ("usr_include", "RdmaHeadersCommand"),
+    "sound-headers": ("usr_include", "SoundHeadersCommand"),
+    "video-headers": ("usr_include", "VideoHeadersCommand"),
+
+    # usr_local.py - new share sub-commands
+    "local-share-color": ("usr_local", "LOCALSHARECOLORCommand"),
+    "local-share-sgml": ("usr_local", "LOCALSHARESGMLCommand"),
+    "local-share-xml": ("usr_local", "LOCALSHAREXMLCommand"),
+    "local-share-templates": ("usr_local", "LOCALSHARETEMPLATESCommand"),
+
+    # usr_share.py - new commands
+    "tmac": ("usr_share", "TMACCommand"),
+    "usr-share-locale": ("usr_share", "LocaleCommand"),
 }
 
 

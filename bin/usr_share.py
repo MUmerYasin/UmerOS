@@ -232,3 +232,50 @@ class FAQCommand(Command):
 
     def execute(self, *args):
         return "faq: FAQ documentation (simulated)\n"
+
+
+# ─── Groff Macro Packages (FHS 3.0 §4.11) ────────────────────────────────────
+
+
+class TMACCommand(Command):
+    """Display groff macro packages."""
+
+    name = "tmac"
+    description = "Display groff macro package directory"
+    category = "text"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/share/tmac/ - Groff macro packages\n"
+            "  FHS 3.0 §4.11: /usr/share contains tmac for groff\n"
+            "  tmac.an    - Man page macros (traditional)\n"
+            "  tmac.mdoc  - Man page macros (BSD mdoc)\n"
+            "  tmac.mandoc - Mandoc-compatible macros\n"
+            "  tmac.www   - HTML conversion macros\n"
+            "  tmac.texi  - Texinfo conversion macros\n"
+            "  Usage: Referenced by groff/man when formatting\n"
+        )
+
+
+class LocaleCommand(Command):
+    """Display /usr/share/locale directory structure."""
+
+    name = "usr-share-locale"
+    description = "Display /usr/share/locale directory structure"
+    category = "system"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        if not args:
+            return (
+                "LANG=en_US.UTF-8\n"
+                "LC_CTYPE=en_US.UTF-8\n"
+                "LC_NUMERIC=en_US.UTF-8\n"
+                "LC_TIME=en_US.UTF-8\n"
+                "LC_COLLATE=en_US.UTF-8\n"
+                "LC_MONETARY=en_US.UTF-8\n"
+                "LC_MESSAGES=en_US.UTF-8\n"
+                "LC_ALL=\n"
+            )
+        return f"locale: Displaying locale for {args[0]} (simulated)\n"

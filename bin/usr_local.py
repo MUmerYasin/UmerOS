@@ -193,3 +193,90 @@ class LOCALSRCCommand(Command):
             "  Build directories\n"
             "  Not managed by the package manager\n"
         )
+
+
+# ─── Local Share - Color Management (FHS 3.0 §4.11.3) ─────────────────────
+
+
+class LOCALSHARECOLORCommand(Command):
+    """Display /usr/local/share/color profiles."""
+
+    name = "local-share-color"
+    description = "Display /usr/local/share/color profile directory"
+    category = "system"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/local/share/color/\n"
+            "  FHS 3.0 §4.11.3: Required if /usr/share/color exists\n"
+            "  colord/     - Color profiles (local installs)\n"
+            "  icc/        - ICC color profiles\n"
+            "  Used by: colord, sane, printing systems\n"
+            "  Not managed by the package manager\n"
+        )
+
+
+# ─── Local Share - SGML (FHS 3.0 §4.11.11) ──────────────────────────────────
+
+
+class LOCALSHARESGMLCommand(Command):
+    """Display /usr/local/share/sgml contents."""
+
+    name = "local-share-sgml"
+    description = "Display /usr/local/share/sgml contents"
+    category = "system"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/local/share/sgml/\n"
+            "  FHS 3.0 §4.11.11: Local SGML data files\n"
+            "  docbook/    - Local DocBook DTDs and stylesheets\n"
+            "  dsssl/      - Local DSSSL stylesheets\n"
+            "  catalog     - Local SGML catalog file\n"
+            "  Not managed by the package manager\n"
+        )
+
+
+# ─── Local Share - XML (FHS 3.0 §4.11.12) ───────────────────────────────────
+
+
+class LOCALSHAREXMLCommand(Command):
+    """Display /usr/local/share/xml contents."""
+
+    name = "local-share-xml"
+    description = "Display /usr/local/share/xml contents"
+    category = "system"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/local/share/xml/\n"
+            "  FHS 3.0 §4.11.12: Local XML data files\n"
+            "  docbook/    - Local DocBook XML catalogs and DTDs\n"
+            "  entity/     - Local XML entity definitions\n"
+            "  catalog     - Local XML catalog file\n"
+            "  Not managed by the package manager\n"
+        )
+
+
+# ─── Local Share - Templates (FHS 3.0 §4.11.13) ─────────────────────────────
+
+
+class LOCALSHARETEMPLATESCommand(Command):
+    """Display /usr/local/share/templates contents."""
+
+    name = "local-share-templates"
+    description = "Display /usr/local/share/templates contents"
+    category = "system"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/local/share/templates/\n"
+            "  FHS 3.0 §4.11.13: Local default configuration templates\n"
+            "  Contains template files for local applications\n"
+            "  Used as starting points for new configurations\n"
+            "  Not managed by the package manager\n"
+        )

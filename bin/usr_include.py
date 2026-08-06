@@ -93,3 +93,119 @@ class CpuConfigCommand(Command):
             "/usr/include/x86_64-linux-gnu/ - x86_64 headers\n"
             "  Architecture-specific system headers.\n"
         )
+
+
+class LinuxAsmCommand(Command):
+    """Linux asm/ headers - architecture-specific kernel interfaces."""
+
+    name = "linux-asm"
+    description = "Linux asm/ headers - architecture-specific kernel interfaces"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/include/asm/ - Architecture-specific kernel headers\n"
+            "  FHS 3.0 §6.1.8: /usr/include/asm/ is a symlink to\n"
+            "  asm-generic/ or arch-specific asm/ directory\n"
+            "  Subdirectories:\n"
+            "    asm/       - Symlink to asm-generic/ or arch-specific\n"
+            "    asm-generic/ - Generic ASM definitions\n"
+            "    drm/       - Direct Rendering Manager headers\n"
+            "    linux/     - Linux kernel headers\n"
+            "    misc/      - Miscellaneous kernel headers\n"
+            "    mtd/       - Memory Technology Device headers\n"
+            "    rdma/      - RDMA subsystem headers\n"
+            "    sound/     - ALSA sound system headers\n"
+            "    video/     - Video device headers\n"
+        )
+
+
+class DrmHeadersCommand(Command):
+    """DRM (Direct Rendering Manager) headers."""
+
+    name = "drm-headers"
+    description = "DRM (Direct Rendering Manager) header files"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/include/drm/ - Direct Rendering Manager headers\n"
+            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  drm.h, drm_mode.h, drm_sarea.h, ...\n"
+            "  Used by: Graphics drivers, Mesa, libdrm\n"
+            "  Provides: GPU/rendering device interface definitions\n"
+        )
+
+
+class MtdHeadersCommand(Command):
+    """MTD (Memory Technology Device) headers."""
+
+    name = "mtd-headers"
+    description = "MTD (Memory Technology Device) header files"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/include/mtd/ - Memory Technology Device headers\n"
+            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  mtd-user.h, mtd-abi.h, ...\n"
+            "  Used by: Flash memory drivers, MTD subsystem\n"
+            "  Provides: NAND/NOR flash interface definitions\n"
+        )
+
+
+class RdmaHeadersCommand(Command):
+    """RDMA subsystem headers."""
+
+    name = "rdma-headers"
+    description = "RDMA subsystem header files"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/include/rdma/ - RDMA subsystem headers\n"
+            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  rdma_user_cm.h, ib_userverbs.h, ...\n"
+            "  Used by: InfiniBand, RoCE, iWARP drivers\n"
+            "  Provides: Remote Direct Memory Access definitions\n"
+        )
+
+
+class SoundHeadersCommand(Command):
+    """ALSA sound system headers."""
+
+    name = "sound-headers"
+    description = "ALSA sound system header files"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/include/sound/ - ALSA sound system headers\n"
+            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  soundcard.h, asound.h, ...\n"
+            "  Used by: ALSA drivers, audio applications\n"
+            "  Provides: Sound card interface definitions\n"
+        )
+
+
+class VideoHeadersCommand(Command):
+    """Video device headers."""
+
+    name = "video-headers"
+    description = "Video device header files"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/include/video/ - Video device headers\n"
+            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  video_decoder.h, video_encoder.h, ...\n"
+            "  Used by: Video4Linux drivers, capture apps\n"
+            "  Provides: Video device interface definitions\n"
+        )
