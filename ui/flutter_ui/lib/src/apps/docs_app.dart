@@ -86,7 +86,7 @@ class _DocsAppState extends State<DocsApp> {
   };
 
   // Page content
-  final Map<String, Map<String, String>> _pageContent = {
+  final Map<String, Map<String, dynamic>> _pageContent = {
     'installation': {
       'title': 'Installation',
       'content': '''
@@ -628,7 +628,7 @@ UmerOS implements defense in depth:
 
 ## Reporting Vulnerabilities
 Email security@umeros.org with PGP encryption.
-Bug bounty: $100 - $10,000 based on severity.
+Bug bounty: \$100 - \$10,000 based on severity.
 ''',
       'sections': ['Security Model', 'Threat Categories', 'Reporting Vulnerabilities'],
     },

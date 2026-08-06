@@ -20,6 +20,14 @@ class _TextEditorAppState extends State<TextEditorApp> {
   int _charCount = 0;
   String _languageMode = 'Plain Text';
 
+  // Simulated file system for Open/Save
+  static final Map<String, String> _fileSystem = {
+    'hello.txt': 'Hello from UmerOS!\nThis is a sample text file.',
+    'notes.md': '# Notes\n\n- Build UmerOS\n- Fix bugs\n- Ship it',
+    'main.dart': 'void main() {\n  print("Hello, UmerOS!");\n}',
+    'readme.txt': 'UmerOS Text Editor\n==================\nA lightweight text editor built with Flutter.',
+  };
+
   final List<Map<String, dynamic>> _openFiles = [
     {'name': 'untitled.txt', 'content': '', 'modified': false},
   ];
@@ -96,6 +104,103 @@ class _TextEditorAppState extends State<TextEditorApp> {
     });
   }
 
+  void _openFile() {
+    final existing = _fileSystem.keys.toList();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Open File'),
+        content: SizedBox(
+          width: 360,
+          child: existing.isEmpty
+              ? const Text('No files in the virtual file system.')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: existing.length,
+                  itemBuilder: (_, i) {
+                    final name = existing[i];
+                    final preview = _fileSystem[name] ?? '';
+                    return ListTile(
+                      leading: const Icon(Icons.description, size: 20),
+                      title: Text(name, style: const TextStyle(fontSize: 14)),
+                      subtitle: Text(
+                        preview.length > 60 ? '${preview.substring(0, 60)}...' : preview,
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      dense: true,
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        setState(() {
+                          _openFiles[_activeTabIndex]['content'] = _textController.text;
+                          _openFiles.add({
+                            'name': name,
+                            'content': _fileSystem[name] ?? '',
+                            'modified': false,
+                          });
+                          _activeTabIndex = _openFiles.length - 1;
+                          _textController.text = _fileSystem[name] ?? '';
+                        });
+                      },
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _saveFile() {
+    final content = _textController.text;
+    final name = _openFiles[_activeTabIndex]['name'];
+    _fileSystem[name] = content;
+    setState(() {
+      _openFiles[_activeTabIndex]['modified'] = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Saved: $name'),
+        duration: const Duration(seconds: 1),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _findNext() {
+    if (_findText.isEmpty) return;
+    final text = _textController.text;
+    final idx = text.indexOf(_findText);
+    if (idx >= 0) {
+      _textController.selection = TextSelection(baseOffset: idx, extentOffset: idx + _findText.length);
+    }
+  }
+
+  void _replaceOne() {
+    if (_findText.isEmpty) return;
+    final text = _textController.text;
+    final sel = _textController.selection;
+    if (sel.isValid && text.substring(sel.start, sel.end) == _findText) {
+      final newText = text.substring(0, sel.start) + _replaceText + text.substring(sel.end);
+      _textController.text = newText;
+      _textController.selection = TextSelection(baseOffset: sel.start, extentOffset: sel.start + _replaceText.length);
+    } else {
+      _findNext();
+    }
+  }
+
+  void _replaceAll() {
+    if (_findText.isEmpty) return;
+    final newText = _textController.text.replaceAll(_findText, _replaceText);
+    _textController.text = newText;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -131,8 +236,8 @@ class _TextEditorAppState extends State<TextEditorApp> {
       child: Row(
         children: [
           _toolButton(Icons.add, 'New', _newFile, colorScheme),
-          _toolButton(Icons.folder_open, 'Open', () {}, colorScheme),
-          _toolButton(Icons.save, 'Save', () {}, colorScheme),
+          _toolButton(Icons.folder_open, 'Open', _openFile, colorScheme),
+          _toolButton(Icons.save, 'Save', _saveFile, colorScheme),
           const SizedBox(width: 8),
           Container(width: 1, height: 24, color: colorScheme.outline.withValues(alpha: 0.3)),
           const SizedBox(width: 8),
@@ -208,14 +313,19 @@ class _TextEditorAppState extends State<TextEditorApp> {
           ),
           const SizedBox(width: 8),
           IconButton(
+            icon: const Icon(Icons.search, size: 18),
+            tooltip: 'Find Next',
+            onPressed: _findNext,
+          ),
+          IconButton(
             icon: const Icon(Icons.arrow_forward, size: 18),
             tooltip: 'Replace',
-            onPressed: () {},
+            onPressed: _replaceOne,
           ),
           IconButton(
             icon: const Icon(Icons.find_replace, size: 18),
             tooltip: 'Replace All',
-            onPressed: () {},
+            onPressed: _replaceAll,
           ),
           IconButton(
             icon: const Icon(Icons.close, size: 18),

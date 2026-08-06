@@ -1640,8 +1640,16 @@ class UmerOSMainWindow(QMainWindow):
         }
 
         self._build_menu_bar()
-        self._build_desktop()
-        self._build_dock()
+
+        # Central layout: dock on top, desktop below
+        central = QWidget()
+        central_lay = QVBoxLayout(central)
+        central_lay.setContentsMargins(0, 0, 0, 0)
+        central_lay.setSpacing(0)
+        self._build_dock(central_lay)
+        self._build_desktop(central_lay)
+        self.setCentralWidget(central)
+
         self._build_status_bar()
 
         # LaunchPad
@@ -1714,7 +1722,7 @@ class UmerOSMainWindow(QMainWindow):
         )
 
     # ── Desktop ───────────────────────────────────────────────────
-    def _build_desktop(self) -> None:
+    def _build_desktop(self, parent_layout: QVBoxLayout) -> None:
         desktop = QWidget()
         grid = QGridLayout(desktop)
         grid.setSpacing(16)
@@ -1744,10 +1752,10 @@ class UmerOSMainWindow(QMainWindow):
             spacer = QWidget()
             spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             grid.addWidget(spacer, idx // 4, idx % 4)
-        self.setCentralWidget(desktop)
+        parent_layout.addWidget(desktop, 1)
 
     # ── Dock ──────────────────────────────────────────────────────
-    def _build_dock(self) -> None:
+    def _build_dock(self, parent_layout: QVBoxLayout) -> None:
         dock = QFrame()
         dock.setFixedHeight(64)
         dock.setStyleSheet(
@@ -1777,14 +1785,7 @@ class UmerOSMainWindow(QMainWindow):
             dock_layout.addWidget(btn_frame)
         dock_layout.addStretch()
         self.statusBar().setVisible(False)
-        # Add dock above status bar area
-        dock_container = QWidget()
-        dock_container.setFixedHeight(64)
-        container_lay = QVBoxLayout(dock_container)
-        container_lay.setContentsMargins(0, 0, 0, 0)
-        container_lay.addWidget(dock)
-        # We'll use setMenuWidget for the dock
-        self.setMenuWidget(dock_container)
+        parent_layout.addWidget(dock)
 
     # ── Status Bar ────────────────────────────────────────────────
     def _build_status_bar(self) -> None:

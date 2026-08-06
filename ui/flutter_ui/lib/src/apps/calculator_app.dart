@@ -101,12 +101,7 @@ class _CalculatorAppState extends State<CalculatorApp> {
       String expr = _expression;
       expr = expr.replaceAll('×', '*').replaceAll('÷', '/');
       expr = expr.replaceAll('²', '**2');
-      expr = expr.replaceAll('sin(', '$_sinFunction(');
-      expr = expr.replaceAll('cos(', '$_cosFunction(');
-      expr = expr.replaceAll('tan(', '$_tanFunction(');
-      expr = expr.replaceAll('log(', '$_logFunction(');
-      expr = expr.replaceAll('ln(', '$_lnFunction(');
-      expr = expr.replaceAll('sqrt(', '$_sqrtFunction(');
+      // Scientific functions are handled by _parseAtom's switch statement
       final result = _evaluateExpression(expr);
       final resultStr = result == result.roundToDouble()
           ? result.toInt().toString()

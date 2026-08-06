@@ -169,7 +169,7 @@ UmerOS Terminal Commands:
         final parts = _currentPath.split('/');
         if (parts.length > 1) {
           parts.removeLast();
-          _currentPath = parts.join('/') || '/';
+          _currentPath = parts.join('/').isEmpty ? '/' : parts.join('/');
         }
       } else if (target.startsWith('/')) {
         _currentPath = target;

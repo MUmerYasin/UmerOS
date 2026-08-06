@@ -270,7 +270,7 @@ class _FileManagerAppState extends State<FileManagerApp> {
               _navigateTo('$_currentPath/${file['name']}');
             }
           },
-          onDoubleTap: () {
+          onLongPress: () {
             if (file['type'] == 'folder') {
               _navigateTo('$_currentPath/${file['name']}');
             }

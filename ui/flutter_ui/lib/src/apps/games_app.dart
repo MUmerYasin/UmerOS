@@ -1302,7 +1302,7 @@ class _MemoryGameState extends State<MemoryGame> {
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: _resetGame,
-                  icon: const Icon(Icons.play_again),
+                  icon: const Icon(Icons.replay),
                   label: const Text('Play Again'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
