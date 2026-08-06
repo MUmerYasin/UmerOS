@@ -77,7 +77,7 @@ class SlCommand(Command):
 
 
 class XeyesCommand(Command):
-    """X11 eyes that follow the mouse."""
+    """X11 eyes that follow the mouse (ASCII art fallback)."""
 
     name = "xeyes"
     description = "X11 eyes that follow the mouse cursor"
@@ -85,11 +85,22 @@ class XeyesCommand(Command):
     privileges = ["user"]
 
     def execute(self, *args):
-        return "xeyes: X display not available in headless UmerOS\n"
+        if args and args[0] in ("-version", "--version", "-v"):
+            return "xeyes 1.2.1 (UmerOS ASCII fallback)\n"
+        eyes = r"""
+    __________
+   /          \
+  |  .____.  .____.  |
+  |  |    |  |    |  |
+  |  '----'  '----'  |
+  |        __        |
+  \________|________/
+"""
+        return "xeyes: displaying ASCII eyes (no X11 in headless UmerOS)\n" + eyes
 
 
 class XclockCommand(Command):
-    """X11 clock display."""
+    """X11 clock display (ASCII art fallback)."""
 
     name = "xclock"
     description = "X11 clock display"
@@ -97,11 +108,25 @@ class XclockCommand(Command):
     privileges = ["user"]
 
     def execute(self, *args):
-        return "xclock: X display not available in headless UmerOS\n"
+        if args and args[0] in ("-version", "--version", "-v"):
+            return "xclock 1.1.1 (UmerOS ASCII fallback)\n"
+        from datetime import datetime
+        now = datetime.now()
+        h, m = now.hour % 12, now.minute
+        clock_art = f"""
+         _______
+        /       \\
+       /  {h:2d}:{m:2d}   \\
+      |         |
+      |    |    |
+       \\       /
+        \\_____/
+"""
+        return "xclock: displaying ASCII clock (no X11 in headless UmerOS)\n" + clock_art
 
 
 class XtermCommand(Command):
-    """X11 terminal emulator."""
+    """X11 terminal emulator (stub)."""
 
     name = "xterm"
     description = "X11 terminal emulator"
@@ -109,11 +134,13 @@ class XtermCommand(Command):
     privileges = ["user"]
 
     def execute(self, *args):
+        if args and args[0] in ("-version", "--version", "-v"):
+            return "xterm 388 (UmerOS stub)\n"
         return "xterm: X display not available in headless UmerOS\n"
 
 
 class NcursesDemoCommand(Command):
-    """ncurses terminal demo."""
+    """ncurses terminal demo (ASCII widget showcase)."""
 
     name = "ncurses-demo"
     description = "ncurses terminal display demo"
@@ -121,4 +148,19 @@ class NcursesDemoCommand(Command):
     privileges = ["user"]
 
     def execute(self, *args):
-        return "ncurses-demo: ncurses demo not available in UmerOS\n"
+        if args and args[0] in ("-version", "--version", "-v"):
+            return "ncurses-demo 6.4 (UmerOS ASCII demo)\n"
+        demo = (
+            "+--- ncurses Widget Demo ---+\n"
+            "| Progress: [=========>    ] 75%\n"
+            "| Status:   RUNNING           \n"
+            "| Items:                     \n"
+            "|   [*] Item 1 (selected)    \n"
+            "|   [ ] Item 2               \n"
+            "|   [*] Item 3 (selected)    \n"
+            "|   [ ] Item 4               \n"
+            "| Slider:  [=====>          ] \n"
+            "| Input:   [Hello World    ] \n"
+            "+----------------------------+\n"
+        )
+        return "ncurses-demo: ASCII widget demo (no ncurses in headless UmerOS)\n" + demo
