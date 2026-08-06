@@ -11,7 +11,7 @@ include this directory.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 class TemplatesDirCommand(Command):

@@ -7,7 +7,7 @@ user space source code. Package-specific headers go in /usr/include/<pkg>.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 class IncludeDirCommand(Command):

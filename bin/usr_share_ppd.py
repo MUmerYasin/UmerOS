@@ -9,7 +9,7 @@ files used by printing systems to configure printers.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 # ─── PPD Printer Definitions ─────────────────────────────────────────────────

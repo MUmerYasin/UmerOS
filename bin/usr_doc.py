@@ -7,7 +7,7 @@ Now located at /usr/share/doc, symlinked from /usr/doc.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 class DocCommand(Command):

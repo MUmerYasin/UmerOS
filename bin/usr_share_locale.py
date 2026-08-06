@@ -9,7 +9,7 @@ represents a locale, containing LC_* category data.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 # ─── Locale Data ─────────────────────────────────────────────────────────────

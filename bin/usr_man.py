@@ -7,7 +7,7 @@ Now located at /usr/share/man, symlinked from /usr/man.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 class ManCmdCommand(Command):
@@ -98,3 +98,146 @@ class UsrWhatisCommand(Command):
         if not args:
             return "Usage: whatis command\n"
         return f"{args[0]} - {args[0]} command in UmerOS\n"
+
+
+# ─── Man Page Configuration ─────────────────────────────────────────────────
+
+
+class ManConfCommand(Command):
+    """Display /etc/man_db.conf or /etc/man.conf configuration."""
+
+    name = "man-conf"
+    description = "Display man page database configuration"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/etc/man_db.conf - Manual page configuration\n"
+            "  MANDB_MAP /usr/local/man /usr/local/share/man\n"
+            "  MANDB_MAP /usr/share/man /usr/share/man\n"
+            "  MANDB_MAP /usr/man /usr/share/man\n"
+            "  MANDB_MAP /usr/local/lib/*/man /usr/local/share/man\n"
+            "  MANDB_MAP /opt/*/man /opt/*/share/man\n"
+            "\n"
+            "Section directories: man1 man2 man3 man4 man5 man6 man7 man8 man9 man0\n"
+            "Gzip compression: .gz files supported\n"
+            "Cat pages: cached preformatted pages in cat1/...cat8/\n"
+        )
+
+
+class ManGlobCommand(Command):
+    """Glob-based manual page path search."""
+
+    name = "man-glob"
+    description = "Show manual page glob patterns for section lookup"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "Man page glob patterns:\n"
+            "  /usr/share/man/man{1..8}/{cmd}.{1..8}.gz\n"
+            "  /usr/share/man/cat{1..8}/{cmd}.{1..8}.gz\n"
+            "  /usr/local/man/man{1..8}/{cmd}.{1..8}.gz\n"
+            "  /usr/man/man{1..8}/{cmd}.{1..8}.gz\n"
+            "\n"
+            "Search order: /usr/local/man > /usr/share/man > /usr/man\n"
+            "Sections: 1 8 3 2 4 5 6 7 9 0 l n\n"
+        )
+
+
+class ManLocalCommand(Command):
+    """Local man page extensions (/etc/man.local)."""
+
+    name = "man-local"
+    description = "Local man page configuration overrides"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/etc/man.local - Local man page configuration\n"
+            "  Defines site-specific manual page sections and paths.\n"
+            "  Example entries:\n"
+            "    MANDB_MAP /opt/custom/man /opt/custom/share/man\n"
+            "    MANDB_MAP /usr/local/lib/*/man /usr/local/share/man\n"
+            "\n"
+            "  Used by mandb(8) to rebuild the manual page database.\n"
+            "  Local administrator creates this file to add custom\n"
+            "  man page search paths not provided by packages.\n"
+        )
+
+
+class ManNlsCommand(Command):
+    """NLS (National Language Support) manual pages."""
+
+    name = "man-nls"
+    description = "Manual page NLS (National Language Support) directories"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/share/man/NLS/ - Localized manual pages\n"
+            "  NLS man pages organized by locale:\n"
+            "    en/   - English (default)\n"
+            "    de/   - German\n"
+            "    fr/   - French\n"
+            "    es/   - Spanish\n"
+            "    ja/   - Japanese\n"
+            "    zh_CN/ - Simplified Chinese\n"
+            "\n"
+            "  Path pattern: /usr/share/man/<locale>/man<N>/<page>.<N>.gz\n"
+            "  Controlled by MANDB_MAP in /etc/man_db.conf\n"
+        )
+
+
+class ManGroffTmacCommand(Command):
+    """Groff macro packages for man page formatting."""
+
+    name = "man-groff-tmac"
+    description = "Groff macro packages used by man page system"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/share/groff/<ver>/tmac/ - Groff macro packages\n"
+            "  man.tmac        - Man page macros (man(7) interface)\n"
+            "  andoc.tmac      - Auto-detect nroff/troff doc type\n"
+            "  mdoc.tmac       - BSD mdoc macros (alternative to man.tmac)\n"
+            "  mdoc.an.tmac    - mdoc man page macros\n"
+            "  www.tmac        - HTML generation macros\n"
+            "  pdfroff.tmac    - PDF output macros\n"
+            "\n"
+            "  man.tmac loads: www.tmac, andoc.tmac\n"
+            "  Used by: groff -man, mandoc, nroff -man\n"
+        )
+
+
+class ManGroffCommand(Command):
+    """Groff document formatting system."""
+
+    name = "man-groff"
+    description = "Groff document formatting system for man pages"
+    category = "usr"
+    privileges = ["user"]
+
+    def execute(self, *args):
+        return (
+            "/usr/bin/groff - GNU troff document formatting system\n"
+            "  Used to render man pages from source to terminal/PostScript/PDF\n"
+            "\n"
+            "  Key components:\n"
+            "    troff   - Core formatter\n"
+            "    nroff   - Terminal-oriented formatter\n"
+            "    groff   - Front-end driver (selects troff/nroff)\n"
+            "    grohtml - HTML output driver\n"
+            "    grops   - PostScript output driver\n"
+            "    gropdf  - PDF output driver\n"
+            "\n"
+            "  Man page rendering pipeline:\n"
+            "    man cmd → groff -man -Tutf8 file.1 → pager\n"
+        )
+

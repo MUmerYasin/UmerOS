@@ -9,7 +9,7 @@ Info pages are typically generated from Texinfo source.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 # ─── Info System ─────────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ catalog and related utilities.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 class XmlDirCommand(Command):

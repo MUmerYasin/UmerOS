@@ -10,7 +10,7 @@ These directories are not present on non-multilib systems.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 # ─── Lib64 ───────────────────────────────────────────────────────────────────

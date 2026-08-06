@@ -10,7 +10,7 @@ CHANGES, LICENSE, and other documentation files.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 # ─── Documentation ───────────────────────────────────────────────────────────

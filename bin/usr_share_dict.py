@@ -9,7 +9,7 @@ Used by spell-checkers and word games.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 # ─── Word Lists ──────────────────────────────────────────────────────────────

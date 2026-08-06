@@ -9,7 +9,7 @@ used by older libc5 systems. Modern systems use /usr/share/locale.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 # ─── NLS Catalogs ────────────────────────────────────────────────────────────

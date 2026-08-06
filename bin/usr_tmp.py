@@ -7,7 +7,7 @@ Was created as a consequence of Linux's UNIX heritage.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 class UsrTmpCommand(Command):

@@ -10,7 +10,7 @@ internally by programs and are not typically invoked directly.
 
 from __future__ import annotations
 
-from ..core.command import Command
+from core.command import Command
 
 
 # ─── Libexec Binaries ────────────────────────────────────────────────────────
