@@ -3,22 +3,12 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List
 from quantum.quantum_sim import QuantumCircuitSimulator, QuantumDevice
-from .quantum_sim import QuantumSim
 
 log = logging.getLogger("UmerOS.QuantumAPI")
 
-class QuantumAPI:
-    def __init__(self):
-        self.simulator = QuantumSim(num_qubits=4)
-
-    def generate_random_seed(self):
-        # Simulate measuring a superposition state to generate entropy
-        return self.simulator.measure()
-
 
 class QuantumAPIGateway:
-    def __init__(self, default_qubits: int = 4):
-        self._sim = QuantumCircuitSimulator(n_qubits=default_qubits)
+    def __init__(self):
         self._backends: Dict[str, QuantumDevice] = {}
         self._default = "simulator"
 
@@ -78,4 +68,4 @@ class QuantumAPIGateway:
 
     def status(self) -> dict:
         return {"default_backend": self._default, "available_backends": self.list_backends(),
-                "simulator_qubits": self._sim.n_qubits}
+                "simulator_qubits": "dynamic"}
