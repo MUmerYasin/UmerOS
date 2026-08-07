@@ -17,7 +17,11 @@ import importlib
 import os
 import sys
 import time
+import traceback as _tb_mod
 from dataclasses import dataclass, field
+
+# Fixed crash log path (not dependent on __file__ which breaks in PyInstaller)
+_CRASH_LOG = os.path.join(os.path.expanduser("~"), "umeros_crash.log")
 from enum import Enum, auto
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -1354,8 +1358,7 @@ class BootWindow(_AppWindow):
         except Exception:
             pass
         try:
-            _log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "umeros_crash.log")
-            with open(_log, "a", encoding="utf-8") as f:
+            with open(_CRASH_LOG, "a", encoding="utf-8") as f:
                 f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
         except Exception:
             pass
@@ -1640,7 +1643,7 @@ class LaunchPadOverlay(QWidget):
             name_lbl.setStyleSheet("background:transparent; font-size:11px;")
             frame_lay.addWidget(icon_lbl)
             frame_lay.addWidget(name_lbl)
-            frame.clicked.connect(lambda _, k=key: self._on_click(k))
+            frame.clicked.connect(lambda k=key: self._on_click(k))
             grid.addWidget(frame, i // 4, i % 4)
         bg_lay.addLayout(grid)
         layout.addWidget(bg)
@@ -1819,7 +1822,7 @@ class UmerOSMainWindow(QMainWindow):
             name_lbl.setStyleSheet("background:transparent; font-size:11px;")
             frame_lay.addWidget(icon_lbl)
             frame_lay.addWidget(name_lbl)
-            frame.clicked.connect(lambda _, k=key: self._open_app(k))
+            frame.clicked.connect(lambda k=key: self._open_app(k))
             grid.addWidget(frame, i // 4, i % 4)
         # Fill remaining grid cells with spacers
         for idx in range(len(DESKTOP_APPS), 16):
@@ -1851,7 +1854,7 @@ class UmerOSMainWindow(QMainWindow):
             btn = QPushButton(f" {name[:4]} ")
             btn.setFixedSize(48, 36)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda _, k=key: self._open_app(k))
+            btn.clicked.connect(lambda k=key: self._open_app(k))
             lbl = QLabel(name[:6])
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             btn_lay.addWidget(btn)
@@ -1888,8 +1891,6 @@ class UmerOSMainWindow(QMainWindow):
 
     # ── Window Management ─────────────────────────────────────────
     def _open_app(self, key: str) -> None:
-        import traceback as _tb
-        _log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "umeros_crash.log")
         try:
             self._log(f"[DEBUG] _open_app called for key={key}")
             if key in self._windows:
@@ -1926,9 +1927,9 @@ class UmerOSMainWindow(QMainWindow):
             self._log(f"[DEBUG] _open_app completed successfully")
         except Exception as exc:
             try:
-                with open(_log, "a", encoding="utf-8") as f:
+                with open(_CRASH_LOG, "a", encoding="utf-8") as f:
                     f.write(f"\n[CRASH] _open_app({key}): {exc}\n")
-                    f.write("".join(_tb.format_exception(type(exc), exc, exc.__traceback__)))
+                    f.write("".join(_tb_mod.format_exception(type(exc), exc, exc.__traceback__)))
                     f.write("\n")
             except Exception:
                 pass
@@ -1939,16 +1940,34 @@ class UmerOSMainWindow(QMainWindow):
 # ║                        ENTRY POINT                              ║
 # ╚══════════════════════════════════════════════════════════════════╝
 def main() -> None:
-    import traceback as _tb
+    from PyQt6.QtCore import qInstallMessageHandler, QtMsgType
 
-    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "umeros_crash.log")
+    def _qt_msg_handler(msg_type, context, message):
+        """Catch Qt debug/warning/critical/fatal messages."""
+        tag = {QtMsgType.QtDebugMsg: "DEBUG", QtMsgType.QtWarningMsg: "WARN",
+               QtMsgType.QtCriticalMsg: "CRITICAL", QtMsgType.QtFatalMsg: "FATAL",
+               QtMsgType.QtInfoMsg: "INFO"}.get(msg_type, "?")
+        try:
+            with open(_CRASH_LOG, "a", encoding="utf-8") as f:
+                f.write(f"[QT {tag}] {message}\n")
+        except Exception:
+            pass
+        if msg_type == QtMsgType.QtFatalMsg:
+            # Prevent qFatal from killing the process
+            try:
+                with open(_CRASH_LOG, "a", encoding="utf-8") as f:
+                    f.write("[QT] qFatal intercepted — app would have crashed here\n")
+            except Exception:
+                pass
+
+    qInstallMessageHandler(_qt_msg_handler)
 
     def _excepthook(exc_type, exc_value, exc_tb):
         try:
-            with open(log_path, "a", encoding="utf-8") as f:
+            with open(_CRASH_LOG, "a", encoding="utf-8") as f:
                 f.write(f"\n{'='*60}\n")
                 f.write(f"Unhandled exception: {exc_type.__name__}: {exc_value}\n")
-                f.write("".join(_tb.format_exception(exc_type, exc_value, exc_tb)))
+                f.write("".join(_tb_mod.format_exception(exc_type, exc_value, exc_tb)))
                 f.write(f"{'='*60}\n")
         except Exception:
             pass
