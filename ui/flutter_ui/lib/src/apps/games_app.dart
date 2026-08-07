@@ -149,7 +149,6 @@ class _GamesAppState extends State<GamesApp> {
     required Color color,
   }) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Card(
       elevation: 3,
@@ -165,8 +164,8 @@ class _GamesAppState extends State<GamesApp> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                color.withOpacity(0.15),
-                color.withOpacity(0.05),
+                color.withValues(alpha: 0.15),
+                color.withValues(alpha: 0.05),
               ],
             ),
           ),
@@ -234,8 +233,8 @@ class _GamesAppState extends State<GamesApp> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.orange.withOpacity(0.15),
-                Colors.orange.withOpacity(0.05),
+                Colors.orange.withValues(alpha: 0.15),
+                Colors.orange.withValues(alpha: 0.05),
               ],
             ),
           ),
@@ -323,7 +322,7 @@ class _GamesAppState extends State<GamesApp> {
       elevation: 1,
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Colors.orange.withOpacity(0.2),
+          backgroundColor: Colors.orange.withValues(alpha: 0.2),
           child: const Icon(Icons.games, color: Colors.orange),
         ),
         title: Text(game['name']!, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -377,7 +376,7 @@ class _GamesAppState extends State<GamesApp> {
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: Colors.teal.withOpacity(0.2),
+              backgroundColor: Colors.teal.withValues(alpha: 0.2),
               child: Icon(p['icon'] as IconData, color: Colors.teal),
             ),
             title: Text(p['name'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -859,8 +858,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> {
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           decoration: BoxDecoration(
             color: _currentPlayer == 'X'
-                ? Colors.blue.withOpacity(0.2)
-                : Colors.red.withOpacity(0.2),
+                ? Colors.blue.withValues(alpha: 0.2)
+                : Colors.red.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -902,8 +901,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> {
                       decoration: BoxDecoration(
                         color: isWinning
                             ? (_winner == 'X'
-                                ? Colors.blue.withOpacity(0.3)
-                                : Colors.red.withOpacity(0.3))
+                                ? Colors.blue.withValues(alpha: 0.3)
+                                : Colors.red.withValues(alpha: 0.3))
                             : (isDark ? Colors.grey[800] : Colors.grey[200]),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
@@ -968,8 +967,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> {
             margin: const EdgeInsets.symmetric(horizontal: 32),
             decoration: BoxDecoration(
               color: _winner.isNotEmpty
-                  ? (_winner == 'X' ? Colors.blue.withOpacity(0.1) : Colors.red.withOpacity(0.1))
-                  : Colors.grey.withOpacity(0.1),
+                  ? (_winner == 'X' ? Colors.blue.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1))
+                  : Colors.grey.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: _winner.isNotEmpty
@@ -1011,9 +1010,9 @@ class _TicTacToeGameState extends State<TicTacToeGame> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -1225,7 +1224,7 @@ class _MemoryGameState extends State<MemoryGame> {
                       decoration: BoxDecoration(
                         color: isFlipped
                             ? (_matched[index]
-                                ? Colors.green.withOpacity(0.2)
+                                ? Colors.green.withValues(alpha: 0.2)
                                 : isDark
                                     ? Colors.grey[700]
                                     : Colors.white)
@@ -1239,7 +1238,7 @@ class _MemoryGameState extends State<MemoryGame> {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
+                            color: Colors.black.withValues(alpha: 0.2),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -1257,7 +1256,7 @@ class _MemoryGameState extends State<MemoryGame> {
                               : Icon(
                                   Icons.question_mark,
                                   key: ValueKey('back_$index'),
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                   size: 24,
                                 ),
                         ),
@@ -1278,7 +1277,7 @@ class _MemoryGameState extends State<MemoryGame> {
             margin: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [Colors.green.withOpacity(0.2), Colors.teal.withOpacity(0.2)],
+                colors: [Colors.green.withValues(alpha: 0.2), Colors.teal.withValues(alpha: 0.2)],
               ),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.green),

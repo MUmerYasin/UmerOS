@@ -6,7 +6,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   battery_plus
   connectivity_plus
   file_selector_windows
-  firebase_core
   geolocator_windows
   location
   permission_handler_windows

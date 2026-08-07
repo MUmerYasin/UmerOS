@@ -925,7 +925,7 @@ umer-ai hub push --model=my-custom-model
         color: isDark ? Colors.grey[850] : Theme.of(context).primaryColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -958,7 +958,7 @@ umer-ai hub push --model=my-custom-model
             child: Container(
               height: 36,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+                color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: TextField(
@@ -966,8 +966,8 @@ umer-ai hub push --model=my-custom-model
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Search documentation...',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.6)),
-                  prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.6), size: 20),
+                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+                  prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.6), size: 20),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
@@ -982,7 +982,7 @@ umer-ai hub push --model=my-custom-model
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Text(
@@ -1103,7 +1103,7 @@ umer-ai hub push --model=my-custom-model
                   child: ListTile(
                     dense: true,
                     selected: isSelected,
-                    selectedTileColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                    selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                     title: Text(
                       page.value,
                       style: TextStyle(

@@ -15,8 +15,8 @@ class _SystemMonitorAppState extends State<SystemMonitorApp> {
   double _diskUsage = 0;
   double _networkIn = 0;
   double _networkOut = 0;
-  List<double> _cpuHistory = [];
-  List<double> _memoryHistory = [];
+  final List<double> _cpuHistory = [];
+  final List<double> _memoryHistory = [];
   int _selectedTab = 0;
 
   @override

@@ -13,8 +13,8 @@ class _TextEditorAppState extends State<TextEditorApp> {
   bool _showFindReplace = false;
   String _findText = '';
   String _replaceText = '';
-  int _currentLine = 1;
-  int _currentCol = 1;
+  final int _currentLine = 1;
+  final int _currentCol = 1;
   int _lineCount = 1;
   int _wordCount = 0;
   int _charCount = 0;

@@ -14,7 +14,6 @@ class DraggableWindow extends StatefulWidget {
 
 class _DraggableWindowState extends State<DraggableWindow> {
   bool _isDragging = false;
-  Offset _dragOffset = Offset.zero;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +49,6 @@ class _DraggableWindowState extends State<DraggableWindow> {
       child: GestureDetector(
         onPanStart: (details) {
           _isDragging = true;
-          _dragOffset = details.localPosition;
           appState.openWindow(
             id: widget.window.id,
             title: widget.window.title,

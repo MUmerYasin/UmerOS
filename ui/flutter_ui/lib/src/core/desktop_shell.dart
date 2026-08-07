@@ -92,8 +92,7 @@ class _DesktopShellState extends State<DesktopShell> {
                   // Windows
                   ...appState.windows
                       .where((w) => !w.isMinimized)
-                      .map((w) => DraggableWindow(window: w))
-                      .toList(),
+                      .map((w) => DraggableWindow(window: w)),
                 ],
               ),
             ),

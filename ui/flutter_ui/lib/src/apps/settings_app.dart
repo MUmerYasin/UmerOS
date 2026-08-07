@@ -197,7 +197,7 @@ class _SettingsAppState extends State<SettingsApp> {
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
-                  value: _dockPosition,
+                  initialValue: _dockPosition,
                   decoration: const InputDecoration(
                     labelText: 'Dock Position',
                     border: OutlineInputBorder(),
@@ -246,7 +246,7 @@ class _SettingsAppState extends State<SettingsApp> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _sleepTimer,
+                  initialValue: _sleepTimer,
                   decoration: const InputDecoration(
                     labelText: 'Sleep Timer',
                     border: OutlineInputBorder(),
@@ -277,7 +277,7 @@ class _SettingsAppState extends State<SettingsApp> {
             child: Column(
               children: [
                 DropdownButtonFormField<String>(
-                  value: _resolution,
+                  initialValue: _resolution,
                   decoration: const InputDecoration(
                     labelText: 'Resolution',
                     border: OutlineInputBorder(),
@@ -290,7 +290,7 @@ class _SettingsAppState extends State<SettingsApp> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _refreshRate,
+                  initialValue: _refreshRate,
                   decoration: const InputDecoration(
                     labelText: 'Refresh Rate',
                     border: OutlineInputBorder(),
@@ -401,7 +401,7 @@ class _SettingsAppState extends State<SettingsApp> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _proxyMode,
+                  initialValue: _proxyMode,
                   decoration: const InputDecoration(
                     labelText: 'Proxy Mode',
                     border: OutlineInputBorder(),
@@ -414,7 +414,7 @@ class _SettingsAppState extends State<SettingsApp> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _dnsServer,
+                  initialValue: _dnsServer,
                   decoration: const InputDecoration(
                     labelText: 'DNS Server',
                     border: OutlineInputBorder(),
