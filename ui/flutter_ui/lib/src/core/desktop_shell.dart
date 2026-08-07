@@ -90,9 +90,8 @@ class _DesktopShellState extends State<DesktopShell> {
                     ),
                   ),
 
-                  // Windows
+                  // Windows (minimized ones hidden via Offstage, state preserved)
                   ...appState.windows
-                      .where((w) => !w.isMinimized)
                       .map((w) => DraggableWindow(window: w)),
                 ],
               ),

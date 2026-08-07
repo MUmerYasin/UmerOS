@@ -20,25 +20,29 @@ class _DraggableWindowState extends State<DraggableWindow> {
     final appState = context.watch<AppState>();
     final isActive = appState.activeWindowId == widget.window.id;
 
+    // Minimized windows stay in the tree (preserving child state) but are hidden via Offstage
     if (widget.window.isMaximized) {
       return Positioned.fill(
-        child: Material(
-          color: Colors.transparent,
-          child: Column(
-            children: [
-              WindowTitleBar(
-                title: widget.window.title,
-                icon: widget.window.icon,
-                windowId: widget.window.id,
-                isMaximized: true,
-              ),
-              Expanded(
-                child: Container(
-                  color: Theme.of(context).colorScheme.surface,
-                  child: widget.window.child,
+        child: Offstage(
+          offstage: widget.window.isMinimized,
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              children: [
+                WindowTitleBar(
+                  title: widget.window.title,
+                  icon: widget.window.icon,
+                  windowId: widget.window.id,
+                  isMaximized: true,
                 ),
-              ),
-            ],
+                Expanded(
+                  child: Container(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: widget.window.child,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -47,62 +51,65 @@ class _DraggableWindowState extends State<DraggableWindow> {
     return Positioned(
       left: widget.window.position.dx,
       top: widget.window.position.dy,
-      child: GestureDetector(
-        onPanStart: (details) {
-          _isDragging = true;
-          appState.openWindow(
-            id: widget.window.id,
-            title: widget.window.title,
-            icon: widget.window.icon,
-            child: widget.window.child,
-          );
-        },
-        onPanUpdate: (details) {
-          if (_isDragging) {
-            appState.moveWindow(widget.window.id, details.delta);
-          }
-        },
-        onPanEnd: (_) {
-          _isDragging = false;
-        },
-        child: MouseRegion(
-          cursor: _isDragging ? SystemMouseCursors.move : MouseCursor.defer,
-          child: Container(
-            width: widget.window.size.width,
-            height: widget.window.size.height,
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isActive
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
-                width: isActive ? 2 : 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isActive ? 0.4 : 0.2),
-                  blurRadius: isActive ? 24 : 12,
-                  spreadRadius: isActive ? 2 : 0,
+      child: Offstage(
+        offstage: widget.window.isMinimized,
+        child: GestureDetector(
+          onPanStart: (details) {
+            _isDragging = true;
+            appState.openWindow(
+              id: widget.window.id,
+              title: widget.window.title,
+              icon: widget.window.icon,
+              child: widget.window.child,
+            );
+          },
+          onPanUpdate: (details) {
+            if (_isDragging) {
+              appState.moveWindow(widget.window.id, details.delta);
+            }
+          },
+          onPanEnd: (_) {
+            _isDragging = false;
+          },
+          child: MouseRegion(
+            cursor: _isDragging ? SystemMouseCursors.move : MouseCursor.defer,
+            child: Container(
+              width: widget.window.size.width,
+              height: widget.window.size.height,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isActive
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+                  width: isActive ? 2 : 1,
                 ),
-              ],
-            ),
-            child: Column(
-              children: [
-                WindowTitleBar(
-                  title: widget.window.title,
-                  icon: widget.window.icon,
-                  windowId: widget.window.id,
-                ),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(12),
-                    ),
-                    child: widget.window.child,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isActive ? 0.4 : 0.2),
+                    blurRadius: isActive ? 24 : 12,
+                    spreadRadius: isActive ? 2 : 0,
                   ),
-                ),
-              ],
+                ],
+              ),
+              child: Column(
+                children: [
+                  WindowTitleBar(
+                    title: widget.window.title,
+                    icon: widget.window.icon,
+                    windowId: widget.window.id,
+                  ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(12),
+                      ),
+                      child: widget.window.child,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
