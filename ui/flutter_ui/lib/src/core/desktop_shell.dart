@@ -19,6 +19,7 @@ import '../apps/security_app.dart';
 import '../apps/boot_manager_app.dart';
 import '../apps/games_app.dart';
 import '../apps/docs_app.dart';
+import '../apps/browser_app.dart';
 
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
@@ -121,6 +122,13 @@ class _DesktopShellState extends State<DesktopShell> {
 
   List<DockItem> _getDockItems() {
     return [
+      DockItem(
+        id: 'browser',
+        label: 'Browser',
+        icon: Icons.language,
+        color: Colors.blue,
+        onTap: () => _openApp('browser', 'Browser', Icons.language, const BrowserApp()),
+      ),
       DockItem(
         id: 'terminal',
         label: 'Terminal',
@@ -339,6 +347,7 @@ class _DesktopGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final apps = [
+      _DesktopApp('Browser', Icons.language, Colors.blue, 'browser', const BrowserApp()),
       _DesktopApp('Terminal', Icons.terminal, Colors.teal, 'terminal', const TerminalApp()),
       _DesktopApp('Files', Icons.folder, Colors.blue, 'files', const FileManagerApp()),
       _DesktopApp('Monitor', Icons.monitor, Colors.green, 'monitor', const SystemMonitorApp()),
@@ -421,6 +430,7 @@ class _LaunchPad extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final apps = [
+      _LaunchApp('Browser', Icons.language, Colors.blue, 'browser', const BrowserApp()),
       _LaunchApp('Terminal', Icons.terminal, Colors.teal, 'terminal', const TerminalApp()),
       _LaunchApp('File Manager', Icons.folder, Colors.blue, 'files', const FileManagerApp()),
       _LaunchApp('System Monitor', Icons.monitor, Colors.green, 'monitor', const SystemMonitorApp()),
