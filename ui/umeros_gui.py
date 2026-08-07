@@ -1881,6 +1881,8 @@ class UmerOSMainWindow(QMainWindow):
     def _open_app(self, key: str) -> None:
         if key in self._windows:
             w = self._windows[key]
+            if not w.isVisible():
+                w.show()
             if w.isMinimized():
                 w.showNormal()
             w.raise_()
@@ -1889,13 +1891,16 @@ class UmerOSMainWindow(QMainWindow):
         cls = self._window_classes.get(key)
         if not cls:
             return
-        win = cls(parent=self)
+        win = cls(parent=None)
         win.setWindowTitle(f"{APP_NAME} — {win.windowTitle()}")
+        win.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
         win.destroyed.connect(lambda _, k=key: self._windows.pop(k, None))
         self._windows[key] = win
         win.show()
         win.raise_()
         win.activateWindow()
+        self.raise_()
+        self.activateWindow()
 
 
 # ╔══════════════════════════════════════════════════════════════════╗
