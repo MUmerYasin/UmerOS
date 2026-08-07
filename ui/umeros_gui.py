@@ -1889,7 +1889,7 @@ class UmerOSMainWindow(QMainWindow):
         cls = self._window_classes.get(key)
         if not cls:
             return
-        win = cls(parent=None)
+        win = cls(parent=self)
         win.setWindowTitle(f"{APP_NAME} — {win.windowTitle()}")
         win.destroyed.connect(lambda _, k=key: self._windows.pop(k, None))
         self._windows[key] = win
