@@ -746,6 +746,7 @@ class FilesWindow(_AppWindow):
         status_bar.addWidget(self.status_label)
         lay.addLayout(status_bar)
         self._history_stack: List[str] = ["/"]
+        self._skip_history_push = False
         self._navigate()
 
     def _navigate(self) -> None:
@@ -756,14 +757,17 @@ class FilesWindow(_AppWindow):
             item = QTreeWidgetItem([name, "dir" if "." not in name else "file", "—"])
             self.tree.addTopLevelItem(item)
         self.status_label.setText(f"{len(entries)} items — Path: {path}")
-        if not self._history_stack or self._history_stack[-1] != path:
-            self._history_stack.append(path)
+        if not self._skip_history_push:
+            if not self._history_stack or self._history_stack[-1] != path:
+                self._history_stack.append(path)
+        self._skip_history_push = False
 
     def _go_back(self) -> None:
         if len(self._history_stack) > 1:
             self._history_stack.pop()
             prev = self._history_stack[-1]
             self.path_edit.setText(prev)
+            self._skip_history_push = True
             self._navigate()
 
     def _on_double_click(self, item: QTreeWidgetItem, _col: int) -> None:
@@ -928,6 +932,13 @@ class SettingsWindow(_AppWindow):
         lay.addLayout(btn_row)
         lay.addStretch()
         self._settings = QSettings(ORG_NAME, APP_NAME)
+        self._load_settings()
+
+    def _load_settings(self) -> None:
+        theme = self._settings.value("theme", "dark")
+        self.theme_combo.setCurrentIndex(0 if theme == "dark" else 1)
+        font_size = self._settings.value("font_size", 11, type=int)
+        self.font_spin.setValue(font_size)
 
     def _apply(self) -> None:
         mode = ThemeMode.DARK if self.theme_combo.currentIndex() == 0 else ThemeMode.LIGHT
@@ -968,13 +979,37 @@ class EditorWindow(_AppWindow):
         self.editor.setFont(QFont("Cascadia Mono, Consolas", 11))
         lay.addWidget(self.editor, 1)
         self._current_path: Optional[str] = None
+        self._modified = False
+        self.editor.textChanged.connect(self._on_text_changed)
+
+    def _on_text_changed(self) -> None:
+        self._modified = True
+
+    def _mark_saved(self) -> None:
+        self._modified = False
+
+    def _confirm_discard(self) -> bool:
+        if not self._modified:
+            return True
+        ret = QMessageBox.question(
+            self, "Unsaved Changes",
+            "You have unsaved changes. Discard?",
+            QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        return ret == QMessageBox.StandardButton.Discard
 
     def _new(self) -> None:
+        if not self._confirm_discard():
+            return
         self.editor.clear()
         self.file_label.setText("Untitled")
         self._current_path = None
+        self._modified = False
 
     def _open(self) -> None:
+        if not self._confirm_discard():
+            return
         path, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*)")
         if path:
             try:
@@ -982,6 +1017,7 @@ class EditorWindow(_AppWindow):
                     self.editor.setPlainText(f.read())
                 self.file_label.setText(path)
                 self._current_path = path
+                self._modified = False
             except Exception as exc:
                 QMessageBox.warning(self, "Error", str(exc))
 
@@ -990,6 +1026,7 @@ class EditorWindow(_AppWindow):
             try:
                 with open(self._current_path, "w", encoding="utf-8") as f:
                     f.write(self.editor.toPlainText())
+                self._mark_saved()
             except Exception as exc:
                 QMessageBox.warning(self, "Error", str(exc))
         else:
@@ -1007,9 +1044,16 @@ class EditorWindow(_AppWindow):
         if ok and path:
             data = self.editor.toPlainText()
             if bridge.fs_write(path, data):
+                self._mark_saved()
                 QMessageBox.information(self, "QFS", f"Saved to {path}")
             else:
                 QMessageBox.warning(self, "QFS", f"Failed to save to {path}")
+
+    def closeEvent(self, event) -> None:
+        if self._confirm_discard():
+            event.accept()
+        else:
+            event.ignore()
 
 
 # ── Package Manager ────────────────────────────────────────────────
@@ -1298,6 +1342,10 @@ class BootWindow(_AppWindow):
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         lay.addWidget(self.progress)
+        self._boot_steps = []
+        self._boot_idx = 0
+        self._boot_timer = QTimer(self)
+        self._boot_timer.timeout.connect(self._boot_tick)
 
     def _log(self, msg: str) -> None:
         self.boot_log.appendPlainText(f"[{time.strftime('%H:%M:%S')}] {msg}")
@@ -1305,7 +1353,7 @@ class BootWindow(_AppWindow):
     def _start_boot(self) -> None:
         self.boot_log.clear()
         self.progress.setValue(0)
-        steps = [
+        self._boot_steps = [
             (10, "Initializing hardware abstraction layer…"),
             (20, "Loading kernel modules…"),
             (35, "Starting scheduler…"),
@@ -1317,15 +1365,23 @@ class BootWindow(_AppWindow):
             (95, "Starting GUI shell…"),
             (100, "Boot complete."),
         ]
-        for pct, msg in steps:
-            self.progress.setValue(pct)
-            self._log(msg)
-        if boot_kernel:
-            try:
-                boot_kernel()  # type: ignore[misc]
-            except Exception as exc:
-                self._log(f"Kernel boot error: {exc}")
-        self._log("System ready.")
+        self._boot_idx = 0
+        self._boot_timer.start(300)
+
+    def _boot_tick(self) -> None:
+        if self._boot_idx >= len(self._boot_steps):
+            self._boot_timer.stop()
+            if boot_kernel:
+                try:
+                    boot_kernel()  # type: ignore[misc]
+                except Exception as exc:
+                    self._log(f"Kernel boot error: {exc}")
+            self._log("System ready.")
+            return
+        pct, msg = self._boot_steps[self._boot_idx]
+        self.progress.setValue(pct)
+        self._log(msg)
+        self._boot_idx += 1
 
     def _show_legal(self) -> None:
         if show_legal_warning:
@@ -1390,9 +1446,8 @@ class GamesWindow(_AppWindow):
             btn.setText("")
         self.ttt_status.setText("X's turn")
 
-    @staticmethod
-    def _check_ttt_win(player: str) -> bool:
-        b = GamesWindow._ttt_state if hasattr(GamesWindow, "_ttt_state") else [""] * 9
+    def _check_ttt_win(self, player: str) -> bool:
+        b = self._ttt_state
         wins = [(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]
         return any(b[i] == b[j] == b[k] == player for i,j,k in wins)
 
@@ -1673,28 +1728,37 @@ class UmerOSMainWindow(QMainWindow):
     # ── Menu Bar ──────────────────────────────────────────────────
     def _build_menu_bar(self) -> None:
         mb = self.menuBar()
+
+        def _make_action(text: str, slot=None, shortcut: str | None = None) -> QAction:
+            a = QAction(text, self)
+            if shortcut:
+                a.setShortcut(QKeySequence(shortcut))
+            if slot:
+                a.triggered.connect(slot)
+            return a
+
         # File
         file_menu = mb.addMenu("&File")
-        file_menu.addAction("New Terminal", lambda: self._open_app("terminal"))
-        file_menu.addAction("New Editor", lambda: self._open_app("editor"))
-        file_menu.addAction("Open Files", lambda: self._open_app("files"))
+        file_menu.addAction(_make_action("New Terminal", lambda: self._open_app("terminal")))
+        file_menu.addAction(_make_action("New Editor", lambda: self._open_app("editor")))
+        file_menu.addAction(_make_action("Open Files", lambda: self._open_app("files")))
         file_menu.addSeparator()
-        file_menu.addAction("Exit", self.close, QKeySequence("Ctrl+Q"))
+        file_menu.addAction(_make_action("Exit", self.close, "Ctrl+Q"))
         # View
         view_menu = mb.addMenu("&View")
-        view_menu.addAction("LaunchPad", self._launchpad.toggle, QKeySequence("Ctrl+L"))
-        view_menu.addAction("System Monitor", lambda: self._open_app("monitor"))
-        view_menu.addAction("Settings", lambda: self._open_app("settings"))
+        view_menu.addAction(_make_action("LaunchPad", self._launchpad.toggle, "Ctrl+L"))
+        view_menu.addAction(_make_action("System Monitor", lambda: self._open_app("monitor")))
+        view_menu.addAction(_make_action("Settings", lambda: self._open_app("settings")))
         view_menu.addSeparator()
-        view_menu.addAction("Toggle Dark/Light", self._toggle_theme)
+        view_menu.addAction(_make_action("Toggle Dark/Light", self._toggle_theme))
         # Apps
         apps_menu = mb.addMenu("&Apps")
         for name, key in [(n, k) for n, k, _ in DESKTOP_APPS]:
-            apps_menu.addAction(name, lambda k=key: self._open_app(k))
+            apps_menu.addAction(_make_action(name, lambda k=key: self._open_app(k)))
         # Help
         help_menu = mb.addMenu("&Help")
-        help_menu.addAction("Documentation", lambda: self._open_app("docs"))
-        help_menu.addAction("About UmerOS", self._show_about)
+        help_menu.addAction(_make_action("Documentation", lambda: self._open_app("docs")))
+        help_menu.addAction(_make_action("About UmerOS", self._show_about))
 
     def _toggle_theme(self) -> None:
         app = QApplication.instance()

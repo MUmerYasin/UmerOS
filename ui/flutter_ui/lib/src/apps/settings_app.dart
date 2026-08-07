@@ -26,6 +26,56 @@ class _SettingsAppState extends State<SettingsApp> {
   String _proxyMode = 'None';
   String _dnsServer = '8.8.8.8';
 
+  int _selectedSidebarIndex = 0;
+  final ScrollController _scrollController = ScrollController();
+  final List<GlobalKey> _sectionKeys = List.generate(6, (_) => GlobalKey());
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    for (int i = 0; i < _sectionKeys.length; i++) {
+      final key = _sectionKeys[i];
+      final ctx = key.currentContext;
+      if (ctx != null) {
+        final box = ctx.findRenderObject() as RenderBox?;
+        if (box != null) {
+          final offset = box.localToGlobal(Offset.zero, ancestor: null).dy;
+          if (offset >= 0 && offset < 200) {
+            if (_selectedSidebarIndex != i) {
+              setState(() => _selectedSidebarIndex = i);
+            }
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  void _scrollToSection(int index) {
+    setState(() => _selectedSidebarIndex = index);
+    final ctx = _sectionKeys[index].currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        alignment: 0.0,
+      );
+    }
+  }
+
   final List<Color> _accentColors = [
     Colors.blue,
     Colors.purple,
@@ -88,51 +138,65 @@ class _SettingsAppState extends State<SettingsApp> {
               ],
             ),
           ),
-          _sidebarItem(Icons.palette, 'Appearance', colorScheme),
-          _sidebarItem(Icons.computer, 'System', colorScheme),
-          _sidebarItem(Icons.monitor, 'Display', colorScheme),
-          _sidebarItem(Icons.volume_up, 'Sound', colorScheme),
-          _sidebarItem(Icons.wifi, 'Network', colorScheme),
-          _sidebarItem(Icons.info_outline, 'About', colorScheme),
+          _sidebarItem(0, Icons.palette, 'Appearance', colorScheme),
+          _sidebarItem(1, Icons.computer, 'System', colorScheme),
+          _sidebarItem(2, Icons.monitor, 'Display', colorScheme),
+          _sidebarItem(3, Icons.volume_up, 'Sound', colorScheme),
+          _sidebarItem(4, Icons.wifi, 'Network', colorScheme),
+          _sidebarItem(5, Icons.info_outline, 'About', colorScheme),
         ],
       ),
     );
   }
 
-  Widget _sidebarItem(IconData icon, String label, ColorScheme colorScheme) {
+  Widget _sidebarItem(int index, IconData icon, String label, ColorScheme colorScheme) {
+    final isSelected = _selectedSidebarIndex == index;
     return ListTile(
-      leading: Icon(icon, size: 20, color: colorScheme.onSurface.withValues(alpha: 0.7)),
-      title: Text(label, style: TextStyle(color: colorScheme.onSurface)),
+      leading: Icon(
+        icon,
+        size: 20,
+        color: isSelected ? colorScheme.primary : colorScheme.onSurface.withValues(alpha: 0.7),
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? colorScheme.primary : colorScheme.onSurface,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
       dense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-      onTap: () {},
+      tileColor: isSelected ? colorScheme.primaryContainer.withValues(alpha: 0.3) : null,
+      onTap: () => _scrollToSection(index),
     );
   }
 
   Widget _buildContent(ColorScheme colorScheme, TextTheme textTheme) {
     return SingleChildScrollView(
+      controller: _scrollController,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildAppearanceSection(colorScheme, textTheme),
+          _buildAppearanceSection(colorScheme, textTheme, _sectionKeys[0]),
           const SizedBox(height: 16),
-          _buildSystemSection(colorScheme, textTheme),
+          _buildSystemSection(colorScheme, textTheme, _sectionKeys[1]),
           const SizedBox(height: 16),
-          _buildDisplaySection(colorScheme, textTheme),
+          _buildDisplaySection(colorScheme, textTheme, _sectionKeys[2]),
           const SizedBox(height: 16),
-          _buildSoundSection(colorScheme, textTheme),
+          _buildSoundSection(colorScheme, textTheme, _sectionKeys[3]),
           const SizedBox(height: 16),
-          _buildNetworkSection(colorScheme, textTheme),
+          _buildNetworkSection(colorScheme, textTheme, _sectionKeys[4]),
           const SizedBox(height: 16),
-          _buildAboutSection(colorScheme, textTheme),
+          _buildAboutSection(colorScheme, textTheme, _sectionKeys[5]),
         ],
       ),
     );
   }
 
-  Widget _buildAppearanceSection(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildAppearanceSection(ColorScheme colorScheme, TextTheme textTheme, GlobalKey key) {
     return Card(
+      key: key,
       color: colorScheme.surfaceContainerHigh,
       child: ExpansionTile(
         leading: Icon(Icons.palette, color: colorScheme.primary),
@@ -216,8 +280,9 @@ class _SettingsAppState extends State<SettingsApp> {
     );
   }
 
-  Widget _buildSystemSection(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildSystemSection(ColorScheme colorScheme, TextTheme textTheme, GlobalKey key) {
     return Card(
+      key: key,
       color: colorScheme.surfaceContainerHigh,
       child: ExpansionTile(
         leading: Icon(Icons.computer, color: colorScheme.primary),
@@ -265,8 +330,9 @@ class _SettingsAppState extends State<SettingsApp> {
     );
   }
 
-  Widget _buildDisplaySection(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildDisplaySection(ColorScheme colorScheme, TextTheme textTheme, GlobalKey key) {
     return Card(
+      key: key,
       color: colorScheme.surfaceContainerHigh,
       child: ExpansionTile(
         leading: Icon(Icons.monitor, color: colorScheme.primary),
@@ -335,8 +401,9 @@ class _SettingsAppState extends State<SettingsApp> {
     );
   }
 
-  Widget _buildSoundSection(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildSoundSection(ColorScheme colorScheme, TextTheme textTheme, GlobalKey key) {
     return Card(
+      key: key,
       color: colorScheme.surfaceContainerHigh,
       child: ExpansionTile(
         leading: Icon(Icons.volume_up, color: colorScheme.primary),
@@ -381,8 +448,9 @@ class _SettingsAppState extends State<SettingsApp> {
     );
   }
 
-  Widget _buildNetworkSection(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildNetworkSection(ColorScheme colorScheme, TextTheme textTheme, GlobalKey key) {
     return Card(
+      key: key,
       color: colorScheme.surfaceContainerHigh,
       child: ExpansionTile(
         leading: Icon(Icons.wifi, color: colorScheme.primary),
@@ -433,8 +501,9 @@ class _SettingsAppState extends State<SettingsApp> {
     );
   }
 
-  Widget _buildAboutSection(ColorScheme colorScheme, TextTheme textTheme) {
+  Widget _buildAboutSection(ColorScheme colorScheme, TextTheme textTheme, GlobalKey key) {
     return Card(
+      key: key,
       color: colorScheme.surfaceContainerHigh,
       child: ExpansionTile(
         leading: Icon(Icons.info_outline, color: colorScheme.primary),
