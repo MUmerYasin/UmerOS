@@ -1890,6 +1890,13 @@ class UmerOSMainWindow(QMainWindow):
         self._status_label.setText("  |  ".join(parts))
 
     # ── Window Management ─────────────────────────────────────────
+    def _log(self, msg: str) -> None:
+        try:
+            with open(_CRASH_LOG, "a", encoding="utf-8") as f:
+                f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+        except Exception:
+            pass
+
     def _open_app(self, key: str) -> None:
         try:
             self._log(f"[DEBUG] _open_app called for key={key}")
