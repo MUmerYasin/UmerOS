@@ -30,6 +30,7 @@ class _DraggableWindowState extends State<DraggableWindow> {
                 title: widget.window.title,
                 icon: widget.window.icon,
                 windowId: widget.window.id,
+                isMaximized: true,
               ),
               Expanded(
                 child: Container(

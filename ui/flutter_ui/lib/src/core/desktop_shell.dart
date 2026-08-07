@@ -80,7 +80,7 @@ class _DesktopShellState extends State<DesktopShell> {
             // Desktop Area with Windows
             Positioned.fill(
               top: 32,
-              bottom: 80,
+              bottom: 140,
               child: Stack(
                 children: [
                   // Desktop Grid Icons
@@ -98,14 +98,32 @@ class _DesktopShellState extends State<DesktopShell> {
               ),
             ),
 
-            // Minimized Windows Bar
-            if (appState.windows.any((w) => w.isMinimized))
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 80,
-                child: _MinimizedWindowsBar(windows: appState.windows),
+            // Taskbar (shows all open apps)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 80,
+              child: Taskbar(
+                items: appState.windows.map((w) => TaskbarItem(
+                  id: w.id,
+                  label: w.title,
+                  icon: w.icon,
+                  color: Theme.of(context).colorScheme.primary,
+                  isMinimized: w.isMinimized,
+                  isActive: appState.activeWindowId == w.id && !w.isMinimized,
+                )).toList(),
+                onTap: (id) {
+                  final w = appState.windows.firstWhere((w) => w.id == id);
+                  if (w.isMinimized) {
+                    appState.openWindow(id: w.id, title: w.title, icon: w.icon, child: w.child);
+                  } else if (appState.activeWindowId == id) {
+                    appState.minimizeWindow(id);
+                  } else {
+                    appState.openWindow(id: w.id, title: w.title, icon: w.icon, child: w.child);
+                  }
+                },
               ),
+            ),
 
             // Dock
             Positioned(
@@ -544,67 +562,4 @@ class _LaunchApp {
   final Widget child;
 
   const _LaunchApp(this.label, this.icon, this.color, this.id, this.child);
-}
-
-class _MinimizedWindowsBar extends StatelessWidget {
-  final List<WindowData> windows;
-
-  const _MinimizedWindowsBar({required this.windows});
-
-  @override
-  Widget build(BuildContext context) {
-    final minimized = windows.where((w) => w.isMinimized).toList();
-
-    return Container(
-      height: 36,
-      margin: const EdgeInsets.symmetric(horizontal: 80),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: minimized.map((w) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: GestureDetector(
-              onTap: () => context.read<AppState>().openWindow(
-                id: w.id,
-                title: w.title,
-                icon: w.icon,
-                child: w.child,
-              ),
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(w.icon, size: 16, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 6),
-                      Text(
-                        w.title,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
 }

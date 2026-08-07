@@ -100,16 +100,109 @@ class _DockState extends State<Dock> {
   }
 }
 
+class TaskbarItem {
+  final String id;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isMinimized;
+  final bool isActive;
+
+  const TaskbarItem({
+    required this.id,
+    required this.label,
+    required this.icon,
+    this.color = Colors.deepPurple,
+    this.isMinimized = false,
+    this.isActive = false,
+  });
+}
+
+class Taskbar extends StatelessWidget {
+  final List<TaskbarItem> items;
+  final Function(String id) onTap;
+
+  const Taskbar({super.key, required this.items, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 16,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: items.map((item) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => onTap(item.id),
+                  child: Tooltip(
+                    message: item.label,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 56,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            item.icon,
+                            color: item.isActive
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
+                            size: 24,
+                          ),
+                          const SizedBox(height: 3),
+                          Container(
+                            width: item.isActive ? 24 : 12,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: item.isActive
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+}
+
 class WindowTitleBar extends StatelessWidget {
   final String title;
   final IconData icon;
   final String windowId;
+  final bool isMaximized;
 
   const WindowTitleBar({
     super.key,
     required this.title,
     required this.icon,
     required this.windowId,
+    this.isMaximized = false,
   });
 
   @override
@@ -138,17 +231,20 @@ class WindowTitleBar extends StatelessWidget {
             ),
           ),
           _WindowButton(
-            icon: Icons.minimize,
+            icon: Icons.horizontal_rule,
+            tooltip: 'Minimize',
             color: Colors.orange,
             onTap: () => appState.minimizeWindow(windowId),
           ),
           _WindowButton(
-            icon: Icons.maximize,
+            icon: isMaximized ? Icons.filter_none : Icons.maximize,
+            tooltip: isMaximized ? 'Restore' : 'Maximize',
             color: Colors.green,
             onTap: () => appState.maximizeWindow(windowId),
           ),
           _WindowButton(
             icon: Icons.close,
+            tooltip: 'Close',
             color: Colors.red,
             onTap: () => appState.closeWindow(windowId),
           ),
@@ -163,11 +259,13 @@ class _WindowButton extends StatefulWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final String? tooltip;
 
   const _WindowButton({
     required this.icon,
     required this.color,
     required this.onTap,
+    this.tooltip,
   });
 
   @override
@@ -179,7 +277,7 @@ class _WindowButtonState extends State<_WindowButton> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
+    final btn = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
@@ -200,6 +298,11 @@ class _WindowButtonState extends State<_WindowButton> {
         ),
       ),
     );
+
+    if (widget.tooltip != null) {
+      return Tooltip(message: widget.tooltip!, child: btn);
+    }
+    return btn;
   }
 }
 
