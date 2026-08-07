@@ -5,7 +5,7 @@ a = Analysis(
     ['ui\\umeros_gui.py'],
     pathex=[],
     binaries=[],
-    datas=[('ui\\umeros_gui.py', '.')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

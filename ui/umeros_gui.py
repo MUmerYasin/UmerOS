@@ -34,6 +34,7 @@ try:
         pyqtSignal,
     )
     from PyQt6.QtGui import (
+        QAction,
         QBrush,
         QColor,
         QFont,
@@ -1694,6 +1695,10 @@ class UmerOSMainWindow(QMainWindow):
             "docs": DocsWindow,
         }
 
+        # LaunchPad (must exist before menu bar references it)
+        self._launchpad = LaunchPadOverlay(self)
+        self._launchpad.app_selected.connect(self._open_app)
+
         self._build_menu_bar()
 
         # Central layout: dock on top, desktop below
@@ -1706,10 +1711,6 @@ class UmerOSMainWindow(QMainWindow):
         self.setCentralWidget(central)
 
         self._build_status_bar()
-
-        # LaunchPad
-        self._launchpad = LaunchPadOverlay(self)
-        self._launchpad.app_selected.connect(self._open_app)
 
         # Global shortcuts
         QShortcut(QKeySequence("Ctrl+L"), self, self._launchpad.toggle)
