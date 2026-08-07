@@ -1349,7 +1349,16 @@ class BootWindow(_AppWindow):
         self._boot_timer.timeout.connect(self._boot_tick)
 
     def _log(self, msg: str) -> None:
-        self.boot_log.appendPlainText(f"[{time.strftime('%H:%M:%S')}] {msg}")
+        try:
+            self.boot_log.appendPlainText(f"[{time.strftime('%H:%M:%S')}] {msg}")
+        except Exception:
+            pass
+        try:
+            _log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "umeros_crash.log")
+            with open(_log, "a", encoding="utf-8") as f:
+                f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+        except Exception:
+            pass
 
     def _start_boot(self) -> None:
         self.boot_log.clear()
@@ -1879,34 +1888,80 @@ class UmerOSMainWindow(QMainWindow):
 
     # ── Window Management ─────────────────────────────────────────
     def _open_app(self, key: str) -> None:
-        if key in self._windows:
-            w = self._windows[key]
-            if not w.isVisible():
-                w.show()
-            if w.isMinimized():
-                w.showNormal()
-            w.raise_()
-            w.activateWindow()
-            return
-        cls = self._window_classes.get(key)
-        if not cls:
-            return
-        win = cls(parent=None)
-        win.setWindowTitle(f"{APP_NAME} — {win.windowTitle()}")
-        win.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
-        win.destroyed.connect(lambda _, k=key: self._windows.pop(k, None))
-        self._windows[key] = win
-        win.show()
-        win.raise_()
-        win.activateWindow()
-        self.raise_()
-        self.activateWindow()
+        import traceback as _tb
+        _log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "umeros_crash.log")
+        try:
+            self._log(f"[DEBUG] _open_app called for key={key}")
+            if key in self._windows:
+                w = self._windows[key]
+                self._log(f"[DEBUG] Found existing window for {key}")
+                if not w.isVisible():
+                    w.show()
+                if w.isMinimized():
+                    w.showNormal()
+                w.raise_()
+                w.activateWindow()
+                return
+            cls = self._window_classes.get(key)
+            if not cls:
+                self._log(f"[DEBUG] No class found for key={key}")
+                return
+            self._log(f"[DEBUG] Creating window class {cls.__name__}")
+            win = cls(parent=None)
+            self._log(f"[DEBUG] Window created, setting title")
+            win.setWindowTitle(f"{APP_NAME} — {win.windowTitle()}")
+            win.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
+            win.destroyed.connect(lambda _, k=key: self._windows.pop(k, None))
+            self._windows[key] = win
+            self._log(f"[DEBUG] Calling win.show()")
+            win.show()
+            self._log(f"[DEBUG] Calling win.raise_()")
+            win.raise_()
+            self._log(f"[DEBUG] Calling win.activateWindow()")
+            win.activateWindow()
+            self._log(f"[DEBUG] Calling self.raise_()")
+            self.raise_()
+            self._log(f"[DEBUG] Calling self.activateWindow()")
+            self.activateWindow()
+            self._log(f"[DEBUG] _open_app completed successfully")
+        except Exception as exc:
+            try:
+                with open(_log, "a", encoding="utf-8") as f:
+                    f.write(f"\n[CRASH] _open_app({key}): {exc}\n")
+                    f.write("".join(_tb.format_exception(type(exc), exc, exc.__traceback__)))
+                    f.write("\n")
+            except Exception:
+                pass
+            self._log(f"[CRASH] _open_app({key}) failed: {exc}")
 
 
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║                        ENTRY POINT                              ║
 # ╚══════════════════════════════════════════════════════════════════╝
 def main() -> None:
+    import traceback as _tb
+
+    log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "umeros_crash.log")
+
+    def _excepthook(exc_type, exc_value, exc_tb):
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(f"\n{'='*60}\n")
+                f.write(f"Unhandled exception: {exc_type.__name__}: {exc_value}\n")
+                f.write("".join(_tb.format_exception(exc_type, exc_value, exc_tb)))
+                f.write(f"{'='*60}\n")
+        except Exception:
+            pass
+        sys.__excepthook__(exc_type, exc_value, exc_tb)
+
+    sys.excepthook = _excepthook
+    threading_hook = lambda args: _excepthook(args.exc_type, args.exc_value, args.exc_traceback)
+    try:
+        import threading
+        threading.excepthook = threading_hook
+    except Exception:
+        pass
+
     app = QApplication(sys.argv)
     app.setApplicationName(APP_NAME)
     app.setApplicationVersion(APP_VERSION)
@@ -1919,7 +1974,11 @@ def main() -> None:
     window = UmerOSMainWindow()
     window.show()
 
-    sys.exit(app.exec())
+    try:
+        sys.exit(app.exec())
+    except Exception:
+        _excepthook(*sys.exc_info())
+        sys.exit(1)
 
 
 if __name__ == "__main__":

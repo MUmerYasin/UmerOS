@@ -3,7 +3,7 @@
 
 a = Analysis(
     ['ui\\umeros_gui.py'],
-    pathex=[],
+    pathex=['ui', '.'],
     binaries=[],
     datas=[],
     hiddenimports=[],
