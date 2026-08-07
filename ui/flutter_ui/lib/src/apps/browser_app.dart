@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter_windows/webview_flutter_windows.dart';
 
 class BrowserApp extends StatefulWidget {
   const BrowserApp({super.key});
@@ -22,18 +22,67 @@ class _BrowserAppState extends State<BrowserApp> {
   BrowserTab get _active => _tabs[_activeTabIndex];
 
   void _addTab([String? url]) {
+    final controller = WebviewController();
     final tab = BrowserTab(
       url: url ?? 'about:blank',
       title: 'New Tab',
+      controller: controller,
     );
+    _initTabController(tab);
     setState(() {
       _tabs.add(tab);
       _activeTabIndex = _tabs.length - 1;
     });
   }
 
+  Future<void> _initTabController(BrowserTab tab) async {
+    try {
+      await tab.controller.initialize();
+      await tab.controller.setPopupWindowPolicy(WebviewPopupWindowPolicy.deny);
+      await tab.controller.setDefaultContextMenusEnabled(true);
+
+      if (tab.url != 'about:blank') {
+        await tab.controller.loadUrl(tab.url);
+      }
+
+      // Listen for URL changes
+      tab.controller.url.listen((url) {
+        if (mounted) {
+          setState(() {
+            tab.url = url;
+            tab.urlController.text = url;
+          });
+        }
+      });
+
+      // Listen for title changes
+      tab.controller.title.listen((title) {
+        if (mounted) {
+          setState(() {
+            tab.title = title;
+          });
+        }
+      });
+
+      // Listen for loading state
+      tab.controller.loadingState.listen((state) {
+        if (mounted) {
+          setState(() {
+            tab.isLoading = state == LoadingState.loading;
+          });
+        }
+      });
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('WebView init error: $e');
+    }
+  }
+
   void _closeTab(int index) {
     if (_tabs.length <= 1) return;
+    final tab = _tabs[index];
+    tab.controller.dispose();
     setState(() {
       _tabs.removeAt(index);
       if (_activeTabIndex >= _tabs.length) {
@@ -51,24 +100,23 @@ class _BrowserAppState extends State<BrowserApp> {
         url = 'https://www.google.com/search?q=${Uri.encodeComponent(url)}';
       }
     }
-    _active.urlController.text = url;
+
     setState(() {
       _active.url = url;
-      _active.title = _extractDomain(url);
+      _active.urlController.text = url;
     });
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+
+    if (_active.controller.value.isInitialized) {
+      await _active.controller.loadUrl(url);
     }
   }
 
-  String _extractDomain(String url) {
-    try {
-      final uri = Uri.parse(url);
-      return uri.host;
-    } catch (_) {
-      return url;
+  @override
+  void dispose() {
+    for (final tab in _tabs) {
+      tab.controller.dispose();
     }
+    super.dispose();
   }
 
   @override
@@ -88,10 +136,12 @@ class _BrowserAppState extends State<BrowserApp> {
           _NavigationBar(
             controller: _active.urlController,
             onNavigate: _navigate,
-            isLoading: false,
-            onBack: () {},
-            onForward: () {},
-            onRefresh: () => _navigate(_active.url),
+            isLoading: _active.isLoading,
+            canGoBack: _active.canGoBack,
+            canGoForward: _active.canGoForward,
+            onBack: () => _active.controller.goBack(),
+            onForward: () => _active.controller.goForward(),
+            onRefresh: () => _active.controller.reload(),
             onHome: () => _navigate('https://www.google.com'),
           ),
           Expanded(
@@ -99,18 +149,9 @@ class _BrowserAppState extends State<BrowserApp> {
               children: [
                 if (_showSidebar) _SpeedDialSidebar(onNavigate: _navigate),
                 Expanded(
-                  child: Stack(
-                    children: [
-                      // New tab page or visited page display
-                      if (_active.url == 'about:blank')
-                        _NewTabPage(onNavigate: _navigate)
-                      else
-                        _VisitedPageView(
-                          url: _active.url,
-                          title: _active.title,
-                        ),
-                    ],
-                  ),
+                  child: _active.controller.value.isInitialized
+                      ? Webview(_active.controller)
+                      : _NewTabPage(onNavigate: _navigate),
                 ),
               ],
             ),
@@ -147,7 +188,6 @@ class _TabBar extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
       child: Row(
         children: [
-          // Sidebar toggle
           GestureDetector(
             onTap: onToggleSidebar,
             child: Container(
@@ -161,8 +201,6 @@ class _TabBar extends StatelessWidget {
               ),
             ),
           ),
-
-          // Tabs
           Expanded(
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
@@ -189,11 +227,21 @@ class _TabBar extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Row(
                       children: [
-                        Icon(
-                          _getTabIcon(tab.url),
-                          size: 14,
-                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                        ),
+                        if (tab.isLoading)
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          )
+                        else
+                          Icon(
+                            _getTabIcon(tab.url),
+                            size: 14,
+                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -221,8 +269,6 @@ class _TabBar extends StatelessWidget {
               },
             ),
           ),
-
-          // New tab button
           GestureDetector(
             onTap: onNewTab,
             child: Container(
@@ -257,6 +303,8 @@ class _NavigationBar extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onNavigate;
   final bool isLoading;
+  final bool canGoBack;
+  final bool canGoForward;
   final VoidCallback onBack;
   final VoidCallback onForward;
   final VoidCallback onRefresh;
@@ -266,6 +314,8 @@ class _NavigationBar extends StatelessWidget {
     required this.controller,
     required this.onNavigate,
     required this.isLoading,
+    required this.canGoBack,
+    required this.canGoForward,
     required this.onBack,
     required this.onForward,
     required this.onRefresh,
@@ -287,39 +337,30 @@ class _NavigationBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Back
           _NavButton(
             icon: Icons.arrow_back,
-            enabled: false,
+            enabled: canGoBack,
             onTap: onBack,
           ),
           const SizedBox(width: 2),
-
-          // Forward
           _NavButton(
             icon: Icons.arrow_forward,
-            enabled: false,
+            enabled: canGoForward,
             onTap: onForward,
           ),
           const SizedBox(width: 2),
-
-          // Refresh
           _NavButton(
             icon: isLoading ? Icons.close : Icons.refresh,
             enabled: true,
             onTap: isLoading ? () {} : onRefresh,
           ),
           const SizedBox(width: 2),
-
-          // Home
           _NavButton(
             icon: Icons.home,
             enabled: true,
             onTap: onHome,
           ),
           const SizedBox(width: 8),
-
-          // URL bar
           Expanded(
             child: Container(
               height: 36,
@@ -357,7 +398,6 @@ class _NavigationBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Bookmark button
                   GestureDetector(
                     onTap: () {},
                     child: Icon(
@@ -367,8 +407,6 @@ class _NavigationBar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-
-                  // Menu
                   GestureDetector(
                     onTap: () => _showBrowserMenu(context),
                     child: Icon(
@@ -447,9 +485,7 @@ class _NavButton extends StatelessWidget {
       child: Container(
         width: 32,
         height: 32,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
         alignment: Alignment.center,
         child: Icon(
           icon,
@@ -488,16 +524,11 @@ class _SpeedDialSidebar extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       child: Column(
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                Icon(
-                  Icons.bookmark,
-                  size: 16,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.bookmark, size: 16, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Speed Dial',
@@ -511,8 +542,6 @@ class _SpeedDialSidebar extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-
-          // Bookmarks list
           Expanded(
             child: ListView.builder(
               itemCount: _bookmarks.length,
@@ -541,8 +570,6 @@ class _SpeedDialSidebar extends StatelessWidget {
               },
             ),
           ),
-
-          // Add bookmark button
           Padding(
             padding: const EdgeInsets.all(8),
             child: OutlinedButton.icon(
@@ -555,59 +582,6 @@ class _SpeedDialSidebar extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─── Visited Page View ───────────────────────────────────────────────────────
-
-class _VisitedPageView extends StatelessWidget {
-  final String url;
-  final String title;
-
-  const _VisitedPageView({required this.url, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.language,
-              size: 72,
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              url,
-              style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Page opened in system browser',
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.3),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -639,7 +613,6 @@ class _NewTabPage extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
             Icon(
               Icons.language,
               size: 72,
@@ -663,8 +636,6 @@ class _NewTabPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 40),
-
-            // Search bar
             Container(
               width: 500,
               height: 48,
@@ -701,8 +672,6 @@ class _NewTabPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 40),
-
-            // Quick links grid
             Wrap(
               spacing: 16,
               runSpacing: 16,
@@ -748,11 +717,19 @@ class _NewTabPage extends StatelessWidget {
 class BrowserTab {
   String url;
   String title;
+  bool isLoading;
+  bool canGoBack;
+  bool canGoForward;
   final TextEditingController urlController;
+  final WebviewController controller;
 
   BrowserTab({
     required this.url,
     this.title = 'New Tab',
+    this.isLoading = false,
+    this.canGoBack = false,
+    this.canGoForward = false,
+    required this.controller,
   }) : urlController = TextEditingController(text: url);
 }
 
