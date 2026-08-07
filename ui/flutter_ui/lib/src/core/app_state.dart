@@ -23,6 +23,28 @@ class WindowData {
     this.isMaximized = false,
     this.zIndex = 0,
   });
+
+  WindowData copyWith({
+    String? title,
+    IconData? icon,
+    Offset? position,
+    Size? size,
+    bool? isMinimized,
+    bool? isMaximized,
+    int? zIndex,
+  }) {
+    return WindowData(
+      id: id,
+      title: title ?? this.title,
+      icon: icon ?? this.icon,
+      child: child,
+      position: position ?? this.position,
+      size: size ?? this.size,
+      isMinimized: isMinimized ?? this.isMinimized,
+      isMaximized: isMaximized ?? this.isMaximized,
+      zIndex: zIndex ?? this.zIndex,
+    );
+  }
 }
 
 class AppState extends ChangeNotifier {
@@ -47,6 +69,9 @@ class AppState extends ChangeNotifier {
       if (existing.isMinimized) {
         existing.isMinimized = false;
       }
+      // Update title/icon in case it changed, but KEEP the existing child
+      final index = _windows.indexOf(existing);
+      _windows[index] = existing.copyWith(title: title, icon: icon);
       notifyListeners();
       return;
     }
