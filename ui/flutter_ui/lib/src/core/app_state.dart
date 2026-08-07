@@ -65,13 +65,17 @@ class AppState extends ChangeNotifier {
   }) {
     final existing = _windows.where((w) => w.id == id).firstOrNull;
     if (existing != null) {
-      _activateWindow(id);
-      if (existing.isMinimized) {
-        existing.isMinimized = false;
-      }
-      // Update title/icon in case it changed, but KEEP the existing child
+      // Bring to front
+      _topZIndex++;
+      // Restore if minimized, update title/icon, keep existing child, promote z-index — all in one atomic replace
       final index = _windows.indexOf(existing);
-      _windows[index] = existing.copyWith(title: title, icon: icon);
+      _windows[index] = existing.copyWith(
+        title: title,
+        icon: icon,
+        isMinimized: false,
+        zIndex: _topZIndex,
+      );
+      _activeWindowId = id;
       notifyListeners();
       return;
     }
@@ -106,48 +110,40 @@ class AppState extends ChangeNotifier {
   }
 
   void minimizeWindow(String id) {
-    final w = _windows.where((w) => w.id == id).firstOrNull;
-    if (w != null) {
-      w.isMinimized = true;
-      if (_activeWindowId == id) {
-        final visible = _windows.where((w) => !w.isMinimized).toList();
-        _activeWindowId = visible.isNotEmpty ? visible.last.id : null;
-      }
-      notifyListeners();
-    }
-  }
-
-  void maximizeWindow(String id) {
-    final w = _windows.where((w) => w.id == id).firstOrNull;
-    if (w != null) {
-      w.isMaximized = !w.isMaximized;
-      notifyListeners();
-    }
-  }
-
-  void _activateWindow(String id) {
-    _topZIndex++;
-    final w = _windows.where((w) => w.id == id).firstOrNull;
-    if (w != null) {
-      w.zIndex = _topZIndex;
-      _activeWindowId = id;
+    final idx = _windows.indexWhere((w) => w.id == id);
+    if (idx == -1) return;
+    final old = _windows[idx];
+    _windows[idx] = old.copyWith(isMinimized: true);
+    if (_activeWindowId == id) {
+      final visible = _windows.where((w) => !w.isMinimized).toList();
+      _activeWindowId = visible.isNotEmpty ? visible.last.id : null;
     }
     notifyListeners();
   }
 
+  void maximizeWindow(String id) {
+    final idx = _windows.indexWhere((w) => w.id == id);
+    if (idx == -1) return;
+    final old = _windows[idx];
+    _windows[idx] = old.copyWith(isMaximized: !old.isMaximized);
+    notifyListeners();
+  }
+
   void moveWindow(String id, Offset delta) {
-    final w = _windows.where((w) => w.id == id).firstOrNull;
-    if (w != null && !w.isMaximized) {
-      w.position += delta;
-      notifyListeners();
-    }
+    final idx = _windows.indexWhere((w) => w.id == id);
+    if (idx == -1) return;
+    final old = _windows[idx];
+    if (old.isMaximized) return;
+    _windows[idx] = old.copyWith(position: old.position + delta);
+    notifyListeners();
   }
 
   void resizeWindow(String id, Size newSize) {
-    final w = _windows.where((w) => w.id == id).firstOrNull;
-    if (w != null && !w.isMaximized) {
-      w.size = newSize;
-      notifyListeners();
-    }
+    final idx = _windows.indexWhere((w) => w.id == id);
+    if (idx == -1) return;
+    final old = _windows[idx];
+    if (old.isMaximized) return;
+    _windows[idx] = old.copyWith(size: newSize);
+    notifyListeners();
   }
 }
