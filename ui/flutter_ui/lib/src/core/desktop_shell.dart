@@ -20,6 +20,7 @@ import '../apps/boot_manager_app.dart';
 import '../apps/games_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/browser_app.dart';
+import '../apps/antivirus_app.dart';
 
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
@@ -383,6 +384,7 @@ class _DesktopGrid extends StatelessWidget {
       _DesktopApp('Network', Icons.wifi, Colors.cyan, 'network', const NetworkManagerApp()),
       _DesktopApp('Quantum', Icons.blur_circular, Colors.indigo, 'quantum', const QuantumSimApp()),
       _DesktopApp('Security', Icons.shield, Colors.red, 'security', const SecurityApp()),
+      _DesktopApp('Antivirus', Icons.health_and_safety, Colors.lightGreen, 'antivirus', const AntivirusApp()),
       _DesktopApp('Boot', Icons.power_settings_new, Colors.amber, 'boot', const BootManagerApp()),
       _DesktopApp('Games', Icons.sports_esports, Colors.pink, 'games', const GamesApp()),
       _DesktopApp('Docs', Icons.menu_book, Colors.brown, 'docs', const DocsApp()),
@@ -468,6 +470,7 @@ class _LaunchPad extends StatelessWidget {
       _LaunchApp('Calculator', Icons.calculate, Colors.blueGrey, 'calculator', const CalculatorApp()),
       _LaunchApp('Quantum Simulator', Icons.blur_circular, Colors.deepPurple, 'quantum', const QuantumSimApp()),
       _LaunchApp('Security', Icons.shield, Colors.red, 'security', const SecurityApp()),
+      _LaunchApp('Antivirus', Icons.health_and_safety, Colors.lightGreen, 'antivirus', const AntivirusApp()),
       _LaunchApp('Boot Manager', Icons.power_settings_new, Colors.amber, 'boot', const BootManagerApp()),
       _LaunchApp('Games', Icons.sports_esports, Colors.pink, 'games', const GamesApp()),
       _LaunchApp('Documentation', Icons.menu_book, Colors.brown, 'docs', const DocsApp()),
