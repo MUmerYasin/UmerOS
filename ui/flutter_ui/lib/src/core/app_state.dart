@@ -256,9 +256,10 @@ class AppState extends ChangeNotifier {
     _topZIndex++;
     _windows[idx] = _windows[idx].copyWith(zIndex: _topZIndex);
     notifyListeners();
+  }
 
-    /// Minimizes a window to the dock.
-    void minimizeWindow(String id) {
+  /// Minimizes a window to the dock.
+  void minimizeWindow(String id) {
       final idx = _windows.indexWhere((w) => w.id == id);
       if (idx == -1) return;
       final old = _windows[idx];
@@ -270,7 +271,7 @@ class AppState extends ChangeNotifier {
       }
       notifyListeners();
     }
-  }
+
 
   void maximizeWindow(String id) {
     final idx = _windows.indexWhere((w) => w.id == id);
