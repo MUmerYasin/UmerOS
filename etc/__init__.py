@@ -76,6 +76,30 @@ from etc.apt_config import AptConfigManager
 from etc.samba_config import SambaConfigManager
 from etc.mail_config import MailConfigManager
 
+# Core system modules
+from etc.skeleton import SkeletonManager
+from etc.security import SecurityConfigManager
+from etc.environment import EnvironmentManager
+
+# Service/daemon configuration
+from etc.cron_d import CronDManager
+from etc.init_scripts import InitScriptsManager
+from etc.dbus_config import DBusConfigManager
+
+# Hardware/storage configuration
+from etc.lvm_config import LVMConfigManager
+from etc.fonts_config import FontsConfigManager
+from etc.ssl_dirs import SSLDirsManager
+
+# Network/security configuration
+from etc.network_manager import NetworkManagerConfigManager
+from etc.wpa_supplicant import WPASupplicantManager
+
+# Desktop/system configuration
+from etc.xdg_config import XDGConfigManager
+from etc.gss_config import GSSConfigManager
+from etc.openvpn_config import OpenVPNConfigManager
+
 __all__ = [
     # Original
     "ConfigManager",
@@ -132,4 +156,23 @@ __all__ = [
     # File sharing and mail
     "SambaConfigManager",
     "MailConfigManager",
+    # Core system modules
+    "SkeletonManager",
+    "SecurityConfigManager",
+    "EnvironmentManager",
+    # Service/daemon configuration
+    "CronDManager",
+    "InitScriptsManager",
+    "DBusConfigManager",
+    # Hardware/storage configuration
+    "LVMConfigManager",
+    "FontsConfigManager",
+    "SSLDirsManager",
+    # Network/security configuration
+    "NetworkManagerConfigManager",
+    "WPASupplicantManager",
+    # Desktop/system configuration
+    "XDGConfigManager",
+    "GSSConfigManager",
+    "OpenVPNConfigManager",
 ]
