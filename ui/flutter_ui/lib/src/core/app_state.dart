@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+enum WindowSnapMode {
+  normal,
+  leftHalf,
+  rightHalf,
+  topLeft,
+  topRight,
+  bottomLeft,
+  bottomRight,
+  maximized,
+  centered,
+}
+
 class WindowData {
   final String id;
   final String title;
@@ -8,8 +20,11 @@ class WindowData {
   final Widget child;
   Offset position;
   Size size;
+  Offset preSnapPosition;
+  Size preSnapSize;
   bool isMinimized;
   bool isMaximized;
+  WindowSnapMode snapMode;
   int zIndex;
 
   WindowData({
@@ -18,19 +33,26 @@ class WindowData {
     required this.icon,
     required this.child,
     this.position = const Offset(100, 100),
-    this.size = const Size(800, 600),
+    this.size = const Size(880, 620),
+    Offset? preSnapPosition,
+    Size? preSnapSize,
     this.isMinimized = false,
     this.isMaximized = false,
+    this.snapMode = WindowSnapMode.normal,
     this.zIndex = 0,
-  });
+  })  : preSnapPosition = preSnapPosition ?? position,
+        preSnapSize = preSnapSize ?? size;
 
   WindowData copyWith({
     String? title,
     IconData? icon,
     Offset? position,
     Size? size,
+    Offset? preSnapPosition,
+    Size? preSnapSize,
     bool? isMinimized,
     bool? isMaximized,
+    WindowSnapMode? snapMode,
     int? zIndex,
   }) {
     return WindowData(
@@ -40,11 +62,34 @@ class WindowData {
       child: child,
       position: position ?? this.position,
       size: size ?? this.size,
+      preSnapPosition: preSnapPosition ?? this.preSnapPosition,
+      preSnapSize: preSnapSize ?? this.preSnapSize,
       isMinimized: isMinimized ?? this.isMinimized,
       isMaximized: isMaximized ?? this.isMaximized,
+      snapMode: snapMode ?? this.snapMode,
       zIndex: zIndex ?? this.zIndex,
     );
   }
+}
+
+class SystemNotification {
+  final String id;
+  final String title;
+  final String message;
+  final IconData icon;
+  final Color color;
+  final DateTime timestamp;
+  bool isRead;
+
+  SystemNotification({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.icon,
+    this.color = Colors.blue,
+    DateTime? timestamp,
+    this.isRead = false,
+  }) : timestamp = timestamp ?? DateTime.now();
 }
 
 class AppState extends ChangeNotifier {
@@ -52,8 +97,60 @@ class AppState extends ChangeNotifier {
   int _topZIndex = 0;
   String? _activeWindowId;
 
+  // Overlays state
+  bool _isSearchOpen = false;
+  bool _isControlCenterOpen = false;
+  bool _isNotificationTrayOpen = false;
+  final bool _isAltTabOpen = false;
+
+  // Snap preview overlay during drag
+  Rect? _snapPreviewRect;
+
+  // System States
+  double _volume = 0.75;
+  double _brightness = 0.85;
+  bool _wifiEnabled = true;
+  bool _bluetoothEnabled = true;
+  bool _nightShift = false;
+  bool _dnd = false;
+  bool _performanceMode = true;
+
+  // Notifications list
+  final List<SystemNotification> _notifications = [
+    SystemNotification(
+      id: '1',
+      title: 'Welcome to UmerOS',
+      message: 'System running with Material 3 & HCI UI enhancements.',
+      icon: Icons.computer,
+      color: Colors.deepPurple,
+    ),
+    SystemNotification(
+      id: '2',
+      title: 'Quantum Engine Ready',
+      message: 'Quantum Simulator driver initialized successfully.',
+      icon: Icons.blur_circular,
+      color: Colors.indigo,
+    ),
+  ];
+
+  // Getters
   List<WindowData> get windows => _windows;
   String? get activeWindowId => _activeWindowId;
+  bool get isSearchOpen => _isSearchOpen;
+  bool get isControlCenterOpen => _isControlCenterOpen;
+  bool get isNotificationTrayOpen => _isNotificationTrayOpen;
+  bool get isAltTabOpen => _isAltTabOpen;
+  Rect? get snapPreviewRect => _snapPreviewRect;
+
+  double get volume => _volume;
+  double get brightness => _brightness;
+  bool get wifiEnabled => _wifiEnabled;
+  bool get bluetoothEnabled => _bluetoothEnabled;
+  bool get nightShift => _nightShift;
+  bool get dnd => _dnd;
+  bool get performanceMode => _performanceMode;
+  List<SystemNotification> get notifications => _notifications;
+  int get unreadNotificationCount => _notifications.where((n) => !n.isRead).length;
 
   void openWindow({
     required String id,
@@ -65,9 +162,7 @@ class AppState extends ChangeNotifier {
   }) {
     final existing = _windows.where((w) => w.id == id).firstOrNull;
     if (existing != null) {
-      // Bring to front
       _topZIndex++;
-      // Restore if minimized, update title/icon, keep existing child, promote z-index — all in one atomic replace
       final index = _windows.indexOf(existing);
       _windows[index] = existing.copyWith(
         title: title,
@@ -81,11 +176,12 @@ class AppState extends ChangeNotifier {
     }
 
     final random = Random();
-    final pos = position ?? Offset(
-      100 + random.nextDouble() * 200,
-      50 + random.nextDouble() * 100,
-    );
-    final sz = size ?? const Size(800, 600);
+    final pos = position ??
+        Offset(
+          120 + random.nextDouble() * 160,
+          60 + random.nextDouble() * 80,
+        );
+    final sz = size ?? const Size(880, 620);
 
     _topZIndex++;
     _windows.add(WindowData(
@@ -101,10 +197,21 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void focusWindow(String id) {
+    final idx = _windows.indexWhere((w) => w.id == id);
+    if (idx == -1) return;
+    _topZIndex++;
+    _windows[idx] = _windows[idx].copyWith(zIndex: _topZIndex, isMinimized: false);
+    _activeWindowId = id;
+    notifyListeners();
+  }
+
   void closeWindow(String id) {
     _windows.removeWhere((w) => w.id == id);
     if (_activeWindowId == id) {
-      _activeWindowId = _windows.isNotEmpty ? _windows.last.id : null;
+      final visible = _windows.where((w) => !w.isMinimized).toList();
+      visible.sort((a, b) => a.zIndex.compareTo(b.zIndex));
+      _activeWindowId = visible.isNotEmpty ? visible.last.id : null;
     }
     notifyListeners();
   }
@@ -116,6 +223,7 @@ class AppState extends ChangeNotifier {
     _windows[idx] = old.copyWith(isMinimized: true);
     if (_activeWindowId == id) {
       final visible = _windows.where((w) => !w.isMinimized).toList();
+      visible.sort((a, b) => a.zIndex.compareTo(b.zIndex));
       _activeWindowId = visible.isNotEmpty ? visible.last.id : null;
     }
     notifyListeners();
@@ -125,8 +233,12 @@ class AppState extends ChangeNotifier {
     final idx = _windows.indexWhere((w) => w.id == id);
     if (idx == -1) return;
     final old = _windows[idx];
-    _windows[idx] = old.copyWith(isMaximized: !old.isMaximized);
-    notifyListeners();
+    final isMax = !old.isMaximized;
+    _windows[idx] = old.copyWith(
+      isMaximized: isMax,
+      snapMode: isMax ? WindowSnapMode.maximized : WindowSnapMode.normal,
+    );
+    focusWindow(id);
   }
 
   void moveWindow(String id, Offset delta) {
@@ -134,16 +246,208 @@ class AppState extends ChangeNotifier {
     if (idx == -1) return;
     final old = _windows[idx];
     if (old.isMaximized) return;
-    _windows[idx] = old.copyWith(position: old.position + delta);
+
+    // Unsnap if dragging from snap mode
+    Offset newPos = old.position + delta;
+    _windows[idx] = old.copyWith(
+      position: newPos,
+      snapMode: WindowSnapMode.normal,
+    );
     notifyListeners();
   }
 
-  void resizeWindow(String id, Size newSize) {
+  void resizeWindow(String id, {Size? newSize, Offset? newPos}) {
     final idx = _windows.indexWhere((w) => w.id == id);
     if (idx == -1) return;
     final old = _windows[idx];
     if (old.isMaximized) return;
-    _windows[idx] = old.copyWith(size: newSize);
+
+    const minW = 400.0;
+    const minH = 300.0;
+    final finalSize = Size(
+      max(minW, newSize?.width ?? old.size.width),
+      max(minH, newSize?.height ?? old.size.height),
+    );
+
+    _windows[idx] = old.copyWith(
+      size: finalSize,
+      position: newPos ?? old.position,
+      snapMode: WindowSnapMode.normal,
+    );
+    notifyListeners();
+  }
+
+  void snapWindow(String id, WindowSnapMode mode, Size screenSize) {
+    final idx = _windows.indexWhere((w) => w.id == id);
+    if (idx == -1) return;
+    final old = _windows[idx];
+
+    if (mode == WindowSnapMode.normal) {
+      _windows[idx] = old.copyWith(
+        position: old.preSnapPosition,
+        size: old.preSnapSize,
+        isMaximized: false,
+        snapMode: WindowSnapMode.normal,
+      );
+      focusWindow(id);
+      return;
+    }
+
+    final topOffset = 32.0;
+    final bottomOffset = 80.0;
+    final availH = screenSize.height - topOffset - bottomOffset;
+    final availW = screenSize.width;
+
+    Offset pos = old.position;
+    Size sz = old.size;
+
+    switch (mode) {
+      case WindowSnapMode.leftHalf:
+        pos = Offset(0, topOffset);
+        sz = Size(availW * 0.5, availH);
+        break;
+      case WindowSnapMode.rightHalf:
+        pos = Offset(availW * 0.5, topOffset);
+        sz = Size(availW * 0.5, availH);
+        break;
+      case WindowSnapMode.topLeft:
+        pos = Offset(0, topOffset);
+        sz = Size(availW * 0.5, availH * 0.5);
+        break;
+      case WindowSnapMode.topRight:
+        pos = Offset(availW * 0.5, topOffset);
+        sz = Size(availW * 0.5, availH * 0.5);
+        break;
+      case WindowSnapMode.bottomLeft:
+        pos = Offset(0, topOffset + availH * 0.5);
+        sz = Size(availW * 0.5, availH * 0.5);
+        break;
+      case WindowSnapMode.bottomRight:
+        pos = Offset(availW * 0.5, topOffset + availH * 0.5);
+        sz = Size(availW * 0.5, availH * 0.5);
+        break;
+      case WindowSnapMode.maximized:
+        pos = Offset(0, topOffset);
+        sz = Size(availW, availH);
+        break;
+      case WindowSnapMode.centered:
+        sz = Size(availW * 0.8, availH * 0.8);
+        pos = Offset((availW - sz.width) / 2, topOffset + (availH - sz.height) / 2);
+        break;
+      case WindowSnapMode.normal:
+        break;
+    }
+
+    _windows[idx] = old.copyWith(
+      position: pos,
+      size: sz,
+      preSnapPosition: old.snapMode == WindowSnapMode.normal ? old.position : old.preSnapPosition,
+      preSnapSize: old.snapMode == WindowSnapMode.normal ? old.size : old.preSnapSize,
+      isMaximized: mode == WindowSnapMode.maximized,
+      snapMode: mode,
+    );
+    focusWindow(id);
+  }
+
+  void setSnapPreview(Rect? rect) {
+    if (_snapPreviewRect != rect) {
+      _snapPreviewRect = rect;
+      notifyListeners();
+    }
+  }
+
+  // System Toggles & Setters
+  void toggleSearch({bool? show}) {
+    _isSearchOpen = show ?? !_isSearchOpen;
+    if (_isSearchOpen) {
+      _isControlCenterOpen = false;
+      _isNotificationTrayOpen = false;
+    }
+    notifyListeners();
+  }
+
+  void toggleControlCenter({bool? show}) {
+    _isControlCenterOpen = show ?? !_isControlCenterOpen;
+    if (_isControlCenterOpen) {
+      _isSearchOpen = false;
+      _isNotificationTrayOpen = false;
+    }
+    notifyListeners();
+  }
+
+  void toggleNotificationTray({bool? show}) {
+    _isNotificationTrayOpen = show ?? !_isNotificationTrayOpen;
+    if (_isNotificationTrayOpen) {
+      _isSearchOpen = false;
+      _isControlCenterOpen = false;
+      // Mark as read when opening tray
+      for (var n in _notifications) {
+        n.isRead = true;
+      }
+    }
+    notifyListeners();
+  }
+
+  void setVolume(double val) {
+    _volume = val.clamp(0.0, 1.0);
+    notifyListeners();
+  }
+
+  void setBrightness(double val) {
+    _brightness = val.clamp(0.0, 1.0);
+    notifyListeners();
+  }
+
+  void toggleWifi() {
+    _wifiEnabled = !_wifiEnabled;
+    addNotification('Network', _wifiEnabled ? 'Wi-Fi turned ON' : 'Wi-Fi turned OFF', Icons.wifi);
+    notifyListeners();
+  }
+
+  void toggleBluetooth() {
+    _bluetoothEnabled = !_bluetoothEnabled;
+    addNotification('Bluetooth', _bluetoothEnabled ? 'Bluetooth turned ON' : 'Bluetooth turned OFF', Icons.bluetooth);
+    notifyListeners();
+  }
+
+  void toggleNightShift() {
+    _nightShift = !_nightShift;
+    notifyListeners();
+  }
+
+  void toggleDnd() {
+    _dnd = !_dnd;
+    addNotification('Do Not Disturb', _dnd ? 'DND Mode Activated' : 'DND Mode Deactivated', Icons.do_not_disturb_on);
+    notifyListeners();
+  }
+
+  void togglePerformanceMode() {
+    _performanceMode = !_performanceMode;
+    addNotification('Performance', _performanceMode ? 'High Performance Mode Active' : 'Balanced Power Mode Active', Icons.speed);
+    notifyListeners();
+  }
+
+  void addNotification(String title, String message, IconData icon, [Color color = Colors.blue]) {
+    _notifications.insert(
+      0,
+      SystemNotification(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: title,
+        message: message,
+        icon: icon,
+        color: color,
+      ),
+    );
+    notifyListeners();
+  }
+
+  void removeNotification(String id) {
+    _notifications.removeWhere((n) => n.id == id);
+    notifyListeners();
+  }
+
+  void clearAllNotifications() {
+    _notifications.clear();
     notifyListeners();
   }
 }

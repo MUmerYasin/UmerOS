@@ -54,6 +54,28 @@ from etc.usb_config import USBConfigManager
 from etc.x11_extra import X11ExtraManager
 from etc.kde_config import KDEConfigManager
 
+# Networking configuration
+from etc.hosts_access import HostsAccessManager
+from etc.inet_services import InetServicesManager
+from etc.dhcp_config import DHCPConfigManager
+
+# Shell and user environment
+from etc.shell_profile import ShellProfileManager
+from etc.csh_zsh_config import CshZshConfigManager
+
+# System logging and maintenance
+from etc.logrotate_config import LogrotateConfigManager
+from etc.syslog_config import SyslogConfigManager
+from etc.hardware_config import HardwareConfigManager
+
+# MIME and package management
+from etc.mime_config import MimeConfigManager
+from etc.apt_config import AptConfigManager
+
+# File sharing and mail
+from etc.samba_config import SambaConfigManager
+from etc.mail_config import MailConfigManager
+
 __all__ = [
     # Original
     "ConfigManager",
@@ -93,4 +115,21 @@ __all__ = [
     "USBConfigManager",
     "X11ExtraManager",
     "KDEConfigManager",
+    # Networking configuration
+    "HostsAccessManager",
+    "InetServicesManager",
+    "DHCPConfigManager",
+    # Shell and user environment
+    "ShellProfileManager",
+    "CshZshConfigManager",
+    # System logging and maintenance
+    "LogrotateConfigManager",
+    "SyslogConfigManager",
+    "HardwareConfigManager",
+    # MIME and package management
+    "MimeConfigManager",
+    "AptConfigManager",
+    # File sharing and mail
+    "SambaConfigManager",
+    "MailConfigManager",
 ]

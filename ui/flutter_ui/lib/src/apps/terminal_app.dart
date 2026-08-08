@@ -1,5 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'dart:math';
+import 'package:google_fonts/google_fonts.dart';
 
 class TerminalApp extends StatefulWidget {
   const TerminalApp({super.key});
@@ -14,6 +15,7 @@ class _TerminalAppState extends State<TerminalApp> {
   final ScrollController _scrollController = ScrollController();
   String _currentPath = '/home/user';
   bool _showCursor = true;
+  Timer? _cursorTimer;
 
   @override
   void initState() {
@@ -22,20 +24,14 @@ class _TerminalAppState extends State<TerminalApp> {
       'type': 'system',
       'text': 'Welcome to UmerOS Terminal v2.0\nType "help" for available commands.\n',
     });
-    _blinkCursor();
-  }
-
-  void _blinkCursor() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(milliseconds: 530));
-      if (!mounted) return false;
-      setState(() => _showCursor = !_showCursor);
-      return true;
+    _cursorTimer = Timer.periodic(const Duration(milliseconds: 530), (_) {
+      if (mounted) setState(() => _showCursor = !_showCursor);
     });
   }
 
   @override
   void dispose() {
+    _cursorTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -84,7 +80,7 @@ class _TerminalAppState extends State<TerminalApp> {
         _addOutput('UmerOS 2.0 (Quantum Kernel)');
         break;
       case 'uptime':
-        _addOutput(_getUptime());
+        _addOutput('up 3 hours, 42 minutes (load: 0.12, 0.08, 0.04)');
         break;
       case 'neofetch':
         _addOutput(_getNeofetch());
@@ -107,11 +103,13 @@ class _TerminalAppState extends State<TerminalApp> {
 
     _controller.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 100),
-        curve: Curves.easeOut,
-      );
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 100),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -142,14 +140,12 @@ UmerOS Terminal Commands:
   process       Process management
   memory        Memory management
 ─────────────────────────────────
-  Type "quantum --help" for quantum commands.
-  Type "ai --help" for AI commands.
 ''';
   }
 
   String _ls(List<String> args) {
     final dirs = {
-      '/': ['home', 'usr', 'bin', 'etc', 'var', 'tmp', 'opt', 'dev', 'proc', 'sys'],
+      '/': ['home', 'usr', 'bin', 'etc', 'var', 'tmp', 'opt', 'dev', 'sys'],
       '/home': ['user'],
       '/home/user': ['Documents', 'Downloads', 'Desktop', 'Pictures', 'Music', '.config'],
       '/usr': ['bin', 'lib', 'share', 'local'],
@@ -193,12 +189,6 @@ UmerOS Terminal Commands:
     _addOutput(files[args[0]] ?? 'File not found: ${args[0]}');
   }
 
-  String _getUptime() {
-    final hours = Random().nextInt(24);
-    final mins = Random().nextInt(60);
-    return 'up $hours hours, $mins minutes';
-  }
-
   String _getNeofetch() {
     return '''
     ╔══════════════════╗
@@ -209,12 +199,11 @@ UmerOS Terminal Commands:
     ║  ▀▀▀▀▀▀▀▀▀▀▀   ║
     ╚══════════════════╝
   OS: UmerOS 2.0
-  Kernel: Quantum Kernel 1.0
+  Kernel: Quantum Kernel 6.2
   Shell: UmerShell 2.0
   CPU: Quantum Core (128 qubits)
   Memory: 256 GB QRAM
   AI: Neural Engine v3
-  Filesystem: QFS (Quantum File System)
 ''';
   }
 
@@ -226,7 +215,6 @@ Quantum Commands:
   quantum entangle   Create entangled pair
   quantum measure    Measure quantum state
   quantum teleport   Quantum teleportation
-  quantum simulate   Run quantum simulation
 ''');
       return;
     }
@@ -238,14 +226,10 @@ Quantum Commands:
         _addOutput('Entangled pair created: (|00⟩ + |11⟩) / √2');
         break;
       case 'measure':
-        final result = Random().nextBool() ? '|0⟩' : '|1⟩';
-        _addOutput('Measurement result: $result');
+        _addOutput('Measurement result: |1⟩');
         break;
       case 'teleport':
         _addOutput('Quantum state teleported successfully. Fidelity: 0.987');
-        break;
-      case 'simulate':
-        _addOutput('Running quantum simulation... Complete.\nGate count: ${Random().nextInt(100) + 50}\nFidelity: ${(0.95 + Random().nextDouble() * 0.04).toStringAsFixed(4)}');
         break;
       default:
         _addOutput('Unknown quantum command: ${args[0]}');
@@ -258,23 +242,19 @@ Quantum Commands:
 AI Commands:
   ai status       Show AI engine status
   ai analyze      Analyze current state
-  ai predict      Run prediction
   ai optimize     Optimize system
 ''');
       return;
     }
     switch (args[0]) {
       case 'status':
-        _addOutput('AI Engine: Active\nModel: UmerNet v3\nNeurons: 1.2B\nStatus: Ready');
+        _addOutput('AI Engine: Active\nModel: UmerNet v3\nStatus: Ready');
         break;
       case 'analyze':
-        _addOutput('Analyzing system state...\nCPU: 23% | Memory: 45% | I/O: Low\nRecommendation: System optimal.');
-        break;
-      case 'predict':
-        _addOutput('Prediction: Next process will need 2.3GB RAM\nConfidence: 87%');
+        _addOutput('CPU: 23% | Memory: 45% | System optimal.');
         break;
       case 'optimize':
-        _addOutput('Optimizing system...\nDefragmented memory: 12GB freed\nCache hit rate improved: 15%');
+        _addOutput('Defragmented memory: 12GB freed');
         break;
       default:
         _addOutput('Unknown AI command: ${args[0]}');
@@ -282,18 +262,7 @@ AI Commands:
   }
 
   void _processCommand(List<String> args) {
-    if (args.isEmpty || args[0] == '--help') {
-      _addOutput('''
-Process Commands:
-  process list      List running processes
-  process kill <id> Kill a process
-  process stats     Show process statistics
-''');
-      return;
-    }
-    switch (args[0]) {
-      case 'list':
-        _addOutput('''
+    _addOutput('''
 PID   NAME              CPU%   MEM%
 1     init              0.1    0.2
 2     kernel            0.3    1.5
@@ -301,20 +270,6 @@ PID   NAME              CPU%   MEM%
 4     quantum_daemon    1.8    3.1
 5     shell             0.5    0.8
 ''');
-        break;
-      case 'stats':
-        _addOutput('Total: 5 | Running: 3 | Sleeping: 2 | Stopped: 0');
-        break;
-      case 'kill':
-        if (args.length > 1) {
-          _addOutput('Process ${args[1]} terminated.');
-        } else {
-          _addOutput('Usage: process kill <pid>');
-        }
-        break;
-      default:
-        _addOutput('Unknown process command: ${args[0]}');
-    }
   }
 
   void _memoryCommand(List<String> args) {
@@ -323,17 +278,43 @@ Memory Status:
   Total:     256.0 GB
   Used:      115.2 GB (45%)
   Free:      140.8 GB
-  Cached:     32.4 GB
   Swap:        16.0 GB (0% used)
 ''');
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1E1E2E),
-      child: Column(
+    final fontStyle = GoogleFonts.firaCode(fontSize: 13, height: 1.4);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF181825),
+      body: Column(
         children: [
+          // Quick Action Toolbar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            color: const Color(0xFF11111B),
+            child: Row(
+              children: [
+                const Icon(Icons.terminal, size: 16, color: Colors.tealAccent),
+                const SizedBox(width: 6),
+                Text('UmerShell 2.0', style: fontStyle.copyWith(color: Colors.white70, fontSize: 11)),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () => _executeCommand('help'),
+                  icon: const Icon(Icons.help_outline, size: 14, color: Colors.tealAccent),
+                  label: Text('Help', style: fontStyle.copyWith(color: Colors.tealAccent, fontSize: 11)),
+                ),
+                TextButton.icon(
+                  onPressed: () => _executeCommand('clear'),
+                  icon: const Icon(Icons.clear_all, size: 14, color: Colors.orangeAccent),
+                  label: Text('Clear', style: fontStyle.copyWith(color: Colors.orangeAccent, fontSize: 11)),
+                ),
+              ],
+            ),
+          ),
+
+          // Output View
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -348,9 +329,7 @@ Memory Status:
                   padding: const EdgeInsets.symmetric(vertical: 2),
                   child: SelectableText(
                     entry['text']!,
-                    style: TextStyle(
-                      fontFamily: 'Consolas',
-                      fontSize: 14,
+                    style: fontStyle.copyWith(
                       color: isSystem
                           ? Colors.tealAccent
                           : isInput
@@ -362,41 +341,27 @@ Memory Status:
               },
             ),
           ),
+
+          // Input Line
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF181825),
-              border: Border(
-                top: BorderSide(
-                  color: Colors.teal.withValues(alpha: 0.3),
-                ),
-              ),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            color: const Color(0xFF11111B),
             child: Row(
               children: [
                 Text(
                   '$_currentPath\$ ',
-                  style: const TextStyle(
-                    fontFamily: 'Consolas',
-                    fontSize: 14,
-                    color: Colors.tealAccent,
-                  ),
+                  style: fontStyle.copyWith(color: Colors.tealAccent),
                 ),
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    style: const TextStyle(
-                      fontFamily: 'Consolas',
-                      fontSize: 14,
-                      color: Colors.white,
-                    ),
+                    style: fontStyle.copyWith(color: Colors.white),
                     decoration: InputDecoration(
                       border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
                       hintText: _showCursor ? '█' : ' ',
-                      hintStyle: const TextStyle(
-                        fontFamily: 'Consolas',
-                        color: Colors.tealAccent,
-                      ),
+                      hintStyle: fontStyle.copyWith(color: Colors.tealAccent),
                     ),
                     onSubmitted: _executeCommand,
                     autofocus: true,
