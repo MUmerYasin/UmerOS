@@ -1,0 +1,97 @@
+"""
+UmerOS /dev hierarchy — Device file management.
+
+FHS 3.0 /dev specification:
+  /dev       Device files (char/block/FIFO/symlink)
+  /dev/input Input devices (event, js, mouse)
+  /dev/pts   Pseudo-terminal devices
+  /dev/shm   POSIX shared memory
+  /dev/block Block device symlinks (by major:minor)
+  /dev/char  Character device symlinks (by major:minor)
+  /dev/disk  Disk symlinks (by-id, by-label, by-uuid, by-path)
+  /dev/net   Network device nodes (tun, tap)
+  /dev/usb   USB device nodes
+  /dev/dri   Direct Rendering Interface (GPU)
+  /dev/snd   ALSA sound devices
+  /dev/mapper Device-mapper (LVM, dm-crypt)
+  /dev/log   Syslog socket
+
+Managers:
+  DeviceType         — Enum of device types (char, block, fifo, socket, symlink)
+  DeviceNode         — Dataclass for a single device node
+  DeviceManager      — Central registry, create/remove/query device nodes
+  NullDevice         — /dev/null  (discard)
+  ZeroDevice         — /dev/zero  (zero-fill)
+  RandomDevice       — /dev/random, /dev/urandom  (entropy)
+  FullDevice         — /dev/full  (write-full)
+  TTYDevice          — /dev/tty, /dev/console, /dev/ttyN
+  PtmxDevice         — /dev/ptmx  (PTY master)
+  FdDevice           — /dev/stdin, /dev/stdout, /dev/stderr, /dev/fd
+  DevTmpFS           — devtmpfs population engine
+  MAKEDEVCommand     — MAKEDEV script
+  MknodCommand       — mknod (virtual)
+  UdevadmCommand     — udevadm command
+  LosetupCommand     — losetup command
+  InputDevice        — /dev/input/ subsystem
+  PtsDevice          — /dev/pts/ subsystem
+  ShmDevice          — /dev/shm/ subsystem
+  BlockDeviceLinks   — /dev/block/ symlinks
+  CharDeviceLinks    — /dev/char/ symlinks
+  DiskDeviceLinks    — /dev/disk/ symlinks
+  NetDevice          — /dev/net/ subsystem
+  UsbDevice          — /dev/bus/usb/
+  DriDevice          — /dev/dri/ GPU
+  SndDevice          — /dev/snd/ ALSA
+  LogDevice          — /dev/log  (syslog)
+  MapperDevice       — /dev/mapper/
+
+Integration:
+  drivers/device_registry.py — DEVICE_REGISTRY (kernel-level)
+  bin/device.py             — mknod host command
+  kernel/umer_kernel.py     — mkdir /dev at boot
+"""
+
+from dev.core import DeviceType, DeviceNode, DeviceManager, get_device_manager
+from dev.null_device import NullDevice
+from dev.zero_device import ZeroDevice
+from dev.random_device import RandomDevice
+from dev.full_device import FullDevice
+from dev.tty_device import TTYDevice
+from dev.ptmx_device import PtmxDevice
+from dev.fd_device import FdDevice
+from dev.devtmpfs import DevTmpFS
+from dev.makedev import MAKEDEVCommand
+from dev.mknod_virtual import MknodVirtualCommand
+from dev.udevadm import UdevadmCommand
+from dev.losetup import LosetupCommand
+from dev.input_device import InputDevice
+from dev.pts_device import PtsDevice
+from dev.shm_device import ShmDevice
+from dev.block_devices import BlockDeviceLinks
+from dev.char_devices import CharDeviceLinks
+from dev.disk_device import DiskDeviceLinks
+from dev.net_device import NetDevice
+from dev.usb_device import UsbDevice
+from dev.dri_device import DriDevice
+from dev.snd_device import SndDevice
+from dev.log_device import LogDevice
+from dev.mapper_device import MapperDevice
+
+__all__ = [
+    # Core
+    "DeviceType", "DeviceNode", "DeviceManager", "get_device_manager",
+    # Pseudo-devices
+    "NullDevice", "ZeroDevice", "RandomDevice", "FullDevice",
+    # Terminal
+    "TTYDevice", "PtmxDevice", "FdDevice",
+    # Filesystems
+    "DevTmpFS", "PtsDevice", "ShmDevice",
+    # Commands
+    "MAKEDEVCommand", "MknodVirtualCommand", "UdevadmCommand", "LosetupCommand",
+    # Device links
+    "BlockDeviceLinks", "CharDeviceLinks", "DiskDeviceLinks",
+    # Subsystems
+    "InputDevice", "NetDevice", "UsbDevice", "DriDevice", "SndDevice",
+    # Misc
+    "LogDevice", "MapperDevice",
+]
