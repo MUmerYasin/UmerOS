@@ -498,6 +498,7 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "local-libexec-plugin": ("usr_local_libexec", "LocalLibexecPluginCommand"),
     "local-libexec-mail": ("usr_local_libexec", "LocalLibexecMailCommand"),
     "local-libexec-network": ("usr_local_libexec", "LocalLibexecNetworkCommand"),
+    "home": ("home", "HomeCommand"),
 }
 
 

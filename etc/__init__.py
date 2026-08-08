@@ -123,6 +123,8 @@ from etc.binfmt_d import BinFmtManager
 from etc.default_config import DefaultConfigManager
 from etc.e2fsck_config import E2fsckConfigManager
 from etc.sudoers import SudoersManager
+from etc.init_system import InitSystemManager
+from etc.hosts import HostsManager
 
 __all__ = [
     # Original
@@ -220,4 +222,6 @@ __all__ = [
     "DefaultConfigManager",
     "E2fsckConfigManager",
     "SudoersManager",
+    "InitSystemManager",
+    "HostsManager",
 ]
