@@ -35,6 +35,25 @@ from etc.tmpfiles import TmpfilesManager
 from etc.login_config import LoginConfigManager
 from etc.issue_motd import IssueMotdManager
 
+# FHS-mandated system config modules
+from etc.adduser_config import AdduserConfigManager
+from etc.mail_aliases import MailAliasesManager
+from etc.nfs_exports import NFSExportsManager
+from etc.login_environment import LoginEnvironmentManager
+from etc.cron_allow import CronAccessManager
+from etc.networks import NetworksManager
+from etc.cups_config import CUPSConfigManager
+from etc.conf_d import ConfDManager
+from etc.ssl_config import SSLConfigManager
+from etc.dpkg_config import DpkgConfigManager
+from etc.kernel_config import KernelConfigManager
+from etc.hotplug_config import HotplugConfigManager
+from etc.manpath_config import ManpathConfigManager
+from etc.updatedb_config import UpdatedbConfigManager
+from etc.usb_config import USBConfigManager
+from etc.x11_extra import X11ExtraManager
+from etc.kde_config import KDEConfigManager
+
 __all__ = [
     # Original
     "ConfigManager",
@@ -56,4 +75,22 @@ __all__ = [
     "TmpfilesManager",
     "LoginConfigManager",
     "IssueMotdManager",
+    # FHS-mandated system config
+    "AdduserConfigManager",
+    "MailAliasesManager",
+    "NFSExportsManager",
+    "LoginEnvironmentManager",
+    "CronAccessManager",
+    "NetworksManager",
+    "CUPSConfigManager",
+    "ConfDManager",
+    "SSLConfigManager",
+    "DpkgConfigManager",
+    "KernelConfigManager",
+    "HotplugConfigManager",
+    "ManpathConfigManager",
+    "UpdatedbConfigManager",
+    "USBConfigManager",
+    "X11ExtraManager",
+    "KDEConfigManager",
 ]
