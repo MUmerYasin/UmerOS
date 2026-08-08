@@ -110,6 +110,20 @@ from etc.ppp_config import PPPConfigManager
 from etc.sane_config import SANEConfigManager
 from etc.modules_load import ModulesLoadManager
 
+# FHS batch 12 - shells, os-release, inputrc, securetty, etc
+from etc.shells import ShellsManager
+from etc.os_release import OSReleaseManager
+from etc.inputrc_config import InputRCManager
+from etc.securetty import SecureTTYManager
+from etc.host_conf import HostConfManager
+from etc.gai_conf import GAIConfManager
+from etc.vconsole_config import VConsoleManager
+from etc.profile_d import ProfileDManager
+from etc.binfmt_d import BinFmtManager
+from etc.default_config import DefaultConfigManager
+from etc.e2fsck_config import E2fsckConfigManager
+from etc.sudoers import SudoersManager
+
 __all__ = [
     # Original
     "ConfigManager",
@@ -193,4 +207,17 @@ __all__ = [
     "PPPConfigManager",
     "SANEConfigManager",
     "ModulesLoadManager",
+    # FHS batch 12 - shell/os/security/misc
+    "ShellsManager",
+    "OSReleaseManager",
+    "InputRCManager",
+    "SecureTTYManager",
+    "HostConfManager",
+    "GAIConfManager",
+    "VConsoleManager",
+    "ProfileDManager",
+    "BinFmtManager",
+    "DefaultConfigManager",
+    "E2fsckConfigManager",
+    "SudoersManager",
 ]

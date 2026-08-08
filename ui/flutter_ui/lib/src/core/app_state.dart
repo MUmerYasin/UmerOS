@@ -245,17 +245,31 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void minimizeWindow(String id) {
+  /// Restores a minimized window without recreating it.
+  void restoreWindow(String id) {
     final idx = _windows.indexWhere((w) => w.id == id);
     if (idx == -1) return;
-    final old = _windows[idx];
-    _windows[idx] = old.copyWith(isMinimized: true);
-    if (_activeWindowId == id) {
-      final visible = _windows.where((w) => !w.isMinimized).toList();
-      visible.sort((a, b) => a.zIndex.compareTo(b.zIndex));
-      _activeWindowId = visible.isNotEmpty ? visible.last.id : null;
-    }
+    final win = _windows[idx];
+    if (!win.isMinimized) return;
+    _windows[idx] = win.copyWith(isMinimized: false);
+    _activeWindowId = id;
+    _topZIndex++;
+    _windows[idx] = _windows[idx].copyWith(zIndex: _topZIndex);
     notifyListeners();
+
+    /// Minimizes a window to the dock.
+    void minimizeWindow(String id) {
+      final idx = _windows.indexWhere((w) => w.id == id);
+      if (idx == -1) return;
+      final old = _windows[idx];
+      _windows[idx] = old.copyWith(isMinimized: true);
+      if (_activeWindowId == id) {
+        final visible = _windows.where((w) => !w.isMinimized).toList();
+        visible.sort((a, b) => a.zIndex.compareTo(b.zIndex));
+        _activeWindowId = visible.isNotEmpty ? visible.last.id : null;
+      }
+      notifyListeners();
+    }
   }
 
   void maximizeWindow(String id) {

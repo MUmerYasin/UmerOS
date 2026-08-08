@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import '../core/theme_provider.dart';
@@ -246,7 +247,7 @@ class _DockState extends State<Dock> {
     if (window == null) {
       widget.onOpenApp(meta.id, meta.label, meta.icon, meta.child);
     } else if (window.isMinimized) {
-      appState.openWindow(id: window.id, title: window.title, icon: window.icon, child: window.child);
+      appState.restoreWindow(window.id);
     } else if (appState.activeWindowId == window.id) {
       appState.minimizeWindow(window.id);
     } else {
@@ -479,7 +480,7 @@ class DesktopBackground extends StatelessWidget {
       return Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: NetworkImage(themeProvider.customImagePath!),
+            image: FileImage(File(themeProvider.customImagePath!)),
             fit: BoxFit.cover,
           ),
         ),
