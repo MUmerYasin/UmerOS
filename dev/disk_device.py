@@ -2,10 +2,12 @@
 UmerOS /dev/disk — Disk device symlinks.
 
 FHS 3.0 /dev/disk:
-  /dev/disk/by-id/    — Symlinks by disk ID (e.g. ata-WDC_WD10EZEX-...)
-  /dev/disk/by-label/ — Symlinks by filesystem label
-  /dev/disk/by-uuid/  — Symlinks by UUID
-  /dev/disk/by-path/  — Symlinks by physical path
+  /dev/disk/by-id/         — Symlinks by disk ID (e.g. ata-WDC_WD10EZEX-...)
+  /dev/disk/by-label/      — Symlinks by filesystem label
+  /dev/disk/by-uuid/       — Symlinks by UUID
+  /dev/disk/by-path/       — Symlinks by physical path
+  /dev/disk/by-name/       — Symlinks by partition name (GPT PARTNAME)
+  /dev/disk/by-partlabel/  — Symlinks by GPT partition label
 
 Author:  Umer OS Project
 Licence: GPLv3
@@ -25,10 +27,12 @@ class DiskDeviceLinks:
     """Disk device symlinks — /dev/disk/.
 
     Provides:
-      /dev/disk/by-id/    — Disk by ID
-      /dev/disk/by-label/ — Disk by label
-      /dev/disk/by-uuid/  — Disk by UUID
-      /dev/disk/by-path/  — Disk by path
+      /dev/disk/by-id/         — Disk by ID
+      /dev/disk/by-label/      — Disk by label
+      /dev/disk/by-uuid/       — Disk by UUID
+      /dev/disk/by-path/       — Disk by path
+      /dev/disk/by-name/       — Disk by partition name (GPT PARTNAME attribute)
+      /dev/disk/by-partlabel/  — Disk by GPT partition label
     """
 
     def __init__(self):
@@ -43,7 +47,7 @@ class DiskDeviceLinks:
             name="disk", path="/dev/disk", dev_type=DeviceType.DIRECTORY,
             description="Disk symlinks",
         ))
-        for sub in ("by-id", "by-label", "by-uuid", "by-path"):
+        for sub in ("by-id", "by-label", "by-uuid", "by-path", "by-name", "by-partlabel"):
             mgr.create_node(DeviceNode(
                 name=sub, path=f"/dev/disk/{sub}", dev_type=DeviceType.DIRECTORY,
                 description=f"Disk symlinks by {sub.replace('by-', '')}",
@@ -66,6 +70,18 @@ class DiskDeviceLinks:
             "by-path": [
                 ("pci-0000:00:1f.2-ata-1.0", "/dev/sda"),
                 ("pci-0000:00:1f.2-ata-2.0", "/dev/sdb"),
+            ],
+            "by-name": [
+                ("boot", "/dev/sda1"),
+                ("swap", "/dev/sda2"),
+                ("root", "/dev/sda3"),
+                ("home", "/dev/sdb1"),
+            ],
+            "by-partlabel": [
+                ("EFI System Partition", "/dev/sda1"),
+                ("Linux swap", "/dev/sda2"),
+                ("Linux filesystem", "/dev/sda3"),
+                ("Linux home", "/dev/sdb1"),
             ],
         }
         for category, pairs in defaults.items():

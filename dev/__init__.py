@@ -37,13 +37,31 @@ Managers:
   ShmDevice          — /dev/shm/ subsystem
   BlockDeviceLinks   — /dev/block/ symlinks
   CharDeviceLinks    — /dev/char/ symlinks
-  DiskDeviceLinks    — /dev/disk/ symlinks
+  DiskDeviceLinks    — /dev/disk/ symlinks (by-id, by-label, by-uuid, by-path, by-name, by-partlabel)
   NetDevice          — /dev/net/ subsystem
   UsbDevice          — /dev/bus/usb/
   DriDevice          — /dev/dri/ GPU
   SndDevice          — /dev/snd/ ALSA
   LogDevice          — /dev/log  (syslog)
   MapperDevice       — /dev/mapper/
+  MemoryDevice       — /dev/mem, /dev/kmem, /dev/port (memory access)
+  SCSIBlockDevice    — /dev/sd* (SCSI/SATA disks)
+  SCSIGenericDevice  — /dev/sg* (SCSI generic)
+  SCSITapeDevice     — /dev/st*, /dev/nst* (SCSI tapes)
+  SCSIBSGDevice      — /dev/bsg/ (block SCSI generic)
+  NVMeController     — /dev/nvme* (NVMe controllers)
+  NVMeNamespace      — /dev/nvme*n* (NVMe namespaces)
+  KVMDevice          — /dev/kvm (KVM virtualization)
+  TUNDevice          — /dev/net/tun (TUN/TAP networking)
+  VhostNetDevice     — /dev/vhost-net (vhost networking)
+  FuseDevice         — /dev/fuse (FUSE filesystem)
+  UHIDDevice         — /dev/uhid (user-space HID)
+  HPETDevice         — /dev/hpet (High Precision Event Timer)
+  WatchdogDevice     — /dev/watchdog (hardware watchdog)
+  I2CDevice          — /dev/i2c-* (I2C bus)
+  HugePagesDevice    — /dev/hugepages/ (huge pages)
+  MQueueDevice       — /dev/mqueue/ (POSIX message queues)
+  LoopControlDevice  — /dev/loop-control (loop device control)
 
 Integration:
   drivers/device_registry.py — DEVICE_REGISTRY (kernel-level)
@@ -76,6 +94,24 @@ from dev.dri_device import DriDevice
 from dev.snd_device import SndDevice
 from dev.log_device import LogDevice
 from dev.mapper_device import MapperDevice
+# New subsystems
+from dev.memory_devices import MemoryDevice, KernelMemoryDevice, PortDevice
+from dev.scsi_devices import SCSIBlockDevice, SCSIGenericDevice, SCSITapeDevice, SCSIBSGDevice
+from dev.nvme_devices import NVMeController, NVMeNamespace
+from dev.virtual_devices import (
+    KVMDevice, TUNDevice, VhostNetDevice, VhostVSockDevice,
+    VhostUserDevice, VHCIDevice, CUSEDevice, VSockDevice,
+)
+from dev.fuse_device import FuseDevice
+from dev.misc_char_devices import (
+    UHIDDevice, UserfaultfdDevice, HPETDevice, PPPDevice, WatchdogDevice,
+    IntelEtherDevice, PSAUXDevice, AGPGARTDevice, TPMDevice,
+    SnapshotDevice, McelogDevice,
+)
+from dev.i2c_devices import I2CDevice
+from dev.hugepages_device import HugePagesDevice
+from dev.mqueue_device import MQueueDevice
+from dev.loop_control import LoopControlDevice
 
 __all__ = [
     # Core
@@ -94,4 +130,27 @@ __all__ = [
     "InputDevice", "NetDevice", "UsbDevice", "DriDevice", "SndDevice",
     # Misc
     "LogDevice", "MapperDevice",
+    # Memory devices
+    "MemoryDevice", "KernelMemoryDevice", "PortDevice",
+    # SCSI devices
+    "SCSIBlockDevice", "SCSIGenericDevice", "SCSITapeDevice", "SCSIBSGDevice",
+    # NVMe devices
+    "NVMeController", "NVMeNamespace",
+    # Virtual devices
+    "KVMDevice", "TUNDevice", "VhostNetDevice", "VhostVSockDevice",
+    "VhostUserDevice", "VHCIDevice", "CUSEDevice", "VSockDevice",
+    # FUSE
+    "FuseDevice",
+    # Misc char devices
+    "UHIDDevice", "UserfaultfdDevice", "HPETDevice", "PPPDevice",
+    "WatchdogDevice", "IntelEtherDevice", "PSAUXDevice", "AGPGARTDevice",
+    "TPMDevice", "SnapshotDevice", "McelogDevice",
+    # I2C devices
+    "I2CDevice",
+    # Hugepages
+    "HugePagesDevice",
+    # POSIX mqueue
+    "MQueueDevice",
+    # Loop control
+    "LoopControlDevice",
 ]
