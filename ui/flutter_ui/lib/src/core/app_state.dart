@@ -97,11 +97,25 @@ class AppState extends ChangeNotifier {
   int _topZIndex = 0;
   String? _activeWindowId;
 
+  // Pinned Dock items list
+  final List<String> _pinnedDockIds = [
+    'browser',
+    'terminal',
+    'files',
+    'monitor',
+    'settings',
+    'editor',
+    'packages',
+    'quantum',
+    'security',
+    'games',
+    'docs',
+  ];
+
   // Overlays state
   bool _isSearchOpen = false;
   bool _isControlCenterOpen = false;
   bool _isNotificationTrayOpen = false;
-  final bool _isAltTabOpen = false;
 
   // Snap preview overlay during drag
   Rect? _snapPreviewRect;
@@ -114,6 +128,7 @@ class AppState extends ChangeNotifier {
   bool _nightShift = false;
   bool _dnd = false;
   bool _performanceMode = true;
+  String? _volumeToastMessage;
 
   // Notifications list
   final List<SystemNotification> _notifications = [
@@ -136,10 +151,10 @@ class AppState extends ChangeNotifier {
   // Getters
   List<WindowData> get windows => _windows;
   String? get activeWindowId => _activeWindowId;
+  List<String> get pinnedDockIds => _pinnedDockIds;
   bool get isSearchOpen => _isSearchOpen;
   bool get isControlCenterOpen => _isControlCenterOpen;
   bool get isNotificationTrayOpen => _isNotificationTrayOpen;
-  bool get isAltTabOpen => _isAltTabOpen;
   Rect? get snapPreviewRect => _snapPreviewRect;
 
   double get volume => _volume;
@@ -149,8 +164,22 @@ class AppState extends ChangeNotifier {
   bool get nightShift => _nightShift;
   bool get dnd => _dnd;
   bool get performanceMode => _performanceMode;
+  String? get volumeToastMessage => _volumeToastMessage;
   List<SystemNotification> get notifications => _notifications;
   int get unreadNotificationCount => _notifications.where((n) => !n.isRead).length;
+
+  void pinDockItem(String id) {
+    if (!_pinnedDockIds.contains(id)) {
+      _pinnedDockIds.add(id);
+      addNotification('Dock', 'App added to Dock', Icons.push_pin);
+      notifyListeners();
+    }
+  }
+
+  void unpinDockItem(String id) {
+    _pinnedDockIds.remove(id);
+    notifyListeners();
+  }
 
   void openWindow({
     required String id,
@@ -178,8 +207,8 @@ class AppState extends ChangeNotifier {
     final random = Random();
     final pos = position ??
         Offset(
-          120 + random.nextDouble() * 160,
-          60 + random.nextDouble() * 80,
+          100 + random.nextDouble() * 140,
+          50 + random.nextDouble() * 70,
         );
     final sz = size ?? const Size(880, 620);
 
@@ -247,7 +276,6 @@ class AppState extends ChangeNotifier {
     final old = _windows[idx];
     if (old.isMaximized) return;
 
-    // Unsnap if dragging from snap mode
     Offset newPos = old.position + delta;
     _windows[idx] = old.copyWith(
       position: newPos,
@@ -293,8 +321,8 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    final topOffset = 32.0;
-    final bottomOffset = 80.0;
+    final topOffset = 36.0;
+    final bottomOffset = 86.0;
     final availH = screenSize.height - topOffset - bottomOffset;
     final availW = screenSize.width;
 
@@ -380,7 +408,6 @@ class AppState extends ChangeNotifier {
     if (_isNotificationTrayOpen) {
       _isSearchOpen = false;
       _isControlCenterOpen = false;
-      // Mark as read when opening tray
       for (var n in _notifications) {
         n.isRead = true;
       }
@@ -390,6 +417,7 @@ class AppState extends ChangeNotifier {
 
   void setVolume(double val) {
     _volume = val.clamp(0.0, 1.0);
+    _volumeToastMessage = 'Volume: ${(_volume * 100).round()}%';
     notifyListeners();
   }
 

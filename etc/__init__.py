@@ -100,6 +100,16 @@ from etc.xdg_config import XDGConfigManager
 from etc.gss_config import GSSConfigManager
 from etc.openvpn_config import OpenVPNConfigManager
 
+# Kernel/time configuration
+from etc.modprobe_d import ModprobeDManager
+from etc.sysctl_d import SysctlDManager
+from etc.chrony_config import ChronyConfigManager
+
+# Network/PPP/scanner configuration
+from etc.ppp_config import PPPConfigManager
+from etc.sane_config import SANEConfigManager
+from etc.modules_load import ModulesLoadManager
+
 __all__ = [
     # Original
     "ConfigManager",
@@ -175,4 +185,12 @@ __all__ = [
     "XDGConfigManager",
     "GSSConfigManager",
     "OpenVPNConfigManager",
+    # Kernel/time configuration
+    "ModprobeDManager",
+    "SysctlDManager",
+    "ChronyConfigManager",
+    # Network/PPP/scanner configuration
+    "PPPConfigManager",
+    "SANEConfigManager",
+    "ModulesLoadManager",
 ]

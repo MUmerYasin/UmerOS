@@ -23,6 +23,7 @@ import '../apps/games_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/browser_app.dart';
 import '../apps/antivirus_app.dart';
+import '../apps/power_governor_app.dart';
 
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
@@ -155,41 +156,23 @@ class _DesktopShellState extends State<DesktopShell> {
                 ),
               ),
 
-              // Bottom Taskbar (Shows Active App Tabs)
-              if (appState.windows.isNotEmpty)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 82,
-                  child: Taskbar(
-                    items: appState.windows.map((w) => TaskbarItem(
-                      id: w.id,
-                      label: w.title,
-                      icon: w.icon,
-                      color: Theme.of(context).colorScheme.primary,
-                      isMinimized: w.isMinimized,
-                      isActive: appState.activeWindowId == w.id && !w.isMinimized,
-                    )).toList(),
-                    onTap: (id) {
-                      final w = appState.windows.firstWhere((w) => w.id == id);
-                      if (w.isMinimized) {
-                        appState.openWindow(id: w.id, title: w.title, icon: w.icon, child: w.child);
-                      } else if (appState.activeWindowId == id) {
-                        appState.minimizeWindow(id);
-                      } else {
-                        appState.focusWindow(id);
-                      }
-                    },
-                  ),
-                ),
-
-              // Bottom macOS / M3 Style Dock
+              // Unified Super Dock (Integrates Taskbar Tabs & Minimization)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
-                child: Dock(items: _getDockItems(appState)),
+                child: Dock(onOpenApp: _openApp),
               ),
+
+              // Real Display Brightness Screen Dimmer Overlay
+              if (appState.brightness < 1.0)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.black.withValues(alpha: (1.0 - appState.brightness) * 0.75),
+                    ),
+                  ),
+                ),
 
               // Control Center Popover Modal
               if (appState.isControlCenterOpen)
@@ -222,89 +205,6 @@ class _DesktopShellState extends State<DesktopShell> {
         ),
       ),
     );
-  }
-
-  List<DockItem> _getDockItems(AppState appState) {
-    return [
-      DockItem(
-        id: 'browser',
-        label: 'Browser',
-        icon: Icons.language,
-        color: Colors.blue,
-        onTap: () => _openApp('browser', 'Browser', Icons.language, const BrowserApp()),
-      ),
-      DockItem(
-        id: 'terminal',
-        label: 'Terminal',
-        icon: Icons.terminal,
-        color: Colors.teal,
-        onTap: () => _openApp('terminal', 'Terminal', Icons.terminal, const TerminalApp()),
-      ),
-      DockItem(
-        id: 'files',
-        label: 'Files',
-        icon: Icons.folder,
-        color: Colors.amber.shade700,
-        onTap: () => _openApp('files', 'File Manager', Icons.folder, const FileManagerApp()),
-      ),
-      DockItem(
-        id: 'monitor',
-        label: 'System Monitor',
-        icon: Icons.monitor_heart,
-        color: Colors.green,
-        onTap: () => _openApp('monitor', 'System Monitor', Icons.monitor_heart, const SystemMonitorApp()),
-      ),
-      DockItem(
-        id: 'settings',
-        label: 'Settings',
-        icon: Icons.tune,
-        color: Colors.blueGrey,
-        onTap: () => _openApp('settings', 'Settings', Icons.tune, const SettingsApp()),
-      ),
-      DockItem(
-        id: 'editor',
-        label: 'Text Editor',
-        icon: Icons.edit_note,
-        color: Colors.orange,
-        onTap: () => _openApp('editor', 'Text Editor', Icons.edit_note, const TextEditorApp()),
-      ),
-      DockItem(
-        id: 'packages',
-        label: 'Packages',
-        icon: Icons.inventory_2,
-        color: Colors.purple,
-        onTap: () => _openApp('packages', 'Package Manager', Icons.inventory_2, const PackageManagerApp()),
-      ),
-      DockItem(
-        id: 'quantum',
-        label: 'Quantum Sim',
-        icon: Icons.blur_circular,
-        color: Colors.indigo,
-        onTap: () => _openApp('quantum', 'Quantum Simulator', Icons.blur_circular, const QuantumSimApp()),
-      ),
-      DockItem(
-        id: 'security',
-        label: 'Security',
-        icon: Icons.shield,
-        color: Colors.redAccent,
-        badgeCount: appState.unreadNotificationCount,
-        onTap: () => _openApp('security', 'Security Manager', Icons.shield, const SecurityApp()),
-      ),
-      DockItem(
-        id: 'games',
-        label: 'Games',
-        icon: Icons.sports_esports,
-        color: Colors.pink,
-        onTap: () => _openApp('games', 'Games', Icons.sports_esports, const GamesApp()),
-      ),
-      DockItem(
-        id: 'docs',
-        label: 'Documentation',
-        icon: Icons.menu_book,
-        color: Colors.deepOrange,
-        onTap: () => _openApp('docs', 'Documentation', Icons.menu_book, const DocsApp()),
-      ),
-    ];
   }
 }
 
@@ -365,6 +265,8 @@ class _MenuBar extends StatelessWidget {
               onSelected: (value) {
                 if (value == 'settings') {
                   onOpenApp('settings', 'Settings', Icons.tune, const SettingsApp());
+                } else if (value == 'power') {
+                  onOpenApp('power', 'Power & Governor', Icons.bolt, const PowerGovernorApp());
                 } else if (value == 'launchpad') {
                   onToggleLaunchPad();
                 } else if (value == 'about') {
@@ -379,6 +281,10 @@ class _MenuBar extends StatelessWidget {
                 const PopupMenuItem(
                   value: 'launchpad',
                   child: Row(children: [Icon(Icons.grid_view, size: 18), SizedBox(width: 8), Text('LaunchPad')]),
+                ),
+                const PopupMenuItem(
+                  value: 'power',
+                  child: Row(children: [Icon(Icons.bolt, size: 18), SizedBox(width: 8), Text('CPUIdle & Governor')]),
                 ),
                 const PopupMenuItem(
                   value: 'settings',
@@ -399,6 +305,7 @@ class _MenuBar extends StatelessWidget {
                     _MenuBarItem(label: 'Files', onTap: () => onOpenApp('files', 'File Manager', Icons.folder, const FileManagerApp())),
                     _MenuBarItem(label: 'Terminal', onTap: () => onOpenApp('terminal', 'Terminal', Icons.terminal, const TerminalApp())),
                     _MenuBarItem(label: 'Monitor', onTap: () => onOpenApp('monitor', 'System Monitor', Icons.monitor_heart, const SystemMonitorApp())),
+                    _MenuBarItem(label: 'Power', onTap: () => onOpenApp('power', 'Power & Governor', Icons.bolt, const PowerGovernorApp())),
                     _MenuBarItem(label: 'Docs', onTap: () => onOpenApp('docs', 'Documentation', Icons.menu_book, const DocsApp())),
                   ],
                 ),
@@ -538,6 +445,7 @@ class _DesktopGrid extends StatelessWidget {
       _DesktopApp('Terminal', Icons.terminal, Colors.teal, 'terminal', const TerminalApp()),
       _DesktopApp('Files', Icons.folder, Colors.amber.shade700, 'files', const FileManagerApp()),
       _DesktopApp('Monitor', Icons.monitor_heart, Colors.green, 'monitor', const SystemMonitorApp()),
+      _DesktopApp('Power & Idle', Icons.bolt, Colors.amber, 'power', const PowerGovernorApp()),
       _DesktopApp('Settings', Icons.tune, Colors.blueGrey, 'settings', const SettingsApp()),
       _DesktopApp('Editor', Icons.edit_note, Colors.orange, 'editor', const TextEditorApp()),
       _DesktopApp('Packages', Icons.inventory_2, Colors.purple, 'packages', const PackageManagerApp()),
@@ -558,43 +466,58 @@ class _DesktopGrid extends StatelessWidget {
         children: apps.map((app) {
           return SizedBox(
             width: 86,
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () => onOpenApp(app.id, app.label, app.icon, app.child),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: app.color.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: app.color.withValues(alpha: 0.3)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: app.color.withValues(alpha: 0.15),
-                            blurRadius: 12,
-                            spreadRadius: 1,
-                          ),
-                        ],
+            child: Draggable<String>(
+              data: app.id,
+              feedback: Material(
+                color: Colors.transparent,
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: app.color.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(app.icon, size: 34, color: Colors.white),
+                ),
+              ),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () => onOpenApp(app.id, app.label, app.icon, app.child),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          color: app.color.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: app.color.withValues(alpha: 0.3)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: app.color.withValues(alpha: 0.15),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: Icon(app.icon, size: 34, color: app.color),
+                      ).animate().scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1), duration: 200.ms),
+                      const SizedBox(height: 8),
+                      Text(
+                        app.label,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
+                        ),
+                        textAlign: TextAlign.center,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      child: Icon(app.icon, size: 34, color: app.color),
-                    ).animate().scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1), duration: 200.ms),
-                    const SizedBox(height: 8),
-                    Text(
-                      app.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        shadows: const [Shadow(color: Colors.black, blurRadius: 4)],
-                      ),
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -616,10 +539,23 @@ class _DesktopApp {
 }
 
 // Material 3 Control Center Popover Widget
-class _ControlCenterPopover extends StatelessWidget {
+class _ControlCenterPopover extends StatefulWidget {
   final Function(String id, String title, IconData icon, Widget child) onOpenApp;
 
   const _ControlCenterPopover({required this.onOpenApp});
+
+  @override
+  State<_ControlCenterPopover> createState() => _ControlCenterPopoverState();
+}
+
+class _ControlCenterPopoverState extends State<_ControlCenterPopover> {
+  final TextEditingController _customWallpaperController = TextEditingController();
+
+  @override
+  void dispose() {
+    _customWallpaperController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -630,7 +566,7 @@ class _ControlCenterPopover extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: 340,
+        width: 350,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHigh,
@@ -704,7 +640,7 @@ class _ControlCenterPopover extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Sliders: Volume & Brightness
-            Text('System Volume', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant)),
+            Text('System Volume: ${(appState.volume * 100).round()}%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant)),
             Row(
               children: [
                 Icon(Icons.volume_down, size: 18, color: colorScheme.onSurfaceVariant),
@@ -718,7 +654,7 @@ class _ControlCenterPopover extends StatelessWidget {
               ],
             ),
 
-            Text('Display Brightness', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant)),
+            Text('Display Brightness: ${(appState.brightness * 100).round()}%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant)),
             Row(
               children: [
                 Icon(Icons.brightness_low, size: 18, color: colorScheme.onSurfaceVariant),
@@ -735,7 +671,7 @@ class _ControlCenterPopover extends StatelessWidget {
             const Divider(),
             const SizedBox(height: 8),
 
-            // Wallpaper Selector
+            // Wallpaper Selector & Custom Background Image Input
             Text('Wallpaper Preset', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 8),
             SingleChildScrollView(
@@ -752,6 +688,27 @@ class _ControlCenterPopover extends StatelessWidget {
                     ),
                   );
                 }).toList(),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Custom Background Image Input
+            TextField(
+              controller: _customWallpaperController,
+              decoration: InputDecoration(
+                hintText: 'Enter custom image path or URL...',
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.image, size: 18),
+                  onPressed: () {
+                    if (_customWallpaperController.text.isNotEmpty) {
+                      themeProvider.setCustomImagePath(_customWallpaperController.text);
+                      appState.addNotification('Wallpaper', 'Custom background image applied', Icons.wallpaper);
+                    }
+                  },
+                ),
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
@@ -784,7 +741,7 @@ class _QuickToggleTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Container(
-        width: 144,
+        width: 148,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: isActive ? colorScheme.primaryContainer : colorScheme.surfaceContainer,
@@ -962,6 +919,7 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
       _DesktopApp('Terminal', Icons.terminal, Colors.teal, 'terminal', const TerminalApp()),
       _DesktopApp('File Manager', Icons.folder, Colors.amber.shade700, 'files', const FileManagerApp()),
       _DesktopApp('System Monitor', Icons.monitor_heart, Colors.green, 'monitor', const SystemMonitorApp()),
+      _DesktopApp('Power & Governor', Icons.bolt, Colors.amber, 'power', const PowerGovernorApp()),
       _DesktopApp('Settings', Icons.tune, Colors.blueGrey, 'settings', const SettingsApp()),
       _DesktopApp('Text Editor', Icons.edit_note, Colors.orange, 'editor', const TextEditorApp()),
       _DesktopApp('Package Manager', Icons.inventory_2, Colors.purple, 'packages', const PackageManagerApp()),
@@ -1081,6 +1039,7 @@ class _LaunchPad extends StatelessWidget {
       _LaunchApp('Terminal', Icons.terminal, Colors.teal, 'terminal', const TerminalApp()),
       _LaunchApp('File Manager', Icons.folder, Colors.amber.shade700, 'files', const FileManagerApp()),
       _LaunchApp('System Monitor', Icons.monitor_heart, Colors.green, 'monitor', const SystemMonitorApp()),
+      _LaunchApp('Power & Governor', Icons.bolt, Colors.amber, 'power', const PowerGovernorApp()),
       _LaunchApp('Settings', Icons.tune, Colors.blueGrey, 'settings', const SettingsApp()),
       _LaunchApp('Text Editor', Icons.edit_note, Colors.orange, 'editor', const TextEditorApp()),
       _LaunchApp('Package Manager', Icons.inventory_2, Colors.purple, 'packages', const PackageManagerApp()),
@@ -1140,34 +1099,49 @@ class _LaunchPad extends StatelessWidget {
                       itemCount: apps.length,
                       itemBuilder: (context, index) {
                         final app = apps[index];
-                        return MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () => onOpenApp(app.id, app.label, app.icon, app.child),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 72,
-                                  height: 72,
-                                  decoration: BoxDecoration(
-                                    color: app.color.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(color: app.color.withValues(alpha: 0.3)),
+                        return Draggable<String>(
+                          data: app.id,
+                          feedback: Material(
+                            color: Colors.transparent,
+                            child: Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                color: app.color.withValues(alpha: 0.8),
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: Icon(app.icon, size: 38, color: Colors.white),
+                            ),
+                          ),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: () => onOpenApp(app.id, app.label, app.icon, app.child),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 72,
+                                    height: 72,
+                                    decoration: BoxDecoration(
+                                      color: app.color.withValues(alpha: 0.18),
+                                      borderRadius: BorderRadius.circular(22),
+                                      border: Border.all(color: app.color.withValues(alpha: 0.3)),
+                                    ),
+                                    child: Icon(app.icon, size: 38, color: app.color),
                                   ),
-                                  child: Icon(app.icon, size: 38, color: app.color),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  app.label,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: colorScheme.onSurface,
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    app.label,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: colorScheme.onSurface,
+                                    ),
+                                    textAlign: TextAlign.center,
                                   ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );

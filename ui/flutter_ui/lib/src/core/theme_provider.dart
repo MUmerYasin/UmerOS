@@ -8,18 +8,21 @@ enum WallpaperPreset {
   cyberpunkNeon,
   minimalMesh,
   midnightSlate,
+  customImage,
 }
 
 class ThemeProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.dark;
   FlexScheme _flexScheme = FlexScheme.deepPurple;
   WallpaperPreset _wallpaper = WallpaperPreset.quantumGradient;
+  String? _customImagePath;
   bool _enableGlassmorphism = true;
   double _uiScale = 1.0;
 
   ThemeMode get themeMode => _themeMode;
   FlexScheme get flexScheme => _flexScheme;
   WallpaperPreset get wallpaper => _wallpaper;
+  String? get customImagePath => _customImagePath;
   bool get enableGlassmorphism => _enableGlassmorphism;
   double get uiScale => _uiScale;
 
@@ -40,6 +43,12 @@ class ThemeProvider extends ChangeNotifier {
 
   void setWallpaper(WallpaperPreset preset) {
     _wallpaper = preset;
+    notifyListeners();
+  }
+
+  void setCustomImagePath(String path) {
+    _customImagePath = path;
+    _wallpaper = WallpaperPreset.customImage;
     notifyListeners();
   }
 

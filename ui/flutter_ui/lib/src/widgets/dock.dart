@@ -2,29 +2,38 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import '../core/theme_provider.dart';
+import '../apps/terminal_app.dart';
+import '../apps/file_manager_app.dart';
+import '../apps/system_monitor_app.dart';
+import '../apps/settings_app.dart';
+import '../apps/text_editor_app.dart';
+import '../apps/package_manager_app.dart';
+import '../apps/network_manager_app.dart';
+import '../apps/calendar_app.dart';
+import '../apps/calculator_app.dart';
+import '../apps/quantum_sim_app.dart';
+import '../apps/security_app.dart';
+import '../apps/boot_manager_app.dart';
+import '../apps/games_app.dart';
+import '../apps/docs_app.dart';
+import '../apps/browser_app.dart';
+import '../apps/antivirus_app.dart';
+import '../apps/power_governor_app.dart';
 
-class DockItem {
+class _AppMeta {
   final String id;
   final String label;
   final IconData icon;
   final Color color;
-  final int badgeCount;
-  final VoidCallback onTap;
+  final Widget child;
 
-  const DockItem({
-    required this.id,
-    required this.label,
-    required this.icon,
-    this.color = Colors.deepPurple,
-    this.badgeCount = 0,
-    required this.onTap,
-  });
+  const _AppMeta(this.id, this.label, this.icon, this.color, this.child);
 }
 
 class Dock extends StatefulWidget {
-  final List<DockItem> items;
+  final Function(String id, String title, IconData icon, Widget child) onOpenApp;
 
-  const Dock({super.key, required this.items});
+  const Dock({super.key, required this.onOpenApp});
 
   @override
   State<Dock> createState() => _DockState();
@@ -33,243 +42,216 @@ class Dock extends StatefulWidget {
 class _DockState extends State<Dock> {
   int _hoveredIndex = -1;
 
+  final Map<String, _AppMeta> _registry = {
+    'browser': const _AppMeta('browser', 'Browser', Icons.language, Colors.blue, BrowserApp()),
+    'terminal': const _AppMeta('terminal', 'Terminal', Icons.terminal, Colors.teal, TerminalApp()),
+    'files': const _AppMeta('files', 'File Manager', Icons.folder, Colors.amber, FileManagerApp()),
+    'monitor': const _AppMeta('monitor', 'System Monitor', Icons.monitor_heart, Colors.green, SystemMonitorApp()),
+    'power': const _AppMeta('power', 'Power & Governor', Icons.bolt, Colors.amber, PowerGovernorApp()),
+    'settings': const _AppMeta('settings', 'Settings', Icons.tune, Colors.blueGrey, SettingsApp()),
+    'editor': const _AppMeta('editor', 'Text Editor', Icons.edit_note, Colors.orange, TextEditorApp()),
+    'packages': const _AppMeta('packages', 'Package Manager', Icons.inventory_2, Colors.purple, PackageManagerApp()),
+    'network': const _AppMeta('network', 'Network Manager', Icons.wifi, Colors.cyan, NetworkManagerApp()),
+    'calendar': const _AppMeta('calendar', 'Calendar', Icons.calendar_month, Colors.indigo, CalendarApp()),
+    'calculator': const _AppMeta('calculator', 'Calculator', Icons.calculate, Colors.blueGrey, CalculatorApp()),
+    'quantum': const _AppMeta('quantum', 'Quantum Sim', Icons.blur_circular, Colors.deepPurple, QuantumSimApp()),
+    'security': const _AppMeta('security', 'Security', Icons.shield, Colors.redAccent, SecurityApp()),
+    'antivirus': const _AppMeta('antivirus', 'Antivirus', Icons.health_and_safety, Colors.lightGreen, AntivirusApp()),
+    'boot': const _AppMeta('boot', 'Boot Manager', Icons.power_settings_new, Colors.amber, BootManagerApp()),
+    'games': const _AppMeta('games', 'Games', Icons.sports_esports, Colors.pink, GamesApp()),
+    'docs': const _AppMeta('docs', 'Documentation', Icons.menu_book, Colors.deepOrange, DocsApp()),
+  };
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
-    return Container(
-      height: 76,
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.3),
-                blurRadius: 24,
-                spreadRadius: 2,
-                offset: const Offset(0, 4),
+    // Dynamic dock items = pinned items + open unpinned windows
+    final dockItemIds = <String>{...appState.pinnedDockIds};
+    for (var w in appState.windows) {
+      dockItemIds.add(w.id);
+    }
+    final itemsList = dockItemIds.toList();
+
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (details) => true,
+      onAcceptWithDetails: (details) {
+        appState.pinDockItem(details.data);
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isHoveringDrag = candidateData.isNotEmpty;
+
+        return Container(
+          height: 76,
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Center(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: isHoveringDrag
+                    ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.95)
+                    : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.88),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: isHoveringDrag
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                  width: isHoveringDrag ? 2 : 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.3),
+                    blurRadius: 24,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(widget.items.length, (index) {
-              final item = widget.items[index];
-              final isHovered = _hoveredIndex == index;
-              final isNeighbor = (_hoveredIndex - index).abs() == 1;
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(itemsList.length, (index) {
+                    final appId = itemsList[index];
+                    final meta = _registry[appId] ?? _AppMeta(appId, appId, Icons.apps, Colors.grey, const SizedBox());
 
-              double scale = 1.0;
-              if (isHovered) {
-                scale = 1.35;
-              } else if (isNeighbor) {
-                scale = 1.15;
-              }
+                    final isHovered = _hoveredIndex == index;
+                    final isNeighbor = (_hoveredIndex - index).abs() == 1;
 
-              final isOpen = appState.windows.any((w) => w.id == item.id);
-              final isActive = appState.activeWindowId == item.id && isOpen;
+                    double scale = 1.0;
+                    if (isHovered) {
+                      scale = 1.35;
+                    } else if (isNeighbor) {
+                      scale = 1.15;
+                    }
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: MouseRegion(
-                  onEnter: (_) => setState(() => _hoveredIndex = index),
-                  onExit: (_) => setState(() => _hoveredIndex = -1),
-                  child: GestureDetector(
-                    onTap: item.onTap,
-                    child: Tooltip(
-                      message: item.label,
-                      preferBelow: false,
-                      verticalOffset: 36,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutBack,
-                        width: 52 * scale,
-                        height: 52 * scale,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Container(
-                              width: 48 * scale,
-                              height: 48 * scale,
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? item.color.withValues(alpha: 0.25)
-                                    : (isHovered
-                                        ? item.color.withValues(alpha: 0.15)
-                                        : Colors.transparent),
-                                borderRadius: BorderRadius.circular(14 * scale),
-                              ),
-                              child: Icon(
-                                item.icon,
-                                color: item.color,
-                                size: 26 * scale,
-                              ),
+                    final window = appState.windows.where((w) => w.id == appId).firstOrNull;
+                    final isOpen = window != null;
+                    final isMinimized = window?.isMinimized ?? false;
+                    final isActive = appState.activeWindowId == appId && isOpen && !isMinimized;
+                    final isPinned = appState.pinnedDockIds.contains(appId);
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: MouseRegion(
+                        onEnter: (_) => setState(() => _hoveredIndex = index),
+                        onExit: (_) => setState(() => _hoveredIndex = -1),
+                        child: PopupMenuButton<String>(
+                          tooltip: meta.label,
+                          offset: const Offset(0, -90),
+                          onSelected: (value) {
+                            if (value == 'launch') {
+                              _handleTap(appState, meta, window);
+                            } else if (value == 'minimize') {
+                              appState.minimizeWindow(appId);
+                            } else if (value == 'close') {
+                              appState.closeWindow(appId);
+                            } else if (value == 'pin') {
+                              appState.pinDockItem(appId);
+                            } else if (value == 'unpin') {
+                              appState.unpinDockItem(appId);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            PopupMenuItem(
+                              value: 'launch',
+                              child: Row(children: [Icon(meta.icon, size: 18), const SizedBox(width: 8), Text('Open ${meta.label}')]),
                             ),
-
-                            // Open App Indicator Dot
-                            if (isOpen)
-                              Positioned(
-                                bottom: 1,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 200),
-                                  width: isActive ? 16 : 6,
-                                  height: 4,
-                                  decoration: BoxDecoration(
-                                    color: isActive
-                                        ? Theme.of(context).colorScheme.primary
-                                        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
+                            if (isOpen && !isMinimized)
+                              const PopupMenuItem(
+                                value: 'minimize',
+                                child: Row(children: [Icon(Icons.minimize, size: 18), SizedBox(width: 8), Text('Minimize Window')]),
                               ),
-
-                            // Notification Badge
-                            if (item.badgeCount > 0)
-                              Positioned(
-                                top: 2,
-                                right: 2,
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.redAccent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Text(
-                                    '${item.badgeCount}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
+                            if (isOpen)
+                              const PopupMenuItem(
+                                value: 'close',
+                                child: Row(children: [Icon(Icons.close, size: 18), SizedBox(width: 8), Text('Close Window')]),
+                              ),
+                            if (isPinned)
+                              const PopupMenuItem(
+                                value: 'unpin',
+                                child: Row(children: [Icon(Icons.push_pin_outlined, size: 18), SizedBox(width: 8), Text('Unpin from Dock')]),
+                              )
+                            else
+                              const PopupMenuItem(
+                                value: 'pin',
+                                child: Row(children: [Icon(Icons.push_pin, size: 18), SizedBox(width: 8), Text('Pin to Dock')]),
                               ),
                           ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-    );
-  }
-}
+                          child: GestureDetector(
+                            onTap: () => _handleTap(appState, meta, window),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeOutBack,
+                              width: 50 * scale,
+                              height: 50 * scale,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    width: 46 * scale,
+                                    height: 46 * scale,
+                                    decoration: BoxDecoration(
+                                      color: isActive
+                                          ? meta.color.withValues(alpha: 0.28)
+                                          : (isHovered
+                                              ? meta.color.withValues(alpha: 0.18)
+                                              : Colors.transparent),
+                                      borderRadius: BorderRadius.circular(14 * scale),
+                                    ),
+                                    child: Icon(
+                                      meta.icon,
+                                      color: meta.color,
+                                      size: 26 * scale,
+                                    ),
+                                  ),
 
-class TaskbarItem {
-  final String id;
-  final String label;
-  final IconData icon;
-  final Color color;
-  final bool isMinimized;
-  final bool isActive;
-
-  const TaskbarItem({
-    required this.id,
-    required this.label,
-    required this.icon,
-    this.color = Colors.deepPurple,
-    this.isMinimized = false,
-    this.isActive = false,
-  });
-}
-
-class Taskbar extends StatelessWidget {
-  final List<TaskbarItem> items;
-  final Function(String id) onTap;
-
-  const Taskbar({super.key, required this.items, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
-
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 16,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: items.map((item) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  onTap: () => onTap(item.id),
-                  child: Tooltip(
-                    message: item.label,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: item.isActive
-                            ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.8)
-                            : (item.isMinimized
-                                ? Theme.of(context).colorScheme.surfaceContainer.withValues(alpha: 0.4)
-                                : Theme.of(context).colorScheme.surfaceContainerHigh.withValues(alpha: 0.6)),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: item.isActive
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.transparent,
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            item.icon,
-                            color: item.isActive
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            item.label,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: item.isActive ? FontWeight.w600 : FontWeight.normal,
-                              color: item.isActive
-                                  ? Theme.of(context).colorScheme.onPrimaryContainer
-                                  : Theme.of(context).colorScheme.onSurface,
+                                  // Open / Minimized State Dot Indicator
+                                  if (isOpen)
+                                    Positioned(
+                                      bottom: 1,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 200),
+                                        width: isActive ? 16 : 6,
+                                        height: 4,
+                                        decoration: BoxDecoration(
+                                          color: isActive
+                                              ? Theme.of(context).colorScheme.primary
+                                              : (isMinimized
+                                                  ? Colors.amber
+                                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                                          borderRadius: BorderRadius.circular(2),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  }),
                 ),
               ),
-            );
-          }).toList(),
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  void _handleTap(AppState appState, _AppMeta meta, WindowData? window) {
+    if (window == null) {
+      widget.onOpenApp(meta.id, meta.label, meta.icon, meta.child);
+    } else if (window.isMinimized) {
+      appState.openWindow(id: window.id, title: window.title, icon: window.icon, child: window.child);
+    } else if (appState.activeWindowId == window.id) {
+      appState.minimizeWindow(window.id);
+    } else {
+      appState.focusWindow(window.id);
+    }
   }
 }
 
@@ -328,7 +310,7 @@ class WindowTitleBar extends StatelessWidget {
           ),
           _WindowButton(
             icon: Icons.minimize,
-            tooltip: 'Minimize',
+            tooltip: 'Minimize to Dock',
             color: Colors.amber,
             onTap: () => appState.minimizeWindow(windowId),
           ),
@@ -493,6 +475,18 @@ class DesktopBackground extends StatelessWidget {
     final themeProvider = context.watch<ThemeProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    if (themeProvider.wallpaper == WallpaperPreset.customImage && themeProvider.customImagePath != null) {
+      return Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: NetworkImage(themeProvider.customImagePath!),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: child,
+      );
+    }
+
     List<Color> colors;
     switch (themeProvider.wallpaper) {
       case WallpaperPreset.quantumGradient:
@@ -514,6 +508,9 @@ class DesktopBackground extends StatelessWidget {
         break;
       case WallpaperPreset.midnightSlate:
         colors = [const Color(0xFF1A202C), const Color(0xFF2D3748), const Color(0xFF4A5568)];
+        break;
+      case WallpaperPreset.customImage:
+        colors = [const Color(0xFF0D0221), const Color(0xFF0A1628)];
         break;
     }
 
