@@ -1,0 +1,8 @@
+ffffffff81000000 T _text
+ffffffff82000000 D _data
+ffffffff83000000 B _bss
+ffffffff81000100 T startup_64
+ffffffff81001000 T start_kernel
+ffffffff81100000 t rest_init
+ffffffff81200000 T kernel_init
+ffffffff82000000 D init_task
