@@ -62,6 +62,15 @@ Managers:
   HugePagesDevice    — /dev/hugepages/ (huge pages)
   MQueueDevice       — /dev/mqueue/ (POSIX message queues)
   LoopControlDevice  — /dev/loop-control (loop device control)
+  USBSerialDevice    — /dev/ttyUSB*, /dev/ttyACM* (USB serial)
+  HidrawDevice       — /dev/hidraw* (HID raw access)
+  UinputDevice       — /dev/uinput (virtual input injection)
+  FramebufferDevice  — /dev/fb* (framebuffer display)
+  MediaDevice        — /dev/media*, /dev/dvb*, /dev/video* (media framework)
+  ParallelDevice     — /dev/lp*, /dev/parport* (parallel port)
+  BtrfsControlDevice — /dev/btrfs-control (Btrfs control)
+  DAXDevice          — /dev/dax* (DAX/persistent memory)
+  VGAArbiterDevice   — /dev/vga_arbiter (VGA arbitration)
 
 Integration:
   drivers/device_registry.py — DEVICE_REGISTRY (kernel-level)
@@ -112,6 +121,14 @@ from dev.i2c_devices import I2CDevice
 from dev.hugepages_device import HugePagesDevice
 from dev.mqueue_device import MQueueDevice
 from dev.loop_control import LoopControlDevice
+# Second-phase subsystems
+from dev.usb_serial_device import USBSerialDevice
+from dev.hidraw_device import HidrawDevice
+from dev.uinput_device import UinputDevice
+from dev.framebuffer_device import FramebufferDevice
+from dev.media_device import MediaDevice
+from dev.parallel_device import ParallelDevice
+from dev.misc_system_devices import BtrfsControlDevice, DAXDevice, VGAArbiterDevice
 
 __all__ = [
     # Core
@@ -153,4 +170,12 @@ __all__ = [
     "MQueueDevice",
     # Loop control
     "LoopControlDevice",
+    # Second-phase subsystems
+    "USBSerialDevice",
+    "HidrawDevice",
+    "UinputDevice",
+    "FramebufferDevice",
+    "MediaDevice",
+    "ParallelDevice",
+    "BtrfsControlDevice", "DAXDevice", "VGAArbiterDevice",
 ]
