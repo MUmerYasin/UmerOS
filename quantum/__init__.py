@@ -134,6 +134,46 @@ from .native_gates import (
     get_native_gate_set, list_native_gates, decompose_to_native, get_native_decomposition,
 )
 
+# IonQ-specific extensions (QISKIT_RESEARCH: qiskit-ionq-report.md)
+from .ionq_constants import (
+    IONQ_DEFAULT_URL, IONQ_DEFAULT_URL_V4, IONQ_DEFAULT_SHOTS,
+    IONQ_MAX_CIRCUITS_PER_JOB, IONQ_MAX_DEBIAS, IONQ_POLL_INTERVAL_SECONDS,
+    IONQ_NATIVE_GATES, IONQ_TRANSLATABLE_GATES,
+    APIJobStatus, IonQAggregationMethod, IonQErrorMitigation, IonQTargetBackend,
+    IONQ_BACKEND_QUBITS,
+)
+from .ionq_gates import (
+    IonQGate, GPIGate, GPI2Gate, MSGate, ZZGate, get_ionq_gate,
+)
+from .ionq_equivalence_library import (
+    rz_to_gpi, ry_to_gpi, rx_to_gpi, u1_to_gpi, u3_to_gpi,
+    cr_to_ms, cx_to_ms, cy_to_ms, cz_to_ms,
+    add_equivalences, apply_equivalences, build_default_library,
+)
+from .ionq_optimizer_plugins import (
+    TrappedIonOptimizerPluginBase,
+    TrappedIonOptimizerPluginSimpleRules,
+    TrappedIonOptimizerPluginCompactGates,
+    TrappedIonOptimizerPluginCommuteGpi2ThroughMs,
+    run_trapped_ion_pipeline,
+)
+
+# IBM Quantum Runtime v0.48 (QISKIT_RESEARCH: qiskit-ibm-runtime-report.md)
+from .ibm_runtime_service import (
+    Channel, JobState,
+    OptionsV2, SamplerV2Options, EstimatorV2Options,
+    UsageData, PrimitiveResult,
+    RuntimeJobV2, Session, QiskitRuntimeService,
+    get_runtime_service,
+    RUNTIME_BASE_URL, RUNTIME_POLL_INTERVAL_SECONDS, RUNTIME_API_VERSION,
+)
+
+# Circuit-library extensions (QISKIT_RESEARCH: QISKIT_RESEARCH_REPORT.md §3.2)
+from .circuit_library_extensions import (
+    NLocal, RealAmplitudes, EfficientSU2, TwoLocal,
+    PauliFeatureMap, IQP, bind_parameters,
+)
+
 __all__ = [
     # Gates
     "Gate", "I_GATE", "X_GATE", "Y_GATE", "Z_GATE", "H_GATE", "S_GATE", "T_GATE",
@@ -216,4 +256,29 @@ __all__ = [
     "NativeGate", "GPI", "GPI2", "MS",
     "ISwap", "ISwapDag", "SQISwap", "ECR", "ECRDag", "ZZ",
     "get_native_gate_set", "list_native_gates", "decompose_to_native", "get_native_decomposition",
+    # IonQ (QISKIT_RESEARCH)
+    "IONQ_DEFAULT_URL", "IONQ_DEFAULT_URL_V4", "IONQ_DEFAULT_SHOTS",
+    "IONQ_MAX_CIRCUITS_PER_JOB", "IONQ_MAX_DEBIAS", "IONQ_POLL_INTERVAL_SECONDS",
+    "IONQ_NATIVE_GATES", "IONQ_TRANSLATABLE_GATES",
+    "APIJobStatus", "IonQAggregationMethod", "IonQErrorMitigation",
+    "IonQTargetBackend", "IONQ_BACKEND_QUBITS",
+    "IonQGate", "GPIGate", "GPI2Gate", "MSGate", "ZZGate", "get_ionq_gate",
+    "rz_to_gpi", "ry_to_gpi", "rx_to_gpi", "u1_to_gpi", "u3_to_gpi",
+    "cr_to_ms", "cx_to_ms", "cy_to_ms", "cz_to_ms",
+    "add_equivalences", "apply_equivalences", "build_default_library",
+    "TrappedIonOptimizerPluginBase",
+    "TrappedIonOptimizerPluginSimpleRules",
+    "TrappedIonOptimizerPluginCompactGates",
+    "TrappedIonOptimizerPluginCommuteGpi2ThroughMs",
+    "run_trapped_ion_pipeline",
+    # IBM Quantum Runtime v0.48
+    "Channel", "JobState",
+    "OptionsV2", "SamplerV2Options", "EstimatorV2Options",
+    "UsageData", "PrimitiveResult",
+    "RuntimeJobV2", "Session", "QiskitRuntimeService",
+    "get_runtime_service",
+    "RUNTIME_BASE_URL", "RUNTIME_POLL_INTERVAL_SECONDS", "RUNTIME_API_VERSION",
+    # Circuit library extensions
+    "NLocal", "RealAmplitudes", "EfficientSU2", "TwoLocal",
+    "PauliFeatureMap", "IQP", "bind_parameters",
 ]
