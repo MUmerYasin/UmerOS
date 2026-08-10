@@ -1,1 +1,219 @@
-from .simulator import QuantumCircuitSimulator
+"""UmerOS Quantum Computing Stack.
+
+Complete quantum computing framework with:
+- Core (Layer 1): gates, circuit, operators, quantum_info
+- Simulation (Layer 2): statevector simulator, noise models, backends
+- Optimization (Layer 3): transpiler, error mitigation
+- Execution (Layer 4): primitives (Sampler, Estimator), execution, dynamic circuits
+- Applications (Layer 5): algorithms, circuit library, visualization
+- Specialized (Layer 6): QRNG, QKD, error correction
+"""
+
+# Simulation (Layer 2)
+from .simulator import StatevectorSimulator, Statevector, MeasurementResult
+from .noise import (
+    NoiseModel, DepolarizingChannel, AmplitudeDampingChannel, PhaseDampingChannel,
+    BitFlipChannel, PhaseFlipChannel, ReadoutError, ThermalRelaxationChannel,
+)
+from .backend import Backend, LocalBackend, get_backend
+
+# Optimization (Layer 3)
+from .transpiler import Transpiler, transpile, PassManager, DecomposeToBasicPass
+from .error_mitigation import (
+    ZeroNoiseExtrapolation, ReadoutCorrection, DynamicalDecoupling,
+    PauliTwirling, ErrorMitigator,
+)
+
+from .gates import (
+    Gate, I_GATE, X_GATE, Y_GATE, Z_GATE, H_GATE, S_GATE, T_GATE,
+    rx, ry, rz, phase_gate, u1, u2, u3,
+    CNOT_GATE, CX_GATE, CZ_GATE, CY_GATE, CH_GATE, SWAP_GATE, ISWAP_GATE,
+    crx, cry, crz, cphase_gate,
+    TOFFOLI_GATE, CCX_GATE, CCZ_GATE, CSWAP_GATE, FREDKIN_GATE,
+    get_gate, unitary, global_phase,
+)
+from .circuit import (
+    QuantumCircuit, QuantumRegister, ClassicalRegister, Instruction,
+    from_gate_list,
+)
+from .operators import (
+    SparsePauliOp, PauliTerm, pauli_string, identity, zero_operator, Hamiltonian,
+    commutator, anticommutor, are_commuting,
+    PAULI_MAP, PAULI_X, PAULI_Y, PAULI_Z, PAULI_I,
+)
+from .info import (
+    statevector_to_density, partial_trace, partial_transpose,
+    purity, fidelity, trace_distance, von_neumann_entropy, relative_entropy,
+    concurrence, entanglement_of_formation, negativity,
+    bell_state, ghz_state, w_state,
+    KrausChannel, depolarizing_channel, amplitude_damping, phase_damping,
+    bit_flip_channel, phase_flip_channel, thermal_relaxation,
+)
+
+# Execution (Layer 4) - Primitives
+from .primitives import (
+    SamplerV2, EstimatorV2, PrimitiveJob, PrimitiveJobStatus,
+    PrimitiveV2Result, SamplerPubResult, EstimatorPubResult,
+    sampler_run, estimator_run,
+)
+
+# Execution (Layer 4) - Execution Management
+from .execution import (
+    QuantumJob, JobStatus, Batch, Session, execute,
+    ExecutionManager, ExecutionOptions, MeasurementResult,
+)
+
+# Execution (Layer 4) - Dynamic Circuits
+from .dynamic_circuits import (
+    DynamicCircuit, ClassicalCondition, IfElse, WhileLoop, Break,
+    create_teleportation_circuit, create_superposition_with_correction,
+)
+
+# Applications (Layer 5) - Algorithms
+from .algorithms import (
+    shor, shor_circuit, ShorResult,
+    grover, grover_circuit, grover_oracle, grover_diffuser, GroverResult,
+    vqe, vqe_ansatz, VQEResult,
+    qaoa, qaoa_cost_circuit, qaoa_mixer_circuit, QAOAResult,
+    qpe, qpe_circuit, QPEResult,
+    deutsch_jozsa, bernstein_vazirani, simon, amplitude_estimation,
+)
+
+# Applications (Layer 5) - Circuit Library
+from .circuit_library import (
+    bell_state_circuit, ghz_circuit, w_state_circuit,
+    qft_circuit, qft_inverse_circuit, quantum_walk_circuit,
+    teleportation_circuit as teleportation_circuit_lib,
+    superdense_coding_circuit,
+    grover_diffusion_circuit, qpe_circuit_simple,
+    random_circuit, hardware_efficient_ansatz,
+    bb84_sender_circuit, bb84_receiver_circuit,
+    bit_flip_encode_circuit, phase_flip_encode_circuit,
+    create_ghz_state, create_bell_state, create_w_state,
+    create_qft, create_random_circuit,
+)
+
+# Applications (Layer 5) - Visualization
+from .visualization import (
+    draw_circuit, draw_circuit_compact,
+    statevector_to_ascii, density_matrix_ascii, bloch_sphere_ascii,
+    circuit_stats, matrix_ascii, histogram_ascii,
+    draw, print_state, print_density,
+    plot_histogram, plot_circuit, plot_state,
+)
+
+# Specialized (Layer 6) - QRNG
+from .qrng import (
+    RandomBit, RandomBytes, QRNG, QuantumEntropy,
+    test_randomness_bias, test_entropy_rate,
+    generate_random_bit, generate_random_int,
+    generate_random_bytes, generate_random_string,
+)
+
+# Specialized (Layer 6) - QKD
+from .qkd import (
+    QKDResult, BB84Session, BB84, E91,
+    key_reconciliation, privacy_amplification,
+    run_bb84, run_e91,
+)
+
+# Specialized (Layer 6) - Error Correction
+from .error_correction import (
+    Syndrome, CorrectionResult, QuantumCode,
+    BitFlipCode, PhaseFlipCode, ShorCode, SteaneCode, RepetitionCode,
+    create_encoder,
+)
+
+# Specialized (Layer 6) - Native Gates (Hardware-specific)
+from .native_gates import (
+    HardwarePlatform, NativeGateSet, NativeGateSetInfo,
+    NativeGate, GPI, GPI2, MS, RZ as NativeRZ,
+    U1 as NativeU1, U2 as NativeU2, U3 as NativeU3,
+    ISwap, ISwapDag, SQISwap, ECR, ECRDag, SX as NativeSX, SXdg as NativeSXdg,
+    ZZ,
+    get_native_gate_set, list_native_gates, decompose_to_native, get_native_decomposition,
+)
+
+__all__ = [
+    # Gates
+    "Gate", "I_GATE", "X_GATE", "Y_GATE", "Z_GATE", "H_GATE", "S_GATE", "T_GATE",
+    "rx", "ry", "rz", "phase_gate", "u1", "u2", "u3",
+    "CNOT_GATE", "CX_GATE", "CZ_GATE", "CY_GATE", "CH_GATE", "SWAP_GATE", "ISWAP_GATE",
+    "crx", "cry", "crz", "cphase_gate",
+    "TOFFOLI_GATE", "CCX_GATE", "CCZ_GATE", "CSWAP_GATE", "FREDKIN_GATE",
+    "get_gate", "unitary", "global_phase",
+    # Circuit
+    "QuantumCircuit", "QuantumRegister", "ClassicalRegister", "Instruction",
+    "from_gate_list",
+    # Operators
+    "SparsePauliOp", "PauliTerm", "pauli_string", "identity", "zero_operator", "Hamiltonian",
+    "commutator", "anticommutor", "are_commuting",
+    "PAULI_MAP", "PAULI_X", "PAULI_Y", "PAULI_Z", "PAULI_I",
+    # Info
+    "statevector_to_density", "partial_trace", "partial_transpose",
+    "purity", "fidelity", "trace_distance", "von_neumann_entropy", "relative_entropy",
+    "concurrence", "entanglement_of_formation", "negativity",
+    "bell_state", "ghz_state", "w_state",
+    "KrausChannel", "depolarizing_channel", "amplitude_damping", "phase_damping",
+    "bit_flip_channel", "phase_flip_channel", "thermal_relaxation",
+    # Simulation (Layer 2)
+    "StatevectorSimulator", "Statevector", "MeasurementResult",
+    "NoiseModel", "DepolarizingChannel", "AmplitudeDampingChannel", "PhaseDampingChannel",
+    "BitFlipChannel", "PhaseFlipChannel", "ReadoutError", "ThermalRelaxationChannel",
+    "Backend", "LocalBackend", "get_backend",
+    # Optimization (Layer 3)
+    "Transpiler", "transpile", "PassManager", "DecomposeToBasicPass",
+    "ZeroNoiseExtrapolation", "ReadoutCorrection", "DynamicalDecoupling",
+    "PauliTwirling", "ErrorMitigator",
+    # Execution (Layer 4) - Primitives
+    "SamplerV2", "EstimatorV2", "PrimitiveJob", "PrimitiveJobStatus",
+    "PrimitiveV2Result", "SamplerPubResult", "EstimatorPubResult",
+    "sampler_run", "estimator_run",
+    # Execution (Layer 4) - Execution
+    "QuantumJob", "JobStatus", "Batch", "Session", "execute",
+    "ExecutionManager", "ExecutionOptions",
+    # Execution (Layer 4) - Dynamic Circuits
+    "DynamicCircuit", "ClassicalCondition", "IfElse", "WhileLoop", "Break",
+    "create_teleportation_circuit", "create_superposition_with_correction",
+    # Applications (Layer 5) - Algorithms
+    "shor", "shor_circuit", "ShorResult",
+    "grover", "grover_circuit", "grover_oracle", "grover_diffuser", "GroverResult",
+    "vqe", "vqe_ansatz", "VQEResult",
+    "qaoa", "qaoa_cost_circuit", "qaoa_mixer_circuit", "QAOAResult",
+    "qpe", "qpe_circuit", "QPEResult",
+    "deutsch_jozsa", "bernstein_vazirani", "simon", "amplitude_estimation",
+    # Applications (Layer 5) - Circuit Library
+    "bell_state_circuit", "ghz_circuit", "w_state_circuit",
+    "qft_circuit", "qft_inverse_circuit", "quantum_walk_circuit",
+    "teleportation_circuit_lib", "superdense_coding_circuit",
+    "grover_diffusion_circuit", "qpe_circuit_simple",
+    "random_circuit", "hardware_efficient_ansatz",
+    "bb84_sender_circuit", "bb84_receiver_circuit",
+    "bit_flip_encode_circuit", "phase_flip_encode_circuit",
+    "create_ghz_state", "create_bell_state", "create_w_state",
+    "create_qft", "create_random_circuit",
+    # Applications (Layer 5) - Visualization
+    "draw_circuit", "draw_circuit_compact",
+    "statevector_to_ascii", "density_matrix_ascii", "bloch_sphere_ascii",
+    "circuit_stats", "matrix_ascii", "histogram_ascii",
+    "draw", "print_state", "print_density",
+    "plot_histogram", "plot_circuit", "plot_state",
+    # Specialized (Layer 6) - QRNG
+    "RandomBit", "RandomBytes", "QRNG", "QuantumEntropy",
+    "test_randomness_bias", "test_entropy_rate",
+    "generate_random_bit", "generate_random_int",
+    "generate_random_bytes", "generate_random_string",
+    # Specialized (Layer 6) - QKD
+    "QKDResult", "BB84Session", "BB84", "E91",
+    "key_reconciliation", "privacy_amplification",
+    "run_bb84", "run_e91",
+    # Specialized (Layer 6) - Error Correction
+    "Syndrome", "CorrectionResult", "QuantumCode",
+    "BitFlipCode", "PhaseFlipCode", "ShorCode", "SteaneCode", "RepetitionCode",
+    "create_encoder",
+    # Native Gates (Hardware-specific)
+    "HardwarePlatform", "NativeGateSet", "NativeGateSetInfo",
+    "NativeGate", "GPI", "GPI2", "MS",
+    "ISwap", "ISwapDag", "SQISwap", "ECR", "ECRDag", "ZZ",
+    "get_native_gate_set", "list_native_gates", "decompose_to_native", "get_native_decomposition",
+]

@@ -1,0 +1,582 @@
+"""Circuit Library — Common quantum circuits for various purposes.
+
+Provides pre-built circuits for entanglement, state preparation,
+error correction, and educational demonstrations.
+"""
+
+from __future__ import annotations
+
+import math
+from typing import Optional, List
+
+from .gates import (
+    Gate, H_GATE, X_GATE, Z_GATE, S_GATE, T_GATE,
+    CNOT_GATE, CZ_GATE, TOFFOLI_GATE,
+    rx, ry, rz, get_gate,
+)
+from .circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
+
+
+# ---------------------------------------------------------------------------
+# Bell States
+# ---------------------------------------------------------------------------
+
+def bell_state_circuit(state: str = "00") -> QuantumCircuit:
+    """Create a circuit that produces one of the four Bell states.
+
+    Args:
+        state: One of "00", "01", "10", "11" corresponding to
+               |Φ+⟩, |Φ-⟩, |Ψ+⟩, |Ψ-⟩
+
+    Returns:
+        2-qubit circuit producing the Bell state
+    """
+    qr = QuantumRegister(2, "q")
+    circuit = QuantumCircuit(qr)
+
+    if state == "00":  # |Φ+⟩ = (|00⟩ + |11⟩)/√2
+        circuit.h(qr[0])
+        circuit.cx(qr[0], qr[1])
+    elif state == "01":  # |Φ-⟩ = (|00⟩ - |11⟩)/√2
+        circuit.h(qr[0])
+        circuit.cx(qr[0], qr[1])
+        circuit.z(qr[0])
+    elif state == "10":  # |Ψ+⟩ = (|01⟩ + |10⟩)/√2
+        circuit.h(qr[0])
+        circuit.cx(qr[0], qr[1])
+        circuit.x(qr[1])
+    elif state == "11":  # |Ψ-⟩ = (|01⟩ - |10⟩)/√2
+        circuit.h(qr[0])
+        circuit.cx(qr[0], qr[1])
+        circuit.x(qr[1])
+        circuit.z(qr[0])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# GHZ State
+# ---------------------------------------------------------------------------
+
+def ghz_circuit(num_qubits: int = 3) -> QuantumCircuit:
+    """Create a circuit producing the GHZ state.
+
+    GHZ state: (|00...0⟩ + |11...1⟩)/√2
+
+    Args:
+        num_qubits: Number of qubits
+
+    Returns:
+        Circuit producing the GHZ state
+    """
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    circuit.h(qr[0])
+    for i in range(num_qubits - 1):
+        circuit.cx(qr[i], qr[i + 1])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# W State
+# ---------------------------------------------------------------------------
+
+def w_state_circuit(num_qubits: int = 3) -> QuantumCircuit:
+    """Create a circuit producing the W state.
+
+    W state: (|001⟩ + |010⟩ + |100⟩)/√3 for 3 qubits
+
+    Args:
+        num_qubits: Number of qubits (must be >= 2)
+
+    Returns:
+        Circuit producing the W state
+    """
+    if num_qubits < 2:
+        raise ValueError("W state requires at least 2 qubits")
+
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    # Recursive construction
+    # Start with |10...0⟩
+    circuit.x(qr[0])
+
+    # Apply controlled rotations
+    for i in range(num_qubits - 1):
+        angle = 2 * math.acos(1 / math.sqrt(num_qubits - i))
+        circuit.ry(angle, qr[i + 1])
+        circuit.cx(qr[i + 1], qr[i])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Quantum Fourier Transform
+# ---------------------------------------------------------------------------
+
+def qft_circuit(num_qubits: int) -> QuantumCircuit:
+    """Create a Quantum Fourier Transform circuit.
+
+    Args:
+        num_qubits: Number of qubits
+
+    Returns:
+        QFT circuit
+    """
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    for i in range(num_qubits):
+        circuit.h(qr[i])
+        for j in range(i + 1, num_qubits):
+            angle = math.pi / (2 ** (j - i))
+            circuit.append(rz(angle), [qr[j]])
+            circuit.cx(qr[j], qr[i])
+
+    # Swap qubits to get correct order
+    for i in range(num_qubits // 2):
+        circuit.swap(qr[i], qr[num_qubits - 1 - i])
+
+    return circuit
+
+
+def qft_inverse_circuit(num_qubits: int) -> QuantumCircuit:
+    """Create an Inverse QFT circuit.
+
+    Args:
+        num_qubits: Number of qubits
+
+    Returns:
+        Inverse QFT circuit
+    """
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    # Reverse order of QFT
+    for i in range(num_qubits // 2):
+        circuit.swap(qr[i], qr[num_qubits - 1 - i])
+
+    for i in range(num_qubits - 1, -1, -1):
+        for j in range(num_qubits - 1, i, -1):
+            angle = -math.pi / (2 ** (j - i))
+            circuit.cx(qr[j], qr[i])
+            circuit.append(rz(angle), [qr[j]])
+        circuit.h(qr[i])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Quantum Walk
+# ---------------------------------------------------------------------------
+
+def quantum_walk_circuit(num_steps: int = 3, num_qubits: int = 4) -> QuantumCircuit:
+    """Create a quantum walk circuit on a line.
+
+    Args:
+        num_steps: Number of walk steps
+        num_qubits: Number of qubits for position register
+
+    Returns:
+        Quantum walk circuit
+    """
+    qr = QuantumRegister(num_qubits, "pos")
+    coin = QuantumRegister(1, "coin")
+    circuit = QuantumCircuit(qr, coin)
+
+    # Initialize coin to superposition
+    circuit.h(coin[0])
+
+    for _ in range(num_steps):
+        # Coin flip
+        circuit.h(coin[0])
+
+        # Controlled shift
+        circuit.cx(coin[0], qr[0])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Quantum Key Distribution Circuits
+# ---------------------------------------------------------------------------
+
+def bb84_sender_circuit(bits: List[int], bases: List[int]) -> QuantumCircuit:
+    """Create BB84 sender circuit.
+
+    Args:
+        bits: Random bits to encode
+        bases: Random bases (0=Z, 1=X)
+
+    Returns:
+        Circuit encoding the bits
+    """
+    n = len(bits)
+    qr = QuantumRegister(n, "q")
+
+    circuit = QuantumCircuit(qr)
+
+    for i in range(n):
+        if bits[i] == 1:
+            circuit.x(qr[i])
+        if bases[i] == 1:
+            circuit.h(qr[i])
+
+    return circuit
+
+
+def bb84_receiver_circuit(bases: List[int]) -> QuantumCircuit:
+    """Create BB84 receiver measurement circuit.
+
+    Args:
+        bases: Measurement bases (0=Z, 1=X)
+
+    Returns:
+        Circuit for measurement
+    """
+    n = len(bases)
+    qr = QuantumRegister(n, "q")
+    cr = ClassicalRegister(n, "meas")
+    circuit = QuantumCircuit(qr, cr)
+
+    for i in range(n):
+        if bases[i] == 1:
+            circuit.h(qr[i])
+        circuit.measure(qr[i], cr[i])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Quantum Teleportation
+# ---------------------------------------------------------------------------
+
+def teleportation_circuit() -> QuantumCircuit:
+    """Create a quantum teleportation circuit.
+
+    Returns:
+        3-qubit teleportation circuit
+    """
+    qr = QuantumRegister(3, "q")
+    cr = ClassicalRegister(2, "meas")
+    circuit = QuantumCircuit(qr, cr)
+
+    # Prepare state to teleport (arbitrary)
+    circuit.h(qr[0])
+    circuit.rz(math.pi / 4, qr[0])
+
+    # Create Bell pair
+    circuit.h(qr[1])
+    circuit.cx(qr[1], qr[2])
+
+    # Bell measurement
+    circuit.cx(qr[0], qr[1])
+    circuit.h(qr[0])
+
+    # Measure
+    circuit.measure(qr[0], cr[0])
+    circuit.measure(qr[1], cr[1])
+
+    # Conditional corrections
+    circuit.cx(qr[1], qr[2]).c_if(cr[1], 1)
+    circuit.cz(qr[0], qr[2]).c_if(cr[0], 1)
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Superdense Coding
+# ---------------------------------------------------------------------------
+
+def superdense_coding_circuit(bits: str = "00") -> QuantumCircuit:
+    """Create superdense coding circuit.
+
+    Args:
+        bits: 2-bit message to encode
+
+    Returns:
+        Superdense coding circuit
+    """
+    qr = QuantumRegister(2, "q")
+    cr = ClassicalRegister(2, "meas")
+    circuit = QuantumCircuit(qr, cr)
+
+    # Create Bell pair
+    circuit.h(qr[0])
+    circuit.cx(qr[0], qr[1])
+
+    # Encode message
+    if bits[1] == '1':
+        circuit.x(qr[0])
+    if bits[0] == '1':
+        circuit.z(qr[0])
+
+    # Decode
+    circuit.cx(qr[0], qr[1])
+    circuit.h(qr[0])
+
+    # Measure
+    circuit.measure(qr[0], cr[0])
+    circuit.measure(qr[1], cr[1])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Grover Diffusion Operator
+# ---------------------------------------------------------------------------
+
+def grover_diffusion_circuit(num_qubits: int) -> QuantumCircuit:
+    """Create the Grover diffusion operator circuit.
+
+    Args:
+        num_qubits: Number of qubits
+
+    Returns:
+        Diffusion operator circuit
+    """
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    # H gates
+    for i in range(num_qubits):
+        circuit.h(qr[i])
+
+    # X gates
+    for i in range(num_qubits):
+        circuit.x(qr[i])
+
+    # Multi-controlled Z
+    circuit.h(qr[num_qubits - 1])
+    if num_qubits == 2:
+        circuit.cx(qr[0], qr[1])
+    elif num_qubits == 3:
+        circuit.ccx(qr[0], qr[1], qr[2])
+    else:
+        # For more qubits, use decomposition
+        circuit.ccx(qr[0], qr[1], qr[2])
+    circuit.h(qr[num_qubits - 1])
+
+    # Undo X gates
+    for i in range(num_qubits):
+        circuit.x(qr[i])
+
+    # H gates
+    for i in range(num_qubits):
+        circuit.h(qr[i])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Quantum Phase Estimation
+# ---------------------------------------------------------------------------
+
+def qpe_circuit_simple(num_counting: int = 3) -> QuantumCircuit:
+    """Create a simple QPE circuit for demonstration.
+
+    Args:
+        num_counting: Number of counting qubits
+
+    Returns:
+        QPE circuit
+    """
+    qr_count = QuantumRegister(num_counting, "count")
+    qr_eigen = QuantumRegister(1, "eigen")
+    cr = ClassicalRegister(num_counting, "meas")
+    circuit = QuantumCircuit(qr_count, qr_eigen, cr)
+
+    # Prepare eigenstate
+    circuit.x(qr_eigen[0])
+
+    # Hadamard on counting qubits
+    for i in range(num_counting):
+        circuit.h(qr_count[i])
+
+    # Controlled rotations
+    for i in range(num_counting):
+        angle = 2 * math.pi / (2 ** (i + 1))
+        circuit.cx(qr_count[i], qr_eigen[0])
+        circuit.rz(angle, qr_eigen[0])
+        circuit.cx(qr_count[i], qr_eigen[0])
+
+    # Inverse QFT
+    for i in range(num_counting // 2):
+        circuit.swap(qr_count[i], qr_count[num_counting - 1 - i])
+
+    for i in range(num_counting - 1, -1, -1):
+        for j in range(num_counting - 1, i, -1):
+            angle = -math.pi / (2 ** (j - i))
+            circuit.cx(qr_count[j], qr_count[i])
+            circuit.rz(angle, qr_count[j])
+        circuit.h(qr_count[i])
+
+    # Measure
+    for i in range(num_counting):
+        circuit.measure(qr_count[i], cr[i])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Random Quantum Circuit
+# ---------------------------------------------------------------------------
+
+def random_circuit(num_qubits: int, depth: int = 5,
+                   seed: Optional[int] = None) -> QuantumCircuit:
+    """Generate a random quantum circuit.
+
+    Args:
+        num_qubits: Number of qubits
+        depth: Circuit depth
+        seed: Random seed
+
+    Returns:
+        Random quantum circuit
+    """
+    import random as _random
+    rng = _random.Random(seed)
+
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    single_qubit_gates = ["H", "X", "Y", "Z", "S", "T"]
+    two_qubit_gates = ["CNOT", "CZ"]
+
+    for _ in range(depth):
+        # Random single-qubit gates
+        for q in range(num_qubits):
+            gate_name = rng.choice(single_qubit_gates)
+            circuit.append(get_gate(gate_name), [qr[q]])
+
+        # Random two-qubit gates
+        if num_qubits >= 2:
+            q1, q2 = rng.sample(range(num_qubits), 2)
+            gate_name = rng.choice(two_qubit_gates)
+            if gate_name == "CNOT":
+                circuit.cx(qr[q1], qr[q2])
+            else:
+                circuit.cz(qr[q1], qr[q2])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Variational Ansatz Circuits
+# ---------------------------------------------------------------------------
+
+def hardware_efficient_ansatz(num_qubits: int, layers: int = 2,
+                              entanglement: str = "linear") -> QuantumCircuit:
+    """Create a hardware-efficient ansatz circuit.
+
+    Args:
+        num_qubits: Number of qubits
+        layers: Number of layers
+        entanglement: "linear" or "full"
+
+    Returns:
+        Ansatz circuit
+    """
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    for _ in range(layers):
+        # Single-qubit rotations
+        for q in range(num_qubits):
+            circuit.ry(math.pi / 4, qr[q])
+            circuit.rz(math.pi / 4, qr[q])
+
+        # Entangling gates
+        if entanglement == "linear":
+            for q in range(num_qubits - 1):
+                circuit.cx(qr[q], qr[q + 1])
+        elif entanglement == "full":
+            for q1 in range(num_qubits):
+                for q2 in range(q1 + 1, num_qubits):
+                    circuit.cx(qr[q1], qr[q2])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Quantum Error Correction Circuits
+# ---------------------------------------------------------------------------
+
+def bit_flip_encode_circuit(num_qubits: int = 3) -> QuantumCircuit:
+    """Create bit-flip code encoding circuit.
+
+    Args:
+        num_qubits: Number of data qubits (must be 3)
+
+    Returns:
+        Encoding circuit
+    """
+    if num_qubits != 3:
+        raise ValueError("Bit-flip code requires exactly 3 qubits")
+
+    qr = QuantumRegister(3, "q")
+    circuit = QuantumCircuit(qr)
+
+    # Encode: |ψ⟩ → |ψψψ⟩
+    circuit.cx(0, 1)
+    circuit.cx(0, 2)
+
+    return circuit
+
+
+def phase_flip_encode_circuit(num_qubits: int = 3) -> QuantumCircuit:
+    """Create phase-flip code encoding circuit.
+
+    Args:
+        num_qubits: Number of data qubits (must be 3)
+
+    Returns:
+        Encoding circuit
+    """
+    if num_qubits != 3:
+        raise ValueError("Phase-flip code requires exactly 3 qubits")
+
+    qr = QuantumRegister(3, "q")
+    circuit = QuantumCircuit(qr)
+
+    # Encode: H|ψ⟩ → encode → H
+    circuit.h(0)
+    circuit.cx(0, 1)
+    circuit.cx(0, 2)
+    circuit.h(1)
+    circuit.h(2)
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Utility Functions
+# ---------------------------------------------------------------------------
+
+def create_ghz_state(num_qubits: int = 3) -> QuantumCircuit:
+    """Create GHZ state (alias for ghz_circuit)."""
+    return ghz_circuit(num_qubits)
+
+
+def create_bell_state(state: str = "00") -> QuantumCircuit:
+    """Create Bell state (alias for bell_state_circuit)."""
+    return bell_state_circuit(state)
+
+
+def create_w_state(num_qubits: int = 3) -> QuantumCircuit:
+    """Create W state (alias for w_state_circuit)."""
+    return w_state_circuit(num_qubits)
+
+
+def create_qft(num_qubits: int) -> QuantumCircuit:
+    """Create QFT (alias for qft_circuit)."""
+    return qft_circuit(num_qubits)
+
+
+def create_random_circuit(num_qubits: int, depth: int = 5,
+                          seed: Optional[int] = None) -> QuantumCircuit:
+    """Create random circuit (alias for random_circuit)."""
+    return random_circuit(num_qubits, depth, seed)
