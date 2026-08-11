@@ -34,7 +34,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, Iterable, Optional
 
-from initrd.cpio import CpioEntry, unpack_archive
+from initrd.cpio import (
+    CpioEntry,
+    newc_dir,
+    newc_file,
+    newc_symlink,
+    pack_archive,
+    unpack_archive,
+)
+from initrd.mounts import MountTable
 from initrd.vfs_ops import VfsRoot, VfsNode
 
 log = logging.getLogger("UmerOS.Initrd.RamDisk")
@@ -126,6 +134,10 @@ class RamDisk:
         self.root = VfsRoot(name="/")
         self.stats = RamDiskStats()
         self.metadata: Dict[str, str] = {}
+        #: Track every mount the runtime performs inside the initrd.
+        self.mount_table = MountTable()
+        #: Read/write flag for the root mount (TLDP phase 3).
+        self.read_only: bool = False
         log.debug("RamDisk(%s) created, max=%d bytes", name, max_bytes)
 
     # -- sizing helpers ----------------------------------------------------
@@ -184,20 +196,29 @@ class RamDisk:
         )
         return len(entries)
 
-    def mount(self, mount_point: str = "/") -> None:
+    def mount(self, mount_point: str = "/", *,
+             read_only: bool = False) -> None:
         """Stage 3: bind the working FS to ``mount_point`` (TLDP step 3).
 
         In a real kernel this is the ``mount -t tmpfs`` call. Here we
-        just record the state transition.
+        just record the state transition.  The TLDP reference is
+        explicit that the initrd is mounted **read-write** as root,
+        so :attr:`read_only` defaults to ``False`` and a warning is
+        logged when the caller asks for RO mode.
         """
         if self.state not in (RamDiskState.EXTRACTED, RamDiskState.MOUNTED):
             raise RuntimeError(
                 f"RamDisk.mount requires EXTRACTED state, got {self.state}"
             )
         self.mount_point = mount_point
+        self.read_only = read_only
         self.stats.mounted_at = time.time()
         self.state = RamDiskState.MOUNTED
-        log.info("RamDisk(%s) MOUNTED at %s", self.name, mount_point)
+        if read_only:
+            log.warning("RamDisk(%s) MOUNTED READ-ONLY at %s (TLDP default is rw)",
+                        self.name, mount_point)
+        else:
+            log.info("RamDisk(%s) MOUNTED (rw) at %s", self.name, mount_point)
 
     def pivot(self) -> None:
         """Stage 6: mark the disk as having been replaced by pivot_root."""
@@ -215,6 +236,63 @@ class RamDisk:
         self.stats.released_at = time.time()
         self.state = RamDiskState.RELEASED
         log.info("RamDisk(%s) RELEASED", self.name)
+
+    # -- snapshot back to an image ---------------------------------------
+
+    def snapshot_to_image(self) -> bytes:
+        """Serialize the current RamDisk back to a cpio archive.
+
+        This is the operation the TLDP install scenario calls out:
+
+            7) ... the image is written from /dev/ram0 or
+               /dev/rd/0 to a file
+
+        In the host kernel this is ``dd if=/dev/ram0 of=initrd``.
+        Here we walk the VFS in :attr:`root` and emit a new cpio
+        archive that the caller can compress and write to disk.
+        """
+        if self.state in (RamDiskState.PROBED, RamDiskState.RELEASED):
+            raise RuntimeError(
+                f"RamDisk.snapshot_to_image requires an extracted disk, got {self.state}"
+            )
+        entries: list[CpioEntry] = []
+        ino = 1
+        # Walk the tree and emit one cpio entry per node.
+        def _emit(path: str) -> None:
+            nonlocal ino
+            node = self.root.find(path)
+            if node is None:
+                return
+            if node.is_dir:
+                if path not in ("", "/"):
+                    entries.append(newc_dir(path.lstrip("/"), mode=node.mode, ino=ino))
+                    ino += 1
+                for child in sorted(node.children):
+                    child_path = path.rstrip("/") + "/" + child
+                    _emit(child_path)
+            elif node.is_symlink:
+                entries.append(newc_symlink(path.lstrip("/"), node.symlink_target or "", ino=ino))
+                ino += 1
+            else:
+                entries.append(newc_file(path.lstrip("/"), node.data, mode=node.mode, ino=ino))
+                ino += 1
+        _emit("/")
+        return pack_archive(entries)
+
+    def write_snapshot(self, path: str, *, archiver: str = "gzip",
+                       level: int = 6) -> str:
+        """Write :meth:`snapshot_to_image` to ``path`` via ``archiver``.
+
+        Returns the path that was actually written.
+        """
+        from initrd.archivers import get_archiver
+        raw = self.snapshot_to_image()
+        compressor = get_archiver(archiver)
+        out = compressor.compress(raw, level=level)
+        Path(path).write_bytes(out)
+        log.info("RamDisk(%s) snapshot written to %s (%d bytes, %s)",
+                 self.name, path, len(out), compressor.__name__)
+        return str(path)
 
     # -- direct content manipulation --------------------------------------
 

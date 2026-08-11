@@ -79,6 +79,8 @@ __all__ = [
     "cpio",
     "vfs_ops",
     "ramdisk",
+    "mounts",
+    "signals",
     # orchestration
     "hooks",
     "phase_machine",
@@ -122,6 +124,11 @@ from initrd.cpio import (
 from initrd.hooks import HookAbort, HookManager, HookPoint
 from initrd.linuxrc import BootContext, run
 from initrd.module_resolver import ModuleResolver, ModuleSpec
+from initrd.mounts import (
+    ChrootContext, FilesystemType, MountFlag, MountRecord, MountTable,
+    chroot_into, chroot_undo, dev_read, mount, mount_dev, mount_proc,
+    mount_sys, populate_dev, resolve_in_chroot, unmount,
+)
 from initrd.phase_machine import BootPhase, PhaseMachine, PhaseOutcome
 from initrd.pivot_root import PivotResult, pivot_root
 from initrd.ramdisk import RamDisk, RamDiskState, RamDiskStats
@@ -133,4 +140,5 @@ from initrd.scenarios import (
     get_scenario,
     list_scenarios,
 )
+from initrd.signals import InitSignal, PID1SignalHandler
 from initrd.vfs_ops import VfsNode, VfsRoot

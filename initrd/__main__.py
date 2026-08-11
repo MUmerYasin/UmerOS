@@ -57,7 +57,8 @@ Commands:
 def _cmd_selftest(_args: List[str]) -> int:
     results: List[tuple[str, bool]] = []
     for mod in ("initrd.archivers", "initrd.cpio", "initrd.vfs_ops",
-                "initrd.ramdisk", "initrd.hooks", "initrd.phase_machine",
+                "initrd.ramdisk", "initrd.mounts", "initrd.signals",
+                "initrd.hooks", "initrd.phase_machine",
                 "initrd.pivot_root", "initrd.module_resolver",
                 "initrd.scenarios", "initrd.ai_helper", "initrd.builder",
                 "initrd.linuxrc"):

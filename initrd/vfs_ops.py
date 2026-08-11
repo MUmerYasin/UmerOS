@@ -51,6 +51,10 @@ class VfsNode:
     symlink_target: Optional[str] = None
     mtime: float = field(default_factory=time.time)
     children: Dict[str, "VfsNode"] = field(default_factory=dict)
+    #: Free-form metadata.  The initrd runtime uses this for
+    #: device-node metadata (kind / major / minor), symlink target
+    #: echoing, and tags emitted by the build pipeline.
+    meta: Dict[str, object] = field(default_factory=dict)
 
     @property
     def is_symlink(self) -> bool:
@@ -62,6 +66,12 @@ class VfsNode:
             # Linux reports dir size as a fixed 4096 in stat.
             return 4096
         return len(self.data)
+
+    def set_meta(self, key: str, value: object) -> None:
+        self.meta[key] = value
+
+    def get_meta(self, key: str, default: object = None) -> object:
+        return self.meta.get(key, default)
 
     def __repr__(self) -> str:  # pragma: no cover - debug aid
         kind = "d" if self.is_dir else ("l" if self.is_symlink else "-")

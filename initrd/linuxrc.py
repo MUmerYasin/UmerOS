@@ -47,12 +47,18 @@ from initrd.builder import BuildRequest
 from initrd.cpio import CpioEntry, newc_dir, newc_file, newc_symlink
 from initrd.hooks import HookAbort, HookManager, HookPoint
 from initrd.module_resolver import ModuleResolver, ModuleSpec
+from initrd.mounts import (
+    ChrootContext, FilesystemType, MountFlag, MountTable, MountRecord,
+    chroot_into, chroot_undo, mount, mount_dev, mount_proc, mount_sys,
+    populate_dev, resolve_in_chroot, unmount,
+)
 from initrd.phase_machine import BootPhase, PhaseMachine, PhaseOutcome
 from initrd.pivot_root import pivot_ramdisk_to
 from initrd.ramdisk import RamDisk
 from initrd.scenarios import (
     InitrdScenario, ScenarioId, ScenarioRunner, get_scenario,
 )
+from initrd.signals import InitSignal, PID1SignalHandler
 from initrd.vfs_ops import VfsRoot
 
 log = logging.getLogger("UmerOS.Initrd.Linuxrc")
@@ -77,6 +83,16 @@ class BootContext:
     host_root: str = "/"
     log_path: str = "/var/log/umeros_initrd.log"
     interactive: bool = False
+    #: The mount table the runtime uses to record every mount.
+    mount_table: MountTable = field(default_factory=MountTable)
+    #: PID 1 signal handler (auto-installed when env allows it).
+    signal_handler: PID1SignalHandler = field(default_factory=PID1SignalHandler)
+    #: Active chroot context, if any.
+    chroot_ctx: Optional[ChrootContext] = None
+    #: Effective uid at boot - the spec says /linuxrc runs as uid 0.
+    effective_uid: int = 0
+    #: Optional path to a "saved initrd image" produced on teardown.
+    save_image_path: Optional[str] = None
 
     # -- factories --------------------------------------------------------
 
@@ -93,7 +109,7 @@ class BootContext:
             mount_point="/",
         )
         ramdisk.load(blob)
-        return cls(
+        ctx = cls(
             request=request,
             ramdisk=ramdisk,
             host_root=host_root,
@@ -101,6 +117,11 @@ class BootContext:
                                             ScenarioId.RECOVERY,
                                             ScenarioId.RESCUE),
         )
+        ctx.mount_table = ramdisk.mount_table
+        # Register default reap + signal handlers.
+        ctx.signal_handler.on_reap(lambda pid: True)
+        ctx.signal_handler.on(InitSignal.SIGUSR1, lambda pid: log.info("config reload"))
+        return ctx
 
     @classmethod
     def default_demo(cls) -> "BootContext":
@@ -147,6 +168,14 @@ async def _run_async(ctx: BootContext) -> None:
     log.info("kernel=%s scenario=%s",
              ctx.request.kernel_version, ctx.request.scenario.value)
     log.info("AI helper enabled: %s", ctx.ai.enabled)
+    # TLDP: /linuxrc is run with uid 0.  We try the real setuid
+    # first (no-op when already root, harmless when not) and fall
+    # back to recording the intended uid for the report.
+    ctx.effective_uid = _drop_to_root()
+
+    # Try to install real signal handlers (only works as PID 1).
+    if ctx.signal_handler.install():
+        log.info("signal handler installed for host signals")
 
     scenario = get_scenario(ctx.request.scenario)
     scenario_runner = ScenarioRunner(scenario)
@@ -174,8 +203,14 @@ async def _run_async(ctx: BootContext) -> None:
 
     # -- Phase 3: initrd is mounted read-write as root --------------------
     rec = machine.begin_phase(BootPhase.PHASE_3_MOUNT_ROOT)
-    ctx.ramdisk.mount("/")
-    machine.finish_phase(rec, note="initrd mounted at /")
+    ctx.ramdisk.mount("/", read_only=False)
+    # Populate the basic pseudo filesystems the rest of the boot
+    # needs: /dev, /proc, /sys.  These are real mounts inside the
+    # initrd so the install / recovery scripts can use them.
+    mount_dev(ctx.mount_table, ctx.ramdisk.root, mount_point="/dev")
+    mount_proc(ctx.mount_table, ctx.ramdisk.root, mount_point="/proc")
+    mount_sys(ctx.mount_table, ctx.ramdisk.root, mount_point="/sys")
+    machine.finish_phase(rec, note="initrd mounted rw at /, /dev, /proc, /sys live")
 
     # -- Phase 4: /linuxrc (us) is executed as PID 1 ----------------------
     rec = machine.begin_phase(BootPhase.PHASE_4_LINUXRC)
@@ -200,24 +235,40 @@ async def _run_async(ctx: BootContext) -> None:
     await ctx.hooks.run_async(HookPoint.POST_MODULE_PROBE,
                               {"ctx": ctx,
                                "modules": ctx.resolver.export()})
-    machine.finish_phase(rec, note="module list resolved")
+    machine.finish_phase(rec, note=f"resolved {len(ctx.resolver.selected)} modules")
 
     # -- Phase 5: mount the real root FS ----------------------------------
     rec = machine.begin_phase(BootPhase.PHASE_5_MOUNT_REAL)
     await ctx.hooks.run_async(HookPoint.PRE_MOUNT_REAL_ROOT, {"ctx": ctx})
-    _populate_real_root(ctx, scenario)
+    _mount_real_root(ctx, scenario)
     await ctx.hooks.run_async(HookPoint.POST_MOUNT_REAL_ROOT, {"ctx": ctx})
     machine.finish_phase(rec, note="real root FS mounted at /newroot")
 
+    # -- Phase 5b: install scenario chroots into the new root -----------
+    if ctx.request.scenario == ScenarioId.INSTALL:
+        try:
+            ctx.chroot_ctx = chroot_into(ctx.ramdisk.root, "/newroot", new_cwd="/")
+            log.info("install: chroot -> /newroot (active until installer exits)")
+        except FileNotFoundError as exc:
+            log.warning("install: chroot skipped (%s)", exc)
+
     # -- Phase 6: pivot_root ---------------------------------------------
     if scenario.keep_as_root:
+        # Tear down any active chroot before continuing.
+        if ctx.chroot_ctx is not None:
+            chroot_undo(ctx.chroot_ctx)
+            ctx.chroot_ctx = None
         machine.skip_phase("scenario keeps initrd as final root")
     else:
         rec = machine.begin_phase(BootPhase.PHASE_6_PIVOT_ROOT)
         await ctx.hooks.run_async(HookPoint.PRE_PIVOT_ROOT, {"ctx": ctx})
         result = pivot_ramdisk_to(ctx.ramdisk, ctx.real_root)
+        # "file systems mounted under initrd continue to be accessible"
+        # (TLDP note) - record the carry-over mounts for the report.
         await ctx.hooks.run_async(HookPoint.POST_PIVOT_ROOT, {"ctx": ctx,
-                                                              "result": result})
+                                                              "result": result,
+                                                              "carried_mounts":
+                                                                  ctx.mount_table.list()})
         machine.finish_phase(rec, note=f"pivot took {result.duration_seconds:.4f}s")
 
     # -- Phase 7: exec /sbin/init ----------------------------------------
@@ -230,6 +281,13 @@ async def _run_async(ctx: BootContext) -> None:
     # -- Phase 8: initrd FS is removed -----------------------------------
     rec = machine.begin_phase(BootPhase.PHASE_8_TEARDOWN)
     await ctx.hooks.run_async(HookPoint.CLEANUP, {"ctx": ctx})
+    # Install scenarios may want to save the modified initrd back to
+    # disk ("the image is written from /dev/ram0 to a file" - TLDP).
+    if ctx.save_image_path and ctx.ramdisk.state != RamDiskState.PROBED:
+        try:
+            ctx.ramdisk.write_snapshot(ctx.save_image_path, archiver="gzip")
+        except RuntimeError as exc:
+            log.warning("save_image skipped: %s", exc)
     ctx.ramdisk.release()
     machine.finish_phase(rec, note="initrd memory released")
 
@@ -241,8 +299,41 @@ async def _run_async(ctx: BootContext) -> None:
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _populate_real_root(ctx: BootContext, scenario: InitrdScenario) -> None:
-    """Create a minimal ``/newroot`` tree inside ``ctx.real_root``."""
+def _drop_to_root() -> int:
+    """Try to set the effective uid to 0 (TLDP: ``/linuxrc`` runs as uid 0).
+
+    Returns the resulting effective uid.  In a real kernel this is a
+    no-op when the process is already root, and the only way to call
+    it from a non-root caller is via the setuid bit on the ``/init``
+    binary.  When the host refuses (Windows has no ``geteuid``/
+    ``seteuid``) we simply record the intended uid (0) so the rest
+    of the boot proceeds correctly.
+    """
+    if not hasattr(os, "geteuid"):
+        # Windows / no POSIX uid model - record the contract value.
+        return 0
+    try:
+        if os.geteuid() != 0 and hasattr(os, "seteuid"):
+            os.seteuid(0)
+        return os.geteuid()
+    except (PermissionError, OSError, AttributeError):
+        return 0
+
+
+def _mount_real_root(ctx: BootContext, scenario: InitrdScenario) -> None:
+    """Mount the real root FS at ``/newroot`` inside the running initrd.
+
+    For the install scenario this models the
+    ``mount -t auto /dev/sda2 /newroot`` step where the user (or the
+    autoprobe) decided which device the real root lives on.  For
+    other scenarios we just stub out a real-root VFS and register
+    the mount in the table.
+    """
+    device = "/dev/sda2"
+    fstype = FilesystemType.EXT4
+    ro = scenario.id == ScenarioId.LIVE  # live media is read-only
+    flags: List[MountFlag] = [MountFlag.RDONLY] if ro else []
+
     ctx.real_root.mkdir("/newroot", parents=True, mode=0o755)
     ctx.real_root.mkdir("/newroot/bin", mode=0o755)
     ctx.real_root.mkdir("/newroot/etc", mode=0o755)
@@ -252,7 +343,16 @@ def _populate_real_root(ctx: BootContext, scenario: InitrdScenario) -> None:
         "/newroot/etc/umeros/boot.log",
         data=_boot_log(ctx, scenario).encode("utf-8"),
     )
-    log.info("real root populated at /newroot")
+    mount(ctx.mount_table,
+          device=device,
+          fstype=fstype,
+          mount_point="/newroot",
+          flags=flags,
+          source=ctx.real_root,
+          description=f"real root from {device} ({fstype.value}, "
+                      f"{'ro' if ro else 'rw'})")
+    log.info("real root mounted at /newroot (%s, %s)",
+             fstype.value, 'ro' if ro else 'rw')
 
 
 def _boot_log(ctx: BootContext, scenario: InitrdScenario) -> str:
@@ -261,10 +361,12 @@ def _boot_log(ctx: BootContext, scenario: InitrdScenario) -> str:
         f"  kernel_version : {ctx.request.kernel_version}",
         f"  scenario       : {scenario.id.value}",
         f"  ai_enabled     : {ctx.ai.enabled}",
+        f"  effective_uid  : {ctx.effective_uid}",
         f"  modules        : {sorted(s.name for s in ctx.resolver.list_selected())}",
         f"  files          : {ctx.ramdisk.stats.file_count}",
         f"  directories    : {ctx.ramdisk.stats.dir_count}",
         f"  symlinks       : {ctx.ramdisk.stats.symlink_count}",
+        f"  mounts         : {[m.mount_point for m in ctx.mount_table.list()]}",
         f"  raw_bytes      : {ctx.ramdisk.stats.raw_bytes}",
         f"  ext_bytes      : {ctx.ramdisk.stats.extracted_bytes}",
     ]
@@ -278,11 +380,15 @@ def _write_report(ctx: BootContext, machine: PhaseMachine) -> None:
             "kernel_version": ctx.request.kernel_version,
             "scenario":       ctx.request.scenario.value,
             "host_root":      ctx.host_root,
+            "effective_uid":  ctx.effective_uid,
             "ramdisk_stats":  ctx.ramdisk.stats.as_dict(),
         },
-        "machine":  machine.summary(),
-        "history":  machine.report(),
-        "modules":  ctx.resolver.export(),
+        "machine":        machine.summary(),
+        "history":        machine.report(),
+        "modules":        ctx.resolver.export(),
+        "mounts":         [m.as_dict() for m in ctx.mount_table.list()],
+        "signal_history": ctx.signal_handler.history(),
+        "reaped_pids":    ctx.signal_handler.reaped(),
     }
     text = json.dumps(report, indent=2, default=str)
     try:

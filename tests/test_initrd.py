@@ -50,6 +50,11 @@ from initrd.cpio import (
 from initrd.hooks import HookAbort, HookManager, HookPoint
 from initrd.linuxrc import BootContext, run as linuxrc_run
 from initrd.module_resolver import ModuleResolver, detect_rootfstype
+from initrd.mounts import (
+    FilesystemType, MountFlag, MountTable, chroot_into, chroot_undo,
+    dev_read, mount, mount_dev, mount_proc, mount_sys, populate_dev,
+    resolve_in_chroot, unmount,
+)
 from initrd.phase_machine import BootPhase, PhaseMachine, PhaseOutcome
 from initrd.pivot_root import PivotRootError, pivot_root
 from initrd.ramdisk import RamDisk, RamDiskState
@@ -60,6 +65,7 @@ from initrd.scenarios import (
     get_scenario,
     list_scenarios,
 )
+from initrd.signals import InitSignal, PID1SignalHandler
 from initrd.vfs_ops import VfsRoot
 
 
@@ -222,6 +228,45 @@ class TestRamDisk(unittest.TestCase):
         disk = self._make_disk()
         with self.assertRaises(MemoryError):
             disk.load(b"x" * (disk.max_bytes + 1))
+
+    def test_read_only_flag(self):
+        disk = self._make_disk()
+        disk.load(pack_archive([newc_file("/init", b"#!/bin/sh\n")]))
+        disk.extract()
+        disk.mount("/", read_only=True)
+        self.assertTrue(disk.read_only)
+        disk.mount("/", read_only=False)
+        self.assertFalse(disk.read_only)
+
+    def test_has_mount_table(self):
+        disk = self._make_disk()
+        self.assertIsNotNone(disk.mount_table)
+        self.assertEqual(disk.mount_table.list(), [])
+
+    def test_snapshot_round_trip(self):
+        with tempfile_TmpDir() as tmp:
+            disk = self._make_disk()
+            disk.load(pack_archive([
+                newc_dir("etc"),
+                newc_file("etc/hostname", b"umer-os\n"),
+            ]))
+            disk.extract()
+            # Mutate the VFS - add a marker file the original cpio
+            # did not have.
+            disk.add_file("/etc/extra", b"added at boot\n", mode=0o644)
+            raw = disk.snapshot_to_image()
+            self.assertIn(b"umer-os\n", raw)
+            self.assertIn(b"added at boot", raw)
+            # Snapshot must be a valid cpio archive.
+            entries = {e.name for e in unpack_archive(raw)}
+            self.assertIn("etc/hostname")
+            self.assertIn("etc/extra")
+            # write_snapshot should produce a gzipped file on disk.
+            out = tmp / "initramfs-snapshot.img.gz"
+            disk.write_snapshot(str(out), archiver="gzip")
+            self.assertTrue(out.is_file())
+            self.assertGreater(out.stat().st_size, 0)
+            self.assertTrue(detect_archiver(out.read_bytes()) is GzipArchiver)
 
 
 # ---------------------------------------------------------------------------
@@ -530,6 +575,212 @@ class TestLinuxrc(unittest.TestCase):
         ctx.ai.suggest_modules = spy  # type: ignore[method-assign]
         linuxrc_run(ctx)
         self.assertTrue(called, "AI helper should have been consulted at least once")
+
+    def test_context_has_pid1_handler(self):
+        ctx = BootContext.default_demo()
+        self.assertIsInstance(ctx.signal_handler, PID1SignalHandler)
+        self.assertEqual(ctx.effective_uid, 0)  # recorded contract value
+        # BootContext comes with a default reap handler so zombies
+        # produced during the boot are reaped.
+        self.assertTrue(ctx.signal_handler.reap(123))
+        self.assertIn(123, ctx.signal_handler.reaped())
+
+    def test_context_has_mount_table(self):
+        ctx = BootContext.default_demo()
+        self.assertIsInstance(ctx.mount_table, MountTable)
+
+    def test_install_scenario_chroots(self):
+        from initrd.builder import BuildRequest
+        from initrd.cpio import pack_archive, newc_dir, newc_file
+        from initrd.scenarios import ScenarioId
+        with tempfile_TmpDir() as tmp:
+            entries = [newc_dir("bin"), newc_file("/init", b"#!/bin/sh\n")]
+            ctx = BootContext.from_request(
+                BuildRequest(kernel_version="install-test",
+                             scenario=ScenarioId.INSTALL),
+                blob=pack_archive(entries),
+                host_root=str(tmp),
+            )
+            linuxrc_run(ctx)
+            # The install scenario chroots into /newroot during
+            # phase 5b; it is undone before phase 6 (which is
+            # skipped because install keeps the initrd as root).
+            self.assertIsNone(ctx.chroot_ctx,
+                              "install chroot must be undone before pivot")
+            # The mount table records the real-root mount.
+            newroot = ctx.mount_table.find("/newroot")
+            self.assertIsNotNone(newroot)
+            self.assertEqual(newroot.fstype, FilesystemType.EXT4)
+            # The /dev, /proc, /sys pseudo filesystems were mounted.
+            mp = {m.mount_point: m for m in ctx.mount_table.list()}
+            self.assertIn("/dev", mp)
+            self.assertIn("/proc", mp)
+            self.assertIn("/sys", mp)
+
+
+# ---------------------------------------------------------------------------
+# mounts
+# ---------------------------------------------------------------------------
+
+class TestMounts(unittest.TestCase):
+    def test_basic_mount(self):
+        table = MountTable()
+        mount(table, device="/dev/sda1", fstype=FilesystemType.EXT4,
+              mount_point="/newroot", flags=[MountFlag.RDONLY])
+        rec = table.find("/newroot")
+        self.assertIsNotNone(rec)
+        self.assertTrue(rec.is_read_only)
+
+    def test_replace_existing(self):
+        table = MountTable()
+        mount(table, device="/dev/sda1", fstype=FilesystemType.EXT4,
+              mount_point="/newroot")
+        mount(table, device="/dev/sda2", fstype=FilesystemType.EXT4,
+              mount_point="/newroot")
+        rec = table.find("/newroot")
+        self.assertEqual(rec.device, "/dev/sda2")
+        self.assertEqual(len(table.list()), 1)
+
+    def test_unmount(self):
+        table = MountTable()
+        mount(table, device="/dev/sda1", fstype=FilesystemType.EXT4,
+              mount_point="/newroot")
+        self.assertTrue(unmount(table, "/newroot"))
+        self.assertIsNone(table.find("/newroot"))
+
+    def test_as_lines_matches_proc_mounts_shape(self):
+        table = MountTable()
+        mount(table, device="proc", fstype=FilesystemType.PROC,
+              mount_point="/proc")
+        line = table.as_lines()[0]
+        # device mount-point fstype options dump pass fsckpass
+        parts = line.split()
+        self.assertEqual(parts[0], "proc")
+        self.assertEqual(parts[1], "/proc")
+        self.assertEqual(parts[2], "proc")
+
+    def test_chroot_round_trip(self):
+        root = VfsRoot()
+        root.mkdir("/proc")
+        root.touch("/proc/version", data=b"umer-os\n")
+        ctx = chroot_into(root, "/proc")
+        try:
+            # Inside the chroot, /proc/version is what /version resolves to.
+            # resolve_in_chroot translates back to the outside view.
+            self.assertEqual(resolve_in_chroot(ctx, "/version"), "/proc/version")
+        finally:
+            chroot_undo(ctx)
+
+    def test_chroot_rejects_non_dir(self):
+        root = VfsRoot()
+        root.touch("/file", data=b"x")
+        with self.assertRaises(NotADirectoryError):
+            chroot_into(root, "/file")
+
+    def test_populate_dev_creates_nodes(self):
+        with tempfile_TmpDir() as tmp:
+            root = VfsRoot()
+            n = populate_dev(root)
+            self.assertGreaterEqual(n, 5)  # null, zero, random, urandom, tty, ...
+            self.assertTrue(root.exists("/dev/null"))
+            self.assertTrue(root.exists("/dev/zero"))
+            self.assertTrue(root.exists("/dev/urandom"))
+
+    def test_dev_read_semantics(self):
+        root = VfsRoot()
+        populate_dev(root)
+        self.assertEqual(dev_read(root, "/dev/null", 16), b"")
+        self.assertEqual(dev_read(root, "/dev/zero", 8), b"\x00" * 8)
+        self.assertEqual(len(dev_read(root, "/dev/urandom", 12)), 12)
+        with self.assertRaises(IOError):
+            dev_read(root, "/dev/full", 1)
+
+    def test_mount_proc_creates_well_known_files(self):
+        table = MountTable()
+        root = VfsRoot()
+        mount_proc(table, root, mount_point="/proc")
+        self.assertTrue(root.exists("/proc/version"))
+        self.assertTrue(root.exists("/proc/uptime"))
+        self.assertTrue(root.exists("/proc/loadavg"))
+        self.assertTrue(root.exists("/proc/meminfo"))
+        self.assertTrue(root.exists("/proc/mounts"))
+
+    def test_mount_sys_creates_block_and_firmware(self):
+        table = MountTable()
+        root = VfsRoot()
+        mount_sys(table, root, mount_point="/sys")
+        self.assertTrue(root.exists("/sys/block"))
+        self.assertTrue(root.exists("/sys/firmware/efi"))
+
+    def test_mount_dev_populates(self):
+        table = MountTable()
+        root = VfsRoot()
+        mount_dev(table, root, mount_point="/dev")
+        self.assertTrue(root.exists("/dev/null"))
+
+
+# ---------------------------------------------------------------------------
+# signals (PID 1 layer)
+# ---------------------------------------------------------------------------
+
+class TestPID1SignalHandler(unittest.TestCase):
+    def test_direct_registration(self):
+        h = PID1SignalHandler()
+        events = []
+        h.on(InitSignal.SIGUSR1, lambda pid: events.append(pid))
+        h.dispatch(InitSignal.SIGUSR1, pid=42)
+        self.assertEqual(events, [42])
+
+    def test_decorator_registration(self):
+        h = PID1SignalHandler()
+        events = []
+
+        @h.on(InitSignal.SIGUSR1)
+        def _reload(pid: int) -> None:
+            events.append(pid)
+
+        h.dispatch(InitSignal.SIGUSR1, pid=99)
+        self.assertEqual(events, [99])
+
+    def test_reap_default(self):
+        h = PID1SignalHandler()
+        self.assertTrue(h.reap(7))
+        self.assertIn(7, h.reaped())
+
+    def test_reap_with_handler(self):
+        h = PID1SignalHandler()
+        h.on_reap(lambda pid: pid != 5)
+        self.assertTrue(h.reap(7))
+        self.assertFalse(h.reap(5))
+        self.assertIn(7, h.reaped())
+        self.assertNotIn(5, h.reaped())
+
+    def test_exit_signal_marks_should_exit(self):
+        h = PID1SignalHandler()
+        h.dispatch(InitSignal.SIGTERM, pid=99)
+        self.assertTrue(h.should_exit)
+        self.assertIsNotNone(h.exit_code)
+        self.assertNotEqual(h.exit_code, 0)
+
+    def test_ignore_signal_does_not_exit(self):
+        h = PID1SignalHandler()
+        h.dispatch(InitSignal.SIGUSR1, pid=99)
+        self.assertFalse(h.should_exit)
+
+    def test_install_without_env_noop(self):
+        h = PID1SignalHandler()
+        # Default env var unset -> install() should refuse.
+        self.assertFalse(h.install())
+
+    def test_history_serialisable(self):
+        h = PID1SignalHandler()
+        h.dispatch(InitSignal.SIGUSR1, pid=1)
+        h.dispatch(InitSignal.SIGTERM, pid=1)
+        hist = h.history()
+        self.assertEqual(len(hist), 2)
+        import json
+        # All entries must round-trip through json.
+        json.dumps(hist)
 
 
 # ---------------------------------------------------------------------------
