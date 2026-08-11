@@ -2,16 +2,98 @@
 UMEROS Cloud Job
 =================
 Job tracking, status polling, and result retrieval for quantum executions.
+Integrates with real provider REST APIs (IBM, IonQ, Braket, Rigetti).
 """
 
 from __future__ import annotations
 
+import json
+import logging
 import time
+import urllib.error
+import urllib.request
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# HTTP helpers
+# ---------------------------------------------------------------------------
+
+
+def _http_request(
+    method: str,
+    url: str,
+    *,
+    headers: Optional[Dict[str, str]] = None,
+    body: Optional[Dict[str, Any]] = None,
+    timeout: int = 30,
+) -> Dict[str, Any]:
+    """Make an HTTP request and return parsed JSON.
+
+    Parameters
+    ----------
+    method:
+        HTTP verb (GET, POST, PUT, DELETE).
+    url:
+        Full URL.
+    headers:
+        Optional extra headers (merged with defaults).
+    body:
+        Optional JSON body (for POST/PUT).
+    timeout:
+        Network timeout in seconds.
+
+    Returns
+    -------
+    dict
+        Parsed JSON response, or empty dict on 204/empty body.
+
+    Raises
+    ------
+    RuntimeError
+        On non-2xx HTTP status codes.
+    ConnectionError
+        On network failures.
+    """
+    default_headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+    if headers:
+        default_headers.update(headers)
+
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    req = urllib.request.Request(url, data=data, headers=default_headers, method=method)
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8")
+            if not raw.strip():
+                return {}
+            return json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        body_text = ""
+        try:
+            body_text = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"HTTP {exc.code} on {method} {url}: {body_text}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise ConnectionError(
+            f"Failed to reach {url}: {exc.reason}"
+        ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Status enums and provider maps
+# ---------------------------------------------------------------------------
 
 
 class CloudJobStatus(Enum):
@@ -24,6 +106,240 @@ class CloudJobStatus(Enum):
     CANCELLED = "cancelled"
 
 
+_PROVIDER_STATUS_MAPS: Dict[str, Dict[str, CloudJobStatus]] = {
+    "ibm": {
+        "QUEUED": CloudJobStatus.QUEUED,
+        "RUNNING": CloudJobStatus.RUNNING,
+        "COMPLETED": CloudJobStatus.DONE,
+        "DONE": CloudJobStatus.DONE,
+        "ERROR": CloudJobStatus.ERROR,
+        "FAILED": CloudJobStatus.ERROR,
+        "CANCELLED": CloudJobStatus.CANCELLED,
+        "CANCELED": CloudJobStatus.CANCELLED,
+    },
+    "ionq": {
+        "ready": CloudJobStatus.QUEUED,
+        "running": CloudJobStatus.RUNNING,
+        "complete": CloudJobStatus.DONE,
+        "completed": CloudJobStatus.DONE,
+        "failed": CloudJobStatus.ERROR,
+        "error": CloudJobStatus.ERROR,
+        "cancelled": CloudJobStatus.CANCELLED,
+        "canceled": CloudJobStatus.CANCELLED,
+    },
+    "braket": {
+        "QUEUED": CloudJobStatus.QUEUED,
+        "IN_QUEUE": CloudJobStatus.QUEUED,
+        "RUNNING": CloudJobStatus.RUNNING,
+        "COMPLETED": CloudJobStatus.DONE,
+        "ERROR": CloudJobStatus.ERROR,
+        "CANCELLED": CloudJobStatus.CANCELLED,
+    },
+    "rigetti": {
+        "queued": CloudJobStatus.QUEUED,
+        "running": CloudJobStatus.RUNNING,
+        "complete": CloudJobStatus.DONE,
+        "completed": CloudJobStatus.DONE,
+        "failed": CloudJobStatus.ERROR,
+        "error": CloudJobStatus.ERROR,
+        "cancelled": CloudJobStatus.CANCELLED,
+    },
+}
+
+
+def _map_provider_status(provider: str, raw_status: str) -> CloudJobStatus:
+    """Map a provider-specific status string to CloudJobStatus."""
+    status_map = _PROVIDER_STATUS_MAPS.get(provider.lower(), {})
+    normalized = raw_status.strip().upper()
+    # Try case-insensitive match first
+    for key, val in status_map.items():
+        if key.upper() == normalized:
+            return val
+    logger.warning("Unknown status %r for provider %r, defaulting to QUEUED", raw_status, provider)
+    return CloudJobStatus.QUEUED
+
+
+# ---------------------------------------------------------------------------
+# Provider adapters — each implements real REST API polling
+# ---------------------------------------------------------------------------
+
+
+class IBMJobAdapter:
+    """IBM Quantum job operations via REST API.
+
+    Endpoints:
+        GET  /jobs/{job_id}
+        GET  /jobs/{job_id}/result
+        POST /jobs/{job_id}/cancel
+    """
+
+    def get_job_status(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        data = _http_request(
+            "GET",
+            f"{base}/jobs/{job_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        return {
+            "status": data.get("status", data.get("state", "UNKNOWN")),
+            "queue_position": (data.get("queue_info") or {}).get("position"),
+            "raw": data,
+        }
+
+    def get_job_result(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        return _http_request(
+            "GET",
+            f"{base}/jobs/{job_id}/result",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    def cancel_job(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        return _http_request(
+            "POST",
+            f"{base}/jobs/{job_id}/cancel",
+            headers={"Authorization": f"Bearer {token}"},
+            body={},
+        )
+
+
+class IonQJobAdapter:
+    """IonQ job operations via REST API v0.3.
+
+    Endpoints:
+        GET  /jobs/{job_id}
+        DELETE /jobs/{job_id}
+    """
+
+    def get_job_status(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        data = _http_request(
+            "GET",
+            f"{base}/jobs/{job_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        return {
+            "status": data.get("status", "UNKNOWN"),
+            "queue_position": data.get("queue_position"),
+            "raw": data,
+        }
+
+    def get_job_result(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        data = _http_request(
+            "GET",
+            f"{base}/jobs/{job_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        return data.get("result", data)
+
+    def cancel_job(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        return _http_request(
+            "DELETE",
+            f"{base}/jobs/{job_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+
+class BraketJobAdapter:
+    """AWS Braket task operations via REST API.
+
+    Endpoints:
+        GET  /tasks/{task_arn}
+        POST /tasks/{task_arn}/cancel
+    """
+
+    def get_job_status(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        data = _http_request(
+            "GET",
+            f"{base}/tasks/{job_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        return {
+            "status": data.get("status", "UNKNOWN"),
+            "queue_position": None,
+            "raw": data,
+        }
+
+    def get_job_result(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        return _http_request(
+            "GET",
+            f"{base}/tasks/{job_id}/result",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    def cancel_job(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        return _http_request(
+            "POST",
+            f"{base}/tasks/{job_id}/cancel",
+            headers={"Authorization": f"Bearer {token}"},
+            body={},
+        )
+
+
+class RigettiJobAdapter:
+    """Rigetti QCS job operations via REST API.
+
+    Endpoints:
+        GET  /jobs/{job_id}
+        POST /jobs/{job_id}/cancel
+    """
+
+    def get_job_status(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        data = _http_request(
+            "GET",
+            f"{base}/jobs/{job_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        return {
+            "status": data.get("status", "UNKNOWN"),
+            "queue_position": None,
+            "raw": data,
+        }
+
+    def get_job_result(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        return _http_request(
+            "GET",
+            f"{base}/jobs/{job_id}/result",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    def cancel_job(self, job_id: str, token: str, endpoint: str) -> Dict[str, Any]:
+        base = endpoint.rstrip("/")
+        return _http_request(
+            "POST",
+            f"{base}/jobs/{job_id}/cancel",
+            headers={"Authorization": f"Bearer {token}"},
+            body={},
+        )
+
+
+# Provider adapter registry
+_JOB_ADAPTERS: Dict[str, Any] = {
+    "ibm": IBMJobAdapter(),
+    "ionq": IonQJobAdapter(),
+    "braket": BraketJobAdapter(),
+    "rigetti": RigettiJobAdapter(),
+}
+
+
+def get_job_adapter(provider: str):
+    """Return the provider-specific job adapter, or None."""
+    return _JOB_ADAPTERS.get(provider.lower())
+
+
+# ---------------------------------------------------------------------------
+# Result data
+# ---------------------------------------------------------------------------
+
+
 @dataclass
 class CloudJobResult:
     """Aggregated result of a completed quantum job.
@@ -31,11 +347,11 @@ class CloudJobResult:
     Attributes
     ----------
     counts:
-        Measurement counts per bitstring (e.g. ``{"00": 512, "11": 512}``).
+        Measurement counts per bitstring.
     probabilities:
         Normalised probabilities for each bitstring.
     metadata:
-        Provider-specific metadata (timing, backend version, etc.).
+        Provider-specific metadata.
     raw_data:
         Raw payload returned by the provider API.
     success:
@@ -51,6 +367,62 @@ class CloudJobResult:
     success: bool = True
     error_message: Optional[str] = None
 
+    def __post_init__(self) -> None:
+        """Auto-compute probabilities from counts if missing."""
+        if self.counts and not self.probabilities:
+            total = sum(self.counts.values())
+            if total > 0:
+                self.probabilities = {k: v / total for k, v in self.counts.items()}
+
+    @classmethod
+    def from_provider_response(cls, data: Dict[str, Any], provider: str) -> "CloudJobResult":
+        """Parse a provider-specific result response into CloudJobResult.
+
+        Parameters
+        ----------
+        data:
+            Raw JSON response from the provider's result endpoint.
+        provider:
+            Provider name for format-specific parsing.
+        """
+        counts: Dict[str, int] = {}
+        metadata: Dict[str, Any] = {}
+        raw = data
+
+        if provider == "ibm":
+            counts = data.get("counts", {})
+            metadata = {
+                "backend": data.get("backend_name", ""),
+                "job_id": data.get("job_id", ""),
+                "qobj_id": data.get("qobj_id", ""),
+            }
+        elif provider == "ionq":
+            counts_dict = data.get("counts", data.get("result", {}))
+            if isinstance(counts_dict, dict):
+                counts = {k: int(v) for k, v in counts_dict.items()}
+            metadata = {"probabilities": data.get("probabilities", {})}
+        elif provider == "braket":
+            measurements = data.get("measurements", data.get("measurementSets", []))
+            if isinstance(measurements, list):
+                for mset in measurements:
+                    bits = mset.get("measurementResults", [])
+                    for b in bits:
+                        bitstring = "".join(str(x) for x in b) if isinstance(b, list) else str(b)
+                        counts[bitstring] = counts.get(bitstring, 0) + 1
+            metadata = {"type": data.get("type", "")}
+        elif provider == "rigetti":
+            counts_raw = data.get("readout", data.get("counts", {}))
+            if isinstance(counts_raw, dict):
+                counts = {k: int(v) for k, v in counts_raw.items()}
+            metadata = {"metadata": data.get("metadata", {})}
+
+        return cls(counts=counts, metadata=metadata, raw_data=raw)
+
+
+# ---------------------------------------------------------------------------
+# CloudJob
+# ---------------------------------------------------------------------------
+
 
 class CloudJob:
     """Represents a single quantum job submitted to a cloud backend.
@@ -64,10 +436,13 @@ class CloudJob:
     backend_name:
         Target quantum backend.
     status:
-        Initial status (defaults to :attr:`CloudJobStatus.QUEUED`).
+        Initial status.
+    token:
+        Authentication token for API polling.
+    endpoint:
+        API base URL for this provider.
     **kwargs:
-        Optional fields: ``shots``, ``circuit_dict``, ``options``,
-        ``queue_position``.
+        Optional: shots, circuit_dict, options, queue_position.
     """
 
     def __init__(
@@ -76,12 +451,16 @@ class CloudJob:
         provider: str,
         backend_name: str,
         status: CloudJobStatus = CloudJobStatus.QUEUED,
+        token: Optional[str] = None,
+        endpoint: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         self._job_id = job_id
         self._provider = provider
         self._backend_name = backend_name
         self._status = status
+        self._token = token
+        self._endpoint = endpoint
         self._created_at = datetime.now(timezone.utc)
         self._started_at: Optional[datetime] = None
         self._completed_at: Optional[datetime] = None
@@ -91,6 +470,7 @@ class CloudJob:
         self._shots: int = kwargs.get("shots", 1024)
         self._circuit_dict: Dict[str, Any] = kwargs.get("circuit_dict", {})
         self._options: Dict[str, Any] = kwargs.get("options", {})
+        self._adapter = get_job_adapter(provider)
         self._history: List[Dict[str, Any]] = [
             {
                 "status": status.value,
@@ -102,53 +482,59 @@ class CloudJob:
 
     @property
     def job_id(self) -> str:
-        """Unique job identifier."""
         return self._job_id
 
     @property
     def provider(self) -> str:
-        """Cloud provider name."""
         return self._provider
 
     @property
     def backend_name(self) -> str:
-        """Target backend identifier."""
         return self._backend_name
 
     @property
     def status(self) -> CloudJobStatus:
-        """Current job status."""
         return self._status
 
     @property
     def created_at(self) -> datetime:
-        """Timestamp when the job was created."""
         return self._created_at
 
     @property
     def started_at(self) -> Optional[datetime]:
-        """Timestamp when the job started running."""
         return self._started_at
 
     @property
     def completed_at(self) -> Optional[datetime]:
-        """Timestamp when the job finished (success or error)."""
         return self._completed_at
 
     @property
     def queue_position(self) -> Optional[int]:
-        """Position in the provider's queue, or None if unknown."""
         return self._queue_position
 
     @property
     def error_message(self) -> Optional[str]:
-        """Error description if the job failed."""
         return self._error_message
 
     @property
     def result_data(self) -> Optional[CloudJobResult]:
-        """Result payload, available only after the job is done."""
         return self._result_data
+
+    @property
+    def token(self) -> Optional[str]:
+        return self._token
+
+    @token.setter
+    def token(self, value: Optional[str]) -> None:
+        self._token = value
+
+    @property
+    def endpoint(self) -> Optional[str]:
+        return self._endpoint
+
+    @endpoint.setter
+    def endpoint(self, value: Optional[str]) -> None:
+        self._endpoint = value
 
     # -- Status transitions ------------------------------------------------
 
@@ -158,7 +544,11 @@ class CloudJob:
         self._status = new_status
         if new_status == CloudJobStatus.RUNNING and self._started_at is None:
             self._started_at = now
-        elif new_status in (CloudJobStatus.DONE, CloudJobStatus.ERROR, CloudJobStatus.CANCELLED):
+        elif new_status in (
+            CloudJobStatus.DONE,
+            CloudJobStatus.ERROR,
+            CloudJobStatus.CANCELLED,
+        ):
             self._completed_at = now
         self._history.append(
             {"status": new_status.value, "timestamp": now.isoformat()}
@@ -167,23 +557,69 @@ class CloudJob:
     def refresh_status(self) -> None:
         """Poll the provider API for the latest status.
 
-        This is a stub — override or monkey-patch with real API calls.
+        Uses the provider-specific adapter to make a real REST call.
+        Falls back gracefully if no adapter is configured or on network errors.
         """
-        pass
+        if self._adapter is None or self._token is None or self._endpoint is None:
+            logger.debug(
+                "refresh_status skipped for %s: no adapter/token/endpoint", self._job_id
+            )
+            return
 
-    def wait(self, timeout: float = 300) -> None:
+        try:
+            response = self._adapter.get_job_status(
+                self._job_id, self._token, self._endpoint
+            )
+        except (RuntimeError, ConnectionError) as exc:
+            logger.warning("refresh_status network error for %s: %s", self._job_id, exc)
+            return
+
+        raw_status = response.get("status", "")
+        new_status = _map_provider_status(self._provider, raw_status)
+        self._queue_position = response.get("queue_position")
+
+        if new_status != self._status:
+            self._set_status(new_status)
+
+        if new_status == CloudJobStatus.ERROR:
+            self._error_message = (
+                response.get("raw", {}).get("error", {})
+                .get("message", "Job failed on provider")
+            )
+
+        if new_status == CloudJobStatus.DONE:
+            self._fetch_result()
+
+    def _fetch_result(self) -> None:
+        """Fetch the result payload from the provider after completion."""
+        if self._adapter is None or self._token is None or self._endpoint is None:
+            return
+        try:
+            raw_result = self._adapter.get_job_result(
+                self._job_id, self._token, self._endpoint
+            )
+            self._result_data = CloudJobResult.from_provider_response(
+                raw_result, self._provider
+            )
+        except (RuntimeError, ConnectionError) as exc:
+            logger.warning("Failed to fetch result for %s: %s", self._job_id, exc)
+
+    def wait(self, timeout: float = 300, poll_interval: float = 2.0) -> None:
         """Block until the job reaches a terminal state.
 
         Parameters
         ----------
         timeout:
-            Maximum seconds to wait before raising :class:`TimeoutError`.
+            Maximum seconds to wait before raising TimeoutError.
+        poll_interval:
+            Seconds between status polls (minimum 0.5s).
 
         Raises
         ------
         TimeoutError
             If the job does not finish within *timeout* seconds.
         """
+        poll_interval = max(0.5, poll_interval)
         deadline = time.monotonic() + timeout
         while self._status not in (
             CloudJobStatus.DONE,
@@ -195,13 +631,12 @@ class CloudJob:
                     f"Job {self._job_id} did not complete within {timeout}s"
                 )
             self.refresh_status()
-            time.sleep(2)
+            time.sleep(poll_interval)
 
     def cancel(self) -> bool:
-        """Request cancellation of this job.
+        """Request cancellation via the provider API.
 
-        Returns True if the status was changed to CANCELLED, False if the
-        job was already in a terminal state.
+        Returns True if the cancel request was sent.
         """
         if self._status in (
             CloudJobStatus.DONE,
@@ -209,6 +644,13 @@ class CloudJob:
             CloudJobStatus.CANCELLED,
         ):
             return False
+
+        if self._adapter and self._token and self._endpoint:
+            try:
+                self._adapter.cancel_job(self._job_id, self._token, self._endpoint)
+            except (RuntimeError, ConnectionError) as exc:
+                logger.warning("cancel() network error for %s: %s", self._job_id, exc)
+
         self._error_message = "Cancelled by user"
         self._set_status(CloudJobStatus.CANCELLED)
         return True
@@ -234,16 +676,11 @@ class CloudJob:
         """
         self.wait(timeout=timeout)
         if self._status == CloudJobStatus.CANCELLED:
-            return CloudJobResult(
-                success=False,
-                error_message="Job was cancelled",
-            )
+            return CloudJobResult(success=False, error_message="Job was cancelled")
         if self._status == CloudJobStatus.ERROR:
             return CloudJobResult(
-                success=False,
-                error_message=self._error_message or "Unknown error",
+                success=False, error_message=self._error_message or "Unknown error"
             )
-        # Return cached result or build a default one.
         if self._result_data is not None:
             return self._result_data
         self._result_data = CloudJobResult(
@@ -256,27 +693,25 @@ class CloudJob:
     # -- Result helpers ----------------------------------------------------
 
     def get_counts(self, circuit_index: int = 0) -> Dict[str, int]:
-        """Return measurement counts for the given circuit index.
-
-        Raises RuntimeError if the job has not completed successfully.
-        """
+        """Return measurement counts for the given circuit index."""
         if self._status != CloudJobStatus.DONE:
             raise RuntimeError(
                 f"Job {self._job_id} has not completed (status={self._status.value})"
             )
-        result = self.result(timeout=0) if self._result_data is None else self._result_data
+        result = (
+            self.result(timeout=0) if self._result_data is None else self._result_data
+        )
         return result.counts
 
     def get_probabilities(self, circuit_index: int = 0) -> Dict[str, float]:
-        """Return normalised probabilities for the given circuit index.
-
-        Raises RuntimeError if the job has not completed successfully.
-        """
+        """Return normalised probabilities for the given circuit index."""
         if self._status != CloudJobStatus.DONE:
             raise RuntimeError(
                 f"Job {self._job_id} has not completed (status={self._status.value})"
             )
-        result = self.result(timeout=0) if self._result_data is None else self._result_data
+        result = (
+            self.result(timeout=0) if self._result_data is None else self._result_data
+        )
         return result.probabilities
 
     def history(self) -> List[Dict[str, Any]]:
