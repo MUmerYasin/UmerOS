@@ -174,6 +174,18 @@ from .circuit_library_extensions import (
     PauliFeatureMap, IQP, bind_parameters,
 )
 
+# Pulse control
+from .pulse_control import (
+    WaveformType, Waveform, ConstantWaveform, GaussianWaveform,
+    Frame, Pulse, PulseSequence, PulseScheduleType, PulseScheduler, SchedulingStrategy,
+)
+
+# Compiler job management
+from .compiler import (
+    Job, JobStatus, JobPriority,
+    JobQueueManager, CloudJobManager, HybridJobManager,
+)
+
 __all__ = [
     # Gates
     "Gate", "I_GATE", "X_GATE", "Y_GATE", "Z_GATE", "H_GATE", "S_GATE", "T_GATE",
@@ -281,4 +293,11 @@ __all__ = [
     # Circuit library extensions
     "NLocal", "RealAmplitudes", "EfficientSU2", "TwoLocal",
     "PauliFeatureMap", "IQP", "bind_parameters",
+    # Pulse control
+    "WaveformType", "Waveform", "ConstantWaveform", "GaussianWaveform",
+    "Frame", "Pulse", "PulseSequence", "PulseScheduleType",
+    "PulseScheduler", "SchedulingStrategy",
+    # Compiler job management
+    "Job", "JobStatus", "JobPriority",
+    "JobQueueManager", "CloudJobManager", "HybridJobManager",
 ]
