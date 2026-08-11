@@ -1,0 +1,127 @@
+{
+  "context": {
+    "kernel_version": "demo",
+    "scenario": "normal",
+    "host_root": "F:\\Pension Person Details\\UmerOS",
+    "ramdisk_stats": {
+      "raw_bytes": 0,
+      "extracted_bytes": 26,
+      "file_count": 2,
+      "dir_count": 2,
+      "symlink_count": 1,
+      "uptime_seconds": 0.01235
+    }
+  },
+  "machine": {
+    "current_phase": "completed",
+    "phases_completed": 8,
+    "phases_failed": 0,
+    "phases_skipped": 0
+  },
+  "history": [
+    {
+      "phase": "phase_1_load",
+      "outcome": "succeeded",
+      "started_at": 1786432023.3749068,
+      "finished_at": 1786432023.37495,
+      "duration": 4.315376281738281e-05,
+      "error": null,
+      "notes": [
+        "kernel + cpio handed to userspace"
+      ]
+    },
+    {
+      "phase": "phase_2_convert",
+      "outcome": "succeeded",
+      "started_at": 1786432023.3749542,
+      "finished_at": 1786432023.37504,
+      "duration": 8.58306884765625e-05,
+      "error": null,
+      "notes": [
+        "extracted 2 files"
+      ]
+    },
+    {
+      "phase": "phase_3_mount_root",
+      "outcome": "succeeded",
+      "started_at": 1786432023.3750432,
+      "finished_at": 1786432023.375045,
+      "duration": 1.9073486328125e-06,
+      "error": null,
+      "notes": [
+        "initrd mounted at /"
+      ]
+    },
+    {
+      "phase": "phase_4_linuxrc",
+      "outcome": "succeeded",
+      "started_at": 1786432023.3750465,
+      "finished_at": 1786432023.3752291,
+      "duration": 0.00018262863159179688,
+      "error": null,
+      "notes": [
+        "module list resolved"
+      ]
+    },
+    {
+      "phase": "phase_5_mount_real",
+      "outcome": "succeeded",
+      "started_at": 1786432023.375233,
+      "finished_at": 1786432023.375263,
+      "duration": 3.0040740966796875e-05,
+      "error": null,
+      "notes": [
+        "real root FS mounted at /newroot"
+      ]
+    },
+    {
+      "phase": "phase_6_pivot_root",
+      "outcome": "succeeded",
+      "started_at": 1786432023.3752651,
+      "finished_at": 1786432023.3755727,
+      "duration": 0.0003075599670410156,
+      "error": null,
+      "notes": [
+        "pivot took 0.0003s"
+      ]
+    },
+    {
+      "phase": "phase_7_exec_init",
+      "outcome": "succeeded",
+      "started_at": 1786432023.375578,
+      "finished_at": 1786432023.3755813,
+      "duration": 3.337860107421875e-06,
+      "error": null,
+      "notes": [
+        "transferred control to /sbin/init"
+      ]
+    },
+    {
+      "phase": "phase_8_teardown",
+      "outcome": "succeeded",
+      "started_at": 1786432023.3755827,
+      "finished_at": 1786432023.3755896,
+      "duration": 6.9141387939453125e-06,
+      "error": null,
+      "notes": [
+        "initrd memory released"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "name": "ext4",
+      "reason": "user_request",
+      "parameters": {},
+      "dependencies": [],
+      "source": "user"
+    },
+    {
+      "name": "ahci",
+      "reason": "user_request",
+      "parameters": {},
+      "dependencies": [],
+      "source": "user"
+    }
+  ]
+}

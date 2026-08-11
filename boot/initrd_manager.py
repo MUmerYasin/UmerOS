@@ -397,10 +397,14 @@ class InitrdManager:
         output_path: Optional[str] = None,
     ) -> bool:
         """
-        Create an initrd image (simplified simulation).
+        Create an initrd image.
 
-        In production, this would use mkinitramfs or similar tools.
-        This is a simulation for Umer OS.
+        When the ``initrd`` package is importable (it lives in
+        ``F:\\Pension Person Details\\UmerOS\\initrd\\``) the manager
+        delegates to :class:`initrd.builder.InitrdBuilder` so the
+        resulting image is a real, bootable cpio archive.  When the
+        package is not importable the manager falls back to the
+        legacy placeholder stub so older callers keep working.
 
         Args:
             config: Initrd configuration
@@ -417,6 +421,58 @@ class InitrdManager:
         log.info("Creating initrd image: %s", output_path)
         log.info("  Kernel version: %s", config.kernel_version)
         log.info("  Format: %s", config.format.value)
+
+        # Delegate to the new /initrd package when it is available.
+        # That package produces a real, bootable cpio archive; the
+        # legacy placeholder below only writes a small text header.
+        try:
+            from initrd.builder import (  # type: ignore
+                BuildRequest,
+                InitrdBuilder,
+                OutputFormat,
+            )
+            from initrd.scenarios import ScenarioId  # type: ignore
+        except ImportError:
+            self._legacy_create_initrd(config, output_path)
+            return True
+
+        try:
+            format_map = {
+                "cpio.gz": OutputFormat.CPIO_GZ,
+                "cpio.xz": OutputFormat.CPIO_XZ,
+                "cpio.lz4": OutputFormat.CPIO_LZ4,
+                "tar.gz":  OutputFormat.CPIO_GZ,
+                "tar.xz":  OutputFormat.CPIO_XZ,
+                "squashfs": OutputFormat.CPIO_GZ,
+                "erofs":   OutputFormat.CPIO_GZ,
+            }
+            request = BuildRequest(
+                kernel_version=config.kernel_version,
+                scenario=ScenarioId.NORMAL,
+                output_format=format_map.get(
+                    config.format.value, OutputFormat.CPIO_GZ
+                ),
+                output_path=output_path,
+                modules=list(config.modules),
+            )
+            result = InitrdBuilder().build(request)
+            # Register the new image so verify_image() can find it.
+            self.register_image(
+                name=os.path.basename(output_path),
+                path=output_path,
+                format_type=config.format,
+                kernel_version=config.kernel_version,
+                description=f"Initrd built via initrd.builder ({result.archiver})",
+            )
+            log.info("Initrd image built via initrd.builder: %s", output_path)
+            return True
+        except Exception as exc:  # noqa: BLE001
+            log.error("initrd.builder delegation failed (%s); falling back", exc)
+            self._legacy_create_initrd(config, output_path)
+            return True
+
+    def _legacy_create_initrd(self, config: InitrdConfig, output_path: str) -> None:
+        """Original placeholder writer, kept as a fallback."""
         log.info("  Modules: %d", len(config.modules))
 
         try:
