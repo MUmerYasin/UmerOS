@@ -26,7 +26,7 @@ class UmerOSApp extends StatelessWidget {
           final fontBase = GoogleFonts.interTextTheme();
 
           return MaterialApp(
-            title: 'UmerOS Desktop',
+            title: 'UmerOS',
             debugShowCheckedModeBanner: false,
             theme: FlexThemeData.light(
               scheme: themeProvider.flexScheme,

@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/quantum_service.dart';
 
 class QuantumSimApp extends StatefulWidget {
   const QuantumSimApp({super.key});
@@ -31,11 +32,18 @@ class _QuantumSimAppState extends State<QuantumSimApp>
   String _transpilerBackend = 'ionq_hardware';
   String _transpilerOptLevel = 'optimized';
   bool _transpileRunning = false;
+  bool _backendOk = false;
 
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 8, vsync: this);
+    _checkBackend();
+  }
+
+  Future<void> _checkBackend() async {
+    final ok = await QuantumService.instance.checkHealth();
+    if (mounted) setState(() => _backendOk = ok);
   }
 
   @override
@@ -50,26 +58,37 @@ class _QuantumSimAppState extends State<QuantumSimApp>
     return Column(children: [
       Material(
         color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        child: TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          labelColor: cs.primary,
-          unselectedLabelColor: cs.onSurfaceVariant,
-          indicatorColor: cs.primary,
-          labelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: GoogleFonts.inter(fontSize: 11),
-          tabAlignment: TabAlignment.start,
-          tabs: const [
-            Tab(icon: Icon(Icons.grid_on, size: 15), text: 'Circuit Builder'),
-            Tab(icon: Icon(Icons.category, size: 15), text: 'Gates'),
-            Tab(icon: Icon(Icons.scatter_plot, size: 15), text: 'States'),
-            Tab(icon: Icon(Icons.play_circle, size: 15), text: 'Simulator'),
-            Tab(icon: Icon(Icons.compare_arrows, size: 15), text: 'Transpiler'),
-            Tab(icon: Icon(Icons.wifi_tethering, size: 15), text: 'Pulse Control'),
-            Tab(icon: Icon(Icons.workspaces, size: 15), text: 'Jobs'),
-            Tab(icon: Icon(Icons.psychology, size: 15), text: 'Algorithms'),
-          ],
-        ),
+        child: Row(children: [
+          Expanded(
+            child: TabBar(
+              controller: _tabs,
+              isScrollable: true,
+              labelColor: cs.primary,
+              unselectedLabelColor: cs.onSurfaceVariant,
+              indicatorColor: cs.primary,
+              labelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+              unselectedLabelStyle: GoogleFonts.inter(fontSize: 11),
+              tabAlignment: TabAlignment.start,
+              tabs: const [
+                Tab(icon: Icon(Icons.grid_on, size: 15), text: 'Circuit Builder'),
+                Tab(icon: Icon(Icons.category, size: 15), text: 'Gates'),
+                Tab(icon: Icon(Icons.scatter_plot, size: 15), text: 'States'),
+                Tab(icon: Icon(Icons.play_circle, size: 15), text: 'Simulator'),
+                Tab(icon: Icon(Icons.compare_arrows, size: 15), text: 'Transpiler'),
+                Tab(icon: Icon(Icons.wifi_tethering, size: 15), text: 'Pulse Control'),
+                Tab(icon: Icon(Icons.workspaces, size: 15), text: 'Jobs'),
+                Tab(icon: Icon(Icons.psychology, size: 15), text: 'Algorithms'),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Tooltip(
+              message: _backendOk ? 'Backend connected' : 'Backend offline',
+              child: Icon(Icons.circle, size: 10, color: _backendOk ? Colors.green : Colors.red),
+            ),
+          ),
+        ]),
       ),
       Expanded(
         child: TabBarView(
@@ -247,8 +266,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
           const SizedBox(width: 14),
           Expanded(flex: 2, child: Card(
             color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-            padding: const EdgeInsets.all(14),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('State Vector', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
               const SizedBox(height: 10),
               _stateVectorRow('|0\u27E9', '0.707 + 0.000i', cs),
@@ -262,7 +280,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
               Text('Purity: 1.000', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: cs.onSurfaceVariant)),
               Text('Entropy: 1.000', style: GoogleFonts.jetBrainsMono(fontSize: 10, color: cs.onSurfaceVariant)),
             ]),
-          )),
+          ))),
         ])),
       ]),
     );
@@ -354,8 +372,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
         const SizedBox(height: 14),
         Expanded(child: Card(
           color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
-          padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Transpiled Output', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             if (_transpileRunning)
@@ -372,7 +389,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
               ]),
             ],
           ]),
-        )),
+        ))),
       ]),
     );
   }
@@ -615,7 +632,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
       case 'S': return Icons.square;
       case 'T': return Icons.square_foot;
       case 'CNOT': return Icons.link;
-      case 'SWAP': return Icons.swap_horiz_circle;
+      case 'SWAP': return Icons.swap_horiz;
       case 'Toffoli': return Icons.control_point;
       case 'Rz': return Icons.rotate_right;
       case 'Ry': return Icons.rotate_left;
@@ -648,58 +665,126 @@ class _QuantumSimAppState extends State<QuantumSimApp>
   }
 
   // --- ACTIONS ---
-  void _runSimulation() {
-    setState(() => _simRunning = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      final rng = Random();
-      final counts = <String, int>{};
-      for (final g in _placedGates) {
-        final key = List.generate(_qubitLines.length, (i) => i == g.qubit ? '1' : '0').join();
-        counts[key] = (counts[key] ?? 0) + rng.nextInt(200);
+
+  List<CircuitOp> _buildCircuitOps() {
+    return _placedGates.map((g) {
+      if (g.type == 'CNOT') {
+        return CircuitOp(gate: 'cx', qubit: g.qubit, control: g.qubit, target: (g.qubit + 1) % _qubitLines.length);
       }
-      if (counts.isEmpty) { counts['000'] = 512; counts['001'] = 512; }
-      final total = counts.values.fold<int>(0, (a, b) => a + b);
-      final normalized = <String, int>{};
-      counts.forEach((k, v) { normalized[k] = (v / total * 1024).round(); });
+      if (g.type == 'SWAP') {
+        return CircuitOp(gate: 'swap', qubit: g.qubit, target: (g.qubit + 1) % _qubitLines.length);
+      }
+      if (g.type.startsWith('R')) {
+        return CircuitOp(gate: g.type.toLowerCase(), qubit: g.qubit, angle: 0.5);
+      }
+      return CircuitOp(gate: g.type.toLowerCase(), qubit: g.qubit);
+    }).toList();
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Theme.of(context).colorScheme.error, duration: const Duration(seconds: 3)));
+  }
+
+  Future<void> _runSimulation() async {
+    setState(() => _simRunning = true);
+    try {
+      final ops = _buildCircuitOps();
+      if (ops.isEmpty) {
+        ops.add(CircuitOp(gate: 'h', qubit: 0));
+      }
+      final resp = await QuantumService.instance.simulateCircuit(circuitOps: ops, shots: 1024);
+      if (!mounted) return;
       setState(() {
         _simRunning = false;
-        _simResults.add(_SimResult(counts: normalized, timestamp: DateTime.now().toString().substring(11, 19)));
+        _simResults.add(_SimResult(counts: resp.counts, timestamp: DateTime.now().toString().substring(11, 19)));
       });
-    });
+    } on QuantumServiceException catch (e) {
+      if (mounted) {
+        setState(() => _simRunning = false);
+        _showError('Simulation failed: $e');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _simRunning = false);
+        _showError('Backend unavailable: $e');
+      }
+    }
   }
 
-  void _runTranspile() {
+  Future<void> _runTranspile() async {
     setState(() => _transpileRunning = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _transpileRunning = false);
-    });
+    try {
+      final ops = _buildCircuitOps();
+      if (ops.isEmpty) {
+        ops.add(CircuitOp(gate: 'h', qubit: 0));
+      }
+      final resp = await QuantumService.instance.transpileCircuit(circuitOps: ops, optimizationLevel: 2);
+      if (mounted) {
+        setState(() => _transpileRunning = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Transpiled: depth=${resp.depth}, 2Q gates=${resp.twoQubitCount}, fidelity=${resp.fidelityEstimate.toStringAsFixed(3)}'),
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    } on QuantumServiceException catch (e) {
+      if (mounted) {
+        setState(() => _transpileRunning = false);
+        _showError('Transpile failed: $e');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _transpileRunning = false);
+        _showError('Backend unavailable: $e');
+      }
+    }
   }
 
-  void _submitJob() {
-    final rng = Random();
+  Future<void> _submitJob() async {
+    final alg = _algorithmPresets.isNotEmpty ? _algorithmPresets.first : null;
+    final name = alg?.name ?? 'grover';
+    final slug = name.toLowerCase().replaceAll(RegExp(r"[^a-z0-9]"), '_').replaceAll(RegExp(r'_+'), '_');
     setState(() {
-      _jobs.add(_QuantumJob(name: 'Circuit Job #${_jobs.length + 1}', backend: 'ionq_hardware', shots: 1024, status: 'Running', time: '\u2014'));
+      _jobs.add(_QuantumJob(name: name, backend: 'numpy', shots: 1024, status: 'Running', time: '\u2014'));
     });
-    Future.delayed(Duration(seconds: 2 + rng.nextInt(3)), () {
+    try {
+      final resp = await QuantumService.instance.runAlgorithm(slug, {'num_qubits': 4, 'shots': 1024});
       if (!mounted) return;
       setState(() {
         final idx = _jobs.length - 1;
-        _jobs[idx] = _QuantumJob(name: _jobs[idx].name, backend: _jobs[idx].backend, shots: _jobs[idx].shots, status: 'Completed', time: '${(1 + rng.nextDouble() * 3).toStringAsFixed(1)}s');
+        _jobs[idx] = _QuantumJob(name: resp.name, backend: 'numpy', shots: 1024, status: 'Completed', time: '${resp.result}');
       });
-    });
+    } on QuantumServiceException catch (e) {
+      if (mounted) {
+        final idx = _jobs.length - 1;
+        setState(() {
+          _jobs[idx] = _QuantumJob(name: _jobs[idx].name, backend: _jobs[idx].backend, shots: _jobs[idx].shots, status: 'Failed', time: '$e');
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        final idx = _jobs.length - 1;
+        setState(() {
+          _jobs[idx] = _QuantumJob(name: _jobs[idx].name, backend: _jobs[idx].backend, shots: _jobs[idx].shots, status: 'Failed', time: '$e');
+        });
+      }
+    }
   }
 
-  void _showQasmDialog() {
-    final gates = _placedGates.map((g) {
-      if (g.type == 'CNOT') return 'cx q[${g.qubit}], q[${(g.qubit + 1) % _qubitLines.length}];';
-      if (g.type == 'SWAP') return 'swap q[${g.qubit}], q[${(g.qubit + 1) % _qubitLines.length}];';
-      if (g.type.startsWith('R')) return '${g.type.toLowerCase()}(0.5) q[${g.qubit}];';
-      return '${g.type.toLowerCase()} q[${g.qubit}];';
-    }).join('\n');
+  Future<void> _showQasmDialog() async {
+    final ops = _buildCircuitOps();
+    String qasm;
+    try {
+      qasm = await QuantumService.instance.exportQasm(ops, _qubitLines.length);
+    } on QuantumServiceException catch (e) {
+      qasm = '// Export failed: $e';
+    } catch (e) {
+      qasm = '// Backend unavailable: $e';
+    }
+    if (!mounted) return;
     showDialog(context: context, builder: (_) => AlertDialog(
       title: const Text('OpenQASM 3.0'),
-      content: SingleChildScrollView(child: Text('OPENQASM 3.0;\ninclude "stdgates.inc";\n\nqubit[${_qubitLines.length}] q;\nbit[${_qubitLines.length}] c;\n\n$gates', style: GoogleFonts.jetBrainsMono(fontSize: 11))),
+      content: SingleChildScrollView(child: Text(qasm, style: GoogleFonts.jetBrainsMono(fontSize: 11))),
       actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
     ));
   }

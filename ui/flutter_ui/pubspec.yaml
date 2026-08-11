@@ -36,7 +36,7 @@ dependencies:
   google_fonts: ^8.2.0
   flutter_animate: ^4.5.2
   http: ^1.6.0
-  file_picker: ^5.3.0
+#  file_picker: ^5.3.0
   shared_preferences: ^2.2.0
   webview_flutter_windows: ^1.1.1
 dev_dependencies:

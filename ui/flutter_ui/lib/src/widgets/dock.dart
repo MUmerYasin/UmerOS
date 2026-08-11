@@ -12,7 +12,7 @@ import '../apps/package_manager_app.dart';
 import '../apps/network_manager_app.dart';
 import '../apps/calendar_app.dart';
 import '../apps/calculator_app.dart';
-import '../apps/quantum_sim_app.dart';
+import '../apps/quantum_app.dart';
 import '../apps/security_app.dart';
 import '../apps/boot_manager_app.dart';
 import '../apps/games_app.dart';
