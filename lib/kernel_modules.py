@@ -121,6 +121,7 @@ class KernelModule:
 # ─────────────────────────────────────────────────────────────────────────────
 
 DEFAULT_KERNEL_VERSION = "6.6.0-UmerOS"
+MODULE_FILE_SUFFIXES = (".ko", ".ko.gz", ".ko.xz", ".ko.zst", ".ko.bz2")
 
 # A small but realistic starter catalogue covering the standard Linux drivers
 # shipped with virtually every distribution.  Real UmerOS would scan the
@@ -267,10 +268,10 @@ class KernelModuleManager:
         version_dir = self.modules_path / version
         modules: List[KernelModule] = []
 
-        # 1) Real .ko files on disk
+        # 1) Real .ko files on disk, including common compressed module forms.
         if version_dir.exists():
-            for item in sorted(version_dir.rglob("*.ko")):
-                mod = self._build_module_from_ko(item)
+            for item in self._iter_module_files(version_dir):
+                mod = self._build_module_from_ko(item, version)
                 modules.append(mod)
                 self._info[mod.name] = mod
 
@@ -486,15 +487,22 @@ class KernelModuleManager:
         kernel_subdir.mkdir(parents=True, exist_ok=True)
         build_link = kernel_subdir / "build"
         target = self.source_root / ver
-        if build_link.is_symlink() or build_link.exists():
-            try:
-                build_link.unlink()
-            except IsADirectoryError:
-                pass
+        if build_link.is_symlink() or build_link.is_file():
+            build_link.unlink()
+        elif build_link.exists():
+            log.warning("Build reference exists and is not replaceable: %s", build_link)
+            return build_link
         try:
             build_link.symlink_to(target, target_is_directory=True)
         except (OSError, NotImplementedError) as e:
             log.warning("Could not create build symlink: %s", e)
+            try:
+                build_link.write_text(
+                    f"UmerOS kernel build reference\nTarget: {target}\n",
+                    encoding="utf-8",
+                )
+            except OSError:
+                pass
         return build_link
 
     # ──────────────────────── modinfo ──────────────────────────────
@@ -670,7 +678,32 @@ class KernelModuleManager:
 
     # ──────────────────────── helpers ──────────────────────────────
 
-    def _build_module_from_ko(self, path: Path) -> KernelModule:
+    def _iter_module_files(self, version_dir: Path) -> Iterable[Path]:
+        """Yield kernel module files, including compressed ``.ko`` variants."""
+        return (
+            item
+            for item in sorted(version_dir.rglob("*"))
+            if item.is_file() and self._is_module_file(item)
+        )
+
+    @staticmethod
+    def _is_module_file(path: Path) -> bool:
+        return any(path.name.endswith(suffix) for suffix in MODULE_FILE_SUFFIXES)
+
+    @staticmethod
+    def _module_name_from_path(path: Path) -> str:
+        name = path.name
+        for suffix in MODULE_FILE_SUFFIXES:
+            if name.endswith(suffix):
+                return name[:-len(suffix)]
+        return path.stem
+
+    def _build_module_from_ko(
+        self,
+        path: Path,
+        kernel_version: Optional[str] = None,
+    ) -> KernelModule:
+        version = kernel_version or self.kernel_version
         try:
             size = path.stat().st_size
         except OSError:
@@ -685,12 +718,12 @@ class KernelModuleManager:
         except OSError:
             pass
         return KernelModule(
-            name=path.stem,
+            name=self._module_name_from_path(path),
             path=str(path),
             size=size,
-            version=self.kernel_version,
+            version=version,
             description=f"Found on disk: {path.name}",
-            vermagic=f"{self.kernel_version} SMP mod_unload",
+            vermagic=f"{version} SMP mod_unload",
             md5=md5,
         )
 

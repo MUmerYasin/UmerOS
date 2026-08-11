@@ -404,19 +404,72 @@ class LibQualifierManager:
         C preprocessor, as required by the FHS.  ``/lib<qual>/cpp`` is
         optional; the FHS only mandates ``/lib/cpp``.
         """
+        return self.ensure_cpp_reference(target, qualifier=qualifier)
+
+    def ensure_cpp_reference(
+        self,
+        target: str = "/usr/bin/cpp",
+        *,
+        qualifier: Optional[str] = None,
+        prefer_symlink: bool = True,
+    ) -> Path:
+        """
+        Ensure ``cpp`` references the C preprocessor.
+
+        TLDP/FHS says ``/lib/cpp`` must be a reference to the installed C
+        preprocessor, traditionally ``/usr/bin/cpp``.  On platforms where
+        Python cannot create symlinks (for example some Windows developer
+        shells), UmerOS writes a tiny reference file containing the target so
+        tests and staging roots remain portable.
+        """
         if qualifier:
             link_dir = self.lib_path.with_name(self.lib_path.name + qualifier)
         else:
             link_dir = self.lib_path
         link_dir.mkdir(parents=True, exist_ok=True)
         link = link_dir / "cpp"
-        if link.is_symlink() or link.exists():
+        if link.is_symlink() or link.is_file():
+            link.unlink()
+        elif link.exists():
+            raise IsADirectoryError(f"{link} exists and is not a cpp reference")
+        if prefer_symlink:
             try:
-                link.unlink()
-            except IsADirectoryError:
-                pass
-        link.symlink_to(target)
+                link.symlink_to(target)
+                return link
+            except (OSError, NotImplementedError) as e:
+                log.warning("Could not create cpp symlink %s -> %s: %s",
+                            link, target, e)
+        link.write_text(
+            f"UmerOS cpp reference\nTarget: {target}\n",
+            encoding="utf-8",
+        )
         return link
+
+    def is_cpp_reference(
+        self,
+        target: str = "/usr/bin/cpp",
+        *,
+        qualifier: Optional[str] = None,
+    ) -> bool:
+        """Return True if the cpp entry points at, or records, ``target``."""
+        if qualifier:
+            link_dir = self.lib_path.with_name(self.lib_path.name + qualifier)
+        else:
+            link_dir = self.lib_path
+        link = link_dir / "cpp"
+        if not (link.exists() or link.is_symlink()):
+            return False
+        if link.is_symlink():
+            try:
+                return str(link.readlink()) == target
+            except OSError:
+                return False
+        if link.is_file():
+            try:
+                return target in link.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                return False
+        return False
 
 
 # ─────────────────────────────────────────────────────────────────────────────

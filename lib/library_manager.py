@@ -14,6 +14,7 @@ Licence: Apache 2.0
 from __future__ import annotations
 
 import hashlib
+import fnmatch
 import logging
 import os
 import struct
@@ -74,7 +75,7 @@ class LibraryManager:
         """Find libraries matching a pattern (e.g., 'lib*.so')."""
         results = []
         for lib in self.list_libraries(recursive=True):
-            if pattern.replace("*", "") in lib.name:
+            if fnmatch.fnmatchcase(lib.name, pattern):
                 results.append(lib)
         return results
 

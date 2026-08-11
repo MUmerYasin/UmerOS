@@ -38,6 +38,7 @@ companion directories that show up in the same conversation:
 The high-level entry points:
 
   * ``KernelModuleManager`` — modprobe / rmmod / depmod
+  * ``LibHierarchyManager`` — TLDP/FHS /lib audit + bootstrap
   * ``LibraryManager``     — /lib essential libraries + symlinks
   * ``EssentialLibraryManager`` — FHS-required stubs (libc, ld, libm, ...)
   * ``DynamicLinkerManager``  — ldconfig, ld.so.conf parser, ld.so.cache
@@ -60,6 +61,13 @@ Licence: Apache 2.0
 from __future__ import annotations
 
 from .library_manager import LibraryManager, LibraryInfo
+from .fhs import (
+    LibHierarchyManager,
+    LibAuditReport,
+    LibAuditIssue,
+    LibIssueSeverity,
+    LibRequirement,
+)
 from .kernel_modules import (
     KernelModuleManager,
     KernelModule,
@@ -129,6 +137,9 @@ from .var_lib import (
 
 
 __all__ = [
+    # TLDP/FHS hierarchy
+    "LibHierarchyManager", "LibAuditReport", "LibAuditIssue",
+    "LibIssueSeverity", "LibRequirement",
     # Library + essential
     "LibraryManager", "LibraryInfo",
     "EssentialLibraryManager", "ESSENTIAL_LIBRARIES", "SharedLibrary",
