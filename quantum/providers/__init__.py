@@ -37,6 +37,18 @@ from .ibm_provider import (
     IBMBackendNotFoundError,
     IBMJobError,
 )
+from .ionq_provider import (
+    IonQProvider,
+    IonQJob,
+    IonQError,
+    IonQAuthenticationError,
+    IonQAPIError,
+    IonQJobError,
+)
+from .rigetti_provider import (
+    RigettiProvider,
+    RigettiJob,
+)
 
 __all__ = [
     "BackendStatus",
@@ -49,6 +61,23 @@ __all__ = [
     "BackendTargetCoupling",
     "GateSet",
     "JobQueueMode",
+    # IBM
+    "IBMQuantumProvider",
+    "IBMQuantumJob",
+    "IBMQuantumBackend",
+    "IBMQuantumError",
+    "IBMAuthenticationError",
+    "IBMRatelimitError",
+    "IBMBackendNotFoundError",
+    "IBMJobError",
+    # IonQ
+    "IonQProvider",
+    "IonQJob",
+    "IonQError",
+    "IonQAuthenticationError",
+    "IonQAPIError",
+    "IonQJobError",
+    # Braket
     "BraketProvider",
     "BraketJob",
     "BraketBackend",
@@ -58,12 +87,7 @@ __all__ = [
     "BraketDeviceError",
     "BraketJobError",
     "BraketResultError",
-    "IBMQuantumProvider",
-    "IBMQuantumJob",
-    "IBMQuantumBackend",
-    "IBMQuantumError",
-    "IBMAuthenticationError",
-    "IBMRatelimitError",
-    "IBMBackendNotFoundError",
-    "IBMJobError",
+    # Rigetti
+    "RigettiProvider",
+    "RigettiJob",
 ]
