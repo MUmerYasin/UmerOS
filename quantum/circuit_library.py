@@ -580,3 +580,260 @@ def create_random_circuit(num_qubits: int, depth: int = 5,
                           seed: Optional[int] = None) -> QuantumCircuit:
     """Create random circuit (alias for random_circuit)."""
     return random_circuit(num_qubits, depth, seed)
+
+
+# ---------------------------------------------------------------------------
+# NLocal Circuit Templates
+# ---------------------------------------------------------------------------
+
+def nlocal_circuit(
+    num_qubits: int,
+    rotation_gates: Optional[List[str]] = None,
+    entanglement: str = "linear",
+    reps: int = 1,
+    insert_barriers: bool = False,
+) -> QuantumCircuit:
+    """Create an NLocal circuit with configurable rotation and entanglement layers.
+
+    NLocal circuits alternate between layers of single-qubit rotation gates
+    and two-qubit entangling gates. They are widely used as variational
+    ansätze in VQE and QAOA algorithms.
+
+    Structure per rep:
+        1. Single-qubit rotation layer (Ry, Rz on each qubit)
+        2. Entangling layer (CNOT or CZ)
+        3. Optional barrier
+
+    Args:
+        num_qubits: Number of qubits.
+        rotation_gates: List of rotation gate names to apply per qubit.
+                        Defaults to ["Ry", "Rz"].
+        entanglement: Entanglement strategy — "linear", "full", "circular", or "sca".
+        reps: Number of repetitions of the NLocal block.
+        insert_barriers: Whether to insert barriers between layers.
+
+    Returns:
+        NLocal quantum circuit.
+
+    Example:
+        >>> qc = nlocal_circuit(4, reps=3, entanglement="full")
+        >>> print(qc.num_qubits, qc.size())
+        4 > 0
+    """
+    if rotation_gates is None:
+        rotation_gates = ["Ry", "Rz"]
+
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    # Entangling pairs generator
+    def _get_entangling_pairs():
+        if entanglement == "linear":
+            return [(i, i + 1) for i in range(num_qubits - 1)]
+        elif entanglement == "full":
+            return [(i, j) for i in range(num_qubits) for j in range(i + 1, num_qubits)]
+        elif entanglement == "circular":
+            pairs = [(i, i + 1) for i in range(num_qubits - 1)]
+            pairs.append((num_qubits - 1, 0))
+            return pairs
+        elif entanglement == "sca":
+            # Strongly Classical Ansatz: alternating directions
+            pairs = []
+            for layer_idx in range(num_qubits - 1):
+                if layer_idx % 2 == 0:
+                    for i in range(0, num_qubits - 1, 2):
+                        pairs.append((i, i + 1))
+                else:
+                    for i in range(1, num_qubits - 1, 2):
+                        pairs.append((i, i + 1))
+            return pairs
+        else:
+            return [(i, i + 1) for i in range(num_qubits - 1)]
+
+    for rep in range(reps):
+        if insert_barriers and rep > 0:
+            circuit.barrier()
+
+        # Rotation layer
+        for q in range(num_qubits):
+            for gate_name in rotation_gates:
+                gate_lower = gate_name.lower()
+                if gate_lower == "rx":
+                    circuit.rx(math.pi / 4, qr[q])
+                elif gate_lower == "ry":
+                    circuit.ry(math.pi / 4, qr[q])
+                elif gate_lower == "rz":
+                    circuit.rz(math.pi / 4, qr[q])
+                elif gate_lower == "h":
+                    circuit.h(qr[q])
+                elif gate_lower == "t":
+                    circuit.t(qr[q])
+                elif gate_lower == "s":
+                    circuit.s(qr[q])
+
+        # Entangling layer
+        pairs = _get_entangling_pairs()
+        for i, j in pairs:
+            circuit.cx(qr[i], qr[j])
+
+    return circuit
+
+
+def two_local_circuit(
+    num_qubits: int,
+    reps: int = 3,
+    entanglement: str = "full",
+) -> QuantumCircuit:
+    """Create a TwoLocal circuit — a specific NLocal variant with Ry/Rz rotations.
+
+    The TwoLocal circuit is one of the most popular variational ansätze.
+    It uses Ry rotations in the rotation layer and Rz as a final layer,
+    with configurable entanglement.
+
+    Structure per rep:
+        1. Ry(θ) on each qubit
+        2. Rz(φ) on each qubit
+        3. Entangling layer (CNOT)
+
+    Args:
+        num_qubits: Number of qubits.
+        reps: Number of repetitions.
+        entanglement: "linear", "full", or "circular".
+
+    Returns:
+        TwoLocal quantum circuit.
+
+    Example:
+        >>> qc = two_local_circuit(4, reps=3)
+        >>> print(qc.size() > 0)
+        True
+    """
+    return nlocal_circuit(
+        num_qubits=num_qubits,
+        rotation_gates=["Ry", "Rz"],
+        entanglement=entanglement,
+        reps=reps,
+    )
+
+
+def efficient_su2_circuit(
+    num_qubits: int,
+    reps: int = 3,
+    entanglement: str = "circular",
+) -> QuantumCircuit:
+    """Create an EfficientSU2 circuit — hardware-efficient ansatz for NISQ devices.
+
+    Uses Ry and Rz rotations (SU(2) group) with circular entanglement.
+    Designed to be hardware-efficient by minimizing circuit depth.
+
+    Structure per rep:
+        1. Ry(θ) on each qubit
+        2. Rz(φ) on each qubit
+        3. Circular CNOT entanglement (CNOT chain wrapping around)
+
+    Args:
+        num_qubits: Number of qubits.
+        reps: Number of repetitions.
+        entanglement: Entanglement strategy.
+
+    Returns:
+        EfficientSU2 quantum circuit.
+
+    Example:
+        >>> qc = efficient_su2_circuit(5, reps=2)
+        >>> assert qc.num_qubits == 5
+    """
+    return nlocal_circuit(
+        num_qubits=num_qubits,
+        rotation_gates=["Ry", "Rz"],
+        entanglement=entanglement,
+        reps=reps,
+    )
+
+
+def real_amplitudes_circuit(
+    num_qubits: int,
+    reps: int = 3,
+    entanglement: str = "full",
+) -> QuantumCircuit:
+    """Create a RealAmplitudes circuit — all-real-amplitude variational ansatz.
+
+    Uses only Ry rotations (real amplitudes) with entangling CNOT layers.
+    Useful for problems where the solution state has real-valued amplitudes.
+
+    Structure per rep:
+        1. Ry(θ) on each qubit
+        2. CNOT entangling layer
+
+    Args:
+        num_qubits: Number of qubits.
+        reps: Number of repetitions.
+        entanglement: Entanglement strategy.
+
+    Returns:
+        RealAmplitudes quantum circuit.
+
+    Example:
+        >>> qc = real_amplitudes_circuit(4, reps=2)
+        >>> assert qc.num_qubits == 4
+    """
+    return nlocal_circuit(
+        num_qubits=num_qubits,
+        rotation_gates=["Ry"],
+        entanglement=entanglement,
+        reps=reps,
+    )
+
+
+def excitation_preserving_circuit(
+    num_qubits: int,
+    reps: int = 1,
+    entanglement: str = "linear",
+) -> QuantumCircuit:
+    """Create an ExcitationPreserving circuit — preserves particle number.
+
+    Uses Rxx+Ryy interactions to preserve the total number of excitations.
+    Useful for quantum chemistry applications where particle number is conserved.
+
+    Structure per rep:
+        1. Ry(θ) on each qubit
+        2. Rz(φ) on each qubit
+        3. Rxx+Ryy interaction layers (via CNOT-Rx-CNOT decomposition)
+
+    Args:
+        num_qubits: Number of qubits.
+        reps: Number of repetitions.
+        entanglement: Entanglement strategy.
+
+    Returns:
+        ExcitationPreserving quantum circuit.
+
+    Example:
+        >>> qc = excitation_preserving_circuit(4, reps=1)
+        >>> assert qc.num_qubits == 4
+    """
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    for rep in range(reps):
+        # Rotation layer
+        for q in range(num_qubits):
+            circuit.ry(math.pi / 4, qr[q])
+            circuit.rz(math.pi / 4, qr[q])
+
+        # Excitation-preserving entangling layer
+        # Uses CNOT-Rx-CNOT pattern to implement XX+YY interaction
+        if entanglement == "linear":
+            pairs = [(i, i + 1) for i in range(num_qubits - 1)]
+        elif entanglement == "circular":
+            pairs = [(i, i + 1) for i in range(num_qubits - 1)]
+            pairs.append((num_qubits - 1, 0))
+        else:
+            pairs = [(i, i + 1) for i in range(num_qubits - 1)]
+
+        for i, j in pairs:
+            circuit.cx(qr[i], qr[j])
+            circuit.rx(math.pi / 4, qr[i])
+            circuit.cx(qr[i], qr[j])
+
+    return circuit

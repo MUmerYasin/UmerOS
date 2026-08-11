@@ -20,6 +20,81 @@ from .operators import SparsePauliOp
 from .simulator import StatevectorSimulator, Statevector
 
 
+# ---------------------------------------------------------------------------
+# Angle Wrapping Utilities
+# ---------------------------------------------------------------------------
+
+def wrap_angles(
+    angles: Union[float, list[float], np.ndarray],
+    min_val: float = 0.0,
+    max_val: float = 2 * np.pi,
+) -> Union[float, list[float], np.ndarray]:
+    """Wrap rotation angles into a specified range.
+
+    Useful for variational circuits where parameterized angles should stay
+    within a valid range (e.g., [0, 2π] or [-π, π]).
+
+    Args:
+        angles: Angle value(s) in radians.
+        min_val: Minimum of the target range (inclusive).
+        max_val: Maximum of the target range (exclusive).
+
+    Returns:
+        Wrapped angle(s) within [min_val, max_val).
+
+    Example:
+        >>> wrap_angles(5.0, 0, 2 * 3.14159)
+        5.0
+        >>> wrap_angles(7.0, 0, 2 * 3.14159)
+        0.7168... (7.0 - 2π)
+        >>> wrap_angles([0, 3.5, 7.0], 0, 2 * 3.14159)
+        [0.0, 3.5, 0.7168...]
+    """
+    range_width = max_val - min_val
+    if range_width <= 0:
+        raise ValueError(f"Invalid range: [{min_val}, {max_val})")
+
+    if isinstance(angles, (float, int)):
+        wrapped = (angles - min_val) % range_width + min_val
+        return float(wrapped)
+    else:
+        arr = np.asarray(angles, dtype=float)
+        wrapped = (arr - min_val) % range_width + min_val
+        return wrapped.tolist() if isinstance(angles, list) else wrapped
+
+
+def wrap_angles_to_2pi(angles: Union[float, list[float], np.ndarray]) -> Union[float, list[float], np.ndarray]:
+    """Wrap angles to [0, 2π).
+
+    Args:
+        angles: Angle value(s) in radians.
+
+    Returns:
+        Wrapped angle(s) within [0, 2π).
+
+    Example:
+        >>> wrap_angles_to_2pi(7.0)
+        0.7168...
+    """
+    return wrap_angles(angles, min_val=0.0, max_val=2 * np.pi)
+
+
+def wrap_angles_to_pi(angles: Union[float, list[float], np.ndarray]) -> Union[float, list[float], np.ndarray]:
+    """Wrap angles to [-π, π).
+
+    Args:
+        angles: Angle value(s) in radians.
+
+    Returns:
+        Wrapped angle(s) within [-π, π).
+
+    Example:
+        >>> wrap_angles_to_pi(4.0)
+        0.8584...
+    """
+    return wrap_angles(angles, min_val=-np.pi, max_val=np.pi)
+
+
 class PrimitiveJobStatus(Enum):
     """Status of a primitive job."""
     QUEUED = "queued"
@@ -187,6 +262,7 @@ class SamplerV2(BasePrimitiveV2):
         self,
         circuits: Union[QuantumCircuit, list[QuantumCircuit]],
         shots: int = 1024,
+        wrap_angles: Optional[dict] = None,
         **options,
     ) -> PrimitiveJob:
         """Run one or more circuits and sample measurements.
@@ -194,6 +270,9 @@ class SamplerV2(BasePrimitiveV2):
         Args:
             circuits: A single circuit or list of circuits to sample.
             shots: Number of measurement shots per circuit.
+            wrap_angles: Optional angle wrapping configuration.
+                If provided, applies angle wrapping to parameterized gates.
+                Format: {"min": float, "max": float} or True for [0, 2π).
             **options: Additional backend options.
 
         Returns:
@@ -202,10 +281,40 @@ class SamplerV2(BasePrimitiveV2):
         if not isinstance(circuits, list):
             circuits = [circuits]
 
+        # Apply angle wrapping if requested
+        if wrap_angles is not None:
+            circuits = self._apply_wrap_angles(circuits, wrap_angles)
+
         def _sample():
             return self._execute_sampler(circuits, shots, **options)
 
         return PrimitiveJob(_sample)
+
+    def _apply_wrap_angles(self, circuits, wrap_config):
+        """Apply angle wrapping to parameterized circuits."""
+        wrapped_circuits = []
+        for circuit in circuits:
+            if hasattr(circuit, '_param_table') and circuit._param_table:
+                # Has parameterized gates — wrap their angles
+                if wrap_config is True:
+                    min_val, max_val = 0.0, 2 * np.pi
+                elif isinstance(wrap_config, dict):
+                    min_val = wrap_config.get("min", 0.0)
+                    max_val = wrap_config.get("max", 2 * np.pi)
+                else:
+                    min_val, max_val = 0.0, 2 * np.pi
+
+                wrapped = QuantumCircuit(circuit.num_qubits)
+                for inst in circuit.data:
+                    if hasattr(inst, '_params') and inst._params:
+                        new_params = wrap_angles(inst._params, min_val, max_val)
+                        wrapped.append(inst._gate, list(range(inst._gate.num_qubits)), new_params)
+                    else:
+                        wrapped.append(inst._gate, list(range(inst._gate.num_qubits)))
+                wrapped_circuits.append(wrapped)
+            else:
+                wrapped_circuits.append(circuit)
+        return wrapped_circuits
 
     def _execute_sampler(self, circuits, shots, **options):
         """Execute sampling for circuits."""
@@ -274,6 +383,7 @@ class EstimatorV2(BasePrimitiveV2):
         self,
         circuits: Union[QuantumCircuit, list[QuantumCircuit]],
         observables: Union[SparsePauliOp, list[SparsePauliOp], list[list[SparsePauliOp]]],
+        wrap_angles: Optional[dict] = None,
         **options,
     ) -> PrimitiveJob:
         """Run circuits and estimate expectation values.
@@ -284,6 +394,9 @@ class EstimatorV2(BasePrimitiveV2):
                 - A single SparsePauliOp (applied to all circuits)
                 - A list of SparsePauliOps (one per circuit)
                 - A list of lists of SparsePauliOps (multiple per circuit)
+            wrap_angles: Optional angle wrapping configuration.
+                If provided, applies angle wrapping to parameterized gates.
+                Format: {"min": float, "max": float} or True for [0, 2π).
             **options: Additional backend options.
 
         Returns:
@@ -299,10 +412,39 @@ class EstimatorV2(BasePrimitiveV2):
             if len(observables) == 1:
                 observables = observables * len(circuits)
 
+        # Apply angle wrapping if requested
+        if wrap_angles is not None:
+            circuits = self._apply_wrap_angles(circuits, wrap_angles)
+
         def _estimate():
             return self._execute_estimator(circuits, observables, **options)
 
         return PrimitiveJob(_estimate)
+
+    def _apply_wrap_angles(self, circuits, wrap_config):
+        """Apply angle wrapping to parameterized circuits."""
+        wrapped_circuits = []
+        for circuit in circuits:
+            if hasattr(circuit, '_param_table') and circuit._param_table:
+                if wrap_config is True:
+                    min_val, max_val = 0.0, 2 * np.pi
+                elif isinstance(wrap_config, dict):
+                    min_val = wrap_config.get("min", 0.0)
+                    max_val = wrap_config.get("max", 2 * np.pi)
+                else:
+                    min_val, max_val = 0.0, 2 * np.pi
+
+                wrapped = QuantumCircuit(circuit.num_qubits)
+                for inst in circuit.data:
+                    if hasattr(inst, '_params') and inst._params:
+                        new_params = wrap_angles(inst._params, min_val, max_val)
+                        wrapped.append(inst._gate, list(range(inst._gate.num_qubits)), new_params)
+                    else:
+                        wrapped.append(inst._gate, list(range(inst._gate.num_qubits)))
+                wrapped_circuits.append(wrapped)
+            else:
+                wrapped_circuits.append(circuit)
+        return wrapped_circuits
 
     def _execute_estimator(self, circuits, observables, **options):
         """Execute estimation for circuits and observables."""
@@ -353,6 +495,7 @@ def sampler_run(
     circuits: Union[QuantumCircuit, list[QuantumCircuit]],
     shots: int = 1024,
     backend=None,
+    wrap_angles: Optional[dict] = None,
     **options,
 ) -> PrimitiveJob:
     """Convenience function to run a sampler.
@@ -361,18 +504,20 @@ def sampler_run(
         circuits: Circuit(s) to sample.
         shots: Number of shots.
         backend: Optional backend to use.
+        wrap_angles: Optional angle wrapping configuration.
 
     Returns:
         PrimitiveJob with sampling results.
     """
     sampler = SamplerV2(backend=backend)
-    return sampler.run(circuits=circuits, shots=shots, **options)
+    return sampler.run(circuits=circuits, shots=shots, wrap_angles=wrap_angles, **options)
 
 
 def estimator_run(
     circuits: Union[QuantumCircuit, list[QuantumCircuit]],
     observables: Union[SparsePauliOp, list[SparsePauliOp]],
     backend=None,
+    wrap_angles: Optional[dict] = None,
     **options,
 ) -> PrimitiveJob:
     """Convenience function to run an estimator.
@@ -381,9 +526,10 @@ def estimator_run(
         circuits: Circuit(s) to use for state preparation.
         observables: Observable(s) to estimate.
         backend: Optional backend to use.
+        wrap_angles: Optional angle wrapping configuration.
 
     Returns:
         PrimitiveJob with estimation results.
     """
     estimator = EstimatorV2(backend=backend)
-    return estimator.run(circuits=circuits, observables=observables, **options)
+    return estimator.run(circuits=circuits, observables=observables, wrap_angles=wrap_angles, **options)
