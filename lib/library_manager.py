@@ -149,3 +149,50 @@ class LibraryManager:
             "symlinks": sum(1 for lib in libs if lib.is_symlink),
             "regular_files": sum(1 for lib in libs if not lib.is_symlink),
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Round-trip: write two stubs, find them, remove one, check the
+    summary, then clean up.  Returns True on success.
+    """
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        lib_dir = Path(tmp) / "lib"
+        lib_dir.mkdir()
+        (lib_dir / "libc.so.6").write_bytes(b"stub libc")
+        (lib_dir / "libm.so.6").write_bytes(b"stub libm")
+        mgr = LibraryManager(lib_path=str(lib_dir))
+        libs = mgr.list_libraries()
+        if len(libs) != 2:
+            return False
+        if mgr.find_library("libc.so.6") is None:
+            return False
+        if mgr.get_library_version("libc.so.6") != "6":
+            return False
+        # Pattern match
+        matches = mgr.find_library_by_pattern("lib?.so.*")
+        if {m.name for m in matches} != {"libc.so.6", "libm.so.6"}:
+            return False
+        # Symlink round-trip
+        if not mgr.create_symlink("libc.so.6", "libc.so"):
+            return False
+        if not (lib_dir / "libc.so").is_symlink():
+            return False
+        # Removal
+        if not mgr.remove_library("libm.so.6"):
+            return False
+        if mgr.find_library("libm.so.6") is not None:
+            return False
+        summary = mgr.get_summary()
+        if summary["regular_files"] != 1 or summary["symlinks"] != 1:
+            return False
+    return True
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    print("library_manager selftest:", "OK" if _selftest() else "FAIL")

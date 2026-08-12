@@ -259,8 +259,8 @@ class TestRamDisk(unittest.TestCase):
             self.assertIn(b"added at boot", raw)
             # Snapshot must be a valid cpio archive.
             entries = {e.name for e in unpack_archive(raw)}
-            self.assertIn("etc/hostname")
-            self.assertIn("etc/extra")
+            self.assertIn("etc/hostname", entries)
+            self.assertIn("etc/extra", entries)
             # write_snapshot should produce a gzipped file on disk.
             out = tmp / "initramfs-snapshot.img.gz"
             disk.write_snapshot(str(out), archiver="gzip")

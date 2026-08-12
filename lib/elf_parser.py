@@ -544,3 +544,71 @@ def is_elf(path: str | Path) -> bool:
             return f.read(4) == ELF_MAGIC
     except (OSError, PermissionError):
         return False
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Build a minimal valid ELF in memory and round-trip it through
+    :class:`ElfParser`.  We don't try to be exhaustive here - just
+    enough to confirm the parser is wired correctly.
+    """
+    import io
+    import struct
+    import tempfile
+
+    # A 64-bit, little-endian, ET_EXEC ELF with no program / section
+    # headers.  Just enough bytes for the parser to recognise the
+    # file as ELF and report the basics.
+    e_ident = (
+        b"\x7fELF"            # magic
+        b"\x02"               # 64-bit
+        b"\x01"               # little-endian
+        b"\x01"               # ELF version
+        b"\x00" * 9           # padding
+    )
+    # sizeof(Elf64_Ehdr) = 64 bytes.
+    header = struct.pack(
+        "<16sHHIQQQIHHHHHH",
+        e_ident,
+        2,            # e_type = ET_EXEC
+        0x3E,         # e_machine = EM_X86_64
+        1,            # e_version
+        0,            # e_entry
+        0,            # e_phoff
+        0,            # e_shoff
+        0,            # e_flags
+        64,           # e_ehsize
+        0,            # e_phentsize
+        0,            # e_phnum
+        0,            # e_shentsize
+        0,            # e_shnum
+        0,            # e_shstrndx
+    )
+    blob = header
+    parser = ElfParser()
+    try:
+        info = parser.parse(io.BytesIO(blob))
+    except Exception:  # noqa: BLE001
+        return False
+    if info is None:
+        return False
+    if info.header.e_machine != ElfMachine.EM_X86_64:
+        return False
+    if info.header.e_type != ElfType.ET_EXEC:
+        return False
+    # Round-trip through the file API as well.
+    with tempfile.TemporaryDirectory() as tmp:
+        p = Path(tmp) / "tiny.elf"
+        p.write_bytes(blob)
+        if not is_elf(p):
+            return False
+        if is_elf(Path(tmp) / "does-not-exist"):
+            return False
+    return True
+
+
+if __name__ == "__main__":
+    print("elf_parser selftest:", "OK" if _selftest() else "FAIL")

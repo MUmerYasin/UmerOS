@@ -172,7 +172,12 @@ class PID1SignalHandler:
         return event
 
     def reap(self, child_pid: int) -> bool:
-        """Record that ``child_pid`` was reaped and notify any handler."""
+        """Record that ``child_pid`` was reaped and notify any handler.
+
+        Returns ``True`` if the child was successfully reaped and
+        recorded; ``False`` if a reap handler explicitly rejected
+        the pid (e.g. because it is not a child of this process).
+        """
         if self._reap_handler is not None:
             try:
                 handled = self._reap_handler(child_pid)
@@ -182,6 +187,9 @@ class PID1SignalHandler:
             if handled:
                 self._reaped.append(child_pid)
                 return True
+            # The handler explicitly refused this pid - do not
+            # record it as reaped.
+            return False
         self._reaped.append(child_pid)
         return True
 

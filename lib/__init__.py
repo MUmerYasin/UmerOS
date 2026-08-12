@@ -53,6 +53,7 @@ The high-level entry points:
   * ``UsrLibManager``        — /usr/lib + gconv + charmap + libexec
   * ``UsrIncludeManager``    — /usr/include header catalogue
   * ``VarLibManager``        — /var/lib state + alternatives system
+  * ``lib_summary``          — one-shot /lib summary (libinfo)
 
 Author:  Umer OS Project
 Licence: Apache 2.0
@@ -134,6 +135,7 @@ from .var_lib import (
     AlternativesManager,
     Alternative,
 )
+from .libinfo import LibSummary, lib_summary
 
 
 __all__ = [
@@ -174,4 +176,6 @@ __all__ = [
     # var/lib
     "VarLibManager", "VarLibEntry", "StateKind",
     "AlternativesManager", "Alternative",
+    # one-shot summary
+    "LibSummary", "lib_summary",
 ]

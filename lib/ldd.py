@@ -302,3 +302,61 @@ class Ldd:
             "missing": tree.missing_count,
             "all_found": tree.missing_count == 0,
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Round-trip the ldd helper against a synthetic ELF.
+
+    The synthetic ELF has no DT_NEEDED entries, so the tree should
+    be empty - the test verifies the call does not raise and the
+    summary is consistent.
+    """
+    import struct
+    import tempfile
+    from lib.elf_parser import ElfParser
+
+    e_ident = (
+        b"\x7fELF"            # magic
+        b"\x02"               # 64-bit
+        b"\x01"               # little-endian
+        b"\x01"               # ELF version
+        b"\x00" * 9
+    )
+    header = struct.pack(
+        "<16sHHIQQQIHHHHHH",
+        e_ident, 2, 0x3E, 1, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0,
+    )
+    blob = header
+    parser = ElfParser()
+    info = parser.parse_bytes(blob) if hasattr(parser, "parse_bytes") else None
+    if info is None:
+        # The synthetic ELF is too small for the full parser; use the
+        # stream API instead.
+        import io
+        info = parser.parse(io.BytesIO(blob))
+    if info is None:
+        return False
+
+    with tempfile.TemporaryDirectory() as tmp:
+        elf = Path(tmp) / "no-deps.elf"
+        elf.write_bytes(blob)
+        ldd = Ldd()
+        tree = ldd.trace(elf)
+        if tree.binary_path != str(elf):
+            return False
+        if tree.missing_count != 0:
+            return False
+        if tree.resolved_count != 0:
+            return False
+        summary = ldd.quick_check(elf)
+        if not summary["all_found"]:
+            return False
+    return True
+
+
+if __name__ == "__main__":
+    print("ldd selftest:", "OK" if _selftest() else "FAIL")
