@@ -136,6 +136,53 @@ from .var_lib import (
     Alternative,
 )
 from .libinfo import LibSummary, lib_summary
+from .elf_parser import (
+    ElfParser,
+    ElfBinary,
+    ElfParseError,
+    ElfClass,
+    ElfData,
+    ElfType,
+    ElfMachine,
+    ElfHeader,
+    SectionHeader,
+    DynamicEntry,
+    SymbolEntry,
+    ShtType,
+    DynamicTag,
+    is_elf,
+    read_needed,
+    read_soname,
+)
+from .ldd import (
+    Ldd,
+    LddConfig,
+    DependencyTree,
+    ResolvedDep,
+)
+from .iconv import (
+    Iconv,
+    ConversionPair,
+    ConversionResult,
+    GconvModuleInfo,
+)
+from .ssl_libs import (
+    SslManager,
+    CertInfo,
+    KeyInfo,
+    CaBundleInfo,
+    SslStoreStats,
+    CertFormat,
+    CertPurpose,
+)
+from .tmpfiles import (
+    TmpfilesManager,
+    TmpfilesConfig,
+    TmpfilesEntry,
+    TmpfilesType,
+    AgeSpec,
+    CleanupResult,
+)
 
 
 __all__ = [
@@ -178,4 +225,19 @@ __all__ = [
     "AlternativesManager", "Alternative",
     # one-shot summary
     "LibSummary", "lib_summary",
+    # elf_parser
+    "ElfParser", "ElfBinary", "ElfParseError",
+    "ElfClass", "ElfData", "ElfType", "ElfMachine",
+    "ElfHeader", "SectionHeader", "DynamicEntry", "SymbolEntry",
+    "ShtType", "DynamicTag", "is_elf", "read_needed", "read_soname",
+    # ldd
+    "Ldd", "LddConfig", "DependencyTree", "ResolvedDep",
+    # iconv
+    "Iconv", "ConversionPair", "ConversionResult", "GconvModuleInfo",
+    # ssl_libs
+    "SslManager", "CertInfo", "KeyInfo", "CaBundleInfo",
+    "SslStoreStats", "CertFormat", "CertPurpose",
+    # tmpfiles
+    "TmpfilesManager", "TmpfilesConfig", "TmpfilesEntry",
+    "TmpfilesType", "AgeSpec", "CleanupResult",
 ]
