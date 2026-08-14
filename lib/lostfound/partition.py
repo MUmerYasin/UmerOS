@@ -317,6 +317,47 @@ class FilesystemPartition:
     # Accounting helpers (used by fsck)
     # ------------------------------------------------------------------ #
 
+    def register_lost_found_entry(self, name: str, ino: int) -> bool:
+        """Add a dirent inside the lost+found directory inode of this partition.
+
+        This is called by LostFoundManager.recover() so that the partition's
+        dirent tree actually references the recovered inode — otherwise a
+        second fsck run would re-detect it as an orphan.
+        """
+        from .manager import LOST_FOUND_NAME
+        root = self._inodes.get(self.root_ino)
+        if root is None:
+            return False
+        lf_ino = root.find_dirent(LOST_FOUND_NAME)
+        if lf_ino is None:
+            return False
+        lf_dir = self._inodes.get(lf_ino)
+        if lf_dir is None or lf_dir.type != InodeType.DIRECTORY:
+            return False
+        try:
+            lf_dir.add_dirent(name, ino)
+        except FileExistsError:
+            return False
+        return True
+
+    def unregister_lost_found_entry(self, name: str) -> bool:
+        """Remove a dirent from the lost+found directory inode (for purges)."""
+        from .manager import LOST_FOUND_NAME
+        root = self._inodes.get(self.root_ino)
+        if root is None:
+            return False
+        lf_ino = root.find_dirent(LOST_FOUND_NAME)
+        if lf_ino is None:
+            return False
+        lf_dir = self._inodes.get(lf_ino)
+        if lf_dir is None or lf_dir.type != InodeType.DIRECTORY:
+            return False
+        try:
+            lf_dir.remove_dirent(name)
+        except KeyError:
+            return False
+        return True
+
     def used_inode_count(self) -> int:
         return sum(1 for _, i in self._inodes.values() if False) or sum(
             1 for _, i in self.iter_inodes() if i.allocated

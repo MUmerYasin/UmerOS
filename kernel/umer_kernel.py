@@ -35,6 +35,18 @@ from kernel.reboot import RebootManager, SystemState
 from kernel.resource import ResourceManager, IORESOURCE_MEM, IORESOURCE_IO
 from kernel.softirq import SoftIRQManager, TaskletManager
 
+# -- Linux lost+found / fsck subsystem (lib/lostfound) --
+try:
+    from lib.lostfound import (
+        FilesystemChecker as _LostFoundFsck,
+        FilesystemPartition as _LostFoundPartition,
+    )
+    _LOSTFOUND_AVAILABLE = True
+except ImportError:  # pragma: no cover - graceful degradation
+    _LostFoundFsck = None
+    _LostFoundPartition = None
+    _LOSTFOUND_AVAILABLE = False
+
 # --- STAGE 2: Core Kernel Subsystems ---
 # NOTE: Import paths assume the correct folder structure and __init__.py files.
 # If modules like 'scheduler' don't exist yet, their logic might be simulated here.
@@ -673,6 +685,16 @@ class UmerKernel:
         self.crypto = CryptoEngine()
         self.sandbox = SecuritySandbox()
 
+        # Root partition with its own isolated lost+found (Linux FHS).
+        if _LOSTFOUND_AVAILABLE:
+            self.root_partition = _LostFoundPartition(
+                name="qfs_root", mount_point="/",
+            )
+            self.lost_found = self.root_partition.lost_found
+        else:
+            self.root_partition = None
+            self.lost_found = None
+
         # --- STAGE 5: Networking & Cloud ---
         self.dns = DNSResolver()
         self.http = HTTPClient()
@@ -850,6 +872,26 @@ class UmerKernel:
         # Mount filesystem
         print("[KERNEL] Mounting Quantum File System via VFS...")
         self.qfs.mount("/")
+
+        # Root-partition fsck + lost+found setup (Linux FHS /lost+found).
+        # mkfs.ext4 creates /lost+found with preallocated blocks; fsck then
+        # recovers any orphaned inodes into it before the FS goes live.
+        if self.root_partition is not None:
+            mkfs_info = self.root_partition.mkfs()
+            print(f"[KERNEL] qfs_root: lost+found ready "
+                  f"(slots={mkfs_info['lost_found'].get('slots_reserved', 0)})")
+            sb = self.root_partition.superblock
+            sb.on_mount()  # marks FS dirty, increments mount count
+            if sb.needs_check():
+                print("[KERNEL] Filesystem check required (fsck)...")
+                checker = _LostFoundFsck(self.root_partition, auto_repair=True)
+                fsck_report = checker.check(force=True)
+                print(f"[KERNEL] fsck: {fsck_report.summary()}")
+                for _entry in fsck_report.recovered_names:
+                    print(f"[KERNEL]   recovered -> /lost+found/{_entry}")
+            # Expose lost+found in the VFS tree as well.
+            self.vfs.mkdir("/lost+found")
+
         self.vfs.mkdir("/system")
         self.vfs.mkdir("/user")
         self.vfs.mkdir("/tmp")

@@ -305,6 +305,12 @@ class LostFoundManager:
         orphan.inode.nlinks += 1
         orphan.inode.deleted = False
         orphan.recovered = True
+
+        # Register the entry in the partition's lost+found directory inode
+        # so that a subsequent fsck run will see the dirent reference and
+        # not re-detect this inode as an orphan.
+        if self.partition is not None:
+            self.partition.register_lost_found_entry(name, orphan.inode.ino)
         orphan.recovered_name = name
         self._total_recovered += 1
 
@@ -350,6 +356,10 @@ class LostFoundManager:
         self._entries[name] = entry
         inode.nlinks += 1
         self._total_recovered += 1
+
+        # Register in partition dirent tree so fsck sees the reference.
+        if self.partition is not None:
+            self.partition.register_lost_found_entry(name, inode.ino)
         return name
 
     # ------------------------------------------------------------------ #
@@ -444,6 +454,8 @@ class LostFoundManager:
         # Decrement the link count.
         freed = False
         if self.partition is not None:
+            # Unregister from partition's lost+found directory inode.
+            self.partition.unregister_lost_found_entry(name)
             inode = self.partition.get_inode(entry.ino)
             if inode is not None:
                 inode.nlinks = max(0, inode.nlinks - 1)
