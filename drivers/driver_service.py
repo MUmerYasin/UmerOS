@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException, Depends, Request, status
+from fastapi import FastAPI, HTTPException, Depends, Request, status, Response
 from fastapi.security import OAuth2AuthorizationCodeBearer
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,6 +8,15 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from loguru import logger
+
+# JWT handling
+from jose import JWTError, jwt
+
+# Prometheus metrics
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
+
+# Load secrets utility
+from security.tls_utils import load_secret
 
 # Import proc utilities
 from proc.cpuinfo import get as get_cpuinfo
@@ -32,23 +41,51 @@ from proc.pid_fd import list_fds as get_pid_fds
 app = FastAPI(title="UmerOS /proc Emulation API", version="1.0.0")
 
 # --- Security ---------------------------------------------------------------
-# OAuth2 stub authentication. In production replace ``OAuth2AuthorizationCodeBearer``
-# with your identity provider configuration (client_id, auth_url, token_url, etc.).
-# Here we simply require a JWT in the ``Authorization: Bearer <token>`` header and
-# validate its signature against a secret stored in ``UOS_OAUTH_SECRET``.
+# OAuth2 production integration – verifies JWTs using JWKS from an OIDC provider.
+# Expected environment variables:
+#   OIDC_JWKS_URL – URL to the JSON Web Key Set.
+#   OIDC_ISSUER   – Expected token issuer claim.
+#   OIDC_AUDIENCE – Expected audience claim (optional).
+import json
+import httpx
+from jose import jwt
+from jose.exceptions import JWTError, ExpiredSignatureError, JWTClaimsError
 
-OAUTH_SECRET = os.getenv("UOS_OAUTH_SECRET")
-if not OAUTH_SECRET:
-    raise RuntimeError("Environment variable UOS_OAUTH_SECRET is not set. Set a secret for JWT validation.")
+OIDC_JWKS_URL = os.getenv("OIDC_JWKS_URL")
+OIDC_ISSUER = os.getenv("OIDC_ISSUER")
+OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE")
 
-oauth_scheme = OAuth2AuthorizationCodeBearer(authorizationUrl="https://example.com/auth", tokenUrl="https://example.com/token")
+if not OIDC_JWKS_URL or not OIDC_ISSUER:
+    raise RuntimeError("OIDC_JWKS_URL and OIDC_ISSUER must be set for OAuth2 verification")
 
-def verify_oauth_token(token: str = Depends(oauth_scheme)):
-    # Simple verification – in real usage decode JWT with ``python-jose``
-    # and verify claims (exp, iss, aud). For now we just check it matches the secret.
-    if token != OAUTH_SECRET:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OAuth token")
-    return True
+_jwks_cache: dict = {}
+
+async def fetch_jwks() -> dict:
+    """Fetch JWKS from the provider and cache it for the lifetime of the process."""
+    if _jwks_cache:
+        return _jwks_cache
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(OIDC_JWKS_URL)
+        resp.raise_for_status()
+        _jwks_cache.update(resp.json())
+        return _jwks_cache
+
+async def verify_oauth_token(token: str = Depends(oauth_scheme)):
+    """Validate a JWT using JWKS.
+
+    Checks signature, expiration, issuer and (optionally) audience.
+    """
+    jwks = await fetch_jwks()
+    try:
+        payload = jwt.decode(token, jwks, algorithms=["RS256"], issuer=OIDC_ISSUER, audience=OIDC_AUDIENCE)
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except JWTClaimsError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return payload
+
 
 # Simple in‑memory rate limiter (max 20 requests per minute per IP). This is not
 # bullet‑proof but mitigates abuse without adding external dependencies.
@@ -250,6 +287,25 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(RequestLoggingMiddleware)
+
+# Prometheus metrics
+REQUEST_COUNT = Counter(
+    "http_requests_total",
+    "Total HTTP requests",
+    ["method", "endpoint", "status_code"],
+)
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    response = await call_next(request)
+    endpoint = request.url.path
+    REQUEST_COUNT.labels(request.method, endpoint, response.status_code).inc()
+    return response
+
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    data = generate_latest()
+    return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":
     import uvicorn
