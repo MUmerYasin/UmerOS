@@ -1,11 +1,10 @@
-# UmerOS `lib/lostfound` — Linux `/lost+found` & fsck Simulation
+# UmerOS `lib/lostfound` —  `/lost+found` & fsck Simulation
 
-A faithful Python simulation of the Linux `/lost+found` directory and the
+A faithful   `/lost+found` directory and the
 `fsck` (filesystem check) recovery pipeline used by ext2/ext3/ext4.
 
-Reference: [TLDP Linux Filesystem Hierarchy — /lost+found](https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/lostfound.html)
 
-## What /lost+found does in Linux
+## What /lost+found 
 
 | Linux concept | Implementation here |
 |---|---|

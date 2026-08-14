@@ -545,3 +545,77 @@ include /etc/ld.so.conf.d/*.conf
             "cache_entries": len(self.cache),
             "cache_paths": [e.path for e in self.cache.entries],
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Round-trip the LdSoConfParser and LdSoCache.
+
+    Builds a tiny ``/etc/ld.so.conf`` in a temporary directory, lets
+    the parser / cache writer process it, and verifies that the
+    resulting ``/etc/ld.so.cache`` round-trips.
+    """
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        # Populate the smallest possible ld.so.conf world.
+        (root / "lib").mkdir()
+        (root / "lib" / "libc.so.6").write_bytes(b"stub libc")
+        (root / "lib" / "libm.so.6").write_bytes(b"stub libm")
+        (root / "lib" / "ld-linux-x86-64.so.2").write_bytes(b"stub ld")
+        etc = root / "etc"
+        etc.mkdir()
+        conf = etc / "ld.so.conf"
+        conf.write_text(
+            "# test config\n"
+            f"{root.as_posix()}/lib\n"
+            "include /etc/ld.so.conf.d/*.conf\n"
+        )
+        (etc / "ld.so.conf.d").mkdir()
+        (etc / "ld.so.conf.d" / "extra.conf").write_text(
+            f"{root.as_posix()}/lib\n"
+        )
+
+        # 1. Parser
+        parser = LdSoConfParser(root=str(root))
+        cfg = parser.parse(main_file=str(conf))
+        if not cfg.search_paths:
+            return False
+        if str(root.as_posix()) not in " ".join(cfg.search_paths):
+            return False
+        if not cfg.config_files:
+            return False
+
+        # 2. Cache built from the parser output
+        cache = LdSoCache.build(cfg)
+        if len(cache) == 0:
+            return False
+        # 3. Binary round-trip
+        blob = cache.to_bytes()
+        if not blob.startswith(LdSoCache.MAGIC[:17]):
+            return False
+        cache_path = etc / "ld.so.cache"
+        cache_path.write_bytes(blob)
+        rt = LdSoCache.from_file(str(cache_path))
+        names = {e.name for e in rt.entries}
+        for required in ("libc.so.6", "libm.so.6", "ld-linux-x86-64.so.2"):
+            if required not in names:
+                return False
+        # 4. Lookup and search
+        if rt.lookup("libc.so.6") is None:
+            return False
+        # ``search`` is a substring match, not a glob.
+        if not rt.search("libc"):
+            return False
+        if not rt.search("libm"):
+            return False
+    return True
+
+
+if __name__ == "__main__":
+    print("dynamic_linker selftest:", "OK" if _selftest() else "FAIL")

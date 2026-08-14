@@ -551,59 +551,53 @@ def is_elf(path: str | Path) -> bool:
 # ---------------------------------------------------------------------------
 
 def _selftest() -> bool:
-    """Build a minimal valid ELF in memory and round-trip it through
+    """Write a minimal valid ELF to disk and round-trip it through
     :class:`ElfParser`.  We don't try to be exhaustive here - just
     enough to confirm the parser is wired correctly.
     """
-    import io
     import struct
     import tempfile
 
-    # A 64-bit, little-endian, ET_EXEC ELF with no program / section
-    # headers.  Just enough bytes for the parser to recognise the
-    # file as ELF and report the basics.
+    # 64-bit, little-endian, ET_EXEC ELF with no program / section
+    # headers.  sizeof(Elf64_Ehdr) = 64 bytes.
     e_ident = (
-        b"\x7fELF"            # magic
-        b"\x02"               # 64-bit
-        b"\x01"               # little-endian
-        b"\x01"               # ELF version
-        b"\x00" * 9           # padding
+        b"\x7fELF"
+        b"\x02"
+        b"\x01"
+        b"\x01"
+        b"\x00" * 9
     )
-    # sizeof(Elf64_Ehdr) = 64 bytes.
     header = struct.pack(
         "<16sHHIQQQIHHHHHH",
         e_ident,
         2,            # e_type = ET_EXEC
         0x3E,         # e_machine = EM_X86_64
         1,            # e_version
-        0,            # e_entry
-        0,            # e_phoff
-        0,            # e_shoff
-        0,            # e_flags
+        0, 0, 0, 0,   # e_entry, e_phoff, e_shoff, e_flags
         64,           # e_ehsize
-        0,            # e_phentsize
-        0,            # e_phnum
-        0,            # e_shentsize
-        0,            # e_shnum
-        0,            # e_shstrndx
+        0, 0, 0, 0, 0,  # e_phentsize, e_phnum, e_shentsize, e_shnum, e_shstrndx
     )
-    blob = header
     parser = ElfParser()
-    try:
-        info = parser.parse(io.BytesIO(blob))
-    except Exception:  # noqa: BLE001
-        return False
-    if info is None:
-        return False
-    if info.header.e_machine != ElfMachine.EM_X86_64:
-        return False
-    if info.header.e_type != ElfType.ET_EXEC:
-        return False
-    # Round-trip through the file API as well.
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "tiny.elf"
-        p.write_bytes(blob)
+        p.write_bytes(header)
+        # is_elf() should accept the path.
         if not is_elf(p):
+            return False
+        # Parser should round-trip the basics.
+        info = parser.parse(p)
+        if info is None:
+            return False
+        if info.header.e_machine != ElfMachine.EM_X86_64:
+            return False
+        if info.header.e_type != ElfType.ET_EXEC:
+            return False
+        if info.header.e_class != ElfClass.ELFCLASS64:
+            return False
+        # A non-ELF file should be rejected by is_elf().
+        not_elf = Path(tmp) / "not-elf.bin"
+        not_elf.write_bytes(b"PK\x03\x04not an ELF")
+        if is_elf(not_elf):
             return False
         if is_elf(Path(tmp) / "does-not-exist"):
             return False

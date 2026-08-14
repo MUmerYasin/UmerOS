@@ -249,3 +249,62 @@ class EssentialLibraryManager:
             "symlinks": len([lib for lib in self._libraries.values() if lib.symlink_target]),
             "total_size_bytes": self.get_total_size(),
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Exercise the registry, lookups, and symlink-pair helpers.
+
+    Returns True when every assertion holds.
+    """
+    mgr = EssentialLibraryManager()
+
+    # The registry should be non-empty (we ship ~14 entries).
+    if mgr.list_libraries() is None:
+        return False
+    if not mgr.list_libraries():
+        return False
+
+    # The two FHS-required entries must be present: libc and ld.
+    libc = mgr.find_library("libc.so.6")
+    if libc is None or not libc.name.startswith("libc"):
+        return False
+    ld = mgr.find_library("ld-linux-x86-64.so.2")
+    if ld is None or not ld.name.startswith("ld-"):
+        return False
+
+    # Pattern search: "libc" should hit at least libc.so.6.
+    matches = mgr.find_by_pattern("libc")
+    if not any(m.name.startswith("libc") for m in matches):
+        return False
+
+    # ``get_required_libs`` must contain at least libc and one ld-*.
+    required = mgr.get_required_libs()
+    if not any(r.name.startswith("libc") for r in required):
+        return False
+    if not any(r.name.startswith("ld-") for r in required):
+        return False
+
+    # Symlink pairs: every entry with a symlink_target must have a
+    # valid (name, target) tuple.
+    pairs = mgr.get_symlink_pairs()
+    for name, target in pairs:
+        if not name or not target:
+            return False
+
+    # ``get_total_size`` must be > 0 because every stub has a size.
+    if mgr.get_total_size() <= 0:
+        return False
+
+    # ``get_summary`` must report the same counts we just measured.
+    summary = mgr.get_summary()
+    if summary["total_entries"] != len(mgr.list_libraries()):
+        return False
+    return True
+
+
+if __name__ == "__main__":
+    print("essential_libs selftest:", "OK" if _selftest() else "FAIL")
