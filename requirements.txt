@@ -49,7 +49,7 @@ xxhash>=3.4.0                    # Fast non-cryptographic hashing
 # ===============================================================================
 # USER INTERFACE
 # ===============================================================================
-kivy>=2.3.0                      # Cross-platform UI framework
+# kivy>=2.3.0                      # Cross-platform UI framework (optional)
 Pillow>=10.2.0                   # Image processing library
 yt-dlp>=2024.0.0                 # Video and Audio downloader
 python-vlc>=3.0.0                # VLC media player bindings
