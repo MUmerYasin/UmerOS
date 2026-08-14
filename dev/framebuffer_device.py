@@ -1,7 +1,7 @@
 """
 UmerOS /dev — Framebuffer devices.
 
-Linux framebuffer device files:
+Framebuffer device files:
   /dev/fb0-31 — Framebuffer display devices
 
 Major 29: fb0 = 29:0, fb1 = 29:32, fb2 = 29:64, ...
@@ -23,7 +23,7 @@ log = logging.getLogger("UmerOS.Dev.FramebufferDevice")
 class FramebufferDevice:
     """Framebuffer devices — /dev/fb*.
 
-    Legacy Linux framebuffer interface for display output.
+    Legacy framebuffer interface for display output.
     Predates DRM/KMS but still used by:
       - Embedded systems without DRM
       - Boot splash screens (Plymouth)

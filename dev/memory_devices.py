@@ -1,7 +1,7 @@
 """
 UmerOS /dev — Memory and I/O port access devices.
 
-Linux /dev/mem, /dev/kmem, /dev/port:
+ /dev/mem, /dev/kmem, /dev/port:
   /dev/mem   — Physical memory access (major 1, minor 1)
   /dev/kmem  — Kernel virtual memory (major 1, minor 2)
   /dev/port  — I/O port access (major 1, minor 4)

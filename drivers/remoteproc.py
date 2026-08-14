@@ -1,7 +1,7 @@
 """
 UmerOS Remoteproc Subsystem
 ============================
-Linux kernel-like remoteproc subsystem for remote processor management.
+Kernel-like remoteproc subsystem for remote processor management.
 Implements remote processor lifecycle, firmware loading, and crash recovery.
 
 Reference: drivers/remoteproc/

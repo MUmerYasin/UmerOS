@@ -3,7 +3,7 @@ UmerOS X11 Window System (/usr/X11R6)
 ======================================
 X11/X.Org display server and window management.
 
-Reference: Linux Filesystem Hierarchy - /usr/X11R6
+Reference: Filesystem Hierarchy - /usr/X11R6
   /usr/X11R6 contains X Window System binaries, libraries,
   and data files for the X11R6 release. Modern systems often
   use /usr/lib/X11R6 or integrate X11 into standard paths.

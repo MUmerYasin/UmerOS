@@ -1,12 +1,12 @@
 """
 Umer OS Task Credentials
 ========================
-Inspired by Linux ``kernel/cred.c`` (David Howells, 2008).
+Inspired by ``kernel/cred.c`` (David Howells, 2008).
 
 A **credential** bundles the identity of a task: its user id, group id,
 supplementary groups, and the capability set it may use.  Credentials are
 **refcounted** and shared between tasks (fork inherits the parent's cred,
-``exec`` may install a new one).  This mirrors Linux's copy-on-write
+``exec`` may install a new one).  This mirrors copy-on-write
 credential model:
 
     struct cred {
@@ -24,7 +24,7 @@ In the Python simulation every value is a plain int (uid/gid) or a
 ``frozenset`` (capability set), and refcounting is done with a simple
 counter so we can detect leaks in tests.
 
-Linux semantics preserved:
+semantics preserved:
   * ``prepare_creds()``     – snapshot current cred for modification.
   * ``commit_creds()``      – atomically install a new cred on a task.
   * ``abort_creds()``       – discard a prepared cred (drop refcount).
@@ -41,7 +41,7 @@ from typing import Any, FrozenSet, Iterable, Optional, Set
 
 log = logging.getLogger("UmerOS.Cred")
 
-# Root identity (uid 0) bypasses capability checks — mirrors Linux ROOT.
+# Root identity (uid 0) bypasses capability checks — mirrors ROOT.
 ROOT_UID = 0
 NOBODY_UID = 65534  # "nobody" — unprivileged sentinel
 
@@ -94,7 +94,7 @@ class Credentials:
     def get(self) -> "Credentials":
         """Take a reference to this credential (returns self).
 
-        Mirrors Linux ``get_cred()``: increments the refcount.
+        Mirrors ``get_cred()``: increments the refcount.
         """
         self.usage += 1
         return self
@@ -102,7 +102,7 @@ class Credentials:
     def put(self) -> None:
         """Release a reference.  Logs a warning if usage goes negative.
 
-        Mirrors Linux ``put_cred()``: decrements the refcount.  When it
+        Mirrors ``put_cred()``: decrements the refcount.  When it
         reaches zero the credential is logically freed.
         """
         if self.usage <= 0:
@@ -130,7 +130,7 @@ class Credentials:
     def copy(self) -> "Credentials":
         """Return a new refcount=1 snapshot with the same fields.
 
-        Mirrors Linux ``prepare_creds()``.  The caller owns the new
+        Mirrors ``prepare_creds()``.  The caller owns the new
         reference and must ``commit_creds()`` or ``put()`` it.
         """
         return replace(
@@ -167,7 +167,7 @@ class CredentialStore:
     Tracks the *real* credential (the identity the task was born with)
     and the *active* credential (what permission checks use).  The active
     cred can be temporarily overridden for kernel-initiated work, then
-    restored — mirrors Linux ``override_creds()`` / ``revert_creds()``.
+    restored — mirrors ``override_creds()`` / ``revert_creds()``.
     """
 
     def __init__(self) -> None:
@@ -251,7 +251,7 @@ class CredentialStore:
     def override(self, pid: int, override_cred: Credentials) -> bool:
         """Push ``override_cred`` as the new active cred, saving the old.
 
-        Mirrors Linux ``override_creds()``.  Must be balanced by
+        Mirrors ``override_creds()``.  Must be balanced by
         :meth:`revert`.  Returns False if ``pid`` is unknown.
         """
         rec = self._tasks.get(pid)
@@ -264,7 +264,7 @@ class CredentialStore:
     def revert(self, pid: int) -> bool:
         """Pop the last override and restore the previous cred.
 
-        Mirrors Linux ``revert_creds()``.  Returns False if there is no
+        Mirrors ``revert_creds()``.  Returns False if there is no
         override to revert or the pid is unknown.
         """
         rec = self._tasks.get(pid)

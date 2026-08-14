@@ -1,7 +1,7 @@
 """
 UmerOS NTB (Non-Transparent Bridge) Subsystem
 ==============================================
-Linux kernel-like NTB framework for inter-system communication
+Kernel-like NTB framework for inter-system communication
 across PCI Express non-transparent bridges.
 
 Reference: drivers/ntb/

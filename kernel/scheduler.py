@@ -60,7 +60,7 @@ class TaskState:
 class Task:
     """A schedulable unit of work within Umer OS.
 
-    Inspired by Linux ``struct task_struct`` — each task has identity
+    ``struct task_struct`` — each task has identity
     (pid), scheduling metadata (priority, state, cpu_time), quantum
     hints, a signal queue for inter-task notification, and optional
     parent/child links forming a process tree.
@@ -88,11 +88,11 @@ class Task:
     cpu_time:      float = 0.0
     quantum_state: Dict  = field(default_factory=lambda: {"superposition": 0.5})
     coroutine:     Optional[Callable] = field(default=None, repr=False)
-    # ── Process tree (inspired by Linux fork.c) ─────────────────────────────
+    # ── Process tree (fork.c) ─────────────────────────────
     parent_pid:    Optional[int] = field(default=None, repr=False)
     children:      set = field(default_factory=set)
     exit_code:     Optional[int] = field(default=None, repr=False)
-    # ── Signal queue (inspired by Linux signal.c) ────────────────────────────
+    # ── Signal queue (signal.c) ────────────────────────────
     signal_queue:   SignalQueue = field(default_factory=SignalQueue)
     # ── Exit notification (set by exit_task; awaited by wait()) ──────────────
     exited:         asyncio.Event = field(default_factory=asyncio.Event, repr=False)
@@ -177,7 +177,7 @@ class HybridScheduler:
         self._running:     bool                 = False
         self._loop_task:   Optional[asyncio.Task] = None
         self._quantum_sim                       = quantum_simulator
-        # Hung-task watchdog (inspired by Linux khungtaskd)
+        # Hung-task watchdog 
         self._watchdog_task: Optional[asyncio.Task] = None
         self._watchdog_interval: float = 10.0   # seconds between checks
         self._hung_timeout:       float = 120.0  # declare hung after this many seconds
@@ -225,7 +225,7 @@ class HybridScheduler:
     async def spawn_child(self, parent_pid: int, task: Task) -> None:
         """Enqueue a task as a child of ``parent_pid`` (sets up process tree).
 
-        Inspired by Linux ``copy_process()``: links the child into the
+        ``copy_process()``: links the child into the
         parent's children set and records ``parent_pid`` on the child.
 
         Args:
@@ -398,7 +398,7 @@ class HybridScheduler:
                 await asyncio.sleep(TICK_INTERVAL)
 
     async def _watchdog_loop(self) -> None:
-        """Periodic scan for hung tasks (inspired by Linux khungtaskd).
+        """Periodic scan for hung tasks.
 
         Every ``_watchdog_interval`` seconds, scans all tasks.  Any task
         whose state has not changed for longer than ``_hung_timeout``
@@ -442,12 +442,12 @@ class HybridScheduler:
 
     # ── Statistics ───────────────────────────────────────────────────────────
 
-    # ── Process management (inspired by Linux exit.c do_exit) ────────────────
+    # ── Process management (exit.c do_exit) ────────────────
 
     async def exit_task(self, pid: int, code: int = 0) -> bool:
         """Clean up a task and transition it to DONE.
 
-        Inspired by Linux ``do_exit()`` — runs an ordered teardown
+        Inspired by ``do_exit()`` — runs an ordered teardown
         sequence: set EXITING, cancel coroutine, revoke capabilities,
         unregister IPC, update process tree, then set DONE.
 
@@ -473,7 +473,7 @@ class HybridScheduler:
             # the scheduler loop from re-selecting this task.
 
             # Reparent children to init (kernel reaper) —
-            # Linux: find_new_reaper() → forget_original_parent()
+            # find_new_reaper() → forget_original_parent()
             if task.parent_pid is not None and task.children:
                 parent = self._tasks.get(task.parent_pid)
                 if parent is not None:
@@ -505,12 +505,12 @@ class HybridScheduler:
 
         return True
 
-    # ── Signals (inspired by Linux signal.c) ────────────────────────────────
+    # ── Signals (signal.c) ────────────────────────────────
 
     async def send_signal(self, pid: int, sig: str) -> bool:
         """Deliver a signal to a task.
 
-        Inspired by Linux ``__send_signal_locked``:
+        ``__send_signal_locked``:
           - SIGKILL: sets task state to EXITING (unblockable).
           - SIGTERM: enqueued; handler runs if registered, else default action.
           - SIGSTOP: sets task to BLOCKED.
@@ -582,7 +582,7 @@ class HybridScheduler:
                 return task.signal_queue.try_recv()
             return None
 
-    # ── Wait primitive (inspired by Linux wait_task_zombie) ────────────────
+    # ── Wait primitive (inspired by wait_task_zombie) ────────────────
 
     def wait_event(self, pid: int) -> Optional[asyncio.Event]:
         """Return an asyncio.Event for a task's completion (or None).

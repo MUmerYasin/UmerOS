@@ -143,7 +143,7 @@ class Inode:
                 raw = b""
             self.size = len(raw)
 
-        # ``blocks`` counts 512-byte units (matching Linux's st_blocks).
+        # ``blocks`` counts 512-byte units (matching st_blocks).
         self.blocks = (self.size + 511) // 512
         if self.blocks == 0:
             self.blocks = 0

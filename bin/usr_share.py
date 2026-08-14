@@ -529,7 +529,7 @@ class HOWTOCommand(Command):
 
     HOWTOS = {
         "networking": (
-            "HOWTO: Linux Networking\n"
+            "HOWTO: Networking\n"
             "=======================\n"
             "1. Configure interfaces in /etc/network/interfaces\n"
             "2. Use 'ip addr' to view interfaces\n"
@@ -538,7 +538,7 @@ class HOWTOCommand(Command):
             "5. Firewall: use iptables or nftables\n"
         ),
         "security": (
-            "HOWTO: Linux Security\n"
+            "HOWTO: Security\n"
             "=====================\n"
             "1. Keep system updated: apt upgrade / yum update\n"
             "2. Use strong passwords and SSH keys\n"

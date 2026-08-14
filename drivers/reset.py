@@ -1,7 +1,7 @@
 """
 UmerOS Reset Controller Subsystem
 =================================
-Linux kernel-like reset line management framework.
+Kernel-like reset line management framework.
 
 Implements reset controller devices, reset lines, consumer devices,
 and the full kernel reset API (assert, deassert, bulk operations).

@@ -3,7 +3,7 @@ UmerOS X11 Fonts Manager (/usr/X11R6/lib/X11/fonts)
 ====================================================
 XFree86/X11 system fonts used by the X Font Server (xfs).
 
-Reference: Linux Filesystem Hierarchy - /usr/X11R6/lib/X11/fonts
+  Filesystem Hierarchy - /usr/X11R6/lib/X11/fonts
   /usr/X11R6/lib/X11/fonts contains XFree86 system fonts.
   Fonts that are utilised by 'xfs' (the X Font Server) and programs
   of that ilk.

@@ -2,11 +2,11 @@
 UmerOS /media - Hotplug Event Handling
 =======================================
 
-Simulates the Linux kernel's uevent / udev subsystem for removable
+Simulates the kernel's uevent / udev subsystem for removable
 media, dispatching connect / disconnect events to registered
 handlers.
 
-In a real Linux system the flow is:
+In a real system the flow is:
 
     kernel uevent  ->  udevd  ->  udisksd  ->  /media/<user>/<label>
 

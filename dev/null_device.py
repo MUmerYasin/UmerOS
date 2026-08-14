@@ -5,7 +5,7 @@ FHS 3.0 /dev/null:
   /dev/null — The null device. Writes succeed, data is discarded.
   Reads return EOF immediately. Used as /dev/zero alternative for writes.
 
-Linux major:minor = 1:3
+ major:minor = 1:3
 
 Author:  Umer OS Project
 Licence: GPLv3

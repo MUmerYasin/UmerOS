@@ -1,7 +1,7 @@
 """
 UmerOS Regulator Framework
 ===========================
-Linux kernel Voltage and Current Regulator subsystem.
+Kernel Voltage and Current Regulator subsystem.
 Implements regulator supplies, consumers, constraints,
 and power management operations.
 """

@@ -1,7 +1,7 @@
 """
 UmerOS NFC Framework
 =====================
-Linux kernel Near Field Communication subsystem.
+Kernel Near Field Communication subsystem.
 Implements NFC controllers, secure elements, LLCP,
 and simulated NFC devices.
 """

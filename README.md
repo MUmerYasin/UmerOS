@@ -294,7 +294,7 @@ UmerOS/
 │   ├── test_ipc.py                   # IPC broker tests
 │   └── conftest.py                   # Pytest fixtures
 │
-├── 📂 drivers/                       # Linux-like driver subsystems (33 modules)
+├── 📂 drivers/                       # Driver subsystems (33 modules)
 │   ├── cpuidle.py                    # CPU idle management & governors
 │   ├── cpuidle_driver_advanced.py    # Advanced CPUidle driver features
 │   ├── cpuidle_governor.py           # CPUidle governor framework
@@ -515,7 +515,7 @@ cd UmerOS
 
 #### 2️⃣ **Create Virtual Environment**
 ```bash
-# Linux/macOS
+# macOS
 python3 -m venv venv
 source venv/bin/activate
 

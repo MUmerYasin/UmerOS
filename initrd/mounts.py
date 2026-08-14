@@ -55,7 +55,7 @@ log = logging.getLogger("UmerOS.Initrd.Mounts")
 # ---------------------------------------------------------------------------
 
 class MountFlag(str, Enum):
-    """Common Linux mount(2) flag bits, modelled as strings for clarity."""
+    """Common mount(2) flag bits, modelled as strings for clarity."""
 
     RDONLY   = "ro"        # MS_RDONLY
     NOSUID   = "nosuid"    # MS_NOSUID
@@ -292,7 +292,7 @@ def resolve_in_chroot(ctx: ChrootContext, path: str) -> str:
 # /dev population
 # ---------------------------------------------------------------------------
 
-# Minimal /dev that every Linux system needs.  Each entry maps the
+# Minimal /dev that every system needs.  Each entry maps the
 # conventional device path to a "kind" the runtime can use to answer
 # ``read`` / ``write`` requests.
 DEFAULT_DEV_NODES: Dict[str, Dict[str, object]] = {
@@ -347,7 +347,7 @@ def populate_dev(root: VfsRoot, *,
 def dev_read(root: VfsRoot, path: str, size: int) -> bytes:
     """Serve ``read()`` from a ``/dev`` node.
 
-    The semantics are intentionally tiny but match Linux enough to
+    The semantics are intentionally tiny but match enough to
     keep the installer happy: ``/dev/null`` returns 0 bytes, ``/dev/zero``
     returns ``size`` zero bytes, ``/dev/urandom`` returns cryptographically
     strong random bytes, and anything else returns an empty buffer.

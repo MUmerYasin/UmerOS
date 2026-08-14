@@ -3,7 +3,7 @@ UmerOS GCC Support Manager (/usr/lib/gcc)
 ==========================================
 GCC (GNU Compiler Collection) support files and libraries.
 
-Reference: Linux Filesystem Hierarchy - /usr/lib/gcc
+  Filesystem Hierarchy - /usr/lib/gcc
   /usr/lib/gcc contains GCC support files including compiler
   libraries, specifications, and executables.
 """

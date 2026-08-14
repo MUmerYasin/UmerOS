@@ -1,7 +1,7 @@
 """
 UmerOS Framebuffer Subsystem
 ============================
-Linux kernel-like framebuffer and DRM (Direct Rendering Manager)
+Kernel-like framebuffer and DRM (Direct Rendering Manager)
 interface for display output management.
 
 Reference: Documentation/driver-api/fbdev/

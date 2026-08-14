@@ -7,7 +7,7 @@ FHS 3.0 /dev/input:
   /dev/input/mice    — Mouse multiplexer
   /dev/input/mouseN  — Individual mouse devices
 
-Linux major:minor:
+major:minor:
   event0 = 13:64, event1 = 13:65, ... event31 = 13:95
   js0 = 13:0, js1 = 13:1, ... js31 = 13:31
   mice = 13:200

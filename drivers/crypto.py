@@ -1,7 +1,7 @@
 """
 UmerOS Crypto Framework
 =======================
-Linux kernel-like Crypto API.
+Kernel-like Crypto API.
 Implements ciphers (AES, DES, ChaCha20), hashes (SHA-256, MD5, SHA3-256),
 AEAD (AES-GCM), and RNG with the full crypto_alloc_tfm() API.
 """
@@ -1509,7 +1509,7 @@ def _demo() -> None:
     print("-" * 70)
     key = os.urandom(32)
     iv = os.urandom(16)
-    plaintext = b"UmerOS Linux Crypto API - AES-256-CBC Test!"
+    plaintext = b"UmerOS Crypto API - AES-256-CBC Test!"
 
     tfm = crypto_alloc_tfm("aes-cbc")
     crypto_set_key(tfm, key)
@@ -1530,7 +1530,7 @@ def _demo() -> None:
     # --- SHA-256 ---
     print("\n[3] SHA-256 Hash:")
     print("-" * 70)
-    msg = b"UmerOS Linux Crypto API - SHA-256 Test"
+    msg = b"UmerOS Crypto API - SHA-256 Test"
     digest = crypto_hash("sha256", msg)
     print(f"  Input:   {msg.decode()}")
     print(f"  SHA-256: {digest.hex()}")

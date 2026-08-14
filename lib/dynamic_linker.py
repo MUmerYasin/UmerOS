@@ -14,7 +14,7 @@ Implements the FHS-mandated ``/lib`` rules around the dynamic linker:
     ``/lib``; X11 / desktop libraries live in ``/usr/lib``
 
 This module models ldconfig behaviour for UmerOS so that user-space
-programs can look up shared libraries the same way real Linux does.
+programs can look up shared libraries.
 
 Author:  Umer OS Project
 Licence: Apache 2.0

@@ -1,7 +1,7 @@
 """
 UmerOS vduse Module
 ====================
-Linux kernel VDUSE (vDPA Device in Userspace) subsystem.
+Kernel VDUSE (vDPA Device in Userspace) subsystem.
 
 Reference: docs.kernel.org/driver-api/vduse.html
 """
@@ -296,7 +296,7 @@ class VHostMemoryRegion:
 # ============================================================================
 
 class VDUSE:
-    """Linux VDUSE subsystem."""
+    """ VDUSE Subsystem."""
     def __init__(self) -> None:
         self.devices: Dict[str, VDUSEDevice] = {}
         self.iommus: Dict[str, VDUSEIOMMU] = {}

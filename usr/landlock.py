@@ -1,7 +1,7 @@
 """
 UmerOS Landlock Module
 =======================
-Linux kernel Landlock unprivileged access control.
+Kernel Landlock unprivileged access control.
 Implements filesystem path rules and port network rules.
 
 Reference: docs.kernel.org/userspace-api/landlock.html

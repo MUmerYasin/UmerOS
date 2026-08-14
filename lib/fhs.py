@@ -237,7 +237,7 @@ class LibHierarchyManager:
                     f"/lib/{name}",
                     description,
                     optional=True,
-                    source="modern Linux /lib convention",
+                    source="modern /lib convention",
                 )
             )
         for qualifier in self.alternate_qualifiers:

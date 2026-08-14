@@ -2,7 +2,7 @@
 UmerOS udevadm — Device manager query/control command.
 
 FHS 3.0 /dev:
-  udevadm — Query and control udevd. In Linux, it's used to:
+  udevadm — Query and control udevd. it's used to:
     - Query device properties:  udevadm info --query=property /dev/sda
     - Monitor device events:    udevadm monitor
     - Trigger device events:    udevadm trigger

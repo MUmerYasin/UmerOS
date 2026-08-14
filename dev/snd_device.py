@@ -5,7 +5,7 @@ FHS 3.0 /dev/snd:
   /dev/snd/cardN    — ALSA card device
   /dev/snd/controlC — Control interface
 
-Linux major:minor:
+ major:minor:
   card0 = 116:0, card1 = 116:1, ...
   controlC0 = 116:256, ...
 

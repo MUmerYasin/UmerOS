@@ -5,7 +5,7 @@ FHS 3.0 /dev/log:
   /dev/log — Unix domain socket for syslog.
   Programs write syslog messages to this socket.
 
-Linux major:minor: log = 10:229
+ major:minor: log = 10:229
 
 Author:  Umer OS Project
 Licence: GPLv3

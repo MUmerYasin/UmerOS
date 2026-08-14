@@ -1,7 +1,7 @@
 """
 UmerOS Thermal Subsystem
 ========================
-Linux kernel-like thermal management framework.
+Kernel-like thermal management framework.
 Implements thermal zones, cooling devices, governors,
 and temperature monitoring with trip point management.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Device‑managed resources (devres) utilities for UmerOS.
-Mimics the Linux kernel devm_* helpers: resources are attached to a Device and
+Device managed resources (devres) utilities for UmerOS.
+Mimics the  kernel devm_* helpers: resources are attached to a Device and
 automatically released when the device is unregistered.
 """
 
@@ -14,7 +14,7 @@ def devm_alloc(dev: Device, resource: Any, cleanup: Callable[[Any], None]) -> An
 
     The *resource* is stored in ``dev._dev_resources`` as a tuple
     ``(resource, cleanup)``. When the device is unregistered, all registered
-    clean‑up functions are invoked in LIFO order.
+    clean up functions are invoked in LIFO order.
     """
     if not hasattr(dev, "_dev_resources"):
         dev._dev_resources = []

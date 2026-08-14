@@ -1,7 +1,7 @@
 """
 UmerOS Extcon Subsystem
 =======================
-Linux kernel-like External Connector (extcon) framework.
+Kernel-like External Connector (extcon) framework.
 Implements connector state tracking, cable detection,
 and state change notifications for USB, audio, and power connectors.
 

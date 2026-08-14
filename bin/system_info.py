@@ -103,7 +103,7 @@ class UnameInfo:
         """Get current system information."""
         info = cls()
         try:
-            info.sysname = platform.system()  # e.g., "Linux"
+            info.sysname = platform.system()  # e.g., 
             info.nodename = socket.gethostname()
             info.release = platform.release()  # e.g., "5.15.0-56-generic"
             info.version = platform.version()  # e.g., "#62-Ubuntu SMP Tue Nov 22 19:54:14 UTC 2022"

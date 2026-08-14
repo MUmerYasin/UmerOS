@@ -32,7 +32,7 @@ class TestLibSummary(unittest.TestCase):
     def _make_tree(self, root: Path) -> None:
         """Build a minimal FHS-compliant /lib tree at ``root``."""
         (root / "libc.so.6").write_bytes(b"stub libc")
-        (root / "ld-linux-x86-64.so.2").write_bytes(b"stub ld")
+        (root / "ld-x86-64.so.2").write_bytes(b"stub ld")
         (root / "libm.so.6").write_bytes(b"stub libm")
         (root / "cpp").write_text("/usr/bin/cpp\n")
         # A kernel-version subdir with the FHS-mandated helper files.

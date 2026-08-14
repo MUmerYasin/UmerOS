@@ -1,7 +1,7 @@
 """
 UmerOS /dev — USB serial devices.
 
-Linux USB serial device files:
+ USB serial device files:
   /dev/ttyUSB0-7  — USB-serial adapters (CP210x, FTDI, Prolific)
   /dev/ttyACM0-7  — USB CDC ACM (Arduino, modems, phones)
 

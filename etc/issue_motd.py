@@ -36,8 +36,8 @@ ISSUE_ESCAPE_SEQUENCES: Dict[str, str] = {
     "\\m": "Machine architecture (e.g. x86_64)",
     "\\n": "Hostname",
     "\\o": "Domain name",
-    "\\r": "OS release (e.g. 6.8.0-49-generic)",
-    "\\s": "OS name (e.g. Linux)",
+    "\\r": "OS release (e.g. 1.0-generic)",
+    "\\s": "OS name ",
     "\\t": "Current time (24‑hour clock)",
     "\\d": "Current date",
     "\\u": "Current logged‑in usernames",
@@ -106,7 +106,7 @@ def _backup_file(path: str, backup_dir: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 
 class IssueMotdManager:
-    """High‑level API for reading, writing and previewing Linux login
+    """High‑level API for reading, writing and previewing login
     banners and message‑of‑the‑day files.
 
     Parameters

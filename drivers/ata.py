@@ -1,7 +1,7 @@
 """
 UmerOS ATA Subsystem
 ====================
-Linux kernel-like ATA (Advanced Technology Attachment) subsystem.
+Kernel-like ATA (Advanced Technology Attachment) subsystem.
 Implements PATA/SATA host controller, disk device management,
 command queue, and power management.
 

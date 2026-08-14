@@ -1,7 +1,7 @@
 """
 UmerOS /dev — Miscellaneous system control devices.
 
-Linux misc system device files:
+Misc system device files:
   /dev/btrfs-control — Btrfs filesystem control (major 10, minor 234)
   /dev/dax0.0-N      — DAX (Direct Access) devices (major 241)
   /dev/vga_arbiter    — VGA arbitration (major 10, minor 229)

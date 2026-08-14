@@ -1,7 +1,7 @@
 """
 UmerOS System Calls Module
 ===========================
-Linux kernel system call interfaces for userspace.
+Kernel system call interfaces for userspace.
 Implements unshare, futex2, restartable sequences, mseal.
 
 Reference: docs.kernel.org/userspace-api/

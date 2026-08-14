@@ -3,7 +3,7 @@ UmerOS Temporary Files Manager (/usr/tmp)
 ==========================================
 Temporary file and workspace management.
 
-Reference: Linux Filesystem Hierarchy - /usr/tmp
+Reference: Filesystem Hierarchy - /usr/tmp
   /usr/tmp provides temporary storage for applications and users.
   Files here are typically cleaned up periodically or on reboot.
   On modern systems, /usr/tmp is often a symlink to /var/tmp or /tmp.

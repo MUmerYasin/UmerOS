@@ -1,7 +1,7 @@
 """
 UmerOS RTC Framework
 =====================
-Linux kernel Real-Time Clock subsystem.
+Kernel Real-Time Clock subsystem.
 Implements RTC devices, alarms, periodic interrupts,
 and hardware/simulated RTC chips.
 """

@@ -1,7 +1,7 @@
 """
 UmerOS /dev — HID raw devices.
 
-Linux HID raw device files:
+HID raw device files:
   /dev/hidraw0-15 — Raw HID access (gamepads, keyboards, special devices)
 
 Major 246: hidraw0 = 246:0, hidraw1 = 246:1, ...

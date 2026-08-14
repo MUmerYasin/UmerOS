@@ -5,7 +5,7 @@ FHS 3.0 /dev/mapper:
   /dev/mapper/ — Device-mapper control and logical volumes.
   /dev/mapper/control — Device-mapper control node.
 
-Linux major:minor: control = 10:236
+ major:minor: control = 10:236
 
 Author:  Umer OS Project
 Licence: GPLv3

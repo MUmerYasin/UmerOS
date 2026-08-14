@@ -1,7 +1,7 @@
 """
 UmerOS Firmware Framework
 ==========================
-Linux kernel firmware loading subsystem.
+Kernel firmware loading subsystem.
 Implements firmware image loading, fallback mechanisms,
 and platform firmware interfaces.
 """

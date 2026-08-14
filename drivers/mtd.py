@@ -1,7 +1,7 @@
 """
 UmerOS MTD (Memory Technology Device) Framework
 ================================================
-Linux kernel MTD subsystem.
+Kernel MTD subsystem.
 Implements MTD devices (NOR, NAND, DataFlash), partitions,
 OOB operations, bad block management, and read/write/erase.
 """

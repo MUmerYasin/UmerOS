@@ -7,7 +7,7 @@ Each partition owns:
   * its own isolated :class:`LostFoundManager`
   * a directory tree built from directory inodes (dirent lists)
 
-A real Linux box has multiple partitions (e.g. ``/dev/sda1`` mounted at
+A real box has multiple partitions (e.g. ``/dev/sda1`` mounted at
 ``/boot``, ``/dev/sda2`` mounted at ``/``, ``/dev/sda3`` at ``/home``),
 each with its own lost+found.  We model that by giving each partition its
 own inode space.

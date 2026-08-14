@@ -1,7 +1,7 @@
 """
 Umer OS Security Audit Subsystem
 ================================
-Inspired by Linux's auditd and audit.c, this subsystem logs security-relevant
+Inspired by auditd and audit.c, this subsystem logs security-relevant
 events in the kernel (e.g., capability checks, sandbox violations).
 """
 

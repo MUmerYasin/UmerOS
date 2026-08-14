@@ -3,7 +3,7 @@ UmerOS Documentation Browser (/usr/share/doc)
 ==============================================
 Package documentation browsing and management.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/doc
+  Filesystem Hierarchy - /usr/share/doc
   /usr/share/doc contains package-specific documentation files.
   These directories often contain useful information not found in
   man pages, including templates, configuration examples, and

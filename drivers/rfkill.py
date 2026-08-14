@@ -1,7 +1,7 @@
 """
 UmerOS Rfkill Subsystem
 =======================
-Linux kernel-like rfkill (radio frequency kill) framework.
+Kernel-like rfkill (radio frequency kill) framework.
 Implements wireless transmitter kill switches for WiFi, Bluetooth,
 WWAN, and other RF devices.
 

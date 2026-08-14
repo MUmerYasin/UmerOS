@@ -1,7 +1,7 @@
 """
 UmerOS io_uring Module
 =======================
-Linux kernel io_uring async I/O interface.
+Kernel io_uring async I/O interface.
 Implements submission/completion rings, SQE/CQE processing.
 
 Reference: docs.kernel.org/userspace-api/io_uring.html

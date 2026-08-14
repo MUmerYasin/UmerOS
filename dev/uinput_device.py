@@ -1,7 +1,7 @@
 """
 UmerOS /dev — User input device.
 
-Linux uinput device file:
+ uinput device file:
   /dev/uinput — Virtual input device injection
 
 Major 10: uinput = 10:223
@@ -26,7 +26,7 @@ class UinputDevice:
     """User input device — /dev/uinput.
 
     Allows creation of virtual input devices that inject events
-    into the Linux input subsystem. Used by:
+    into the input subsystem. Used by:
       - QEMU/KVM for virtual machine input
       - libinput for input device testing
       - SDL2 for virtual gamepad creation

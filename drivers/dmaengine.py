@@ -1,7 +1,7 @@
 """
 UmerOS DMAEngine Subsystem
 ==========================
-Linux kernel-like DMA Engine framework.
+Kernel-like DMA Engine framework.
 Implements DMA channels, descriptors, slave/memcpy/scatter-gather
 transfers, and virtual channels.
 

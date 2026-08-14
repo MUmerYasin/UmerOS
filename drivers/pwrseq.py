@@ -1,7 +1,7 @@
 """
 UmerOS Power Sequence Subsystem
 ================================
-Linux kernel-like power sequence framework for managing device
+Kernel-like power sequence framework for managing device
 power-on/off sequences with optional delays and GPIO control.
 
 Reference: drivers/pwrseq/

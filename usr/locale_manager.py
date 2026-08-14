@@ -3,7 +3,7 @@ UmerOS Locale Manager (/usr/share/locale)
 ==========================================
 Locale data and translations.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/locale
+Reference: Filesystem Hierarchy - /usr/share/locale
   /usr/share/locale contains locale data files used by the GNU
   C Library and other programs for internationalization.
 """

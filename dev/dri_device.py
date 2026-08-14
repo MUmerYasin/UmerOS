@@ -5,7 +5,7 @@ FHS 3.0 /dev/dri:
   /dev/dri/cardN    — DRM card device
   /dev/dri/renderDN — DRM render node
 
-Linux major:minor:
+major:minor:
   card0 = 226:0, card1 = 226:1, ...
   renderD128 = 226:128, renderD129 = 226:129, ...
 

@@ -1,7 +1,7 @@
 """
 USeccomp Module
 ================
-Linux kernel seccomp-BPF security filtering.
+Kernel seccomp-BPF security filtering.
 Implements syscall filtering with BPF programs.
 
 Reference: docs.kernel.org/userspace-api/seccomp_filter.html

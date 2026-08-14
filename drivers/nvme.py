@@ -1,7 +1,7 @@
 """
 UmerOS NVMe Subsystem
 ======================
-Linux kernel-like NVMe (Non-Volatile Memory Express) subsystem.
+Kernel-like NVMe (Non-Volatile Memory Express) subsystem.
 Implements NVMe controllers, namespaces, and I/O queues for
 high-performance storage.
 

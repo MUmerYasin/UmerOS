@@ -2,7 +2,7 @@
 UmerOS /media - Device Detection and Information
 =================================================
 
-Provides an abstraction layer over Linux device-node inspection to
+Provides an abstraction layer over device-node inspection to
 identify removable-media devices and populate
 :class:`~media.media_types.MediaDescriptor` objects.
 

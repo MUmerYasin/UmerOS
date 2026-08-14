@@ -1,7 +1,7 @@
 """
 UmerOS /dev/i2c-* — I2C bus devices.
 
-Linux /dev/i2c-* (major 89):
+/dev/i2c-* (major 89):
   /dev/i2c-0 through /dev/i2c-31 — I2C bus adapters.
   Provides userspace access to I2C bus via i2c-dev driver.
   Used for sensor reading, EEPROM access, display configuration.

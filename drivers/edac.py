@@ -1,7 +1,7 @@
 """
 UmerOS EDAC Framework
 =====================
-Linux kernel Error Detection And Correction (EDAC) framework.
+Kernel Error Detection And Correction (EDAC) framework.
 Implements memory controllers, DIMMs, channels, error reporting,
 error thresholds, and EDAC policies.
 """
@@ -481,7 +481,7 @@ def demo() -> None:
     """Interactive demonstration of the UmerOS EDAC Framework."""
     print()
     print("=" * 72)
-    print("  UmerOS EDAC Framework  --  Linux EDAC Demo")
+    print("  UmerOS EDAC Framework  --  EDAC Demo")
     print("=" * 72)
     print()
 

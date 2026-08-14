@@ -2,7 +2,7 @@
 Umer OS Initrd CPIO
 ===================
 Read and write **CPIO "newc"** archives, the format used by every
-modern Linux initramfs.
+modern initramfs.
 
 The newc format is a simple record stream:
 

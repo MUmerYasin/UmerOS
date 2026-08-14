@@ -3,7 +3,7 @@ UmerOS /media - Filesystem Type Detection and Validation
 =========================================================
 
 Detects, validates, and maps filesystem types for removable media.
-Supports all common Linux filesystems plus optical disc formats.
+Supports all common filesystems plus optical disc formats.
 
 Modules
 -------
@@ -39,7 +39,7 @@ from typing import Dict, FrozenSet, List, Optional, Set, Tuple
 class FsType(str, Enum):
     """Supported filesystem types with metadata."""
 
-    # Linux native
+    #  Native
     EXT2 = "ext2"
     EXT3 = "ext3"
     EXT4 = "ext4"

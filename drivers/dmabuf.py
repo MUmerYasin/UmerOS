@@ -1,7 +1,7 @@
 """
 UmerOS DMA Buffer Sharing Framework
 ====================================
-Linux kernel dma-buf sharing.
+Kernel dma-buf sharing.
 Implements buffer export, attachment, mapping, CPU access,
 scatter-gather tables, and DMA heaps (system, CMA, carveout).
 """
@@ -298,7 +298,7 @@ def dma_buf_export(
     ops: Optional[DmaBufOps] = None,
     flags: int = 0,
 ) -> DmaBuf:
-    """Export a dma_buf — analogous to Linux dma_buf_export().
+    """Export a dma_buf — analogous to dma_buf_export().
 
     Creates a new buffer, assigns a simulated fd, and registers it
     in the global buffer registry.

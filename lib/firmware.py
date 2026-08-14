@@ -5,7 +5,7 @@ Implements the FHS subdirectory ``/lib/firmware`` which holds the
 firmware blobs loaded by the kernel at runtime via ``request_firmware()``.
 
 Although TLDP's 1990s-era description of /lib does not mention firmware
-explicitly, it is universally expected on modern Linux systems
+explicitly, it is universally expected on modern systems
 (distributions split firmware out of /lib to allow /usr to be read-only).
 The directory typically contains tens of thousands of blobs grouped by
 vendor / subsystem.
@@ -228,7 +228,7 @@ class FirmwareManager:
 # files in this directory.  Each `File:` line points at a blob, followed by
 # the `Licence:` line, `Version:` line, and any device bindings.
 #
-# Format is based on the upstream linux-firmware WHENCE file.
+# Format is based on the upstream  WHENCE file.
 """
 
     def __init__(self, lib_path: str = "/lib", firmware_path: str = "/lib/firmware") -> None:

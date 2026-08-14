@@ -3,7 +3,7 @@ UmerOS Color Definitions Manager (/usr/share/colors)
 =====================================================
 System color definition files and palettes.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/colors
+  Filesystem Hierarchy - /usr/share/colors
   /usr/share/colors contains color definition files used by desktop
   environments and applications for consistent color schemes.
 """

@@ -1,9 +1,9 @@
 """
 Umer OS Reboot / Power-Off Subsystem
 =====================================
-Inspired by Linux ``kernel/reboot.c`` (Linus Torvalds, 2013).
+``kernel/reboot.c`` (Linus Torvalds, 2013).
 
-Linux models system shutdown as an ordered sequence of notifier chains
+Models system shutdown as an ordered sequence of notifier chains
 and ``system_state`` transitions:
 
     enum system_state {
@@ -20,7 +20,7 @@ This module reproduces that structure in Python so the kernel can run
 ordered shutdown sequences and so drivers/services can register
 callbacks for each phase.
 
-Linux semantics preserved:
+Semantics preserved:
   * ``register_reboot_notifier()`` / ``unregister_reboot_notifier()``.
   * ``register_restart_handler()`` with priority ordering.
   * ``kernel_restart()``  – prepare → notify RESTART → restart handlers.
@@ -41,7 +41,7 @@ log = logging.getLogger("UmerOS.Reboot")
 
 
 class SystemState(IntEnum):
-    """Mirrors Linux ``enum system_state``."""
+    """``enum system_state``."""
     BOOTING = 0
     SCHEDULING = 1
     RUNNING = 2
@@ -59,7 +59,7 @@ class RebootAction(IntEnum):
     SUSPEND = 0x0004
 
 
-# Notify return codes (mirrors Linux notifier.h).
+# Notify return codes (notifier.h).
 NOTIFY_DONE = 0x0000      # nothing for me; keep going
 NOTIFY_OK = 0x0001        # ok; keep going
 NOTIFY_STOP_MASK = 0x8000
@@ -92,7 +92,7 @@ class NotifierChain:
 
     Registration inserts in priority order (descending).  Duplicate
     (same object / same fn) registrations are rejected with a warning,
-    mirroring Linux ``notifier_chain_register()`` which WARN()s on
+    ``notifier_chain_register()`` which WARN()s on
     duplicates.
     """
 
@@ -204,7 +204,7 @@ class RebootManager:
                                  data: Any = None) -> NotifierBlock:
         """Register a restart handler.  Higher priority = called first.
 
-        Convention (from Linux docs):
+        Convention (from docs):
           255 – best/only restart mechanism available.
           128 – default restart handler.
             0 – last resort.

@@ -1,7 +1,7 @@
 """
 UmerOS ntsync Module
 =====================
-Linux kernel ntsync (NT synchronization) subsystem.
+Kernel ntsync (NT synchronization) subsystem.
 Implements Windows NT-style synchronization primitives for Wine/Proton.
 
 Reference: docs.kernel.org/userspace-api/ntsync.html
@@ -268,7 +268,7 @@ class NTSyncThreadAlert:
 # ============================================================================
 
 class NTSync:
-    """Linux NT synchronization subsystem."""
+    """ NT synchronization subsystem."""
     def __init__(self) -> None:
         self.semaphores: Dict[int, NTSyncSemObj] = {}
         self.mutexes: Dict[int, NTSyncMutexObj] = {}

@@ -1,7 +1,7 @@
 """
 UmerOS Interconnect (NoC) Subsystem
 ====================================
-Linux kernel-like interconnect (formerly NoC bus) framework for
+Kernel-like interconnect (formerly NoC bus) framework for
 managing bandwidth, clock, and path resources between hardware
 components.
 

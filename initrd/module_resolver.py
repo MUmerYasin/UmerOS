@@ -90,7 +90,7 @@ class ModuleSpec:
 # Default database
 # ---------------------------------------------------------------------------
 
-# A pragmatic subset of the Linux modules.alias graph.  This is the
+# A pragmatic subset of the modules.alias graph.  This is the
 # bare minimum needed to make UmerOS boot in a real VM.
 DEFAULT_MODULE_DB: Dict[str, ModuleSpec] = {
     # Filesystems

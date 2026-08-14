@@ -1,7 +1,7 @@
 """
 UmerOS IIO Subsystem
 ====================
-Linux kernel-like Industrial I/O framework for ADCs,
+Kernel-like Industrial I/O framework for ADCs,
 sensors, triggers, and buffered data acquisition.
 """
 

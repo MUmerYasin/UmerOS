@@ -39,7 +39,7 @@ class FdiskCommand(SbinCommand):
         if not args or args[0] == "-l":
             print("Disk /dev/sda: 500 GiB, 536870912000 bytes, 1048576000 sectors")
             print("Device     Boot   Start        End   Sectors  Size Id Type")
-            print("/dev/sda1  *       2048 1048575999 1048573952  500G  83 Linux")
+            print("/dev/sda1  *       2048 1048575999 1048573952  500G  83 ")
             return 0
         print(f"fdisk: operating on '{args[0]}'", file=sys.stderr)
         return 0
@@ -48,7 +48,7 @@ class FdiskCommand(SbinCommand):
 class FsckCommand(SbinCommand):
     """Filesystem check and repair."""
     name = "fsck"
-    description = "Check and repair a Linux filesystem"
+    description = "Check and repair a filesystem"
     usage = "fsck [-aANrtVsTP] [-y] [-f] [-g] [-h] filesystem"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
@@ -59,9 +59,9 @@ class FsckCommand(SbinCommand):
 
 
 class MkfsCommand(SbinCommand):
-    """Build a Linux filesystem."""
+    """Build a filesystem."""
     name = "mkfs"
-    description = "Build a Linux filesystem"
+    description = "Build a filesystem"
     usage = "mkfs [-t type] [-c] [-l opts] [-v] device [blocks]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
@@ -106,7 +106,7 @@ class SwapoffCommand(SbinCommand):
 class MkswapCommand(SbinCommand):
     """Set up a swap area."""
     name = "mkswap"
-    description = "Set up a Linux swap area"
+    description = "Set up a swap area"
     usage = "mkswap [-c] [-f] [-p pagesize] [-L label] device [size]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:

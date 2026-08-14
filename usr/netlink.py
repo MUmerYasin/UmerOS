@@ -1,7 +1,7 @@
 """
 UmerOS Netlink Module
 ======================
-Linux kernel netlink socket API interface.
+Kernel netlink socket API interface.
 Implements netlink protocols, message passing, and multicast groups.
 
 Reference: docs.kernel.org/userspace-api/netlink.html
@@ -396,7 +396,7 @@ class NetlinkRouteEntry:
 # ============================================================================
 
 class Netlink:
-    """Linux netlink socket subsystem."""
+    """Netlink socket subsystem."""
     def __init__(self) -> None:
         self.sockets: Dict[int, NetlinkSocket] = {}
         self.routes: List[NetlinkRouteEntry] = []

@@ -13,7 +13,7 @@ quantum computing features and integrates AI at the kernel level.
 - **AI**: Local, permission‑based LLM assistant; predictive resource management;
   self‑healing code.
 - **Compatibility**: Universal container engine for `.exe`, `.apk`, `.ipa`,
-  Linux binaries – no data loss on upgrade.
+  binaries – no data loss on upgrade.
 - **UI**: Fluid, adaptive, Kivy‑based; voice/gesture/multi‑language.
 - **Security**: Zero‑trust, quantum‑resistant, AI firewall, explicit user opt‑in.
 

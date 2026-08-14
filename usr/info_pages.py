@@ -3,7 +3,7 @@ UmerOS Info Pages Manager (/usr/share/info)
 ============================================
 GNU Info documentation system integration.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/info
+Reference: Filesystem Hierarchy - /usr/share/info
   /usr/share/info contains GNU Info documentation files.
   These are part of the GNU documentation system, providing
   hypertext navigation through documentation via info readers.

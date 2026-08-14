@@ -1,7 +1,7 @@
 """
 UmerOS DMA-BUF Module
 ======================
-Linux kernel DMA buffer sharing interface.
+kernel DMA buffer sharing interface.
 Implements DMA-BUF allocation, export, import, and sync.
 
 Reference: docs.kernel.org/userspace-api/dma-buf.html

@@ -459,7 +459,7 @@ class BootSplashManager:
             "menuentry 'UmerOS' {\n"
             "    insmod all_video\n"
             f"    {self.framebuffer.generate_grub_video_config().strip()}\n"
-            f"    linux /boot/vmlinuz {' '.join(all_opts)}\n"
+            f"          /boot/vmlinuz {' '.join(all_opts)}\n"
             "    initrd /boot/initrd.img\n"
             "}"
         )

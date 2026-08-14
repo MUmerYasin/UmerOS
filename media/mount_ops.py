@@ -218,7 +218,7 @@ def _sim_remount(
 
 
 # ---------------------------------------------------------------------------
-#  Real mount/unmount (Linux)
+#  Real mount/unmount 
 # ---------------------------------------------------------------------------
 
 def _run_cmd(cmd: List[str], timeout: int = 30) -> Tuple[int, str, str]:

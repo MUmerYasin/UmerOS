@@ -1,9 +1,9 @@
 """
 UmerOS Library Manager (/usr/lib)
 =================================
-Linux shared/static library management.
+Shared/static library management.
 
-Reference: Linux Filesystem Hierarchy - /usr/lib
+Reference: Filesystem Hierarchy - /usr/lib
   /usr/lib contains program libraries - collections of frequently used
   program routines. Libraries are essential for program execution and
   development.
@@ -24,10 +24,10 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 LIB_PATHS = [
     "/usr/lib",
     "/usr/lib64",
-    "/usr/lib/x86_64-linux-gnu",
-    "/usr/lib/i386-linux-gnu",
-    "/usr/lib/aarch64-linux-gnu",
-    "/usr/lib/arm-linux-gnueabihf",
+    "/usr/lib/x86_64-gnu",
+    "/usr/lib/i386-gnu",
+    "/usr/lib/aarch64-gnu",
+    "/usr/lib/arm-gnueabihf",
     "/usr/local/lib",
     "/usr/local/lib64",
 ]

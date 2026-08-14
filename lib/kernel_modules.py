@@ -123,7 +123,7 @@ class KernelModule:
 DEFAULT_KERNEL_VERSION = "6.6.0-UmerOS"
 MODULE_FILE_SUFFIXES = (".ko", ".ko.gz", ".ko.xz", ".ko.zst", ".ko.bz2")
 
-# A small but realistic starter catalogue covering the standard Linux drivers
+# A small but realistic starter catalogue covering the standard drivers
 # shipped with virtually every distribution.  Real UmerOS would scan the
 # on-disk .ko files; this catalogue is used when no .ko is present.
 _STARTER_MODULES: Dict[str, ModuleDependency] = {
@@ -330,7 +330,7 @@ class KernelModuleManager:
 
     def list_loaded_modules(self) -> List[str]:
         """List currently loaded modules (in-memory state)."""
-        # Fall back to /proc/modules for real Linux
+        # Fall back to /proc/modules
         proc_modules = Path("/proc/modules")
         if proc_modules.exists():
             loaded = []

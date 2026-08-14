@@ -1,7 +1,7 @@
 """
 UmerOS TEE Subsystem
 ====================
-Linux kernel-like TEE (Trusted Execution Environment) framework.
+Kernel-like TEE (Trusted Execution Environment) framework.
 Implements TEE device management, trusted applications,
 shared memory management, and session handling.
 

@@ -7,7 +7,7 @@ The /usr/include hierarchy contains C and C++ header files used by
 the system and locally installed software:
   - /usr/include           : Standard C headers
   - /usr/include/sys       : System-specific headers
-  - /usr/include/linux     : Linux kernel headers
+  - /usr/include/linux     : Kernel headers
   - /usr/include/glib-*    : GLib headers
   - /usr/include/X11       : X11 headers
   - /usr/local/include     : Locally installed headers

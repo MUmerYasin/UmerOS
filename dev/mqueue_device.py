@@ -1,7 +1,7 @@
 """
 UmerOS /dev/mqueue — POSIX message queue filesystem.
 
-Linux /dev/mqueue:
+ /dev/mqueue:
   /dev/mqueue/ — Mount point for mqueuefs, a pseudo-filesystem
   that exposes POSIX message queues as files. Each queue
   appears as a file readable with mq_getattr() and friends.

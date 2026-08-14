@@ -1,7 +1,7 @@
 """
 UmerOS Console Subsystem
 ========================
-Linux kernel-like console management with serial, framebuffer,
+Kernel-like console management with serial, framebuffer,
 and network consoles. Includes kernel log buffer and printk.
 """
 
@@ -62,7 +62,7 @@ _LOCK: threading.Lock = threading.Lock()
 class Console:
     """Kernel console device.
 
-    Mirrors Linux ``struct console`` — each registered console has a
+    Mirrors ``struct console`` — each registered console has a
     ``write`` callback, optional ``setup`` callback, and flag bitmask.
     """
     name: str
@@ -156,7 +156,7 @@ def _get_log_buffer() -> LogBuffer:
 # ── Console Registration API ───────────────────────────────────────────────────
 
 def console_register(con: Console) -> None:
-    """Register a console — like Linux ``console_register()``.
+    """Register a console — like ``console_register()``.
 
     Calls ``con.setup(con)`` when a setup callback is present.
     Raises ``ValueError`` on duplicate (name, index) pair.
@@ -307,7 +307,7 @@ def dmesg_clear() -> None:
 
 
 def printk(level: int, fmt: str, *args: Any) -> str:
-    """Kernel print function — like Linux ``printk()``.
+    """Kernel print function — like  ``printk()``.
 
     Supports %-style formatting.  Output is written to every enabled
     console and the log buffer.  Returns the formatted message.

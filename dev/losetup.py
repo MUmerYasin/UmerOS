@@ -11,7 +11,7 @@ FHS 3.0 /dev:
     losetup -d /dev/loopN         Detach /dev/loopN
     losetup -f                    Find first free loop device
 
-  Linux major:minor: loop0 = 7:0, loop1 = 7:1, ... loop7 = 7:7
+ major:minor: loop0 = 7:0, loop1 = 7:1, ... loop7 = 7:7
 
 Author:  Umer OS Project
 Licence: GPLv3

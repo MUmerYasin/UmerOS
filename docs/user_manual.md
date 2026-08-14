@@ -167,7 +167,7 @@ python -m boot.bootloader
 
   Umer OS v0.1.0-alpha
 ✓ Python 3.12.x
-✓ Platform: Linux / x86_64
+✓ Platform:   x86_64
 ✓ RAM: XXXX MiB
 ✓ Boot complete
 ```
@@ -226,7 +226,7 @@ The AI watches which apps you use most (all stored **locally on your device**) a
 ### Windows Programs (.exe) 🔬
 
 ```bash
-sudo apt install wine64   # Linux — install Wine first
+sudo apt install wine64   #Install Wine first
 # Then Umer OS automatically routes .exe launches through Wine
 ```
 

@@ -1,7 +1,7 @@
 """
 UmerOS HSI Subsystem
 ====================
-Linux kernel-like HSI (High Speed Synchronous Serial Interface) subsystem.
+Kernel-like HSI (High Speed Synchronous Serial Interface) subsystem.
 Implements HSI controllers, clients, and message passing for
 modem and inter-processor communication.
 

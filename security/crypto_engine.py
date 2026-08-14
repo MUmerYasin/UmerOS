@@ -10,7 +10,7 @@ Current implementation uses classical placeholders (AES-256-GCM via the
 The API surface is designed so that swapping in Kyber/Dilithium from
 liboqs-python requires zero call-site changes.
 
-Equivalent to Linux's crypto/ subsystem.
+Equivalent to crypto/ subsystem.
 """
 
 import hashlib

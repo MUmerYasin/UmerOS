@@ -1,7 +1,7 @@
 """
 Umer OS Shell Command Registry
 ==============================
-Implements comprehensive Linux commands covering:
+Implements comprehensive commands covering:
 - Hardware Information (lscpu, lsblk, lspci, lsusb, lshw, dmidecode, hdparm, badblocks, fsck)
 - Searching (find, grep, locate, which, whereis, awk, sed)
 - File Management (mkdir, rm, cp, mv, ln, touch, cat, head, tail, more, less, nano, vi/vim, gpg, wc, xargs, cut, shred, diff, source, tee)
@@ -98,11 +98,11 @@ class LsusbCommand(ShellCommand):
     
     def execute(self, ctx, args):
         return (
-            "Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub\n"
+            "Bus 002 Device 001: ID 1d6b:0003 Root hub\n"
             "Bus 001 Device 004: ID 046d:c52b Logitech, Inc. Unifying Receiver\n"
             "Bus 001 Device 003: ID 05e3:0610 Genesys Logic, Inc. Hub\n"
             "Bus 001 Device 002: ID 8087:0029 Intel Corp. AX200 Bluetooth\n"
-            "Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub"
+            "Bus 001 Device 001: ID 1d6b:0002 Root hub"
         )
 
 class LshwCommand(ShellCommand):
@@ -183,7 +183,7 @@ class FsckCommand(ShellCommand):
     def execute(self, ctx, args):
         dev = args[-1] if args else "/dev/sda1"
         return (
-            f"fsck from util-linux 2.34\n"
+            f"fsck from util 2.34\n"
             f"e2fsck 1.45.5 (07-Jan-2020)\n"
             f"{dev}: clean, 120485/30000000 files, 2104950/120000000 blocks"
         )
@@ -1350,7 +1350,7 @@ class HistoryCommand(ShellCommand):
 
 class TopCommand(ShellCommand):
     name = "top"
-    help_text = "Display Linux processes"
+    help_text = "Display processes"
     category = "Process Management"
     
     def execute(self, ctx, args):
@@ -1557,7 +1557,7 @@ class UnameCommand(ShellCommand):
     def execute(self, ctx, args):
         show_all = "-a" in args or "--all" in args
         if show_all:
-            return "UmerOS UmerOS-Node1 5.4.0-UmerOS #1 SMP PREEMPT 2026 x86_64 GNU/Linux"
+            return "UmerOS UmerOS-Node1 5.4.0-UmerOS #1 SMP PREEMPT 2026 x86_64"
         if "-r" in args:
             return "5.4.0-UmerOS"
         if "-m" in args:
@@ -1637,7 +1637,7 @@ class ShutdownCommand(ShellCommand):
 
 class ModprobeCommand(ShellCommand):
     name = "modprobe"
-    help_text = "Add and remove modules from the Linux Kernel"
+    help_text = "Add and remove modules from the Kernel"
     category = "System Management"
     
     def execute(self, ctx, args):
@@ -1692,8 +1692,8 @@ class FdiskCommand(ShellCommand):
             "Units: sectors of 1 * 512 = 512 bytes\n\n"
             "Device     Start        End    Sectors  Size Type\n"
             "/dev/sda1   2048    1050623    1048576  512M EFI System\n"
-            "/dev/sda2 1050624 1007615999 1006565376  480G Linux filesystem\n"
-            "/dev/sda3 1007616000 1048573951   40957952 19.5G Linux swap"
+            "/dev/sda2 1050624 1007615999 1006565376  480G filesystem\n"
+            "/dev/sda3 1007616000 1048573951   40957952 19.5G swap"
         )
 
 class MountCommand(ShellCommand):

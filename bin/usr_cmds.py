@@ -1434,7 +1434,7 @@ class IostatCommand:
         if args is None:
             args = []
         interval = int(args[0]) if args and args[0].isdigit() else 0
-        print(f"Linux 5.15.0-umeeros  (stub)")
+        print(f"UmerOS  (stub)")
         print()
         print("Device             tps    kB_read/s    kB_wrtn/s    kB_read    kB_wrtn")
         print("sda              12.34         0.56         2.34     123456     567890")
@@ -1704,7 +1704,7 @@ class TreeCommand:
 
 
 class LsbReleaseCommand:
-    """Linux Standard Base information (lsb_release)."""
+    """Standard Base information (lsb_release)."""
 
     def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args is None:
@@ -1727,7 +1727,7 @@ class LsbReleaseCommand:
         return 0
 
     def help(self) -> str:
-        return "lsb_release - Linux Standard Base information"
+        return "lsb_release - Standard Base information"
 
 
 class PwdxCommand:

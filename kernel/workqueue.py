@@ -1,7 +1,7 @@
 """
 Umer OS Workqueue Subsystem
 ===========================
-Inspired by Linux's workqueue.c, this subsystem handles deferred execution
+workqueue.c, this subsystem handles deferred execution
 of functions that don't need their own full Task/PID context, or for background
 kernel maintenance jobs.
 """

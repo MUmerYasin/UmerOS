@@ -188,7 +188,12 @@ UmerOS runs great in VMs:
 - QEMU/KVM
 - Hyper-V (Windows)
 ''',
-      'sections': ['Minimum Requirements', 'Recommended', 'Supported Architectures', 'Virtualization'],
+      'sections': [
+        'Minimum Requirements',
+        'Recommended',
+        'Supported Architectures',
+        'Virtualization',
+      ],
     },
     'desktop': {
       'title': 'Desktop Environment',
@@ -196,7 +201,7 @@ UmerOS runs great in VMs:
 # Desktop Environment
 
 ## Overview
-UmerOS uses the UmerDE, a modern Linux desktop environment built with:
+UmerOS uses the UmerDE, a modern desktop environment built with:
 - Wayland display server
 - GTK4/Libadwaita applications
 - Flutter-based system components
@@ -225,7 +230,12 @@ Add widgets to your desktop:
 2. Choose from: Clock, Weather, System Monitor, Notes
 3. Drag to position
 ''',
-      'sections': ['Overview', 'Panels and Docks', 'Virtual Workspaces', 'Widgets'],
+      'sections': [
+        'Overview',
+        'Panels and Docks',
+        'Virtual Workspaces',
+        'Widgets',
+      ],
     },
     'file-manager': {
       'title': 'File Manager',
@@ -260,7 +270,12 @@ Connect to network shares:
 - Supports regex patterns
 - Filter by type, date, size
 ''',
-      'sections': ['Interface', 'Keyboard Shortcuts', 'Network Locations', 'Search'],
+      'sections': [
+        'Interface',
+        'Keyboard Shortcuts',
+        'Network Locations',
+        'Search',
+      ],
     },
     'terminal': {
       'title': 'Terminal',
@@ -353,7 +368,7 @@ copy_on_select = true
 │   (DBus / Systemd)         │
 ├─────────────────────────────┤
 │   UmerOS Kernel Module      │
-│   (Linux 6.x + custom)     │
+│   (UmerOS 1.x + custom)     │
 ├─────────────────────────────┤
 │   Hardware Layer            │
 └─────────────────────────────┘
@@ -575,7 +590,12 @@ q1: ───────── ⊕ ───
 
 Minimize depth for faster execution on real hardware.
 ''',
-      'sections': ['Circuit Model', 'Example: Bell State', 'Circuit Visualization', 'Depth and Width'],
+      'sections': [
+        'Circuit Model',
+        'Example: Bell State',
+        'Circuit Visualization',
+        'Depth and Width',
+      ],
     },
     'algorithms': {
       'title': 'Quantum Algorithms',
@@ -603,7 +623,14 @@ Hybrid quantum-classical algorithm for finding ground state energies.
 - Machine learning acceleration
 - Drug discovery simulation
 ''',
-      'sections': ['Deutsch-Jozsa', 'Grover\'s Search', 'Shor\'s Factorization', 'Quantum Teleportation', 'VQE', 'Applications'],
+      'sections': [
+        'Deutsch-Jozsa',
+        'Grover\'s Search',
+        'Shor\'s Factorization',
+        'Quantum Teleportation',
+        'VQE',
+        'Applications',
+      ],
     },
     'overview': {
       'title': 'Security Overview',
@@ -630,7 +657,11 @@ UmerOS implements defense in depth:
 Email security@umeros.org with PGP encryption.
 Bug bounty: \$100 - \$10,000 based on severity.
 ''',
-      'sections': ['Security Model', 'Threat Categories', 'Reporting Vulnerabilities'],
+      'sections': [
+        'Security Model',
+        'Threat Categories',
+        'Reporting Vulnerabilities',
+      ],
     },
     'encryption': {
       'title': 'Encryption',
@@ -658,7 +689,12 @@ umer-crypto encrypt-file secret.txt
 All network connections use TLS 1.3 by default.
 Certificate transparency logging enabled.
 ''',
-      'sections': ['Full Disk Encryption', 'File-Level Encryption', 'Key Management', 'TLS/SSL'],
+      'sections': [
+        'Full Disk Encryption',
+        'File-Level Encryption',
+        'Key Management',
+        'TLS/SSL',
+      ],
     },
     'firewall': {
       'title': 'Firewall',
@@ -729,7 +765,12 @@ umer-box audit --app=com.example.myapp
 umer-box logs --app=com.example.myapp --tail
 ```
 ''',
-      'sections': ['UmerBox', 'Permissions', 'Confinement Profiles', 'Auditing'],
+      'sections': [
+        'UmerBox',
+        'Permissions',
+        'Confinement Profiles',
+        'Auditing',
+      ],
     },
     'kernel-api': {
       'title': 'Kernel API',
@@ -737,7 +778,7 @@ umer-box logs --app=com.example.myapp --tail
 # Kernel API
 
 ## System Calls
-Extended Linux syscalls for UmerOS features:
+Extended syscalls for UmerOS features:
 
 ```c
 // Process management
@@ -802,7 +843,12 @@ final records = await UmerDNS.resolve(
 );
 ```
 ''',
-      'sections': ['Connection Management', 'Service Discovery', 'Traffic Shaping', 'DNS'],
+      'sections': [
+        'Connection Management',
+        'Service Discovery',
+        'Traffic Shaping',
+        'DNS',
+      ],
     },
     'ai-api': {
       'title': 'AI API',
@@ -838,7 +884,12 @@ umer-ai hub pull --model=nlp-sentiment-v2
 umer-ai hub push --model=my-custom-model
 ```
 ''',
-      'sections': ['On-Device Inference', 'Speech Recognition', 'Image Processing', 'Model Hub'],
+      'sections': [
+        'On-Device Inference',
+        'Speech Recognition',
+        'Image Processing',
+        'Model Hub',
+      ],
     },
   };
 
@@ -904,12 +955,9 @@ umer-ai hub push --model=my-custom-model
                 if (!isCompact || _sidebarExpanded)
                   _buildLeftSidebar(context, isDark, isCompact),
                 // Content
-                Expanded(
-                  child: _buildContent(context, isDark),
-                ),
+                Expanded(child: _buildContent(context, isDark)),
                 // Right TOC
-                if (!isCompact && _tocExpanded)
-                  _buildRightToc(context, isDark),
+                if (!isCompact && _tocExpanded) _buildRightToc(context, isDark),
               ],
             ),
           ),
@@ -939,7 +987,8 @@ umer-ai hub push --model=my-custom-model
               _sidebarExpanded ? Icons.menu_open : Icons.menu,
               color: Colors.white,
             ),
-            onPressed: () => setState(() => _sidebarExpanded = !_sidebarExpanded),
+            onPressed: () =>
+                setState(() => _sidebarExpanded = !_sidebarExpanded),
             tooltip: 'Toggle sidebar',
           ),
           const SizedBox(width: 8),
@@ -966,10 +1015,19 @@ umer-ai hub push --model=my-custom-model
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: 'Search documentation...',
-                  hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-                  prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.6), size: 20),
+                  hintStyle: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    size: 20,
+                  ),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
                 onChanged: (value) {
                   setState(() => _searchQuery = value.toLowerCase());
@@ -1013,7 +1071,9 @@ umer-ai hub push --model=my-custom-model
               final title = (e.value['title'] as String).toLowerCase();
               final pages = e.value['pages'] as Map<String, String>;
               return title.contains(_searchQuery) ||
-                  pages.values.any((p) => p.toLowerCase().contains(_searchQuery));
+                  pages.values.any(
+                    (p) => p.toLowerCase().contains(_searchQuery),
+                  );
             }),
           );
 
@@ -1022,7 +1082,9 @@ umer-ai hub push --model=my-custom-model
       decoration: BoxDecoration(
         color: isDark ? Colors.grey[900] : Colors.grey[50],
         border: Border(
-          right: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+          right: BorderSide(
+            color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+          ),
         ),
       ),
       child: Column(
@@ -1034,7 +1096,9 @@ umer-ai hub push --model=my-custom-model
             decoration: BoxDecoration(
               color: isDark ? Colors.grey[850] : Colors.grey[100],
               border: Border(
-                bottom: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                bottom: BorderSide(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                ),
               ),
             ),
             child: Text(
@@ -1062,7 +1126,11 @@ umer-ai hub push --model=my-custom-model
     );
   }
 
-  Widget _buildTocSection(String sectionKey, Map<String, dynamic> section, bool isDark) {
+  Widget _buildTocSection(
+    String sectionKey,
+    Map<String, dynamic> section,
+    bool isDark,
+  ) {
     final title = section['title'] as String;
     final icon = section['icon'] as IconData;
     final pages = section['pages'] as Map<String, String>;
@@ -1076,7 +1144,11 @@ umer-ai hub push --model=my-custom-model
           children: [
             ListTile(
               dense: true,
-              leading: Icon(icon, size: 20, color: Theme.of(context).primaryColor),
+              leading: Icon(
+                icon,
+                size: 20,
+                color: Theme.of(context).primaryColor,
+              ),
               title: Text(
                 title,
                 style: TextStyle(
@@ -1091,7 +1163,8 @@ umer-ai hub push --model=my-custom-model
               ),
               onTap: () {
                 setState(() {
-                  (_toc[sectionKey]!['expanded'] as ValueNotifier<bool>).value = !expanded;
+                  (_toc[sectionKey]!['expanded'] as ValueNotifier<bool>).value =
+                      !expanded;
                 });
               },
             ),
@@ -1103,7 +1176,9 @@ umer-ai hub push --model=my-custom-model
                   child: ListTile(
                     dense: true,
                     selected: isSelected,
-                    selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                    selectedTileColor: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.1),
                     title: Text(
                       page.value,
                       style: TextStyle(
@@ -1111,7 +1186,9 @@ umer-ai hub push --model=my-custom-model
                         color: isSelected
                             ? Theme.of(context).primaryColor
                             : (isDark ? Colors.grey[400] : Colors.grey[600]),
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                     onTap: () => _navigateTo(sectionKey, page.key),
@@ -1138,9 +1215,9 @@ umer-ai hub push --model=my-custom-model
           // Page title
           Text(
             content['title']!,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           // Edit on GitHub button
@@ -1194,39 +1271,45 @@ umer-ai hub push --model=my-custom-model
 
       // Headers
       if (line.startsWith('# ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 24, bottom: 8),
-          child: Text(
-            line.substring(2),
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 24, bottom: 8),
+            child: Text(
+              line.substring(2),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
           ),
-        ));
+        );
         continue;
       }
       if (line.startsWith('## ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 20, bottom: 8),
-          child: Text(
-            line.substring(3),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 20, bottom: 8),
+            child: Text(
+              line.substring(3),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+            ),
           ),
-        ));
+        );
         continue;
       }
       if (line.startsWith('### ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 6),
-          child: Text(
-            line.substring(4),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 6),
+            child: Text(
+              line.substring(4),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
           ),
-        ));
+        );
         continue;
       }
 
@@ -1239,16 +1322,18 @@ umer-ai hub push --model=my-custom-model
       // List items
       if (line.trimLeft().startsWith('- ')) {
         final content = line.trimLeft().substring(2);
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
-              Expanded(child: _buildInlineText(content, isDark)),
-            ],
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                Expanded(child: _buildInlineText(content, isDark)),
+              ],
+            ),
           ),
-        ));
+        );
         continue;
       }
 
@@ -1257,16 +1342,21 @@ umer-ai hub push --model=my-custom-model
       if (numberedMatch != null) {
         final num = numberedMatch.group(1);
         final content = numberedMatch.group(2)!;
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('$num. ', style: const TextStyle(fontWeight: FontWeight.bold)),
-              Expanded(child: _buildInlineText(content, isDark)),
-            ],
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$num. ',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Expanded(child: _buildInlineText(content, isDark)),
+              ],
+            ),
           ),
-        ));
+        );
         continue;
       }
 
@@ -1277,10 +1367,12 @@ umer-ai hub push --model=my-custom-model
       }
 
       // Regular paragraph
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(top: 4, bottom: 4),
-        child: _buildInlineText(line, isDark),
-      ));
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 4),
+          child: _buildInlineText(line, isDark),
+        ),
+      );
     }
 
     return Column(
@@ -1302,21 +1394,25 @@ umer-ai hub push --model=my-custom-model
 
       if (match.group(1) != null) {
         // Inline code
-        spans.add(TextSpan(
-          text: match.group(1),
-          style: TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 13,
-            backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
-            color: isDark ? Colors.orange[300] : Colors.red[700],
+        spans.add(
+          TextSpan(
+            text: match.group(1),
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 13,
+              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
+              color: isDark ? Colors.orange[300] : Colors.red[700],
+            ),
           ),
-        ));
+        );
       } else if (match.group(2) != null) {
         // Bold
-        spans.add(TextSpan(
-          text: match.group(2),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ));
+        spans.add(
+          TextSpan(
+            text: match.group(2),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        );
       }
 
       lastEnd = match.end;
@@ -1345,7 +1441,9 @@ umer-ai hub push --model=my-custom-model
       decoration: BoxDecoration(
         color: isDark ? Colors.grey[900] : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? Colors.grey[700]! : Colors.grey[300]!),
+        border: Border.all(
+          color: isDark ? Colors.grey[700]! : Colors.grey[300]!,
+        ),
       ),
       child: SelectableText(
         code,
@@ -1364,7 +1462,9 @@ umer-ai hub push --model=my-custom-model
       decoration: BoxDecoration(
         color: isDark ? Colors.grey[900] : Colors.grey[50],
         border: Border(
-          left: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+          left: BorderSide(
+            color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+          ),
         ),
       ),
       child: Column(
@@ -1376,7 +1476,9 @@ umer-ai hub push --model=my-custom-model
             decoration: BoxDecoration(
               color: isDark ? Colors.grey[850] : Colors.grey[100],
               border: Border(
-                bottom: BorderSide(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+                bottom: BorderSide(
+                  color: isDark ? Colors.grey[800]! : Colors.grey[200]!,
+                ),
               ),
             ),
             child: Text(

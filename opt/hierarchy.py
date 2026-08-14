@@ -2,7 +2,7 @@
 UmerOS /opt — TLDP Directory Hierarchy Manager
 ================================================
 
-Manages the ``/opt`` directory tree per the Linux Filesystem Hierarchy
+Manages the ``/opt`` directory tree per the Filesystem Hierarchy
 Standard (TLDP) and FHS 3.0.
 
 Responsibilities

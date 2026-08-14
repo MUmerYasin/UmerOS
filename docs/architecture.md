@@ -7,25 +7,25 @@
 ## 1. High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         APPLICATIONS & USERS                                │
-│   Native Umer Apps │ Web Apps │ Windows .exe │ Android .apk │ Linux ELF    │
-└────────┬──────────────────────────────────────────────────────┬─────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│                         APPLICATIONS & USERS                          │
+│   Native Umer Apps │ Web Apps │ Windows .exe │ Android .apk │  ELF    │
+└────────┬──────────────────────────────────────────────────────┬───────┘
          │                                                      │
          ▼                                                      ▼
-┌─────────────────────────┐              ┌─────────────────────────────────────┐
-│     UI / UX ENGINE      │              │       COMPATIBILITY LAYER           │
-│  Kivy Shell / Headless  │              │  WineShim (.exe via Wine/LGPL)      │
-│  TaskBar · AppLauncher  │              │  AndroidContainer (APK/ADB)         │
-│  VoiceController        │              │  LinuxCompat (native ELF)           │
-│  AIUIAdapter            │              │  SyscallTranslator (Win32→POSIX)    │
-└─────────┬───────────────┘              └─────────────────┬───────────────────┘
+┌─────────────────────────┐              ┌─────────────────────────────────┐
+│     UI / UX ENGINE      │              │       COMPATIBILITY LAYER       │
+│  Kivy Shell / Headless  │              │  WineShim (.exe via Wine/LGPL)  │
+│  TaskBar · AppLauncher  │              │  AndroidContainer (APK/ADB)     │
+│  VoiceController        │              │  Compat (native ELF)            │
+│  AIUIAdapter            │              │  SyscallTranslator (Win32→POSIX)│
+└─────────┬───────────────┘              └─────────────────┬───────────────┘
           │                                                │
           └───────────────────┬────────────────────────────┘
                               │
                               ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     USER-SPACE SERVICES (Python)                            │
+┌───────────────────────────────────────────────────────────────────────────┐
+│                     USER-SPACE SERVICES (Python)                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐ │
 │  │ Quantum Layer│  │  AI Engine   │  │   Security   │  │  QFS (Storage) │ │
 │  │ QuantumSim   │  │ ResourceMgr  │  │  Sandbox     │  │  CASStore      │ │
@@ -33,35 +33,35 @@
 │  │ ErrorMitig.  │  │ SelfHealing  │  │  AIFirewall  │  │  AIIndexer     │ │
 │  │ PQ Crypto    │  │ Governance   │  │  IPCAuth     │  │  Snapshots     │ │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘  └───────┬────────┘ │
-│         └─────────────────┴──────────────────┴──────────────────┘          │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │             NETWORK + CLOUD + PACKAGES                                 │ │
-│  │  NetworkStack │ DNSoHTTPS │ VPN │ mDNS │ SyncAgent │ OTA │ UmerPkg   │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────┬───────────────────────────────────────────┘
+│         └─────────────────┴──────────────────┴──────────────────┘         │
+│  ┌───────────────────────────────────────────────────────────────────────┐│
+│  │             NETWORK + CLOUD + PACKAGES                                ││
+│  │  NetworkStack │ DNSoHTTPS │ VPN │ mDNS │ SyncAgent │ OTA │ UmerPkg    ││
+│  └───────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────┬─────────────────────────────────────────┘
                                   │ IPC Bus (HMAC-SHA256 signed messages)
                                   ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    UMER HYBRID QUANTUM KERNEL                               │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌───────────────────────────┐  │
-│  │ HybridScheduler │  │  MemoryManager  │  │       IPCBus              │  │
-│  │ Task dataclass  │  │ Page table dict │  │ HMAC-SHA256 signing       │  │
-│  │ quantum scoring │  │ allocate/free   │  │ async send/receive        │  │
-│  └────────┬────────┘  └────────┬────────┘  └────────────┬──────────────┘  │
-│  ┌────────┴────────────────────┴─────────────────────────┴──────────────┐  │
-│  │  CapabilityManager (SYSTEM_PID=0, register/grant/check)                │  │
-│  │  SecureBoot (SHA3-256 image verify, trust store, TPM log)              │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────┬───────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    UMER HYBRID QUANTUM KERNEL                            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌───────────────────────────┐ │
+│  │ HybridScheduler │  │  MemoryManager  │  │       IPCBus              │ │
+│  │ Task dataclass  │  │ Page table dict │  │ HMAC-SHA256 signing       │ │
+│  │ quantum scoring │  │ allocate/free   │  │ async send/receive        │ │
+│  └────────┬────────┘  └────────┬────────┘  └────────────┬──────────────┘ │
+│  ┌────────┴────────────────────┴─────────────────────────┴──────────────┐│
+│  │  CapabilityManager (SYSTEM_PID=0, register/grant/check)              ││
+│  │  SecureBoot (SHA3-256 image verify, trust store, TPM log)            ││
+│  └──────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────┬────────────────────────────────────────┘
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                   HARDWARE ABSTRACTION LAYER (HAL)                          │
 │  Keyboard │ Network │ GPU │ Storage │ Base Driver (all inherit DeviceDriver)│
 └─────────────────────────────────┬───────────────────────────────────────────┘
                                   ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  HARDWARE:  CPU (x86_64/ARM64/RISC-V) │ GPU/NPU │ RAM │ NVMe │ NIC │ USB   │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  HARDWARE:  CPU (x86_64/ARM64/RISC-V) │ GPU/NPU │ RAM │ NVMe │ NIC │ USB │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -161,22 +161,22 @@ APPLICATION CODE
       ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                    QuantumAPIGateway                            │
-│   run(circuit_ops, backend="simulator", shots=1024)              │
-│       │                                                          │
-│       ├── _required_qubits(circuit_ops)  ← dynamically sized!    │
-│       │       Prevents entangled states leaking into unused      │
-│       │       qubits (critical bug fixed: was fixed at 4 qubits) │
-│       │                                                          │
-│       ├── backend == "simulator"?                                │
-│       │       └── QuantumCircuitSimulator(n_qubits=required)     │
-│       │             state: complex ndarray[2^n]                  │
-│       │             apply_h() → Kronecker(H, I, I, ...)          │
-│       │             apply_cnot() → index-permutation              │
-│       │             measure() → weighted random sample            │
-│       │                                                          │
-│       └── backend == real QPU?  [FUTURE]                         │
-│               └── self._backends[backend].run_circuit(...)       │
-│                     └── QuantumDevice.run_circuit()  ← TODO      │
+│   run(circuit_ops, backend="simulator", shots=1024)             │
+│       │                                                         │
+│       ├── _required_qubits(circuit_ops)  ← dynamically sized!   │
+│       │       Prevents entangled states leaking into unused     │
+│       │       qubits (critical bug fixed: was fixed at 4 qubits │
+│       │                                                         │
+│       ├── backend == "simulator"?                               │
+│       │       └── QuantumCircuitSimulator(n_qubits=required)    │
+│       │             state: complex ndarray[2^n]                 │
+│       │             apply_h() → Kronecker(H, I, I, ...)         │
+│       │             apply_cnot() → index-permutation            │
+│       │             measure() → weighted random sample          │
+│       │                                                         │
+│       └── backend == real QPU?  [FUTURE]                        │
+│               └── self._backends[backend].run_circuit(...)      │
+│                     └── QuantumDevice.run_circuit()  ← TODO     │
 └─────────────────────────────────────────────────────────────────┘
       │  result = {"counts": {"0": 512, "3": 512}, "backend": "simulator"}
       ▼

@@ -1,7 +1,7 @@
 """
 UmerOS SoundWire Subsystem
 ==========================
-Linux kernel-like SoundWire subsystem for audio interconnect.
+Kernel-like SoundWire subsystem for audio interconnect.
 Implements SoundWire controllers, ports, and data channels for
 multi-channel audio streaming.
 

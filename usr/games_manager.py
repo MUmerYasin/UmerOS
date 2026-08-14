@@ -3,7 +3,7 @@ UmerOS Games Manager (/usr/games)
 ==================================
 System games and entertainment programs.
 
-Reference: Linux Filesystem Hierarchy - /usr/games
+  Filesystem Hierarchy - /usr/games
   /usr/games contains recreational and educational games
   installed on the system. These range from classic text-based
   games to more complex graphical games.

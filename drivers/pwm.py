@@ -1,7 +1,7 @@
 """
 UmerOS PWM Framework
 =====================
-Linux kernel Pulse Width Modulation subsystem.
+Kernel Pulse Width Modulation subsystem.
 Implements PWM controllers, channels, devices,
 and consumer/driver interfaces.
 """

@@ -1,7 +1,7 @@
 """
 UmerOS SPI Subsystem
 ====================
-Linux kernel-like Serial Peripheral Interface bus framework.
+Kernel-like Serial Peripheral Interface bus framework.
 Implements SPI controllers, devices, drivers, and transfers.
 """
 

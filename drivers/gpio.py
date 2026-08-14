@@ -1,7 +1,7 @@
 """
 UmerOS GPIO Framework
 =====================
-Linux kernel General Purpose I/O subsystem.
+Kernel General Purpose I/O subsystem.
 Implements GPIO controllers, descriptors, IRQ handling,
 debounce, open-drain/source modes, and simulated/MCU/I2C expander chips.
 """

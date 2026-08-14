@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class DeviceType(Enum):
-    """Linux device types."""
+    """Device types."""
     BLOCK = "block"
     CHAR = "char"
     FIFO = "fifo"
@@ -37,7 +37,7 @@ class DeviceNode:
     """
     Represents a device node in /dev.
 
-    In Linux, each device node has:
+    Each device node has:
     - name: The device name (e.g., "sda", "tty0")
     - dev_type: The type of device
     - major/minor: Device numbers for kernel identification
@@ -208,7 +208,6 @@ class DeviceManager:
         """
         Allocate major/minor numbers.
 
-        In Linux:
         - Block devices: major 8 (sd*), 253 (dm-*), 259 (nvme*), etc.
         - Char devices: major 4 (tty), 13 (input), 188 (usb-serial), etc.
         """
@@ -247,7 +246,7 @@ class MinorAllocator:
     """
     Allocates minor numbers for a given major number.
 
-    In Linux, minor numbers are managed per-major:
+    Minor numbers are managed per-major:
     - sd* (major 8): minors 0-255 for sda-sdz, 256+ for partitions
     - tty (major 4): minors 0-63 for tty0-tty63
     """

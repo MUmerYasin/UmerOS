@@ -1,7 +1,7 @@
 """
 UmerOS SysFS Module
 ====================
-Linux kernel /sys filesystem interface.
+Kernel /sys filesystem interface.
 Implements sysfs attributes, kobjects, and bus/model hierarchy.
 
 Reference: docs.kernel.org/userspace-api/sysfs.html
@@ -188,7 +188,7 @@ class SysFSClass:
 # ============================================================================
 
 class SysFS:
-    """Linux /sys filesystem simulation."""
+    """ /sys filesystem simulation."""
     root: SysFSKObject = field(default_factory=lambda: SysFSKObject(name="/sys", path="/sys"))
     buses: Dict[str, SysFSBus] = field(default_factory=dict)
     classes: Dict[str, SysFSClass] = field(default_factory=dict)

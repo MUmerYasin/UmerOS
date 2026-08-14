@@ -1,9 +1,8 @@
 # Umer OS /initrd
 
-A pure-Python implementation of Linux's `/initrd` runtime, builder and tools,
+A pure-Python implementation of `/initrd` runtime, builder and tools,
 designed for the Umer OS prototype.  It follows the eight-phase boot recipe
-from the [TLDP /initrd reference](https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/initrd.html)
-and adds UmerOS-specific extras (AI-driven module suggestions, scenario-based
+adds UmerOS-specific extras (AI-driven module suggestions, scenario-based
 recovery, post-quantum ready hooks, scenario runner).
 
 ## What is in here

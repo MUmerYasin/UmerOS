@@ -1,7 +1,7 @@
 """
 UmerOS Counter Framework
 =========================
-Linux kernel Hardware Counter subsystem.
+Kernel Hardware Counter subsystem.
 Implements counter devices, channels, and operations
 for counting events, encoder positions, and timer inputs.
 """

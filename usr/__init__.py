@@ -1,7 +1,7 @@
 """
 UmerOS Userspace API
 ====================
-Linux kernel userspace API modules.
+kernel userspace API modules.
 """
 
 from __future__ import annotations

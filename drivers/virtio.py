@@ -1,7 +1,7 @@
 """
 UmerOS VirtIO Subsystem
 ========================
-Linux kernel-like VirtIO subsystem for para-virtualized drivers.
+Kernel-like VirtIO subsystem for para-virtualized drivers.
 Implements VirtIO devices, virtqueues, and guest-host communication.
 
 Reference: drivers/virtio/

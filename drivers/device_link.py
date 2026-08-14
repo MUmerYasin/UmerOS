@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Device link utilities for UmerOS – mirrors Linux kernel device links.
+Device link utilities for UmerOS.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 UmerOS /opt — FHS Compliance Validator
 =======================================
 
-Audits the ``/opt`` hierarchy against the Linux Filesystem Hierarchy
+Audits the ``/opt`` hierarchy against the Filesystem Hierarchy
 Standard (TLDP) and FHS 3.0.
 
 Checks performed:

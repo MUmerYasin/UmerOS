@@ -189,7 +189,7 @@ class UdevRule:
         elif subsystem == "input" or kernel.startswith(("input", "mouse")):
             return DeviceType.CHAR
         elif subsystem == "net" or kernel.startswith(("eth", "wlan")):
-            return DeviceType.CHAR  # Network devices are char in Linux
+            return DeviceType.CHAR  # Network devices are char
         else:
             return DeviceType.CHAR
 

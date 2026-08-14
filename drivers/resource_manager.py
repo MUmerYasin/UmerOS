@@ -2,7 +2,7 @@
 """
 Umer OS Resource Manager
 
-Provides a simple managed resource system analogous to Linux's devres.
+Provides a simple managed resource system analogous to devres.
 Drivers can register resources with cleanup callbacks; when a device is
 unbound, all registered resources are released automatically.
 """

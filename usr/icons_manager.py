@@ -3,7 +3,7 @@ UmerOS Icons Manager (/usr/share/icons)
 ========================================
 System icons and icon themes.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/icons
+Reference: Filesystem Hierarchy - /usr/share/icons
   /usr/share/icons contains system icon themes and cursors.
   Icons are organized by theme, size, and category.
 """

@@ -1,7 +1,7 @@
 """
 UmerOS Media Subsystem
 ======================
-Linux kernel-like Media subsystem for V4L2, DVB, and camera interfaces.
+Kernel-like Media subsystem for V4L2, DVB, and camera interfaces.
 Implements media device topology, entities, pads, and links.
 
 Reference: Documentation/driver-api/media/

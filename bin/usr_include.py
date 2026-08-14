@@ -23,7 +23,7 @@ class IncludeDirCommand(Command):
             "/usr/include/ - C/C++ header files\n"
             "  stdio.h, stdlib.h, string.h, math.h, ...\n"
             "  Subdirectories by package:\n"
-            "    linux/     - Linux kernel headers\n"
+            "    /          -  kernel headers\n"
             "    sys/       - System headers\n"
             "    netinet/   - Network headers\n"
             "    X11/       - X11 headers (symlink)\n"
@@ -90,16 +90,16 @@ class CpuConfigCommand(Command):
 
     def execute(self, *args):
         return (
-            "/usr/include/x86_64-linux-gnu/ - x86_64 headers\n"
+            "/usr/include/x86_64-gnu/ - x86_64 headers\n"
             "  Architecture-specific system headers.\n"
         )
 
 
 class LinuxAsmCommand(Command):
-    """Linux asm/ headers - architecture-specific kernel interfaces."""
+    """Asm/ headers - architecture-specific kernel interfaces."""
 
-    name = "linux-asm"
-    description = "Linux asm/ headers - architecture-specific kernel interfaces"
+    name = "asm"
+    description = "asm/ headers - architecture-specific kernel interfaces"
     category = "usr"
     privileges = ["user"]
 
@@ -112,7 +112,7 @@ class LinuxAsmCommand(Command):
             "    asm/       - Symlink to asm-generic/ or arch-specific\n"
             "    asm-generic/ - Generic ASM definitions\n"
             "    drm/       - Direct Rendering Manager headers\n"
-            "    linux/     - Linux kernel headers\n"
+            "    linux/     - kernel headers\n"
             "    misc/      - Miscellaneous kernel headers\n"
             "    mtd/       - Memory Technology Device headers\n"
             "    rdma/      - RDMA subsystem headers\n"
@@ -132,7 +132,7 @@ class DrmHeadersCommand(Command):
     def execute(self, *args):
         return (
             "/usr/include/drm/ - Direct Rendering Manager headers\n"
-            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  FHS 3.0 §6.1.8: specific\n"
             "  drm.h, drm_mode.h, drm_sarea.h, ...\n"
             "  Used by: Graphics drivers, Mesa, libdrm\n"
             "  Provides: GPU/rendering device interface definitions\n"
@@ -150,7 +150,7 @@ class MtdHeadersCommand(Command):
     def execute(self, *args):
         return (
             "/usr/include/mtd/ - Memory Technology Device headers\n"
-            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  FHS 3.0 UmerOS-specific\n"
             "  mtd-user.h, mtd-abi.h, ...\n"
             "  Used by: Flash memory drivers, MTD subsystem\n"
             "  Provides: NAND/NOR flash interface definitions\n"
@@ -168,7 +168,7 @@ class RdmaHeadersCommand(Command):
     def execute(self, *args):
         return (
             "/usr/include/rdma/ - RDMA subsystem headers\n"
-            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  FHS 3.0 UmerOS-specific\n"
             "  rdma_user_cm.h, ib_userverbs.h, ...\n"
             "  Used by: InfiniBand, RoCE, iWARP drivers\n"
             "  Provides: Remote Direct Memory Access definitions\n"
@@ -204,8 +204,8 @@ class VideoHeadersCommand(Command):
     def execute(self, *args):
         return (
             "/usr/include/video/ - Video device headers\n"
-            "  FHS 3.0 §6.1.8: Linux-specific\n"
+            "  FHS 3.0 §6.1.8: \n"
             "  video_decoder.h, video_encoder.h, ...\n"
-            "  Used by: Video4Linux drivers, capture apps\n"
+            "  Used by: Video drivers, capture apps\n"
             "  Provides: Video device interface definitions\n"
         )

@@ -79,9 +79,9 @@ class DiskDeviceLinks:
             ],
             "by-partlabel": [
                 ("EFI System Partition", "/dev/sda1"),
-                ("Linux swap", "/dev/sda2"),
-                ("Linux filesystem", "/dev/sda3"),
-                ("Linux home", "/dev/sdb1"),
+                ("swap", "/dev/sda2"),
+                ("filesystem", "/dev/sda3"),
+                ("home", "/dev/sdb1"),
             ],
         }
         for category, pairs in defaults.items():

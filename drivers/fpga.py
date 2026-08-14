@@ -1,7 +1,7 @@
 """
 UmerOS FPGA Subsystem
 =====================
-Linux kernel-like FPGA (Field-Programmable Gate Array) framework.
+Kernel-like FPGA (Field-Programmable Gate Array) framework.
 Implements FPGA device management, bitstream loading,
 region management, and bridge control.
 

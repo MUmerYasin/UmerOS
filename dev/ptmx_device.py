@@ -6,7 +6,7 @@ FHS 3.0 /dev/ptmx:
   master fd and creates a corresponding /dev/pts/N slave.
   /dev/pts/ — Directory of PTY slave devices (numbered 0..N).
 
-Linux major:minor: ptmx = 5:2
+ major:minor: ptmx = 5:2
 
 Author:  Umer OS Project
 Licence: GPLv3

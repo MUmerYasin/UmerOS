@@ -1,7 +1,7 @@
 """
 UmerOS RPMsg Subsystem
 =======================
-Linux kernel-like RPMsg subsystem for inter-processor messaging.
+Kernel-like RPMsg subsystem for inter-processor messaging.
 Implements endpoint-based messaging between processors.
 
 Reference: drivers/rpmsg/

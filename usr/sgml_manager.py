@@ -3,7 +3,7 @@ UmerOS SGML Manager (/usr/share/sgml)
 ======================================
 SGML (Standard Generalized Markup Language) data and DTDs.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/sgml
+Reference: Filesystem Hierarchy - /usr/share/sgml
   /usr/share/sgml contains SGML document type definitions (DTDs),
   catalogs, and other SGML-related data files.
 """

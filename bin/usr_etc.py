@@ -21,7 +21,7 @@ class UsrEtcCommand(Command):
         return (
             "/usr/etc/ - System-wide configuration\n"
             "  Theoretically for configuration files shared across hosts.\n"
-            "  Virtually unused on modern Linux systems.\n"
+            "  Virtually unused on modern systems.\n"
             "  Preferred location: /etc/ for host-specific config,\n"
             "  /usr/share/etc/ for shareable config.\n"
         )

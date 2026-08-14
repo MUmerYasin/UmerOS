@@ -1,9 +1,9 @@
 """
 Umer OS Kernel Taint Tracking  [TODAY]
 ==========================================
-Integrity state bitmask inspired by Linux kernel/panic.c taint_flags.
+Integrity state bitmask inspired by kernel/panic.c taint_flags.
 
-    Linux reference: kernel/panic.c — taint_flags[] is a 20-bit bitmask
+    kernel/panic.c — taint_flags[] is a 20-bit bitmask
     recording categories of "badness": proprietary module loaded, bad page,
     machine check, unsigned module, etc.  Flags only increase — they are
     never cleared.  panic() messages include the taint string for forensic
@@ -59,7 +59,7 @@ _FLAG_LABEL: dict = {1 << i: _FLAGS[i][6:] for i, name in enumerate(_FLAGS)}
 class KernelTaint:
     """Monotonic bitmask tracking kernel integrity events.
 
-    Inspired by Linux ``kernel/panic.c``: once a taint bit is set it is
+    ``kernel/panic.c``: once a taint bit is set it is
     **never** cleared.  This gives post-mortem forensic value — the taint
     string tells you every category of degradation the system has
     experienced during its lifetime.

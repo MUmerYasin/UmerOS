@@ -1,10 +1,10 @@
 """
 UmerOS lost+found Module
 =========================
-A faithful simulation of the Linux /lost+found directory and the filesystem
+A faithful simulation of the /lost+found directory and the filesystem
 checker (fsck) recovery pipeline used in ext2/ext3/ext4 filesystems.
 
-In a real Linux filesystem, /lost+found is created by mkfs at the root of
+Filesystem, /lost+found is created by mkfs at the root of
 each partition.  fsck scans for orphaned inodes — inodes that are allocated
 (have data) but are not referenced by any directory entry — and creates hard
 links to them inside /lost+found, named by their inode number (e.g. #12345).
@@ -35,9 +35,6 @@ FsckReport          — Structured report from a fsck run (errors, recovered, ac
 FilesystemPartition — A simulated partition with its own inode table, superblock,
                       and lost+found instance.  Multiple partitions are isolated.
 
-Linux Reference
----------------
-- FHS:  https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/lostfound.html
 - mklost+found(8):  man8/mklost+found.8
 - fsck(8):          man8/fsck.8
 - ext4(5):          man5/ext4.5

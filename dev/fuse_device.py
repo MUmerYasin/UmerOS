@@ -1,7 +1,7 @@
 """
 UmerOS /dev/fuse — Filesystem in Userspace.
 
-Linux /dev/fuse (major 10, minor 229):
+/dev/fuse (major 10, minor 229):
   FUSE allows implementing filesystems in userspace. The kernel
   communicates with the FUSE daemon via /dev/fuse using a
   request/response protocol. Each mount creates a new FUSE

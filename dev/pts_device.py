@@ -5,7 +5,7 @@ FHS 3.0 /dev/pts:
   /dev/pts/0, /dev/pts/1, ...  — Pseudo-terminal slave nodes.
   Each slave is paired with a master via /dev/ptmx.
 
-Linux major:minor: 136:0 through 136:255
+ major:minor: 136:0 through 136:255
 
 Author:  Umer OS Project
 Licence: GPLv3

@@ -1,7 +1,7 @@
 """
 UmerOS SCSI Subsystem
 =====================
-Linux kernel-like SCSI (Small Computer System Interface) subsystem.
+Kernel-like SCSI (Small Computer System Interface) subsystem.
 Implements host adapter management, SCSI devices, command processing,
 tagged queuing, and error recovery.
 

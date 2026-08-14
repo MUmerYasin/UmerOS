@@ -21,7 +21,7 @@ import time
 import random # Needed for the enhanced AI logic
 import secrets # Needed for crypto
 
-# ── Linux-inspired kernel modules (NEW) ──────────────────────────────────────
+# ── kernel modules (NEW) ──────────────────────────────────────
 from kernel.pid_allocator import PidAllocator, PID_SYSTEM, PID_INIT
 from kernel.taint import KernelTaint, TAINT_OOM_KILL, TAINT_CRYPTO_FAIL, TAINT_SANDBOX_VIOLATION
 from kernel.sysctl import SysctlRegistry, TYPE_INT, TYPE_BOOL
@@ -35,7 +35,7 @@ from kernel.reboot import RebootManager, SystemState
 from kernel.resource import ResourceManager, IORESOURCE_MEM, IORESOURCE_IO
 from kernel.softirq import SoftIRQManager, TaskletManager
 
-# -- Linux lost+found / fsck subsystem (lib/lostfound) --
+# -- lost+found / fsck subsystem (lib/lostfound) --
 try:
     from lib.lostfound import (
         FilesystemChecker as _LostFoundFsck,
@@ -193,7 +193,7 @@ class VirtualFileSystem:
         self.fs = underlying_fs
         self.root = VFSNode("/", is_dir=True)
         self.cwd = "/"
-        # Pre-populate base Linux directories and system files
+        # Pre-populate system files
         self.mkdir("/home", parents=True)
         self.mkdir("/home/umer", parents=True)
         self.mkdir("/etc", parents=True)
@@ -210,14 +210,14 @@ class VirtualFileSystem:
         self.write_file("/etc/hostname", "UmerOS-Node1\n")
         self.write_file("/etc/issue", "UmerOS v2.1.0 Quantum Kernel \\n \\l\n")
         self.touch("/var/log/dmesg.log")
-        self.write_file("/var/log/dmesg.log", "[ 0.000000] Linux version 5.4.0-UmerOS (root@buildhost) (gcc version 9.3.0)\n[ 0.000005] Command line: BOOT_IMAGE=/vmlinuz-umer root=QFS quiet\n")
+        self.write_file("/var/log/dmesg.log", "[ 0.000000] UmerOS (root@buildhost) (gcc version 9.3.0)\n[ 0.000005] Command line: BOOT_IMAGE=/vmlinuz-umer root=QFS quiet\n")
 
         # Proc virtual files
         self.write_file("/proc/cpuinfo", "processor\t: 0\nvendor_id\t: QuantumGenuineIntel\ncpu family\t: 6\nmodel name\t: UmerOS Quantum AI Accelerator CPU @ 3.40GHz\nstepping\t: 3\ncpu MHz\t\t: 3400.000\ncache size\t: 16384 KB\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb cat_l3 cdp_l3 invpcid_single intel_pt ssbd mba ibrs ibpb stibp ibrs_enhanced tpr_shadow vnmi flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rtm mpx rdt_a avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves split_lock_detect wbnoinvd dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req avx512_vbmi umip pku ospke avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm md_clear flush_l1d arch_capabilities\n\n")
         self.write_file("/proc/meminfo", "MemTotal:        4194304 kB\nMemFree:         2097152 kB\nMemAvailable:    2883584 kB\nBuffers:          112230 kB\nCached:          1011846 kB\nSwapTotal:       2097152 kB\nSwapFree:        2097152 kB\nDirty:                 0 kB\nWriteback:             0 kB\nAnonPages:       1048576 kB\nMapped:           262144 kB\nShmem:             16384 kB\nSlab:             131072 kB\nSReclaimable:      98304 kB\nSUnreclaim:        32768 kB\nKernelStack:       16384 kB\nPageTables:        32768 kB\n")
         self.write_file("/proc/mounts", "qfs_root / qfs rw,relatime 0 0\nproc /proc proc rw,nosuid,nodev,noexec,relatime 0 0\nsysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0\ndevtmpfs /dev devtmpfs rw,nosuid,size=2000000k,nr_inodes=500000,mode=755 0 0\ntmpfs /run tmpfs rw,nosuid,nodev,mode=755 0 0\n")
         self.write_file("/proc/uptime", "3600.00 7100.00\n")
-        self.write_file("/proc/version", "Linux version 5.4.0-UmerOS (root@buildhost) (gcc version 9.3.0) #1 SMP PREEMPT 2026\n")
+        self.write_file("/proc/version", "UmerOS (root@buildhost) (gcc version 9.3.0) #1 SMP PREEMPT 2026\n")
 
         self.cwd = "/home/umer"
 
@@ -685,7 +685,7 @@ class UmerKernel:
         self.crypto = CryptoEngine()
         self.sandbox = SecuritySandbox()
 
-        # Root partition with its own isolated lost+found (Linux FHS).
+        # Root partition with its own isolated lost+found.
         if _LOSTFOUND_AVAILABLE:
             self.root_partition = _LostFoundPartition(
                 name="qfs_root", mount_point="/",
@@ -710,47 +710,47 @@ class UmerKernel:
         self.running = False
         self._shutdown_requested = False # Flag to signal shutdown
 
-        # ── Linux-inspired kernel subsystems (NEW) ──────────────────────────────
+        # ── kernel subsystems (NEW) ──────────────────────────────
         # PID allocator: replaces hardcoded PIDs with cyclic allocation
-        # Inspired by Linux kernel/pid.c — alloc_pid() with idr_alloc_cyclic.
+        # kernel/pid.c — alloc_pid() with idr_alloc_cyclic.
         self.pid_allocator = PidAllocator()
 
         # Kernel taint: monotonic bitmask tracking integrity events.
-        # Inspired by Linux kernel/panic.c — taint_flags[].
+        # kernel/panic.c — taint_flags[].
         self.taint = KernelTaint()
 
         # Sysctl: runtime-tunable parameters.
-        # Inspired by Linux kernel/sysctl.c — /proc/sys/.
+        # kernel/sysctl.c — /proc/sys/.
         self.sysctl = SysctlRegistry()
         self._register_default_sysctls()
 
         # Panic notifier chain: subsystems react to fatal events.
-        # Inspired by Linux kernel/panic.c — panic_notifier_list.
+        # kernel/panic.c — panic_notifier_list.
         self.panic_notifier = PanicNotifier()
 
         # Warn counter: rate-limited warning with optional panic on overflow.
-        # Inspired by Linux kernel/panic.c — check_panic_on_warn().
+        # kernel/panic.c — check_panic_on_warn().
         self.warn_counter = WarnCounter(limit=0)  # 0 = unlimited by default
 
-        # ── NEW: More Linux-inspired subsystems ─────────────────────────────
+        # ── NEW: More subsystems ─────────────────────────────
         # Credential store: per-task uid/gid/caps with copy-on-write + override.
-        # Inspired by Linux kernel/cred.c (David Howells).
+        # kernel/cred.c (David Howells).
         self.cred_store = CredentialStore()
 
         # Reboot manager: ordered reboot/halt/poweroff notifier chains.
-        # Inspired by Linux kernel/reboot.c.
+        #  kernel/reboot.c.
         self.reboot = RebootManager()
 
         # Resource manager: I/O port / MMIO / IRQ / DMA region tracking.
-        # Inspired by Linux kernel/resource.c (<linux/ioport.h>).
+        # kernel/resource.c (<linux/ioport.h>).
         self.resources = ResourceManager()
 
         # SoftIRQ manager + tasklets: deferred interrupt bottom-halves.
-        # Inspired by Linux kernel/softirq.c.
+        # kernel/softirq.c.
         self.softirq = SoftIRQManager()
         self.tasklets = TaskletManager(self.softirq)
 
-        log.info("Linux-inspired kernel subsystems initialised "
+        log.info("kernel subsystems initialised "
                  "(PID allocator, taint, sysctl, panic notifier, "
                  "credentials, reboot, resources, softirq).")
 
@@ -761,7 +761,7 @@ class UmerKernel:
     def _register_default_sysctls(self) -> None:
         """Register default runtime-tunable kernel parameters.
 
-        Inspired by Linux ``kernel/sysctl.c`` — exposes knobs for
+        ``kernel/sysctl.c`` — exposes knobs for
         panic timeout, hung-task threshold, and warn limit.
         """
         self.sysctl.register(
@@ -788,7 +788,7 @@ class UmerKernel:
     async def panic(self, message: str) -> None:
         """Handle a fatal kernel error.
 
-        Inspired by Linux ``panic()``: logs the message, fires the panic
+        ``panic()``: logs the message, fires the panic
         notifier chain (so subsystems can dump state / zero keys), taints
         the kernel, then either hangs or reboots based on
         ``kernel.panic_timeout``.
@@ -825,7 +825,7 @@ class UmerKernel:
         print("[KERNEL] Boot sequence initiated.")
         self.running = True
 
-        # ── Linux-inspired: transition system_state BOOTING → RUNNING,
+        # ── transition system_state BOOTING → RUNNING,
         # start softirq daemon (ksoftirqd) and register root credentials.
         self.reboot.mark_running()
         await self.softirq.start()
@@ -857,7 +857,7 @@ class UmerKernel:
 
 
         # --- Remainder of Boot Sequence (as per original complex kernel) ---
-        # Register init process — use the PID allocator (Linux pid.c style)
+        # Register init process — use the PID allocator ( pid.c style)
         # instead of a hardcoded PID. Reserve PID_INIT (1000) for init.
         init_pid = PID_INIT
         self.pid_allocator._in_use.add(init_pid)  # mark as allocated
@@ -873,7 +873,7 @@ class UmerKernel:
         print("[KERNEL] Mounting Quantum File System via VFS...")
         self.qfs.mount("/")
 
-        # Root-partition fsck + lost+found setup (Linux FHS /lost+found).
+        # Root-partition fsck + lost+found setup ( FHS /lost+found).
         # mkfs.ext4 creates /lost+found with preallocated blocks; fsck then
         # recovers any orphaned inodes into it before the FS goes live.
         if self.root_partition is not None:
@@ -970,13 +970,13 @@ class UmerKernel:
     async def shutdown(self) -> None:
         """Gracefully shut down the kernel in ordered phases.
 
-        Inspired by Linux ``kernel/reboot.c`` — ``kernel_restart_prepare()``
+        ``kernel/reboot.c`` — ``kernel_restart_prepare()``
         → ``device_shutdown()`` → ``syscore_shutdown()`` → halt.
         Each phase is logged so the operator can see where shutdown stalls.
         """
         log.info("=== Graceful shutdown initiated ===")
 
-        # Phase 0: Trigger the reboot notifier chain (Linux reboot.c style).
+        # Phase 0: Trigger the reboot notifier chain ( reboot.c style).
         log.info("[shutdown] Phase 0/5: Firing reboot notifiers...")
         try:
             from kernel.reboot import RebootAction

@@ -1,8 +1,7 @@
 """
-Tests for the new Linux-inspired kernel modules:
+Tests for the new kernel modules:
   cred.py, reboot.py, resource.py, softirq.py
 
-These mirror the structure of the original Linux source files they were
 ported from (cred.c, reboot.c, resource.c, softirq.c).
 """
 from __future__ import annotations

@@ -1,7 +1,7 @@
 """
 UmerOS Pin Control Subsystem
 ============================
-Linux kernel-like pin multiplexing and configuration framework.
+Kernel-like pin multiplexing and configuration framework.
 Manages pin states, muxing, drive strength, and pull resistors.
 """
 

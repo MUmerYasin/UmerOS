@@ -1,7 +1,7 @@
 """
 UmerOS Init System Configuration Manager
 
-Manages Linux init system configuration files:
+Manages init system configuration files:
   - /etc/inittab (SysV init default runlevel and actions)
   - /etc/init.d/ (service scripts)
   - /etc/rc?.d/ (rc0.d through rc6.d, symlinks for enable/disable)

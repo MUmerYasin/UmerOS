@@ -1,7 +1,7 @@
 """
 UmerOS TEE Module
 ==================
-Linux kernel TEE (Trusted Execution Environment) subsystem.
+Kernel TEE (Trusted Execution Environment) subsystem.
 Implements OP-TEE interface, shared memory, and trusted commands.
 
 Reference: docs.kernel.org/userspace-api/tee.html
@@ -279,7 +279,7 @@ class TEEContext:
 # ============================================================================
 
 class TEE:
-    """Linux TEE subsystem."""
+    """ TEE subsystem."""
     def __init__(self) -> None:
         self.contexts: Dict[int, TEEContext] = {}
         self._next_ctx_id: int = 1

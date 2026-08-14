@@ -1,7 +1,7 @@
 """
 UmerOS ACPI Subsystem
 =====================
-Linux kernel-like ACPI (Advanced Configuration and Power Interface) support.
+Kernel-like ACPI (Advanced Configuration and Power Interface) support.
 Implements ACPI tables, devices, power management, thermal zones,
 and event handling mirroring the kernel's drivers/acpi/.
 

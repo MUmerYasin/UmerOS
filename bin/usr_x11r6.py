@@ -210,7 +210,7 @@ class X11R6LibModulesCommand(Command):
         if args and args[0] in ("-l", "--long"):
             return (
                 "/usr/X11R6/lib/modules: 8 module categories\n"
-                "  video4linux/     12 modules  Video capture devices\n"
+                "  video4/          12 modules  Video capture devices\n"
                 "  drivers/         24 modules  GPU drivers (nvidia, ati, intel)\n"
                 "  extensions/      18 modules  X extension modules\n"
                 "  input/           15 modules  Input device drivers\n"
@@ -222,7 +222,7 @@ class X11R6LibModulesCommand(Command):
         if args and args[0] in ("-c", "--categories"):
             return (
                 "Module categories:\n"
-                "  video4linux/     Video capture (v4l, radio, tv)\n"
+                "  video4/          Video capture (v4l, radio, tv)\n"
                 "  drivers/         GPU drivers (nvidia, ati, intel, nouveau)\n"
                 "  extensions/      X extensions (glx, dri, randr, composite)\n"
                 "  input/           Input drivers (keyboard, mouse, synaptics)\n"
@@ -231,7 +231,7 @@ class X11R6LibModulesCommand(Command):
             )
         return (
             "/usr/X11R6/lib/modules/ - X11 loadable modules\n"
-            "  video4linux, DRI, GLX extensions, input device drivers\n"
+            "  video4, DRI, GLX extensions, input device drivers\n"
             "  Use --long for detailed listing, --categories for grouping\n"
         )
 
@@ -381,7 +381,7 @@ class XorgCommand(Command):
                 "X.Org X Server 1.21.1.8\n"
                 "Release Date: 2022-10-15\n"
                 "X Protocol Version 11, Revision 0\n"
-                "Build Operating System: Linux 5.15.0 x86_64\n"
+                "Build Operating System: UmerOS x86_64\n"
                 "Current OS: UmerOS 1.0 (Unix-like)\n"
             )
         if args and args[0] in ("-configure",):

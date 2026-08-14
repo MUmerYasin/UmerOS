@@ -63,7 +63,7 @@ class VfsNode:
     @property
     def size(self) -> int:
         if self.is_dir:
-            # Linux reports dir size as a fixed 4096 in stat.
+            # reports dir size as a fixed 4096 in stat.
             return 4096
         return len(self.data)
 

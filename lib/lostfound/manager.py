@@ -16,10 +16,6 @@ This module faithfully reproduces the behaviour of:
     lost+found, but it is the only tool that re-links files found in
     lost+found back into the live tree.
 
-Linux reference:
-  * https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/lostfound.html
-  * man 8 mklost+found
-  * man 8 fsck
 """
 
 from __future__ import annotations
@@ -109,7 +105,7 @@ class LostFoundEntry:
 class LostFoundManager:
     """Manages a single partition's ``lost+found`` directory.
 
-    A real Linux partition has exactly one ``lost+found`` at its mount root.
+    A real partition has exactly one ``lost+found`` at its mount root.
     Each partition's lost+found is fully isolated.
 
     Args:

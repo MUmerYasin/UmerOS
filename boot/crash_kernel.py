@@ -304,7 +304,7 @@ class KdumpKernelBuilder:
         return (
             "menuentry 'UmerOS (kdump enabled)' {\n"
             "    insmod all_video\n"
-            "    linux /boot/vmlinuz root=/dev/sda1 "
+            "     /boot/vmlinuz root=/dev/sda1 "
             f"{self.get_kernel_cmdline_reservation()} "
             "systemd.unit=multi-user.target\n"
             "    initrd /boot/initrd.img\n"

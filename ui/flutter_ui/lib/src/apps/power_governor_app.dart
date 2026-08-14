@@ -38,9 +38,21 @@ class _PowerGovernorAppState extends State<PowerGovernorApp> {
   ];
 
   final List<Map<String, String>> _deviceLinks = [
-    {'consumer': 'gpu_accelerator_0', 'supplier': 'power_bus_cpu0', 'flags': 'PM_RUNTIME | STATELESS'},
-    {'consumer': 'network_phy_eth0', 'supplier': 'pci_bridge_0', 'flags': 'STATELESS'},
-    {'consumer': 'quantum_al_unit', 'supplier': 'power_bus_cpu0', 'flags': 'PM_RUNTIME'},
+    {
+      'consumer': 'gpu_accelerator_0',
+      'supplier': 'power_bus_cpu0',
+      'flags': 'PM_RUNTIME | STATELESS',
+    },
+    {
+      'consumer': 'network_phy_eth0',
+      'supplier': 'pci_bridge_0',
+      'flags': 'STATELESS',
+    },
+    {
+      'consumer': 'quantum_al_unit',
+      'supplier': 'power_bus_cpu0',
+      'flags': 'PM_RUNTIME',
+    },
   ];
 
   void _triggerIdleState() {
@@ -77,7 +89,11 @@ class _PowerGovernorAppState extends State<PowerGovernorApp> {
                     CircleAvatar(
                       radius: 24,
                       backgroundColor: colorScheme.primaryContainer,
-                      child: Icon(Icons.bolt, color: colorScheme.primary, size: 28),
+                      child: Icon(
+                        Icons.bolt,
+                        color: colorScheme.primary,
+                        size: 28,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -86,11 +102,18 @@ class _PowerGovernorAppState extends State<PowerGovernorApp> {
                         children: [
                           Text(
                             'CPUIdle & Power Governor Framework',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colorScheme.onSurface),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
                           ),
                           Text(
                             'UmerOS Kernel Power Management Driver',
-                            style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
@@ -146,7 +169,14 @@ class _PowerGovernorAppState extends State<PowerGovernorApp> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Power Governor Configuration', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colorScheme.onSurface)),
+                    Text(
+                      'Power Governor Configuration',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
                       initialValue: _selectedGovernorIndex,
@@ -155,12 +185,23 @@ class _PowerGovernorAppState extends State<PowerGovernorApp> {
                         border: OutlineInputBorder(),
                       ),
                       items: List.generate(_governors.length, (idx) {
-                        return DropdownMenuItem(value: idx, child: Text(_governors[idx]));
+                        return DropdownMenuItem(
+                          value: idx,
+                          child: Text(_governors[idx]),
+                        );
                       }),
-                      onChanged: (val) => setState(() => _selectedGovernorIndex = val!),
+                      onChanged: (val) =>
+                          setState(() => _selectedGovernorIndex = val!),
                     ),
                     const SizedBox(height: 14),
-                    Text('Max Latency Budget: ${_latencyBudget.round()} µs', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colorScheme.onSurface)),
+                    Text(
+                      'Max Latency Budget: ${_latencyBudget.round()} µs',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
                     Slider(
                       value: _latencyBudget,
                       min: 10,
@@ -179,34 +220,70 @@ class _PowerGovernorAppState extends State<PowerGovernorApp> {
             const SizedBox(height: 14),
 
             // Idle States Table
-            Text('Registered CPU Idle States', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colorScheme.onSurface)),
+            Text(
+              'Registered CPU Idle States',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
             const SizedBox(height: 8),
-            ..._idleStates.map((st) => Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: colorScheme.primaryContainer,
-                      child: Icon(Icons.bedtime, color: colorScheme.primary, size: 18),
-                    ),
-                    title: Text(st['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    subtitle: Text('${st['description']} • Latency: ${st['latency']} µs'),
-                    trailing: Chip(
-                      label: Text('${st['power']} mW'),
-                      backgroundColor: Colors.green.withValues(alpha: 0.2),
+            ..._idleStates.map(
+              (st) => Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: colorScheme.primaryContainer,
+                    child: Icon(
+                      Icons.bedtime,
+                      color: colorScheme.primary,
+                      size: 18,
                     ),
                   ),
-                )),
+                  title: Text(
+                    st['name'],
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${st['description']} • Latency: ${st['latency']} µs',
+                  ),
+                  trailing: Chip(
+                    label: Text('${st['power']} mW'),
+                    backgroundColor: Colors.green.withValues(alpha: 0.2),
+                  ),
+                ),
+              ),
+            ),
 
             const SizedBox(height: 14),
             // Device Links Tree
-            Text('Device PM Links (Linux Driver Model)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colorScheme.onSurface)),
+            Text(
+              'Device PM Links (Driver Model)',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
             const SizedBox(height: 8),
-            ..._deviceLinks.map((link) => Card(
-                  child: ListTile(
-                    leading: Icon(Icons.account_tree, color: colorScheme.primary),
-                    title: Text('${link['consumer']} ➔ ${link['supplier']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                    subtitle: Text('Flags: ${link['flags']}'),
+            ..._deviceLinks.map(
+              (link) => Card(
+                child: ListTile(
+                  leading: Icon(Icons.account_tree, color: colorScheme.primary),
+                  title: Text(
+                    '${link['consumer']} ➔ ${link['supplier']}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
-                )),
+                  subtitle: Text('Flags: ${link['flags']}'),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -239,9 +316,23 @@ class _MetricCard extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(height: 6),
-            Text(title, style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant), textAlign: TextAlign.center),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 2),
-            Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: colorScheme.onSurface)),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
           ],
         ),
       ),

@@ -1,9 +1,8 @@
 """
 UmerOS filedesc Module
 ======================
-Linux kernel file descriptor APIs: pidfd, eventfd, signalfd, timerfd.
+kernel file descriptor APIs: pidfd, eventfd, signalfd, timerfd.
 
-Reference: man7.org/linux/man-pages/
 """
 
 from __future__ import annotations
@@ -271,7 +270,7 @@ class PidfdState:
 # ============================================================================
 
 class FileDesc:
-    """Linux file descriptor subsystem (pidfd/eventfd/signalfd/timerfd)."""
+    """file descriptor subsystem (pidfd/eventfd/signalfd/timerfd)."""
     def __init__(self) -> None:
         self.eventfds: Dict[int, EventfdState] = {}
         self.signalfds: Dict[int, SignalfdState] = {}

@@ -1,7 +1,7 @@
 """
 UmerOS Device I/O Framework
 ===========================
-Linux kernel Bus-Independent Device Accesses.
+Kernel Bus-Independent Device Accesses.
 Implements MMIO (readb/w/l/q, writeb/w/l/q, ioremap),
 Port I/O (inb/w/l, outb/w/l), DMA buffers (alloc, map, sync),
 and simulated UART/SPI/I2C devices.
@@ -127,7 +127,7 @@ class PioXfer:
 
 
 # ---------------------------------------------------------------------------
-# MMIO API  (Linux kernel ioremap / readb / writeb style)
+# MMIO API  (Kernel ioremap / readb / writeb style)
 # ---------------------------------------------------------------------------
 
 def devm_ioremap(name: str, phys_addr: int, size: int) -> MmioRegion:

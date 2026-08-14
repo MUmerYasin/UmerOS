@@ -22,7 +22,7 @@ class LibDirCommand(Command):
         return (
             "/usr/lib/ - Shared libraries and modules\n"
             "  libm.so, libpthread.so, libc.so, ...\n"
-            "  x86_64-linux-gnu/ - Architecture-specific libs\n"
+            "  x86_64-gnu/ - Architecture-specific libs\n"
             "  modules/ - Kernel modules (legacy)\n"
             "  debug/ - Debug symbols\n"
         )
@@ -40,7 +40,7 @@ class LdConfigCommand(Command):
         if args and args[0] == "-p":
             return (
                 "/usr/lib/ (0 files):\n"
-                "  ld-linux-x86-64.so.2 -> ld-2.31.so\n"
+                "  ld-UmerOS-x86-64.so.2 -> ld-2.31.so\n"
                 "  libc.so.6 -> libc-2.31.so\n"
                 "  libm.so.6 -> libm-2.31.so\n"
                 "  libpthread.so.0 -> libpthread-2.31.so\n"
@@ -52,13 +52,13 @@ class LdConfigCommand(Command):
 class LdLinuxCommand(Command):
     """Dynamic linker/loader."""
 
-    name = "ld-linux"
-    description = "Dynamic linker/loader (ld-linux-x86-64.so.2)"
+    name = "ld"
+    description = "Dynamic linker/loader (ld-x86-64.so.2)"
     category = "usr"
     privileges = ["user"]
 
     def execute(self, *args):
-        return "ld-linux: dynamic linker (used internally by ELF loader)\n"
+        return "ld: dynamic linker (used internally by ELF loader)\n"
 
 
 class LdPreloadCommand(Command):

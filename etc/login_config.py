@@ -2,7 +2,7 @@
 UmerOS Login/Security Configuration Manager
 
 Manages login.defs, securetty, nologin, lastlog, and login-related configs
-for the UmerOS Linux distribution.
+for the UmerOS distribution.
 
 Author: UmerOS Development Team
 License: GPL-3.0
@@ -26,7 +26,7 @@ FAILLOG = "/etc/security/faillog"
 LOGIN_DEFS_BAK = "/etc/login.defs.old"
 
 # ---------------------------------------------------------------------------
-# Default login.defs values (mirrors standard Linux login.defs)
+# Default login.defs values 
 # ---------------------------------------------------------------------------
 
 LOGIN_DEFS_DEFAULTS: Dict[str, str] = {

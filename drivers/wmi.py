@@ -1,7 +1,7 @@
 """
 UmerOS WMI Subsystem
 ====================
-Linux kernel-like WMI (Windows Management Instrumentation) subsystem.
+Kernel-like WMI (Windows Management Instrumentation) subsystem.
 Implements WMI device enumeration, method evaluation, event handling,
 and data block access for ACPI/WMI interfaces.
 

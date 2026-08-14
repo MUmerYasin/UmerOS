@@ -8,7 +8,7 @@ This module implements kernel-like advanced CPU idle management features:
 - Per-CPU device registration with governor integration
 - Governor selection with accuracy tracking and reflection
 
-Mirrors the Linux kernel's cpuidle driver architecture as documented in
+The Kernel's cpuidle driver architecture as documented in
 Documentation/admin-guide/pm/cpuidle.rst (kernel 7.2.0-rc6).
 """
 

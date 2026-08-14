@@ -1,9 +1,9 @@
 """
 Umer OS Signal Delivery  [TODAY]
 =================================
-Inter-task signal mechanism inspired by Linux kernel/signal.c.
+Inter-task signal mechanism inspired by kernel/signal.c.
 
-    Linux reference: kernel/signal.c — __send_signal_locked queues a
+    kernel/signal.c — __send_signal_locked queues a
     signal on the target's sigpending list.  SIGKILL bypasses blocking;
     SIGTERM/SIGINT can be caught by a registered handler.
 
@@ -76,7 +76,7 @@ class SignalHandler:
 class SignalQueue:
     """Per-task pending-signal queue and handler registry.
 
-    Inspired by Linux ``struct sigpending``.  Each task owns one instance,
+    ``struct sigpending``.  Each task owns one instance,
     stored as ``task.signal_queue``.
 
     Usage::

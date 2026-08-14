@@ -1,9 +1,9 @@
 """
 Umer OS Resource (I/O Port / MMIO) Tracking
 ============================================
-Inspired by Linux ``kernel/resource.c`` and ``<linux/ioport.h>``.
+``kernel/resource.c`` and ``<linux/ioport.h>``.
 
-Linux represents hardware resources (I/O ports, MMIO regions, IRQ lines,
+Represents hardware resources (I/O ports, MMIO regions, IRQ lines,
 DMA channels) as a **tree of half-open intervals** ``[start, end]``.
 A parent resource owns a big range; children carve out sub-ranges and
 are refused if they overlap an existing sibling.
@@ -18,7 +18,7 @@ are refused if they overlap an existing sibling.
 This module reproduces that model so the UmerOS HAL can claim MMIO
 ranges for "devices" and detect conflicts at registration time.
 
-Linux semantics preserved:
+semantics preserved:
   * ``request_resource()``  – claim a region; fails on overlap.
   * ``release_resource()``  – release a previously-claimed region.
   * ``lookup_resource()``   – find the resource owning a given address.
@@ -74,7 +74,7 @@ class Resource:
     """A claimed hardware resource range.
 
     Mirrors ``struct resource``.  A region is the half-open interval
-    ``[start, end]`` (inclusive both ends, like Linux).  ``owner`` is
+    ``[start, end]`` (inclusive both ends).  ``owner`` is
     the PID or driver name that claimed it.
 
     Attributes:
@@ -130,7 +130,7 @@ class ResourceConflictError(Exception):
 class ResourceManager:
     """A tree of resources rooted at top-level bus regions.
 
-    Mirrors Linux's ``iomem_resource`` and ``ioport_resource`` roots.
+    ``iomem_resource`` and ``ioport_resource`` roots.
     Use :meth:`request_region` to claim a sub-range; the manager rejects
     any request that overlaps an existing sibling at the same level.
     """
@@ -164,7 +164,7 @@ class ResourceManager:
 
         Returns True on success; raises :class:`ResourceConflictError`
         if ``child`` overlaps a sibling or escapes ``parent``.
-        Mirrors Linux ``request_resource()``.
+        ``request_resource()``.
         """
         if not parent.encloses(child):
             raise ResourceConflictError(
@@ -208,7 +208,7 @@ class ResourceManager:
                        owner: object = None) -> Resource:
         """Claim ``n`` addresses starting at ``start``.
 
-        Mirrors Linux ``request_mem_region()`` / ``request_region()``.
+        ``request_mem_region()`` / ``request_region()``.
         Returns the new Resource on success.
         """
         root = self._root_for(flags)

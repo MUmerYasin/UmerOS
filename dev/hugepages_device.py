@@ -1,7 +1,7 @@
 """
 UmerOS /dev/hugepages* — Huge page directories.
 
-Linux /dev/hugepages:
+/dev/hugepages:
   /dev/hugepages/          — Default hugepage pool (2MB pages on x86_64)
   /dev/hugepages-1GB/      — 1GB hugepage pool
   /dev/hugepages-2MB/      — 2MB hugepage pool (alias)

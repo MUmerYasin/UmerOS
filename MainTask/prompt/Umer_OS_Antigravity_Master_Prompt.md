@@ -743,7 +743,7 @@ Umer Bootloader (signature verified)
 | Python performance overhead | High | PyPy JIT; Cython/Numba hot-paths; ctypes for critical loops |
 | iOS/Apple lock-in | High | Focus on Android; document iOS as BLOCKED |
 | Quantum hype vs reality | Medium | Always label features; use quantum-inspired classical algorithms today |
-| Driver ecosystem gaps | High | Re-use Linux open-source drivers via Python ctypes wrappers |
+| Driver ecosystem gaps | High | Re-use open-source drivers via Python ctypes wrappers |
 | AI + OS security surface | High | Formal kernel IPC verification (seL4-inspired); mandatory code audits |
 | User adoption | Medium | Smooth migration tools; familiar UI paradigms; strong DX |
 | Legal / IP exposure | Medium | Open-source toolchains only (GPL/LGPL/Apache); legal review before proprietary drivers |
@@ -1071,7 +1071,7 @@ class QuantumDevice:
 
 | Skill / Domain | Team Role | Key Tools & Frameworks |
 |---|---|---|
-| OS & Microkernel | Kernel Engineer | asyncio, ctypes, Cython, Linux headers |
+| OS & Microkernel | Kernel Engineer | asyncio, ctypes, Cython, headers |
 | Quantum Computing | Quantum Researcher | Qiskit, Cirq, PennyLane, NumPy |
 | AI / ML / LLMs | ML Engineer | llama-cpp-python, ONNX Runtime, PyTorch, Hugging Face |
 | Security / Crypto | Security Engineer | liboqs, cryptography lib, seccomp, OpenSSL |
@@ -1080,7 +1080,7 @@ class QuantumDevice:
 | Embedded / Mobile | Embedded Engineer | ARM64, Android NDK, AOSP, MicroPython |
 | Cloud / Infra | Cloud Architect | AWS/GCP/Azure SDKs, WireGuard, mDNS |
 | DevOps / CI-CD | DevOps Engineer | Docker, QEMU, pytest, GitHub Actions |
-| Drivers | Embedded Engineer | Linux driver model, evdev, libusb, libdrm |
+| Drivers | Embedded Engineer | driver model, evdev, libusb, libdrm |
 | Compiler | Compiler Engineer | Cython, Numba, PyPy, ctypes |
 | Legal / Compliance | Legal Counsel | Apache 2.0, GPL, LGPL, GDPR, EULA |
 

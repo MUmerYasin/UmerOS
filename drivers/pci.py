@@ -1,7 +1,7 @@
 """
 UmerOS PCI Subsystem
 ====================
-Linux kernel PCI bus infrastructure.
+Kernel PCI bus infrastructure.
 Implements PCI devices, BARs, config space, drivers, MSI/MSI-X,
 bridges, DMA masks, and simulated devices (IDE, NIC, VGA, USB, SATA, NVMe).
 """
@@ -17,7 +17,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# PCI Register Offsets (Linux kernel pci_regs.h)
+# PCI Register Offsets (kernel pci_regs.h)
 # ---------------------------------------------------------------------------
 PCI_VENDOR_ID = 0x00
 PCI_DEVICE_ID = 0x02

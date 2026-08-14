@@ -1,7 +1,7 @@
 """
 UmerOS Devfreq Framework
 ========================
-Linux kernel Dynamic Voltage and Frequency Scaling (DVFS) subsystem.
+Kernel Dynamic Voltage and Frequency Scaling (DVFS) subsystem.
 Implements devfreq devices, governors (simple_ondemand, userspace,
 powersave, performance), frequency tables, and power statistics.
 """

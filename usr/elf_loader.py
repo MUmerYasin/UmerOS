@@ -1,7 +1,7 @@
 """
 UmerOS ELF Loader Module
 =========================
-Linux kernel ELF binary loading interface.
+kernel ELF binary loading interface.
 Implements ELF parsing, program loading, and dynamic linking.
 
 Reference: docs.kernel.org/userspace-api/elf.html

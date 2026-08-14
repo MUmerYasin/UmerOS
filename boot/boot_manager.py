@@ -4,7 +4,7 @@ Umer OS Boot Manager
 Central registry for /boot hierarchy management.
 
 Manages:
-- Kernel images (vmlinuz, vmlinux)
+- Kernel images (vmlinuz, vm)
 - Boot loader configuration (GRUB, systemd-boot)
 - initrd/initramfs images
 - System.map files
@@ -13,7 +13,7 @@ Manages:
 FHS 3.0 compliance:
 - /boot contains kernel files and boot loader data
 - No subdirectories required (flat structure preferred)
-- Kernel images: vmlinuz, vmlinux
+- Kernel images: vmlinuz, vm
 - Boot loaders: GRUB, systemd-boot, LILO
 - initrd/initramfs for early userspace
 
@@ -142,16 +142,16 @@ class BootManager:
 
     # FHS 3.0 required files in /boot
     FHS_REQUIRED_FILES = [
-        "vmlinuz",      # Compressed Linux kernel
-        "vmlinux",      # Uncompressed Linux kernel (optional)
+        "vmlinuz",      # Compressed  kernel
+        "vm",      # Uncompressed  kernel (optional)
         "System.map",   # Kernel symbol table
     ]
 
     # Common kernel image patterns
     KERNEL_PATTERNS = [
         "vmlinuz-*",
-        "vmlinux-*",
-        "vmlinux.*",
+        "vm-*",
+        "vm.*",
         "bzImage-*",
         "bzImage",
         "zImage-*",
@@ -576,12 +576,12 @@ class BootManager:
             f"set timeout={self.config.timeout_seconds if self.config else 5}",
             "",
             "menuentry 'Umer OS' {",
-            "    linux /boot/vmlinuz root=/dev/sda1 ro quiet splash",
+            "            /boot/vmlinuz root=/dev/sda1 ro quiet splash",
             "    initrd /boot/initrd.img",
             "}",
             "",
             "menuentry 'Umer OS (Recovery Mode)' {",
-            "    linux /boot/vmlinuz root=/dev/sda1 ro single",
+            "           /boot/vmlinuz root=/dev/sda1 ro single",
             "    initrd /boot/initrd.img",
             "}",
         ]

@@ -3,7 +3,7 @@ Umer OS Initrd Archivers
 ========================
 Compression / decompression wrappers for initramfs images.
 
-Supports the formats commonly used by real Linux distributions:
+Supports the formats commonly used:
 
 * gzip  (.gz)     - the classic; the bootloader's built-in decompressor
                     handles this without external tools.

@@ -70,7 +70,7 @@ class Device:
         return [link.consumer for link in self._supplier_links]
 
     # ---------------------------------------------------------------------
-    # Core registration / un‑registration API (mirrors Linux driver model)
+    # Core registration / un‑registration API 
     # ---------------------------------------------------------------------
     def register(self) -> None:
         """Explicitly register the device with the driver core.

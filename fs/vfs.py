@@ -6,7 +6,7 @@ Translates standard POSIX-style paths into QFS content-hash operations.
 This is the interface that user-space programs (and the Syscall Shim)
 interact with — they never touch QFS directly.
 
-Equivalent to Linux's VFS layer (fs/namei.c, fs/read_write.c).
+Equivalent to VFS layer (fs/namei.c, fs/read_write.c).
 """
 
 from fs.qfs import QFS, QuantumFileSystem

@@ -1,7 +1,7 @@
 """
 UmerOS PCI Endpoint Framework
 ==============================
-Linux kernel PCI Endpoint subsystem.
+Kernel PCI Endpoint subsystem.
 Implements PCI endpoint controllers, functions,
 and operations for endpoint mode operation.
 """

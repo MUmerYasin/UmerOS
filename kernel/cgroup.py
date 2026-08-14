@@ -1,7 +1,7 @@
 """
 Umer OS Control Groups (cgroups)
 ================================
-Inspired by Linux cgroups, this subsystem provides resource partitioning
+Inspired by cgroups, this subsystem provides resource partitioning
 (CPU and Memory) for groups of tasks in the Umer OS kernel.
 """
 

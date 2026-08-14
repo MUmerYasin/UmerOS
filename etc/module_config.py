@@ -112,7 +112,7 @@ class ModuleConfigManager:
     Comprehensive manager for kernel module configurations.
 
     Handles reading, writing, and validating module configurations
-    across all standard Linux configuration locations.
+    across all standard configuration locations.
     """
 
     def __init__(
@@ -158,7 +158,7 @@ class ModuleConfigManager:
 
         if not self.proc_modules.exists():
             raise FileNotFoundError(
-                f"Cannot read {self.proc_modules} - are you on Linux?"
+                f"Cannot read {self.proc_modules} - are you on_____?"
             )
 
         with open(self.proc_modules, "r") as f:

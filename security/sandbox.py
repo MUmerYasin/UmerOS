@@ -6,7 +6,7 @@ Provides process-level isolation by restricting each sandboxed process
 to a virtual chroot within the VFS. Integrates with the CapabilityManager
 from Stage 2 and the CryptoEngine from Stage 4.
 
-Equivalent to Linux's security/ + namespaces (security/apparmor, security/selinux).
+Equivalent to security/ + namespaces (security/apparmor, security/selinux).
 """
 
 """

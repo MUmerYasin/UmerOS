@@ -123,9 +123,9 @@ class GettyCommand(SbinCommand):
 
 
 class LiloCommand(SbinCommand):
-    """Linux loader installer."""
+    """ loader installer."""
     name = "lilo"
-    description = "Install the Linux loader (LILO) boot manager"
+    description = "Install the  loader (LILO) boot manager"
     usage = "lilo [-A|-E|-I|-J|-R|-W] [-b device] [-c config] [-d delay] [-D label] [-f file] [-i boot] [-I label] [-l] [-m map] [-P fix] [-q] [-r root] [-s file] [-S file] [-t] [-v]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:

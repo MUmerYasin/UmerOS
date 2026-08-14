@@ -1,7 +1,7 @@
 """
 UmerOS Mailbox Subsystem
 ========================
-Linux kernel-like mailbox framework for inter-processor
+Kernel-like mailbox framework for inter-processor
 and inter-system communication.
 """
 

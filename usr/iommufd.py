@@ -1,7 +1,7 @@
 """
 UmerOS IOMMUFD Module
 ======================
-Linux kernel IOMMU file descriptor interface.
+Kernel IOMMU file descriptor interface.
 Implements IOMMU domain management, device binding, and DMA mapping.
 
 Reference: docs.kernel.org/userspace-api/iommufd.html

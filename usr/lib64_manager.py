@@ -3,7 +3,7 @@ UmerOS 64-bit Libraries Manager (/usr/lib64)
 =============================================
 64-bit shared libraries and symlinks.
 
-Reference: Linux Filesystem Hierarchy - /usr/lib64
+Reference: Filesystem Hierarchy - /usr/lib64
   /usr/lib64 contains 64-bit shared libraries and symlinks.
   On 64-bit systems, this directory is often a symlink to /usr/lib.
 """

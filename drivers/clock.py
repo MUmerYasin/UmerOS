@@ -1,7 +1,7 @@
 """
 UmerOS Clock Framework
 ======================
-Linux kernel-like Common Clock Framework (CCF).
+Kernel-like Common Clock Framework (CCF).
 Implements clock providers, gates, muxes, dividers, PLLs,
 and the full prepare/enable/disable lifecycle.
 """
@@ -636,7 +636,7 @@ def demo() -> None:
     """Interactive demonstration of the UmerOS Clock Framework."""
     print()
     print("=" * 72)
-    print("  UmerOS Clock Framework  --  Linux CCF Demo")
+    print("  UmerOS Clock Framework  --  CCF")
     print("=" * 72)
     print()
 

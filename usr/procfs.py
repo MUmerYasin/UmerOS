@@ -1,7 +1,7 @@
 """
 UmerOS ProcFS Module
 =====================
-Linux kernel /proc filesystem interface.
+Kernel /proc filesystem interface.
 Implements proc entries, read/write, and procfs hierarchy.
 
 Reference: docs.kernel.org/userspace-api/proc.html
@@ -124,7 +124,7 @@ class ProcPIDEntry:
 # ============================================================================
 
 class ProcFS:
-    """Linux /proc filesystem simulation."""
+    """ /proc filesystem simulation."""
     root: ProcEntry = field(default_factory=lambda: ProcEntry(name="/", entry_type=ProcEntryType.PROC_ENTRY_DIR))
     pid_entries: Dict[int, ProcPIDEntry] = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)

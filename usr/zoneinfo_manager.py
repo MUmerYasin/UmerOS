@@ -3,7 +3,7 @@ UmerOS Timezone Manager (/usr/share/zoneinfo)
 ==============================================
 Timezone data and definitions.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/zoneinfo
+Reference: Filesystem Hierarchy - /usr/share/zoneinfo
   /usr/share/zoneinfo contains timezone data compiled from the
   IANA tz database. It includes timezone rules for all regions.
 """

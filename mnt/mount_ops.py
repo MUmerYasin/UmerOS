@@ -50,7 +50,7 @@ log = logging.getLogger("UmerOS.Mnt.MountOps")
 # ---------------------------------------------------------------------------
 
 class MountOpt(Flag):
-    """Standard Linux mount option flags (subset)."""
+    """Standard mount option flags (subset)."""
     NONE        = 0
     RO          = auto()   # read-only
     RW          = auto()   # read-write
@@ -136,7 +136,7 @@ def flags_to_options(flags: MountOpt) -> str:
 # ---------------------------------------------------------------------------
 
 KNOWN_FS_TYPES: FrozenSet[str] = frozenset({
-    # Linux native
+    # native
     "ext2", "ext3", "ext4", "btrfs", "xfs", "f2fs", "reiserfs", "jfs",
     "nilfs2", "bcachefs",
     # Pseudo

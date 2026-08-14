@@ -3,7 +3,7 @@ UmerOS i18n Manager (/usr/share/i18n)
 ======================================
 Internationalization data and locale definitions.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/i18n
+Reference: Filesystem Hierarchy - /usr/share/i18n
   /usr/share/i18n contains locale definition files and
   character set definitions used by the C library.
 """

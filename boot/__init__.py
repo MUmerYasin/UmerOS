@@ -1,7 +1,7 @@
 """
 UmerOS Boot System
 ===================
-Complete Linux /boot filesystem implementation for UmerOS.
+Complete /boot filesystem implementation for UmerOS.
 
 Modules:
     - kernel_image: Kernel image management (vmlinuz, System.map, config)

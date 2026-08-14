@@ -3,7 +3,7 @@ UmerOS Fonts Manager (/usr/share/fonts)
 ========================================
 System fonts and font configuration.
 
-Reference: Linux Filesystem Hierarchy - /usr/share/fonts
+  Filesystem Hierarchy - /usr/share/fonts
   /usr/share/fonts contains system-wide font files and font
   configuration. Fonts are organized by type and purpose.
 """

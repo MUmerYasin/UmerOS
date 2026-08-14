@@ -3,7 +3,7 @@ UmerOS MAKEDEV — Device node creation script.
 
 FHS 3.0 /dev:
   /dev/MAKEDEV — Shell script for creating device nodes manually.
-  In Linux, it's a symlink to /dev/null (devtmpfs handles creation).
+  In, it's a symlink to /dev/null (devtmpfs handles creation).
   In UmerOS, we provide a Python implementation.
 
   Usage: MAKEDEV <device> [<device> ...]

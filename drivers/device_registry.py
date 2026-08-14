@@ -37,7 +37,7 @@ def device_unregister(dev: Device) -> None:
     dev_id = getattr(dev, "dev_id", dev.name)
     if dev_id not in DEVICE_REGISTRY:
         raise KeyError(f"Device id '{dev_id}' not found in registry")
-    # Call the release hook before removal – mirrors Linux's ``release``
+    # Call the release hook before removal ``release``
     dev.release()
     del DEVICE_REGISTRY[dev_id]
 

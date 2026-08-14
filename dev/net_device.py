@@ -5,7 +5,7 @@ FHS 3.0 /dev/net:
   /dev/net/tun  — TUN/TAP network device (character 10:200)
   /dev/net/tap  — Alias for tun
 
-Linux major:minor: tun = 10:200, tap = 10:200 (same device)
+ major:minor: tun = 10:200, tap = 10:200 (same device)
 
 Author:  Umer OS Project
 Licence: GPLv3

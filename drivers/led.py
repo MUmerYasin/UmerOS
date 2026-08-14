@@ -1,7 +1,7 @@
 """
 UmerOS LED Subsystem
 =====================
-Linux kernel-like LED subsystem for LED management.
+Kernel-like LED subsystem for LED management.
 Implements LED devices, triggers, and brightness control.
 
 Reference: drivers/leds/

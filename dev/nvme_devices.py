@@ -1,7 +1,7 @@
 """
 UmerOS /dev — NVMe (Non-Volatile Memory Express) devices.
 
-Linux /dev structure:
+ /dev structure:
   /dev/nvme0, /dev/nvme1, ...       — NVMe controller char devices (240:0+)
   /dev/nvme0n1, /dev/nvme0n2, ...   — NVMe namespaces (block 259:0+)
   /dev/nvme0n1p1, ...p16            — NVMe namespace partitions

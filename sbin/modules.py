@@ -30,9 +30,9 @@ class SbinCommand:
 # ─── Module Commands ─────────────────────────────────────────────────────────
 
 class InsmodCommand(SbinCommand):
-    """Insert a module into the Linux kernel."""
+    """Insert a module into the kernel."""
     name = "insmod"
-    description = "Insert a module into the Linux kernel"
+    description = "Insert a module into the kernel"
     usage = "insmod [filename] [module-parameters]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
@@ -47,7 +47,7 @@ class InsmodCommand(SbinCommand):
 class LsmodCommand(SbinCommand):
     """List currently loaded kernel modules."""
     name = "lsmod"
-    description = "Show the status of modules in the Linux kernel"
+    description = "Show the status of modules in the kernel"
     usage = "lsmod"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
@@ -68,9 +68,9 @@ class LsmodCommand(SbinCommand):
 
 
 class ModprobeCommand(SbinCommand):
-    """Add or remove modules from the Linux kernel."""
+    """Add or remove modules from the kernel."""
     name = "modprobe"
-    description = "Intelligently add or remove modules from the Linux kernel"
+    description = "Intelligently add or remove modules from the kernel"
     usage = "modprobe [-k] [-r] [-v] module-name"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
@@ -89,9 +89,9 @@ class ModprobeCommand(SbinCommand):
 
 
 class RmmodCommand(SbinCommand):
-    """Remove a module from the Linux kernel."""
+    """Remove a module from the kernel."""
     name = "rmmod"
-    description = "Remove a module from the Linux kernel"
+    description = "Remove a module from the kernel"
     usage = "rmmod [-f] [-w] [-s] module-name"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
@@ -106,7 +106,7 @@ class RmmodCommand(SbinCommand):
 class DepmodCommand(SbinCommand):
     """Generate module dependency file (modules.dep)."""
     name = "depmod"
-    description = "Generate a module dependency file for the Linux kernel module loader"
+    description = "Generate a module dependency file for the kernel module loader"
     usage = "depmod [-a] [-e] [-F System.map] [-n] [-v] [version]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:

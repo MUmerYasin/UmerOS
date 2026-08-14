@@ -1,7 +1,7 @@
 """
 UmerOS IPMI Subsystem
 =====================
-Linux kernel-like IPMI (Intelligent Platform Management Interface).
+Kernel-like IPMI (Intelligent Platform Management Interface).
 Implements BMC (Baseboard Management Controller) communication,
 sensor reading, event logging, and SOL (Serial Over LAN).
 

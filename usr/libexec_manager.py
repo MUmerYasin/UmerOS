@@ -3,7 +3,7 @@ UmerOS Helper Programs Manager (/usr/libexec)
 ==============================================
 Helper programs and executables used by system utilities.
 
-Reference: Linux Filesystem Hierarchy - /usr/libexec
+Reference: Filesystem Hierarchy - /usr/libexec
   /usr/libexec contains helper programs that are not meant to be
   executed directly by users or scripts. They are called by other
   programs and provide supporting functionality.

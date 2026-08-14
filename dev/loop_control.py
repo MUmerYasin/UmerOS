@@ -1,7 +1,7 @@
 """
 UmerOS /dev/loop-control — Loop device control node.
 
-Linux /dev/loop-control (major 10, minor 237):
+/dev/loop-control (major 10, minor 237):
   Provides ioctl interface to dynamically allocate and free
   loop devices. Used by losetup -f to find first free loop,
   and by mount/losetup to auto-allocate loop devices.

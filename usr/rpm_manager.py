@@ -3,7 +3,7 @@ UmerOS RPM Manager (/usr/src/RPM)
 =================================
 RPM build structure for creating packages from source.
 
-Reference: Linux Filesystem Hierarchy - /usr/src/RPM
+Reference: Filesystem Hierarchy - /usr/src/RPM
   /usr/src/RPM provides a substructure for building RPMs from SRPMs.
   Organisation of this branch is fairly logical with packages being
   organised according to a package's architecture.

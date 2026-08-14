@@ -62,7 +62,7 @@ class ZshCommand(Command):
 
     def execute(self, *args):
         if args and args[0] == "--version":
-            return "zsh 5.9 (x86_64-pc-linux-gnu)\n"
+            return "zsh 5.9 (x86_64-pc-gnu)\n"
         return "zsh: interactive shell not available in UmerOS (simulated)\n"
 
 

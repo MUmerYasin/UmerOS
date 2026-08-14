@@ -1,7 +1,7 @@
 """
 Umer OS Initrd RAM Disk
 =======================
-An in-memory filesystem that stands in for Linux's tmpfs/ramfs during
+An in-memory filesystem that stands in for tmpfs/ramfs during
 the early-userspace phase of the boot.
 
 The real kernel unpacks a cpio archive straight into a tmpfs and frees
@@ -109,7 +109,7 @@ class RamDiskStats:
 # ---------------------------------------------------------------------------
 
 class RamDisk:
-    """A user-space stand-in for a Linux tmpfs.
+    """A user-space stand-in for tmpfs.
 
     The :class:`RamDisk` is intentionally minimal: it owns a
     :class:`VfsRoot` plus the lifecycle state machine.  It does not
@@ -185,7 +185,7 @@ class RamDisk:
         entries = unpack_archive(self._raw)
         self._populate_from_entries(entries)
         # Free the raw cpio bytes - this is the part the kernel does
-        # for us in real Linux.
+        # for us in real.
         self._raw = b""
         self.stats.raw_bytes = 0
         self.stats.extracted_at = time.time()

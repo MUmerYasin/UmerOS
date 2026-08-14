@@ -41,7 +41,7 @@ class PkgDocCommand(Command):
             "  bash/          - Bash documentation\n"
             "  coreutils/     - GNU Coreutils documentation\n"
             "  glibc/         - GNU C Library documentation\n"
-            "  linux-doc/     - Linux kernel documentation\n"
+            "  doc/           - kernel documentation\n"
             "  openssh/       - OpenSSH documentation\n"
             "  python3/       - Python 3 documentation\n"
         )

@@ -1,7 +1,7 @@
 """
 UmerOS NVMEM Subsystem
 ======================
-Linux kernel-like Non-Volatile Memory management framework.
+Kernel-like Non-Volatile Memory management framework.
 Supports EEPROM, OTP, eFuse, Flash, and battery-backed storage.
 """
 

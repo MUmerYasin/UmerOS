@@ -1,9 +1,9 @@
 """
 Umer OS PID Allocator  [TODAY]
 ============================
-Cyclic PID allocation inspired by Linux kernel/pid.c.
+Cyclic PID allocation inspired by kernel/pid.c.
 
-    Linux reference: kernel/pid.c — alloc_pid() uses idr_alloc_cyclic
+    kernel/pid.c — alloc_pid() uses idr_alloc_cyclic
     with RESERVED_PIDS floor and pid_max ceiling; free_pid() recycles.
 
 Design:
@@ -37,7 +37,7 @@ PID_MAX: int = 32768         # Upper bound on PID values.
 class PidAllocator:
     """Manages unique process identifiers with cyclic reuse.
 
-    Inspired by Linux ``kernel/pid.c``: PIDs are allocated from a
+    ``kernel/pid.c``: PIDs are allocated from a
     monotonically increasing counter.  When a PID is freed it is
     placed on a free-list that is consumed before the counter advances
     past PID_MAX.  Once the counter wraps, previously freed PIDs in the

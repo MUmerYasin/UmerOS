@@ -1,7 +1,7 @@
 """
 UmerOS /dev — Parallel port devices.
 
-Linux parallel port device files:
+Parallel port device files:
   /dev/lp0-2      — Parallel printer devices
   /dev/parport0-2 — Parallel port control
 

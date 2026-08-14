@@ -101,7 +101,7 @@ COMMON_UDEV_RULES: Dict[str, List[str]] = {
     ],
     "video_rules": [
         "# Video device permissions (webcams)",
-        'ACTION=="add", SUBSYSTEM=="video4linux", MODE="0660", GROUP="video"',
+        'ACTION=="add", SUBSYSTEM=="video4", MODE="0660", GROUP="video"',
     ],
     "bluetooth_rules": [
         "# Bluetooth hci device",

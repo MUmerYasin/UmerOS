@@ -1,7 +1,7 @@
 """
 UmerOS IRQ/Interrupt Handling Framework
 =======================================
-Linux kernel interrupt management.
+Kernel interrupt management.
 Implements IRQ descriptors, threaded handlers, IRQ chips,
 IRQ domains, affinity, masking, and simulated GIC/IOAPIC controllers.
 """
@@ -307,7 +307,7 @@ class IrqChip:
 
 @dataclass
 class IrqDomain:
-    """IRQ domain – maps hardware IRQ numbers to Linux virtual IRQs."""
+    """IRQ domain – maps hardware IRQ numbers to virtual IRQs."""
     name: str
     hwirq_base: int = 0
     size: int = 0
@@ -448,7 +448,7 @@ def request_irq(
     name: str = "",
     dev_id: Any = None,
 ) -> int:
-    """Request an interrupt line – equivalent to Linux request_irq()."""
+    """Request an interrupt line – equivalent to request_irq()."""
     return request_threaded_irq(irq, handler, None, flags, name, dev_id)
 
 
@@ -531,7 +531,7 @@ def request_threaded_irq(
 
 
 def free_irq(irq: int, dev_id: Any = None) -> Optional[IrqAction]:
-    """Free an interrupt line – equivalent to Linux free_irq()."""
+    """Free an interrupt line – equivalent to free_irq()."""
     with _irq_lock:
         desc = _irq_descs.get(irq)
         if desc is None:
@@ -569,7 +569,7 @@ def free_irq(irq: int, dev_id: Any = None) -> Optional[IrqAction]:
 # ═════════════════════════════════════════════════════════════
 
 def enable_irq(irq: int) -> int:
-    """Enable IRQ – equivalent to Linux enable_irq()."""
+    """Enable IRQ – equivalent to enable_irq()."""
     with _irq_lock:
         desc = _irq_descs.get(irq)
         if desc is None:
@@ -592,12 +592,12 @@ def enable_irq(irq: int) -> int:
 
 
 def disable_irq(irq: int) -> int:
-    """Disable IRQ synchronously – equivalent to Linux disable_irq()."""
+    """Disable IRQ synchronously – equivalent to disable_irq()."""
     return _do_disable_irq(irq, wait=True)
 
 
 def disable_irq_nosync(irq: int) -> int:
-    """Disable IRQ without waiting – equivalent to Linux disable_irq_nosync()."""
+    """Disable IRQ without waiting – equivalent to disable_irq_nosync()."""
     return _do_disable_irq(irq, wait=False)
 
 

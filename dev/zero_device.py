@@ -6,7 +6,7 @@ FHS 3.0 /dev/zero:
   Writes succeed but data is discarded (like /dev/null).
   Used for zero-filled memory mappings.
 
-Linux major:minor = 1:5
+ major:minor = 1:5
 
 Author:  Umer OS Project
 Licence: GPLv3

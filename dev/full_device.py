@@ -6,7 +6,7 @@ FHS 3.0 /dev/full:
   Writes fail with errno ENOSPC (no space left on device).
   Useful for testing write failure handling.
 
-Linux major:minor = 1:7
+major:minor = 1:7
 
 Author:  Umer OS Project
 Licence: GPLv3

@@ -5,7 +5,7 @@ Umer OS Driver Framework
 Provides a base class for hardware drivers and a DriverManager that
 loads, unloads, and queries drivers at runtime.
 
-Equivalent to Linux's drivers/ subsystem and modprobe.
+Equivalent to drivers/ subsystem and modprobe.
 """
 
 
@@ -24,7 +24,7 @@ CHAR_DEVICES: Dict[str, Any] = {}
 
 @runtime_checkable
 class FileOperations(Protocol):
-    """Mimic Linux file_operations for character devices."""
+    """Mimic file_operations for character devices."""
     def open(self, mode: str = "r") -> None: ...
     def read(self, size: int = -1) -> str: ...
     def write(self, data: str) -> int: ...
@@ -104,7 +104,7 @@ class DriverManager:
 
 @runtime_checkable
 class FileOperations(Protocol):
-    """Mimic Linux file_operations for character devices."""
+    """Mimic file_operations for character devices."""
     def open(self, mode: str = "r") -> None: ...
     def read(self, size: int = -1) -> str: ...
     def write(self, data: str) -> int: ...

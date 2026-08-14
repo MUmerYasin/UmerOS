@@ -6,7 +6,7 @@ FHS 3.0 /dev/random:
   /dev/urandom  — Pseudo-random; never blocks, reuses pool.
   /dev/arandom  — Autoseeding urandom (if available).
 
-Linux major:minor = 1:8 (random), 1:9 (urandom)
+ major:minor = 1:8 (random), 1:9 (urandom)
 
 Note: For UmerOS simulation, uses Python's `os.urandom` and
 `secrets` module for cryptographic-quality randomness.

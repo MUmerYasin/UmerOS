@@ -1,7 +1,7 @@
 """
 UmerOS /dev — SCSI/SATA/SCSI Generic/Tape/BSG block and char devices.
 
-Linux /dev structure:
+  /dev structure:
   /dev/sda, /dev/sdb, ... /dev/sdz     — SCSI/SATA block devices
   /dev/sda1, /dev/sda2, ...             — Partitions
   /dev/sg0, /dev/sg1, ...               — SCSI generic (char 21:0-31)
@@ -37,7 +37,7 @@ class SCSIBlockDevice:
       /dev/sda through /dev/sdz — Up to 26 block devices
       /dev/sda1 through /dev/sda15 — Partitions per device
 
-    Linux major = 8, minor = (letter_index * 16) + partition
+     major = 8, minor = (letter_index * 16) + partition
     sda  = 8:0,  sda1 = 8:1,  sda2 = 8:2,  ... sda15 = 8:15
     sdb  = 8:16, sdb1 = 8:17, sdb2 = 8:18, ... sdb15 = 8:31
     """

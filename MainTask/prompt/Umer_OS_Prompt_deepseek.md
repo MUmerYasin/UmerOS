@@ -37,7 +37,7 @@ Windows, Linux, macOS, Android, iOS, and HarmonyOS.
   - `.exe` (Windows)
   - `.apk` (Android)
   - `.ipa` (iOS, simulated)
-  - Legacy Linux binaries
+  - Legacy binaries
 - Existing user data, settings, and applications must migrate without reset.
 
 ## UI / UX

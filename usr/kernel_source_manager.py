@@ -1,10 +1,10 @@
 """
-UmerOS Linux Kernel Source Manager (/usr/src/linux)
+UmerOS Kernel Source Manager (/usr/src/)
 ====================================================
-Linux kernel source code, headers, and build configuration.
+Kernel source code, headers, and build configuration.
 
-Reference: Linux Filesystem Hierarchy - /usr/src/linux
-  /usr/src/linux contains the source code for the Linux kernel.
+Reference: Filesystem Hierarchy - /usr/src/
+  /usr/src/ contains the source code for the kernel.
 
   Key files:
   - .config           - Last kernel source configuration
@@ -28,7 +28,7 @@ from typing import Any, Dict, List, Optional
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
-KERNEL_SOURCE_PATH = "/usr/src/linux"
+KERNEL_SOURCE_PATH = "/usr/src/"
 
 KERNEL_FILES = {
     "config": ".config",
@@ -183,7 +183,7 @@ _global_kernel_manager: Optional["KernelSourceManager"] = None
 # ─── Main Manager Class ─────────────────────────────────────────────────────
 
 class KernelSourceManager:
-    """Manages /usr/src/linux - Linux kernel sources."""
+    """Manages /usr/src/ kernel sources."""
 
     def __init__(self) -> None:
         self._configs: Dict[str, KernelConfig] = {}

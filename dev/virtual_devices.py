@@ -1,7 +1,7 @@
 """
 UmerOS /dev — Virtualization and networking character devices.
 
-Linux /dev structure:
+  /dev structure:
   /dev/kvm            — KVM virtualization (major 10:232)
   /dev/vhost-net      — vhost network backend (major 10:238)
   /dev/vhost-vsock    — vhost vsock (major 10:241)
@@ -377,7 +377,7 @@ class CUSEDevice:
 class VSockDevice:
     """/dev/vsock — Virtual socket device.
 
-    Linux VM sockets for host <-> guest communication.
+    VM sockets for host <-> guest communication.
     Uses CID (Context ID) and port numbers similar to TCP/IP.
     AF_VSOCK socket family.
 

@@ -8,7 +8,7 @@ FHS 3.0 /dev/tty:
   /dev/ttyN   — Virtual terminal N (0-63)
   /dev/ttyS0-31 — Serial ports (UART)
 
-Linux major:minor:
+ major:minor:
   tty: 5:0, console: 5:1, tty0: 4:0, ttyS0: 4:64
 
 Author:  Umer OS Project

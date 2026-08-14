@@ -3,9 +3,9 @@ UmerOS X11 Modules Manager (/usr/X11R6/lib/modules)
 ====================================================
 XFree86/X11 system modules - video, DRI, GLX, input drivers.
 
-Reference: Linux Filesystem Hierarchy - /usr/X11R6/lib/modules
+Reference: Filesystem Hierarchy - /usr/X11R6/lib/modules
   /usr/X11R6/lib/modules contains the modules that X loads upon startup.
-  Without these modules video4linux, DRI and GLX extensions and drivers
+  Without these modules video4, DRI and GLX extensions and drivers
   for certain input devices would cease to function.
 
   Typical module types:

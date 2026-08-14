@@ -1,7 +1,7 @@
 """
 UmerOS /dev — Miscellaneous character devices.
 
-Linux /dev structure covered:
+ /dev structure covered:
   /dev/uhid         — User-space HID (major 10:239)
   /dev/userfaultfd  — User page fault handling (major 10:128)
   /dev/hpet         — High Precision Event Timer (char 10:228)

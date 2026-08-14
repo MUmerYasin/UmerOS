@@ -161,7 +161,7 @@ _TIMEZONE_REGIONS: Dict[str, str] = {
 
 
 class LocaleTimezoneManager:
-    """Manage timezone, locale, and hardware clock configuration on a Linux system.
+    """Manage timezone, locale, and hardware clock configuration on a system.
 
     All mutating methods return a status dictionary with at least a ``success``
     boolean and, on failure, an ``error`` key explaining what went wrong.

@@ -1,7 +1,7 @@
 """
 UmerOS Man Page System
 ======================
-Linux manual page system implementation based on /usr/share/man.
+Manual page system implementation based on /usr/share/man.
 
 The man page system organizes documentation into 8 sections:
   man1 - User programs (publicly accessible commands)
@@ -65,7 +65,7 @@ NROFF_COMMANDS: Set[str] = {
 # ============================================================================
 
 class ManSection(IntEnum):
-    """Manual page sections per FHS/Linux convention."""
+    """Manual page sections per FHS/ convention."""
     USER_PROGRAMS = 1
     SYSTEM_CALLS = 2
     LIBRARY_FUNCTIONS = 3

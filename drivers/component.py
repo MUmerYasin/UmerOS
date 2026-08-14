@@ -1,7 +1,7 @@
 """
 UmerOS Component Framework
 ==========================
-Linux kernel component (glue layer) subsystem.
+Kernel component (glue layer) subsystem.
 Implements component binding for multi-function devices
 that need multiple sub-drivers to be ready before probing.
 """

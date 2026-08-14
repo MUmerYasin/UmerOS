@@ -3,7 +3,7 @@ UmerOS System Administration Binaries Manager (/usr/sbin)
 =========================================================
 System administration programs meant to be run by root.
 
-Reference: Linux Filesystem Hierarchy - /usr/sbin
+Reference: Filesystem Hierarchy - /usr/sbin
   /usr/sbin contains programs for administering a system, meant to be
   run by 'root'. Like /sbin, it's not part of a user's $PATH.
   Examples: chroot, useradd, in.tftpd, pppconfig.
@@ -161,7 +161,7 @@ class SbinManager:
             ("umount", "/usr/sbin/umount", SbinCategory.DISK, "Unmount filesystems"),
             ("fdisk", "/usr/sbin/fdisk", SbinCategory.DISK, "Partition table manipulator"),
             ("parted", "/usr/sbin/parted", SbinCategory.DISK, "Partition manipulation tool"),
-            ("mkfs", "/usr/sbin/mkfs", SbinCategory.DISK, "Build a Linux filesystem"),
+            ("mkfs", "/usr/sbin/mkfs", SbinCategory.DISK, "Build a filesystem"),
             ("fsck", "/usr/sbin/fsck", SbinCategory.DISK, "Filesystem consistency check"),
             ("tune2fs", "/usr/sbin/tune2fs", SbinCategory.DISK, "Adjust filesystem parameters"),
             ("ifconfig", "/usr/sbin/ifconfig", SbinCategory.NETWORKING, "Configure network interfaces"),
@@ -193,7 +193,7 @@ class SbinManager:
             ("rsync", "/usr/sbin/rsync", SbinCategory.BACKUP, "Remote file sync"),
             ("docker", "/usr/sbin/docker", SbinCategory.CONTAINER, "Docker container engine"),
             ("podman", "/usr/sbin/podman", SbinCategory.CONTAINER, "Podman container engine"),
-            ("lxc", "/usr/sbin/lxc", SbinCategory.CONTAINER, "Linux Containers"),
+            ("lxc", "/usr/sbin/lxc", SbinCategory.CONTAINER, "Containers"),
             ("virsh", "/usr/sbin/virsh", SbinCategory.VIRTUALIZATION, "Libvirt management tool"),
             ("qemu", "/usr/sbin/qemu", SbinCategory.VIRTUALIZATION, "QEMU emulator"),
         ]

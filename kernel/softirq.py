@@ -1,9 +1,9 @@
 """
 Umer OS SoftIRQ / Tasklet Subsystem
 ====================================
-Inspired by Linux ``kernel/softirq.c``.
+``kernel/softirq.c``.
 
-Linux splits interrupt handling into a **hard-irq** top half (time
+Splits interrupt handling into a **hard-irq** top half (time
 critical, runs with interrupts disabled) and a **soft-irq** bottom half
 (deferred, runs with interrupts enabled).  Softirqs are a fixed set of
 numbered vectors processed in priority order:
@@ -20,7 +20,7 @@ with ``raise_softirq()``; the softirq daemon (ksoftirqd) later calls
 This module reproduces that model with asyncio so driver bottom-halves
 can be deferred and batched.
 
-Linux semantics preserved:
+Semantics preserved:
   * ``open_softirq(nr, handler)``  – register a softirq handler.
   * ``raise_softirq(nr)``          – mark a vector pending (wakes ksoftirqd).
   * ``do_softirq()``               – drain pending vectors in priority order.
@@ -40,7 +40,7 @@ SoftirqFn = Callable[[], Awaitable[None]]
 TaskletFn = Callable[[], Awaitable[None]]
 
 
-# ── Softirq vector numbers (mirrors Linux enum) ──────────────────────────
+# ── Softirq vector numbers (enum) ──────────────────────────
 
 HI_SOFTIRQ = 0
 TIMER_SOFTIRQ = 1
@@ -75,7 +75,7 @@ class SoftIRQManager:
     Drivers register handlers with :meth:`open_softirq` and raise them
     with :meth:`raise_softirq`.  A background asyncio task (started by
     :meth:`start`) drains pending vectors in priority order, mimicking
-    Linux's ksoftirqd kernel thread.
+    ksoftirqd kernel thread.
     """
 
     def __init__(self) -> None:
@@ -93,7 +93,7 @@ class SoftIRQManager:
     def open_softirq(self, nr: int, handler: SoftirqFn) -> None:
         """Register a handler for softirq ``nr`` (mirrors ``open_softirq``).
 
-        Panics if the slot is already taken (Linux BUGs on this).
+        Panics if the slot is already taken ( BUGs on this).
         """
         if not (0 <= nr < NR_SOFTIRQS):
             raise ValueError(f"invalid softirq number {nr}")
@@ -173,7 +173,7 @@ class SoftIRQManager:
     async def _ksoftirqd_loop(self) -> None:
         """Background loop that drains pending softirqs when woken.
 
-        Mimics Linux ``run_ksoftirqd()``: sleep until woken, then call
+        Mimics ``run_ksoftirqd()``: sleep until woken, then call
         ``do_softirq()``.  Loops in case work was raised while draining.
         """
         assert self._wakeup is not None
@@ -228,7 +228,7 @@ class TaskletManager:
     """Manages a queue of scheduled tasklets.
 
     Two queues: the HI queue (high priority, drained by HI_SOFTIRQ)
-    and the normal queue (drained by TASKLET_SOFTIRQ).  Mirrors Linux's
+    and the normal queue (drained by TASKLET_SOFTIRQ). 
     ``tasklet_vec`` / ``tasklet_hi_vec`` per-CPU structures.
     """
 

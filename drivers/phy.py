@@ -1,7 +1,7 @@
 """
 UmerOS PHY Subsystem
 =====================
-Linux kernel-like PHY subsystem for physical layer interface management.
+Kernel-like PHY subsystem for physical layer interface management.
 Implements PHY devices, providers, and configuration.
 
 Reference: drivers/phy/

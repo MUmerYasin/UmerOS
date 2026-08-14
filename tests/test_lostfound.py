@@ -1,7 +1,7 @@
 """
 Comprehensive tests for the UmerOS lost+found module.
 
-These tests exercise the full Linux /lost+found semantics:
+These tests exercise the full /lost+found semantics:
   * mklost+found preallocation
   * fsck Phase 1-5 pipeline
   * orphaned inode detection and recovery

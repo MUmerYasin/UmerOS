@@ -1,10 +1,10 @@
 """
 UmerOS Source Code Manager (/usr/src)
 ======================================
-Linux kernel and package source code management.
+Kernel and package source code management.
 
-Reference: Linux Filesystem Hierarchy - /usr/src
-  /usr/src holds source code for the Linux kernel, package build
+Reference: Filesystem Hierarchy - /usr/src
+  /usr/src holds source code for the kernel, package build
   trees (RPM, DEB), and development headers.
 """
 
@@ -21,8 +21,8 @@ from typing import Any, Dict, List, Optional, Set
 
 SRC_PATHS = [
     "/usr/src",
-    "/usr/src/linux",
-    "/usr/src/linux-headers",
+    "/usr/src/",
+    "/usr/src/headers",
     "/usr/src/modules",
     "/usr/src/RPM",
     "/usr/src/deb",
@@ -105,7 +105,7 @@ class PackageFormat(IntEnum):
 
 @dataclass
 class KernelVersion:
-    """Linux kernel version information."""
+    """Kernel version information."""
     major: int = 0
     minor: int = 0
     patch: int = 0
@@ -166,7 +166,7 @@ class SourceTree:
 
 @dataclass
 class KernelSource:
-    """Linux kernel source tree metadata."""
+    """Kernel source tree metadata."""
     path: str
     version: KernelVersion = field(default_factory=KernelVersion)
     config: KernelConfig = KernelConfig.NOT_CONFIGURED
@@ -267,7 +267,7 @@ class SourceManager:
 
     Responsibilities:
         - Discover and catalog source trees in /usr/src
-        - Parse Linux kernel source metadata (version, config, Makefile)
+        - Parse kernel source metadata (version, config, Makefile)
         - Manage RPM/DEB build tree structures
         - Track kernel configuration state
         - Handle header file packages
@@ -372,7 +372,7 @@ class SourceManager:
         return BuildSystem.UNKNOWN
 
     def _parse_kernel_source(self, path: Path, tree: SourceTree) -> None:
-        """Parse Linux kernel source metadata."""
+        """Parse kernel source metadata."""
         version = KernelVersion()
         config_state = KernelConfig.NOT_CONFIGURED
         config_path = ""

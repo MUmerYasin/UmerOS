@@ -1,7 +1,7 @@
 """
 UmerOS Perf Module
 ===================
-Linux kernel perf event subsystem and ring buffer interface.
+Kernel perf event subsystem and ring buffer interface.
 Implements performance counters, sampling, and ring buffer I/O.
 
 Reference: docs.kernel.org/userspace-api/perf.html
@@ -434,7 +434,7 @@ class PerfEventGroup:
 # ============================================================================
 
 class Perf:
-    """Linux perf event subsystem."""
+    """Perf event subsystem."""
     def __init__(self) -> None:
         self.events: Dict[int, PerfEvent] = {}
         self.groups: Dict[int, PerfEventGroup] = {}

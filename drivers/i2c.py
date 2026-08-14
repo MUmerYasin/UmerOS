@@ -1,7 +1,7 @@
 """
 UmerOS I2C/SMBus Framework
 ===========================
-Linux kernel I2C/SMBus subsystem.
+Kernel I2C/SMBus subsystem.
 Implements I2C adapters (bit-banging, I801), clients, drivers,
 SMBus byte/word/block operations, and built-in device drivers
 (EEPROM, GPIO expander, OLED, environmental sensor).

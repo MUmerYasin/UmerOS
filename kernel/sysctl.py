@@ -1,9 +1,9 @@
 """
 Umer OS Sysctl Runtime Parameters  [TODAY]
 ============================================
-Runtime-tunable kernel parameters inspired by Linux kernel/sysctl.c.
+Runtime-tunable kernel parameters by kernel/sysctl.c.
 
-    Linux reference: kernel/sysctl.c — provides a hierarchical namespace
+     kernel/sysctl.c — provides a hierarchical namespace
     (kernel.panic_timeout, kernel.hung_task_timeout_secs, etc.) of runtime-
     tunable parameters exposed via /proc/sys/.  Writes are validated by
     type and range.
@@ -40,7 +40,7 @@ TypeVal = Union[int, str, bool]
 class SysctlRegistry:
     """Hierarchical runtime-tunable parameter store.
 
-    Inspired by Linux ``/proc/sys/``: dot-separated paths navigate a
+    ``/proc/sys/``: dot-separated paths navigate a
     nested dict.  Every parameter has metadata for type, range, and
     write-permission enforcement.
 

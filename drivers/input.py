@@ -1,7 +1,7 @@
 """
 UmerOS Input Framework
 ======================
-Linux kernel Input subsystem.
+Kernel Input subsystem.
 Implements input devices, event reporting (EV_KEY/EV_REL/EV_ABS/EV_SYN),
 handlers (evdev, kbd, mouse), grab/exclusive access, and simulated
 keyboard, mouse, touchscreen, and gamepad devices.

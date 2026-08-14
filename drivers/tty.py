@@ -1,7 +1,7 @@
 """
 UmerOS TTY/Serial Framework
 ============================
-Linux kernel TTY and serial port subsystem.
+Kernel TTY and serial port subsystem.
 Implements TTY drivers, UART ports (8250/16550), serial consoles,
 PTY (pseudo-terminals), terminal settings, modem control, and FIFO operations.
 """

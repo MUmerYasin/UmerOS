@@ -849,7 +849,7 @@ class BootParamsManager:
         """Generate GRUB menuentry with given cmdline."""
         return (
             "menuentry 'UmerOS' {\n"
-            f"    linux /boot/vmlinuz {cmdline}\n"
+            f"     /boot/vmlinuz {cmdline}\n"
             "    initrd /boot/initrd.img\n"
             "}"
         )
@@ -858,7 +858,7 @@ class BootParamsManager:
         """Generate systemd-boot entry with given cmdline."""
         return (
             "title   UmerOS\n"
-            "linux   /vmlinuz\n"
+            "   /vm\n"
             f"options {cmdline}\n"
             "initrd  /initrd.img\n"
         )

@@ -21,7 +21,7 @@ process during most of the boot) - we model the *behaviour* so that
 higher layers can register interest and the runtime can record what
 would have happened.
 
-If the runtime is started from a real Linux kernel and the host
+If the runtime is started from a real kernel and the host
 *does* send signals, the call site can opt in to install handlers by
 setting ``UMEROS_INITRD_SIGNALS=1`` in the environment.
 
@@ -47,7 +47,7 @@ log = logging.getLogger("UmerOS.Initrd.Signals")
 # ---------------------------------------------------------------------------
 
 class InitSignal(str, Enum):
-    """The signals PID 1 sees during a normal Linux boot."""
+    """The signals PID 1 sees during a normal boot."""
 
     SIGCHLD = "SIGCHLD"   # child exited - PID 1 must reap
     SIGTERM = "SIGTERM"   # polite "please exit"

@@ -1,7 +1,7 @@
 """
 UmerOS Backlight Subsystem
 ==========================
-Linux kernel-like backlight framework.
+Kernel-like backlight framework.
 Implements backlight device registration, brightness control,
 power state management, and sysfs attributes.
 

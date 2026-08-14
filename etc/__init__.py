@@ -21,7 +21,7 @@ from etc.network_config import NetworkConfigManager
 from etc.shell_config import ShellConfigManager
 from etc.critical_files import CriticalFilesManager
 
-# New Linux /etc modules
+# New /etc modules
 from etc.alternatives import AlternativesManager
 from etc.cron_schedule import CronScheduleManager
 from etc.pam_config import PAMConfigManager

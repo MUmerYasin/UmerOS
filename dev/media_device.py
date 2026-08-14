@@ -1,10 +1,10 @@
 """
 UmerOS /dev — Media framework devices.
 
-Linux media device files:
+ media device files:
   /dev/media0-31  — Media Controller API (V4L2 pipeline)
   /dev/dvb0-7     — DVB (Digital Video Broadcasting)
-  /dev/video0-31  — Video4Linux2 capture devices
+  /dev/video0-31  — Video42 capture devices
 
 Author:  Umer OS Project
 Licence: GPLv3
@@ -23,7 +23,7 @@ log = logging.getLogger("UmerOS.Dev.MediaDevice")
 class MediaDevice:
     """Media framework devices — /dev/media*, /dev/dvb*, /dev/video*.
 
-    Linux Media Controller API and V4L2/DVB devices:
+     Media Controller API and V4L2/DVB devices:
 
     /dev/media*  — Media Controller (major 249)
       Manages complex media pipelines (ISP, codec, capture chains)
@@ -31,7 +31,7 @@ class MediaDevice:
     /dev/dvb*    — DVB devices (major 212)
       Digital TV receiver: demux, DVR, frontend, net
 
-    /dev/video*  — Video4Linux2 (major 81)
+    /dev/video*  — Video42 (major 81)
       Webcam, capture cards, V4L2 devices
 
     Major numbers:
@@ -65,7 +65,7 @@ class MediaDevice:
                 name=name, path=path, dev_type=DeviceType.CHAR,
                 major=self.VIDEO_MAJOR, minor=i * 2,
                 mode=0o660,
-                description=f"Video4Linux2 device {i}",
+                description=f"Video42 device {i}",
                 ioctl_callback=lambda req, arg, n=name: self._on_ioctl(n, req, arg),
             ))
             self._device_info[name] = {

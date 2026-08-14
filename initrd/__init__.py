@@ -1,13 +1,11 @@
 """
 Umer OS /initrd
 ===============
-A pure-Python implementation of Linux's ``/initrd`` (initial RAM disk)
+A pure-Python implementation of ``/initrd`` (initial RAM disk)
 runtime, builder and tools, tailored to Umer OS.
 
 This package is the runtime companion to the image-inventory module
 in :mod:`boot.initrd_manager`.  It implements the eight boot phases
-from the TLDP reference (see
-https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/initrd.html) and
 adds UmerOS-specific extras (post-quantum ready hooks, AI-driven
 module suggestion, scenario-based recovery).
 

@@ -1,7 +1,7 @@
 """
 UmerOS PTP Hardware Clock Subsystem
 ====================================
-Linux kernel-like PTP (Precision Time Protocol) clock framework.
+Kernel-like PTP (Precision Time Protocol) clock framework.
 Implements PHC devices, clock operations, time counters,
 and hardware timestamping for IEEE 1588 PTP.
 

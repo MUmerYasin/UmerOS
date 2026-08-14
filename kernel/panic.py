@@ -1,9 +1,9 @@
 """
 Umer OS Kernel Panic Handler  [TODAY]
 =======================================
-Fatal error handling with notifier chain, inspired by Linux kernel/panic.c.
+Fatal error handling with notifier chain, inspired by kernel/panic.c.
 
-    Linux reference: kernel/panic.c — panic() disables interrupts, prints
+    Reference: kernel/panic.c — panic() disables interrupts, prints
     a message, calls an atomic notifier chain (panic_notifier_list), then
     either hangs or reboots based on panic_timeout.
 
@@ -64,7 +64,7 @@ class PanicState:
 
 
 # ── Panic Notifier Chain ────────────────────────────────────────────────────────
-# Inspired by Linux: ATOMIC_NOTIFIER_HEAD(panic_notifier_list)
+# ATOMIC_NOTIFIER_HEAD(panic_notifier_list)
 
 class PanicNotifier:
     """Registry of callbacks invoked when the kernel panics.
@@ -120,7 +120,7 @@ class PanicNotifier:
 
 
 # ── Oops Context (crash output coordination) ────────────────────────────────────
-# Inspired by Linux: do_oops_enter_exit prevents interleaving crash logs.
+#  do_oops_enter_exit prevents interleaving crash logs.
 
 class OopsContext:
     """Context manager that serialises crash output.
@@ -147,7 +147,7 @@ class OopsContext:
 
 
 # ── Warn Counter ────────────────────────────────────────────────────────────────
-# Inspired by Linux: check_panic_on_warn() + kernel.warn_limit sysctl
+# check_panic_on_warn() + kernel.warn_limit sysctl
 
 class WarnCounter:
     """Rate-limited warning counter.

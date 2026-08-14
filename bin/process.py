@@ -626,7 +626,7 @@ class UmountCommand:
     def _do_umount(self, target: str, lazy: bool) -> bool:
         try:
             if lazy:
-                # MNT_DETACH = 2 on Linux
+                # MNT_DETACH = 2 on
                 os.umount2(target, 2)
             else:
                 os.umount(target)

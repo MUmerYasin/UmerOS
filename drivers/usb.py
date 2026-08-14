@@ -1,7 +1,7 @@
 """
 UmerOS USB Framework
 ====================
-Linux kernel USB subsystem.
+Kernel USB subsystem.
 Implements HCDs, USB devices, interfaces, endpoints, drivers,
 control/bulk/interrupt transfers, hubs, and simulated USB devices
 (keyboard, mouse, mass storage, serial adapter).
