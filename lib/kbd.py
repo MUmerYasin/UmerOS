@@ -267,3 +267,24 @@ class KbdManager:
             "languages": sorted({f.language for f in files if f.language}),
             "architectures": sorted({f.arch for f in files if f.arch}),
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = KbdManager(lib_path=tmpdir, kbd_path=tmpdir)
+        summary = mgr.get_summary()
+        assert "total_files" in summary, "summary should have total_files"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

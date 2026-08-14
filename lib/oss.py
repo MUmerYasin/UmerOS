@@ -241,3 +241,24 @@ class OssManager:
             "total_size_bytes": sum(d.size for d in drivers),
             "directory": str(self.oss_path),
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = OssManager(lib_path=tmpdir, oss_path=tmpdir)
+        summary = mgr.get_summary()
+        assert "total_drivers" in summary, "summary should have total_drivers"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

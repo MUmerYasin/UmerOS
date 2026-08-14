@@ -41,16 +41,11 @@ class NLocal:
 
     def _build(self):
         self._params = []
-        for rep in range(self._reps):
+        n_blocks = len(self._rotation_blocks) if self._rotation_blocks else 1
+        for rep in range(self._reps + 1):
             for q in range(self.num_qubits):
-                self._params.append(_Param(f"p{rep}_{q}"))
-            if self._entanglement == "linear":
-                for q in range(self.num_qubits - 1):
-                    self._params.append(_Param(f"e{rep}_{q}"))
-            elif self._entanglement == "full":
-                for q1 in range(self.num_qubits):
-                    for q2 in range(q1 + 1, self.num_qubits):
-                        self._params.append(_Param(f"e{rep}_{q1}_{q2}"))
+                for b in range(n_blocks):
+                    self._params.append(_Param(f"p{rep}_{q}_{b}"))
 
     @property
     def circuit(self):

@@ -649,3 +649,24 @@ class LibHierarchyManager:
             except OSError:
                 return False
         return False
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = LibHierarchyManager(root=tmpdir)
+        summary = mgr.get_summary()
+        assert "ok" in summary, "summary should have ok"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

@@ -241,3 +241,26 @@ def get_default_bus() -> HotplugBus:
     if _default_bus is None:
         _default_bus = _build_default_bus()
     return _default_bus
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    bus = HotplugBus()
+    called = []
+
+    def handler(event):
+        called.append(event)
+
+    bus.subscribe(handler)
+    bus.emit(HotplugEvent(event_type=HotplugEventType.CONNECT, device_path="/dev/sdb1"))
+    assert len(called) == 1, f"handler should be called once, got {len(called)}"
+
+    print("selftest OK")
+
+
+if __name__ == "__main__":
+    _selftest()

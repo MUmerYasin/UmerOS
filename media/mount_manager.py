@@ -371,3 +371,23 @@ class MountManager:
             if active:
                 out[mt.value] = active
         return out
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = MountManager(media_root=tmpdir)
+        summary = mgr.stats
+        assert isinstance(summary, dict), "stats should be a dict"
+
+    print("selftest OK")
+
+
+if __name__ == "__main__":
+    _selftest()

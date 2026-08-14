@@ -320,3 +320,21 @@ class Iconv:
             "encoding_2": info2,
             "same_encoding": info1.get("resolved") == info2.get("resolved"),
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    mgr = Iconv()
+    modules = mgr.list_modules()
+    assert isinstance(modules, list), "modules should be a list"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

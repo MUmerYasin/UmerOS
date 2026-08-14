@@ -92,6 +92,8 @@ class TrappedIonOptimizerPluginCommuteGpi2ThroughMs(TrappedIonOptimizerPluginBas
                 ms_qubits = stream[i + 1][2]
                 ms_phi0 = ms_params[0] if len(ms_params) > 0 else 0.0
                 ms_phi1 = ms_params[1] if len(ms_params) > 1 else 0.0
+                # Move gpi2 to the other qubit of the MS gate
+                other_qubit = ms_qubits[1] if qubits[0] == ms_qubits[0] else ms_qubits[0]
                 if qubits[0] == ms_qubits[0]:
                     new_phi0 = ms_phi0 + gpi2_phi
                     new_phi1 = ms_phi1 - gpi2_phi
@@ -99,7 +101,7 @@ class TrappedIonOptimizerPluginCommuteGpi2ThroughMs(TrappedIonOptimizerPluginBas
                     new_phi0 = ms_phi0 - gpi2_phi
                     new_phi1 = ms_phi1 + gpi2_phi
                 result.append(("ms", (new_phi0, new_phi1), ms_qubits))
-                result.append(("gpi2", (gpi2_phi,), qubits))
+                result.append(("gpi2", (gpi2_phi,), (other_qubit,)))
                 i += 2
                 continue
             result.append((name, params, qubits))

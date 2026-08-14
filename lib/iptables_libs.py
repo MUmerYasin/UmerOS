@@ -261,3 +261,24 @@ class IptablesLibraryManager:
             "total_size_bytes": sum(e.size for e in self._extensions.values()),
             "directory": str(self.iptables_path),
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = IptablesLibraryManager(lib_path=tmpdir, iptables_path=tmpdir)
+        summary = mgr.get_summary()
+        assert "total_extensions" in summary, "summary should have total_extensions"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

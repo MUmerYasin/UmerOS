@@ -335,3 +335,19 @@ def get_mount_info(device_path: str) -> Optional[Dict[str, str]]:
         if entry["device"] == device_path:
             return entry
     return None
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    result = detect_device("/dev/sda1")
+    assert result is not None, "detect_device should return a MediaType"
+
+    print("selftest OK")
+
+
+if __name__ == "__main__":
+    _selftest()

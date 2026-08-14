@@ -46,7 +46,7 @@ class TestQuantumCircuitSimulator(unittest.TestCase):
     def test_x_gate_flips_qubit(self):
         self.sim.apply_x(0)
         probs = self.sim.probabilities()
-        # |00⟩ → |10⟩  (qubit 0 is MSB)
+        # |00> -> |10>  (qubit 0 is MSB)
         self.assertAlmostEqual(probs[2], 1.0, places=5)
 
     def test_z_gate_on_ground_state_unchanged(self):
@@ -56,7 +56,7 @@ class TestQuantumCircuitSimulator(unittest.TestCase):
         self.assertAlmostEqual(probs[0], 1.0, places=5)
 
     def test_cnot_creates_bell_state(self):
-        """H on qubit 0 + CNOT → Bell state |Φ+⟩."""
+        """H on qubit 0 + CNOT -> Bell state |Phi+>."""
         self.sim.apply_h(0)
         self.sim.apply_cnot(0, 1)
         probs = self.sim.probabilities()

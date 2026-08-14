@@ -655,6 +655,10 @@ class LocalAIAssistant:
         log.warning("All dynamic providers failed or unavailable. Using semantic fallback.")
         return self._semantic_fallback(prompt)
 
+    def ask(self, prompt: str) -> str:
+        """Alias for query() for backward compatibility."""
+        return self.query(prompt)
+
     def reset_history(self) -> None:
         """Clear the conversation history to start a fresh session."""
         self._history.clear()

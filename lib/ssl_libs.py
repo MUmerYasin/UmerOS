@@ -425,3 +425,24 @@ class SslManager:
                 except OSError:
                     pass
         return False
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = SslManager(store_paths=[tmpdir])
+        stats = mgr.get_store_stats()
+        assert hasattr(stats, 'total_certs'), "stats should have total_certs"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

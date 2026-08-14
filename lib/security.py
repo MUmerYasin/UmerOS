@@ -338,3 +338,24 @@ class PamLibraryManager:
             "services_defined": len(self._services),
             "directory": str(self.security_path),
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = PamLibraryManager(lib_path=tmpdir, security_path=tmpdir)
+        summary = mgr.get_summary()
+        assert "total_modules" in summary, "summary should have total_modules"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

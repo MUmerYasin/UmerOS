@@ -404,3 +404,24 @@ class TmpfilesManager:
             "entries_by_type": by_type,
             "config_dirs": [d for d in self._config_dirs if os.path.isdir(d)],
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = TmpfilesManager(config_dirs=[tmpdir])
+        summary = mgr.get_summary()
+        assert "total_entries" in summary, "summary should have total_entries"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

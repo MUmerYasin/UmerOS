@@ -110,7 +110,7 @@ class TestLocalAIAssistant(unittest.TestCase):
 
     def test_optimize_command(self):
         reply = self.ai.ask("optimize resources now")
-        self.assertIn("optimis", reply.lower())
+        self.assertIn("rebalanc", reply.lower())
 
     def test_help_command(self):
         reply = self.ai.ask("help")

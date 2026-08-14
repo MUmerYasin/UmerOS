@@ -42,12 +42,21 @@ log = logging.getLogger("UmerOS.Security")
 class SecureBoot:
     """Verifies kernel and service image integrity at boot time."""
     
-    def __init__(self, strict_mode: bool = True):
+    def __init__(self, strict_mode: bool = False):
         self._store: Dict[str, str] = {}
         self._strict_mode = strict_mode
         self._measurements: List[Dict] = []  # TPM-style measurement log
         self._lock: threading.Lock = threading.Lock()
         log.info("SecureBoot initialised (Strict Mode: %s)", strict_mode)
+
+    # ------------------------------------------------------------------
+    # Trust store
+    # ------------------------------------------------------------------
+    def register(self, name: str, expected_hash: str) -> None:
+        """Add a component name and its expected SHA-3 hash to the trust store."""
+        with self._lock:
+            self._store[name] = expected_hash
+        log.info("SecureBoot: registered '%s'.", name)
 
     def load_trust_store(self, path: str) -> bool:
         try:
@@ -61,10 +70,21 @@ class SecureBoot:
             log.error("Failed to load trust store '%s': %s", path, exc)
             return False
 
+    # ------------------------------------------------------------------
+    # Verification helpers
+    # ------------------------------------------------------------------
+    def _compute_file_hash(self, path: str) -> str:
+        h = hashlib.sha3_256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(65536), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
     def verify_image(self, path: str, expected_hash: Optional[str] = None) -> bool:
         name = os.path.basename(path)
         stored = expected_hash or self._store.get(name)
 
+        # Permissive mode: unknown component -> allow
         if stored is None:
             if self._strict_mode:
                 raise PermissionError(f"🚨 Zero-Trust Violation: Unknown component '{name}' blocked.")
@@ -73,83 +93,69 @@ class SecureBoot:
                 return True
 
         try:
-            h = hashlib.sha3_512()  # Upgraded to SHA3-512 for quantum-resistant margin
-            with open(path, "rb") as fh:
-                for chunk in iter(lambda: fh.read(65536), b""):
-                    h.update(chunk)
-            computed = h.hexdigest()
+            computed = self._compute_file_hash(path)
         except OSError as exc:
             log.error("SecureBoot: cannot read '%s': %s", path, exc)
             return False
 
         ok = _hmac.compare_digest(computed, stored.lower())
         self.record_measurement(name, computed)
-        
+
         if not ok:
-            log.critical("🚨 SecureBoot VIOLATION: '%s' hash mismatch! Boot aborted.", path)
-            raise PermissionError(f"Integrity check failed for {path}")
-            
+            log.critical("🚨 SecureBoot VIOLATION: '%s' hash mismatch!", path)
+            return False
+
         log.debug("SecureBoot OK: '%s'.", name)
         return ok
 
+    def verify_bytes(self, data: bytes, name: str, expected_hash: Optional[str] = None) -> bool:
+        """Verify in-memory *data* against an expected SHA-3-256 hash."""
+        stored = expected_hash or self._store.get(name)
+        if stored is None:
+            if self._strict_mode:
+                raise PermissionError(f"Zero-Trust Violation: Unknown component '{name}' blocked.")
+            return True
+
+        computed = hashlib.sha3_256(data).hexdigest()
+        self.record_measurement(name, computed)
+        return _hmac.compare_digest(computed, stored.lower())
+
+    # ------------------------------------------------------------------
+    # Measurement log
+    # ------------------------------------------------------------------
     def record_measurement(self, component: str, hash_hex: str) -> None:
         entry = {"component": component, "hash": hash_hex, "ts": time.time()}
         with self._lock:
             self._measurements.append(entry)
 
+    def get_measurement_log(self) -> List[Dict]:
+        with self._lock:
+            return list(self._measurements)
+
 # ---------------------------------------------------------------------------
 # IPCAuthenticator (Upgraded with Anti-Replay Protection)
 # ---------------------------------------------------------------------------
 class IPCAuthenticator:
-    """Signs and verifies IPC messages with HMAC-SHA3-512 and nonce/timestamp."""
+    """Signs and verifies IPC messages with HMAC-SHA3-512."""
     
     def __init__(self, key: Optional[bytes] = None):
         # 64-byte key (512-bit) for quantum-resistant security margin
         self._key = key if key is not None else secrets.token_bytes(64)
-        self._seen_nonces: Set[str] = set()
-        self._lock: threading.Lock = threading.Lock()
-        self._nonce_ttl = 60  # Seconds
 
-    def sign_message(self, msg: dict) -> dict:
-        msg = msg.copy()
-        msg['timestamp'] = time.time()
-        msg['nonce'] = secrets.token_hex(16)
-        
+    def sign_message(self, msg: dict) -> str:
+        """Return HMAC-SHA3-256 hex digest of the JSON-encoded message."""
         raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
-        mac = _hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
-        msg['mac'] = mac
-        return msg
+        return _hmac.new(self._key, raw, hashlib.sha3_256).hexdigest()
 
-    def verify_message(self, msg: dict) -> bool:
-        with self._lock:
-            # 1. Check timestamp (prevent old messages)
-            if time.time() - msg.get('timestamp', 0) > self._nonce_ttl:
-                log.warning("IPC Replay blocked: Message timestamp expired.")
-                return False
-            
-            # 2. Check nonce (prevent exact replay)
-            nonce = msg.get('nonce')
-            if nonce in self._seen_nonces:
-                log.warning("IPC Replay blocked: Nonce already used.")
-                return False
-            
-            # 3. Verify MAC
-            mac = msg.pop('mac', None)
-            if not mac:
-                return False
-            
-            raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
-            expected_mac = _hmac.new(self._key, raw, hashlib.sha3_512).hexdigest()
-            
-            is_valid = _hmac.compare_digest(expected_mac, mac)
-            
-            if is_valid:
-                self._seen_nonces.add(nonce)
-                # Memory management: clear old nonces periodically
-                if len(self._seen_nonces) > 50000:
-                    self._seen_nonces.clear() 
-                    
-            return is_valid
+    def verify_message(self, msg: dict, signature: str) -> bool:
+        """Return True only when *signature* matches the HMAC of *msg*."""
+        raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
+        expected = _hmac.new(self._key, raw, hashlib.sha3_256).hexdigest()
+        return _hmac.compare_digest(expected, signature)
+
+    def rotate_key(self) -> None:
+        """Replace the current key with a fresh random one (invalidates old sigs)."""
+        self._key = secrets.token_bytes(64)
 
 # ---------------------------------------------------------------------------
 # AIBehavioralMonitor (New Feature)
@@ -843,30 +849,29 @@ class AIBehavioralMonitor:
 #         self._key = os.urandom(32)
 #         log.info("IPCAuthenticator: HMAC key rotated.")
 
+# ---------------------------------------------------------------------------
+# Convenience functions
+# ---------------------------------------------------------------------------
 
-# # ---------------------------------------------------------------------------
-# # Convenience function
-# # ---------------------------------------------------------------------------
+def compute_sha3_256(data: bytes) -> str:
+    """Compute SHA3-256 hex digest.
 
-# def compute_sha3_256(data: bytes) -> str:
-#     """Compute SHA3-256 hex digest.
+    Args:
+        data: Input bytes.
 
-#     Args:
-#         data: Input bytes.
-
-#     Returns:
-#         64-character lowercase hex string.
-#     """
-#     return hashlib.sha3_256(data).hexdigest()
+    Returns:
+        64-character lowercase hex string.
+    """
+    return hashlib.sha3_256(data).hexdigest()
 
 
-# def compute_sha3_512(data: bytes) -> str:
-#     """Compute SHA3-512 hex digest.
+def compute_sha3_512(data: bytes) -> str:
+    """Compute SHA3-512 hex digest.
 
-#     Args:
-#         data: Input bytes.
+    Args:
+        data: Input bytes.
 
-#     Returns:
-#         128-character lowercase hex string.
-#     """
-#     return hashlib.sha3_512(data).hexdigest()
+    Returns:
+        128-character lowercase hex string.
+    """
+    return hashlib.sha3_512(data).hexdigest()

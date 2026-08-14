@@ -235,3 +235,26 @@ class MultiarchManager:
             ],
             "total_variants": len(self._variants),
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = MultiarchManager(root=tmpdir)
+        variants = mgr.list_variants()
+        assert isinstance(variants, list), "variants should be a list"
+        summary = mgr.get_summary()
+        assert "total_variants" in summary, "summary should have total_variants"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

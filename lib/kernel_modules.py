@@ -746,3 +746,24 @@ class KernelModuleManager:
         )
         # Drop any stale info cache
         self._info.pop(name, None)
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cat = KernelModuleManager(lib_path=tmpdir)
+        summary = cat.get_summary()
+        assert "total_modules" in summary, "summary should have total_modules"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

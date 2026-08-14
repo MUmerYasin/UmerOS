@@ -247,3 +247,23 @@ def validate_fhs_media(media_root: Optional[Path] = None) -> Dict[str, bool]:
     root = media_root or MediaConfig().media_root
     required = ["floppy", "cdrom", "cdrecorder", "zip"]
     return {name: (root / name).is_dir() for name in required}
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cfg = MediaConfig(media_root=tmpdir)
+        result = scan_stale_mounts(cfg)
+        assert hasattr(result, "stale_count") or hasattr(result, "summary"), "result should have stale_count or summary"
+
+    print("selftest OK")
+
+
+if __name__ == "__main__":
+    _selftest()

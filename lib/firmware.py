@@ -318,3 +318,24 @@ class FirmwareManager:
             "total_size_bytes": sum(b.size for b in blobs),
             "directory": str(self.firmware_path),
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = FirmwareManager(lib_path=tmpdir, firmware_path=tmpdir)
+        summary = mgr.get_summary()
+        assert "total_blobs" in summary, "summary should have total_blobs"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

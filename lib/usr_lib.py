@@ -495,3 +495,24 @@ class UsrLibManager:
             "libraries_count": len(self._libraries),
             "directory": str(self.lib_path),
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = UsrLibManager(usr_path=tmpdir)
+        summary = mgr.get_summary()
+        assert "subdirectories" in summary, "summary should have subdirectories"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()

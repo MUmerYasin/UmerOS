@@ -55,11 +55,11 @@ class SecuritySandbox:
 
     def check_permission(self, pid: int, permission: str) -> bool:
         if pid not in self.processes:
-            print(f"[SECURITY] 🚫 DENIED: PID {pid} is not registered.")
+            print(f"[SECURITY] DENIED: PID {pid} is not registered.")
             return False
         allowed = permission in self.processes[pid].permissions
         if not allowed:
-            print(f"[SECURITY] 🚫 DENIED: PID {pid} lacks '{permission}' permission.")
+            print(f"[SECURITY] DENIED: PID {pid} lacks '{permission}' permission.")
         return allowed
 
     def resolve_path(self, pid: int, path: str) -> str:
@@ -79,10 +79,10 @@ class SecuritySandbox:
         try:
             common = os.path.commonpath([jail, target])
             if common != jail:
-                raise PermissionError(f"🚫 Path traversal/jailbreak blocked: {path} resolved to {target}")
+                raise PermissionError(f"Path traversal/jailbreak blocked: {path} resolved to {target}")
         except ValueError:
             # Occurs on Windows if paths resolve to different drives
-            raise PermissionError(f"🚫 Invalid path resolution across drives: {path}")
+            raise PermissionError(f"Invalid path resolution across drives: {path}")
         
         return target
 
@@ -93,12 +93,13 @@ class SecuritySandbox:
         """
         computed_hash = hashlib.sha3_512(executable_payload).hexdigest()
         # Constant-time comparison to prevent timing attacks
-        is_valid = hashlib.compare_digest(computed_hash, expected_hash)
+        import hmac as _hmac
+        is_valid = _hmac.compare_digest(computed_hash, expected_hash)
         
         if not is_valid:
-            print(f"[SECURITY] 🚨 CODE SIGNING FAILED: PID {pid} hash mismatch!")
+            print(f"[SECURITY] CODE SIGNING FAILED: PID {pid} hash mismatch!")
         else:
-            print(f"[SECURITY] ✅ Code signature verified for PID {pid}.")
+            print(f"[SECURITY] Code signature verified for PID {pid}.")
             
         return is_valid
 

@@ -250,3 +250,25 @@ class MediaDescriptor:
     def is_fhs(self) -> bool:
         """True if this media type is FHS-required."""
         return self.media_type.is_fhs_required
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    mt = MediaType.USB
+    assert mt.value == "usb", f"expected 'usb', got {mt.value}"
+    assert mt.display_name == "USB Storage"
+    assert MediaType.CDROM.is_fhs_required is True
+
+    desc = MediaDescriptor(media_type=mt, device_path="/dev/sdb1", label="MYUSB")
+    assert desc.label == "MYUSB"
+    assert desc.is_fhs is False
+
+    print("selftest OK")
+
+
+if __name__ == "__main__":
+    _selftest()

@@ -5,10 +5,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import directly from the modules
-from umerOS.quantum.gates import H_GATE, X_GATE, CNOT_GATE, TOFFOLI_GATE, SWAP_GATE
-from umerOS.quantum.circuit import QuantumCircuit, Instruction
-from umerOS.quantum.native_gates import HardwarePlatform
-from umerOS.quantum.hardware_transpiler import (
+from quantum.gates import H_GATE, X_GATE, CNOT_GATE, TOFFOLI_GATE, SWAP_GATE
+from quantum.circuit import QuantumCircuit, Instruction
+from quantum.native_gates import HardwarePlatform
+from quantum.hardware_transpiler import (
     CouplingMap,
     IBM_127_QUBIT,
     IONQ_11_QUBIT,

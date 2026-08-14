@@ -2,7 +2,7 @@ import sys, importlib.util
 
 spec = importlib.util.spec_from_file_location(
     'umerOS.quantum.dynamic_circuits_v2',
-    r'C:\Users\MC Raja Jang\Documents\Default Project\UmerOS\umerOS\quantum\dynamic_circuits_v2.py'
+    r'F:\Pension Person Details\UmerOS\quantum\dynamic_circuits_v2.py'
 )
 mod = importlib.util.module_from_spec(spec)
 sys.modules['umerOS.quantum.dynamic_circuits_v2'] = mod
@@ -102,8 +102,8 @@ fake_circuit_for_overhead = type('FakeCircuit', (), {
     'num_qubits': 2, 'num_clbits': 4
 })()
 ov = mod.estimate_classical_processing_overhead(fake_circuit_for_overhead)
-assert ov['total_mid_circuit_measurements'] == 3
-assert ov['total_conditional_gates'] == 2
+assert ov['num_mid_circuit_measurements'] == 3
+assert ov['num_conditional_gates'] == 2
 
 # compiler
 comp = mod.DynamicCircuitCompiler(backend='ibm')
@@ -117,9 +117,13 @@ assert compiled['supports_dynamic'] is True
 assert 'native_gates' in compiled
 
 # compiler estimate_resource_overhead
-overhead = comp.estimate_resource_overhead([mcm], [cg])
-assert overhead['total_mid_circuit_measurements'] == 1
-assert overhead['total_conditional_gates'] == 1
+fake_dc = type('FakeDC', (), {
+    'mid_circuit_measurements': [mcm], 'conditional_gates': [cg],
+    'classical_registers': [], 'num_qubits': 2, 'num_clbits': 2
+})()
+overhead = comp.estimate_resource_overhead(fake_dc)
+assert overhead['num_mid_circuit_measurements'] == 1
+assert overhead['num_conditional_gates'] == 1
 
 # DynamicCircuitExecutor
 class FakeProvider:

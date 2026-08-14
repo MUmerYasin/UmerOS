@@ -402,3 +402,24 @@ class ArchLibraryManager:
                 "64": sum(1 for a in arches if a.bits == 64),
             },
         }
+
+
+# ---------------------------------------------------------------------------
+#  Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest():
+    """Run a basic self-test for this module."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mgr = ArchLibraryManager(lib_path=tmpdir)
+        summary = mgr.get_summary()
+        assert "total_architectures" in summary, "summary should have total_architectures"
+
+    print("selftest OK")
+    return True
+
+
+if __name__ == "__main__":
+    _selftest()
