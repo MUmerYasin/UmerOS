@@ -21,7 +21,7 @@ Design
 ------
 
 The :class:`MountTable` is a small registry that tracks every mount
-the runtime performs during the boot.  Each :class:`MountRecord` keeps
+the runtime performs during the boot.  Each :class:`InitrdMountRecord` keeps
 the device (or "tmpfs"/"proc"/"sys"), the filesystem type, the mount
 point inside the initrd, the read/write flag, and a reference to the
 backing :class:`VfsRoot` so that file reads can be redirected to the
@@ -94,7 +94,7 @@ class FilesystemType(str, Enum):
 # ---------------------------------------------------------------------------
 
 @dataclass
-class MountRecord:
+class InitrdMountRecord:
     """One entry in the mount table."""
 
     device: str                 # e.g. "/dev/sda2", "tmpfs", "proc"
@@ -127,9 +127,9 @@ class MountTable:
     """In-memory registry of every mount the runtime has done."""
 
     def __init__(self) -> None:
-        self._mounts: List[MountRecord] = []
+        self._mounts: List[InitrdMountRecord] = []
 
-    def add(self, record: MountRecord) -> None:
+    def add(self, record: InitrdMountRecord) -> None:
         # Replace any previous mount at the same path so the table
         # behaves like the kernel's single-source-of-truth semantics.
         self._mounts = [m for m in self._mounts if m.mount_point != record.mount_point]
@@ -146,7 +146,7 @@ class MountTable:
             return True
         return False
 
-    def find(self, mount_point: str) -> Optional[MountRecord]:
+    def find(self, mount_point: str) -> Optional[InitrdMountRecord]:
         # Return the most-specific (longest) match.
         candidates = [m for m in self._mounts
                       if mount_point == m.mount_point
@@ -155,7 +155,7 @@ class MountTable:
             return None
         return max(candidates, key=lambda m: len(m.mount_point))
 
-    def list(self) -> List[MountRecord]:
+    def list(self) -> List[InitrdMountRecord]:
         return list(self._mounts)
 
     def as_lines(self) -> List[str]:
@@ -181,7 +181,7 @@ def mount(
     flags: Optional[List[MountFlag]] = None,
     source: Optional[VfsRoot] = None,
     description: str = "",
-) -> MountRecord:
+) -> InitrdMountRecord:
     """Record a mount in ``table``.
 
     The mirror of ``mount(8)`` for the initrd runtime.  It does not
@@ -197,7 +197,7 @@ def mount(
         raise ValueError(f"mount: {mount_point!r} must be absolute")
     if not flags:
         flags = []
-    rec = MountRecord(
+    rec = InitrdMountRecord(
         device=device,
         fstype=fstype,
         mount_point=mount_point,
@@ -369,7 +369,7 @@ def dev_read(root: VfsRoot, path: str, size: int) -> bytes:
 # ---------------------------------------------------------------------------
 
 def mount_proc(table: MountTable, root: VfsRoot,
-               mount_point: str = "/proc") -> MountRecord:
+               mount_point: str = "/proc") -> InitrdMountRecord:
     """Mount the procfs pseudo filesystem at ``mount_point``.
 
     The initrd runtime creates a few well-known entries so that
@@ -395,7 +395,7 @@ def mount_proc(table: MountTable, root: VfsRoot,
 
 
 def mount_sys(table: MountTable, root: VfsRoot,
-              mount_point: str = "/sys") -> MountRecord:
+              mount_point: str = "/sys") -> InitrdMountRecord:
     """Mount the sysfs pseudo filesystem at ``mount_point``."""
     root.mkdir(mount_point, mode=0o555)
     root.mkdir(f"{mount_point}/block", mode=0o555)
@@ -412,7 +412,7 @@ def mount_sys(table: MountTable, root: VfsRoot,
 
 
 def mount_dev(table: MountTable, root: VfsRoot,
-              mount_point: str = "/dev") -> MountRecord:
+              mount_point: str = "/dev") -> InitrdMountRecord:
     """Mount devtmpfs at ``mount_point`` and populate standard nodes."""
     populate_dev(root, prefix=mount_point)
     return mount(table,

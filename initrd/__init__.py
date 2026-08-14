@@ -125,7 +125,7 @@ from initrd.hooks import HookAbort, HookManager, HookPoint
 from initrd.linuxrc import BootContext, run
 from initrd.module_resolver import ModuleResolver, ModuleSpec
 from initrd.mounts import (
-    ChrootContext, FilesystemType, MountFlag, MountRecord, MountTable,
+    ChrootContext, FilesystemType, MountFlag, InitrdMountRecord, MountTable,
     chroot_into, chroot_undo, dev_read, mount, mount_dev, mount_proc,
     mount_sys, populate_dev, resolve_in_chroot, unmount,
 )
