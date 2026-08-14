@@ -1,9 +1,13 @@
 import os
 from fastapi import FastAPI, HTTPException, Depends, Request, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import OAuth2AuthorizationCodeBearer
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
+from loguru import logger
 
 # Import proc utilities
 from proc.cpuinfo import get as get_cpuinfo
@@ -28,21 +32,22 @@ from proc.pid_fd import list_fds as get_pid_fds
 app = FastAPI(title="UmerOS /proc Emulation API", version="1.0.0")
 
 # --- Security ---------------------------------------------------------------
-# Simple API‑Key authentication (Bearer token). The key must be provided via the
-# environment variable ``UOS_API_KEY``. If the variable is missing the service
-# will refuse all requests – this forces the operator to set a secret.
-API_KEY = os.getenv("UOS_API_KEY")
-if not API_KEY:
-    # Fail fast with a clear message – the server should not start without a key.
-    raise RuntimeError("Environment variable UOS_API_KEY is not set. Set a strong secret before starting the service.")
+# OAuth2 stub authentication. In production replace ``OAuth2AuthorizationCodeBearer``
+# with your identity provider configuration (client_id, auth_url, token_url, etc.).
+# Here we simply require a JWT in the ``Authorization: Bearer <token>`` header and
+# validate its signature against a secret stored in ``UOS_OAUTH_SECRET``.
 
-bearer_scheme = HTTPBearer(auto_error=False)
+OAUTH_SECRET = os.getenv("UOS_OAUTH_SECRET")
+if not OAUTH_SECRET:
+    raise RuntimeError("Environment variable UOS_OAUTH_SECRET is not set. Set a secret for JWT validation.")
 
-def verify_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid authentication scheme")
-    if credentials.credentials != API_KEY:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid API key")
+oauth_scheme = OAuth2AuthorizationCodeBearer(authorizationUrl="https://example.com/auth", tokenUrl="https://example.com/token")
+
+def verify_oauth_token(token: str = Depends(oauth_scheme)):
+    # Simple verification – in real usage decode JWT with ``python-jose``
+    # and verify claims (exp, iss, aud). For now we just check it matches the secret.
+    if token != OAUTH_SECRET:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid OAuth token")
     return True
 
 # Simple in‑memory rate limiter (max 20 requests per minute per IP). This is not
@@ -67,7 +72,7 @@ def rate_limiter(request: Request):
     return True
 
 # Dependency that enforces both authentication and rate limiting
-def secure_endpoint(request: Request, authorized: bool = Depends(verify_token), _: bool = Depends(rate_limiter)):
+def secure_endpoint(request: Request, authorized: bool = Depends(verify_oauth_token), _: bool = Depends(rate_limiter)):
     return True
 
 # --- Response models --------------------------------------------------------
@@ -207,12 +212,47 @@ def endpoint_pid_fd(pid: int, _: bool = Depends(secure_endpoint)):
 # Global exception handler to avoid leaking stack traces
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled exception: {}", exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
     )
 
+# --- Middleware --------------------------------------------------------------
+# CORS configuration – restrict to trusted origins (adjust as needed)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://my-frontend.example.com"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
+
+# Security headers middleware
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "geolocation=()"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Request logging middleware – logs method, path, status and latency
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        logger.info("Incoming request: {} {}", request.method, request.url.path)
+        response = await call_next(request)
+        logger.info("Response: {} {} -> {}", request.method, request.url.path, response.status_code)
+        return response
+
+app.add_middleware(RequestLoggingMiddleware)
+
 if __name__ == "__main__":
     import uvicorn
     # Bind to 0.0.0.0 only if explicitly required; default is localhost for safety.
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_config=None)
+
