@@ -6,8 +6,8 @@ import os
 import tempfile
 import unittest
 
+from security.sandbox import SecuritySandbox
 from security.security import (
-    SecuritySandbox,
     SecureBoot,
     IPCAuthenticator,
     compute_sha3_256,
@@ -17,71 +17,66 @@ from quantum.crypto_pqc import PostQuantumCrypto, sha3_256, sha3_512, hmac_sha25
 
 
 # ---------------------------------------------------------------------------
-# SecuritySandbox tests
+# SecuritySandbox tests (uses sandbox.py capability-based API)
 # ---------------------------------------------------------------------------
 
 class TestSecuritySandbox(unittest.TestCase):
 
     def setUp(self):
-        self.box = SecuritySandbox(pid=42)
+        self.sandbox = SecuritySandbox()
+        self.sandbox.register_process(42, "test_proc")
+        self.pid = 42
 
-    def test_pid_property(self):
-        self.assertEqual(self.box.pid, 42)
+    def test_register_process(self):
+        self.assertIn(self.pid, self.sandbox.processes)
+        self.assertEqual(self.sandbox.processes[self.pid].name, "test_proc")
 
-    def test_no_caps_by_default(self):
-        self.assertEqual(len(self.box.all_capabilities()), 0)
+    def test_no_extra_perms_by_default(self):
+        proc = self.sandbox.processes[self.pid]
+        self.assertEqual(proc.permissions, {"read"})
 
-    def test_grant_adds_capability(self):
-        self.box.grant("fs.read")
-        self.assertIn("fs.read", self.box.all_capabilities())
+    def test_grant_permission_adds(self):
+        self.sandbox.grant_permission(self.pid, "fs.write")
+        self.assertIn("fs.write", self.sandbox.processes[self.pid].permissions)
 
-    def test_revoke_removes_capability(self):
-        self.box.grant("fs.write")
-        result = self.box.revoke("fs.write")
-        self.assertTrue(result)
-        self.assertNotIn("fs.write", self.box.all_capabilities())
+    def test_revoke_permission_removes(self):
+        self.sandbox.grant_permission(self.pid, "fs.write")
+        self.sandbox.revoke_permission(self.pid, "fs.write")
+        self.assertNotIn("fs.write", self.sandbox.processes[self.pid].permissions)
 
-    def test_revoke_nonexistent_returns_false(self):
-        self.assertFalse(self.box.revoke("net.send"))
+    def test_revoke_nonexistent_no_error(self):
+        self.sandbox.revoke_permission(self.pid, "net.send")
+        self.assertNotIn("net.send", self.sandbox.processes[self.pid].permissions)
 
-    def test_check_granted_returns_true(self):
-        self.box.grant("gpu.render")
-        self.assertTrue(self.box.check("gpu.render"))
+    def test_check_permission_granted(self):
+        self.sandbox.grant_permission(self.pid, "gpu.render")
+        self.assertTrue(self.sandbox.check_permission(self.pid, "gpu.render"))
 
-    def test_check_denied_raises_permission_error(self):
-        with self.assertRaises(PermissionError):
-            self.box.check("quantum.hardware")
+    def test_check_permission_denied(self):
+        self.assertFalse(self.sandbox.check_permission(self.pid, "quantum.hardware"))
 
-    def test_has_returns_bool(self):
-        self.box.grant("ai.inference")
-        self.assertTrue(self.box.has("ai.inference"))
-        self.assertFalse(self.box.has("ai.train"))
+    def test_check_permission_unregistered_pid(self):
+        self.assertFalse(self.sandbox.check_permission(999, "fs.read"))
 
-    def test_initial_caps_from_constructor(self):
-        box = SecuritySandbox(pid=1, allowed_caps=["net.send", "net.recv"])
-        self.assertTrue(box.has("net.send"))
-        self.assertTrue(box.has("net.recv"))
-        self.assertFalse(box.has("fs.write"))
-
-    def test_grant_multiple(self):
-        caps = ["fs.read", "net.send", "gpu.render"]
-        for c in caps:
-            self.box.grant(c)
-        for c in caps:
-            self.assertIn(c, self.box.all_capabilities())
-
-    def test_all_capabilities_returns_frozenset(self):
-        self.box.grant("x")
-        result = self.box.all_capabilities()
-        self.assertIsInstance(result, frozenset)
+    def test_grant_multiple_permissions(self):
+        perms = ["fs.read", "net.send", "gpu.render"]
+        for p in perms:
+            self.sandbox.grant_permission(self.pid, p)
+        for p in perms:
+            self.assertIn(p, self.sandbox.processes[self.pid].permissions)
 
     def test_repr_contains_pid(self):
-        self.assertIn("42", repr(self.box))
+        proc = self.sandbox.processes[self.pid]
+        self.assertIn("42", repr(proc))
 
-    def test_verify_process_returns_bool(self):
-        # Any hash string — verify_process always returns bool
-        result = self.box.verify_process("abc123")
-        self.assertIsInstance(result, bool)
+    def test_verify_signature(self):
+        payload = b"test executable"
+        expected = hashlib.sha3_512(payload).hexdigest()
+        self.assertTrue(self.sandbox.verify_signature(self.pid, payload, expected))
+
+    def test_verify_signature_bad_hash(self):
+        payload = b"test executable"
+        self.assertFalse(self.sandbox.verify_signature(self.pid, payload, "0" * 128))
 
 
 # ---------------------------------------------------------------------------

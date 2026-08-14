@@ -205,16 +205,58 @@ class TestEntanglementIPCAdapter(unittest.TestCase):
 
 class TestQuantumDeviceAbstract(unittest.TestCase):
 
-    def test_all_methods_raise_not_implemented(self):
-        dev = QuantumDevice()
-        with self.assertRaises(NotImplementedError):
-            dev.allocate_qubits(2)
-        with self.assertRaises(NotImplementedError):
-            dev.run_circuit([])
-        with self.assertRaises(NotImplementedError):
-            dev.get_fidelity()
-        with self.assertRaises(NotImplementedError):
-            dev.deallocate([0, 1])
+    def _make_dummy_device(self):
+        """Create a concrete subclass for testing the base class behaviour."""
+        from kernel.scheduler import Task
+
+        class _DummyDevice(QuantumDevice):
+            def __init__(self):
+                super().__init__(device_name="dummy", n_qubits=5)
+
+            def status(self):
+                from quantum.quantum_sim import DeviceStatus
+                return DeviceStatus.OFFLINE
+
+            def get_fidelity(self):
+                return 0.0
+
+            def _execute_on_hardware(self, ops, shots):
+                return {"0" * self._n_qubits: shots}
+
+        return _DummyDevice()
+
+    def test_allocate_deallocate(self):
+        dev = self._make_dummy_device()
+        ids = dev.allocate_qubits(2)
+        self.assertEqual(len(ids), 2)
+        dev.deallocate(ids)
+        ids2 = dev.allocate_qubits(5)
+        self.assertEqual(len(ids2), 5)
+
+    def test_apply_gate_records_operation(self):
+        dev = self._make_dummy_device()
+        dev.allocate_qubits(2)
+        dev.apply_gate("H", 0)
+        dev.apply_gate("CNOT", 0, target=1)
+        self.assertEqual(len(dev._circuit_ops), 2)
+
+    def test_run_circuit_returns_counts(self):
+        dev = self._make_dummy_device()
+        dev.allocate_qubits(2)
+        counts = dev.run_circuit(shots=100)
+        self.assertEqual(sum(counts.values()), 100)
+
+    def test_reset_clears_ops(self):
+        dev = self._make_dummy_device()
+        dev.allocate_qubits(1)
+        dev.apply_gate("X", 0)
+        dev.reset()
+        self.assertEqual(dev._circuit_ops, [])
+
+    def test_allocate_too_many_raises(self):
+        dev = self._make_dummy_device()
+        with self.assertRaises(Exception):
+            dev.allocate_qubits(10)
 
 
 if __name__ == "__main__":
