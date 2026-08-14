@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, HTTPException, Depends, Request, status, Response
-from fastapi.security import OAuth2AuthorizationCodeBearer
+from fastapi.security import OAuth2AuthorizationCodeBearer, HTTPBearer
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -11,6 +11,9 @@ from loguru import logger
 
 # JWT handling
 from jose import JWTError, jwt
+
+# OAuth2 scheme for token extraction (configure URLs via environment variables)
+oauth_scheme = OAuth2AuthorizationCodeBearer(authorizationUrl=os.getenv("OIDC_AUTH_URL", ""), tokenUrl=os.getenv("OIDC_TOKEN_URL", ""))
 
 # Prometheus metrics
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST

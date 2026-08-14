@@ -1,0 +1,15 @@
+{
+    email admin@example.com
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+https://mydomain.example.com {
+    reverse_proxy app:8000
+    encode gzip
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+    }
+}

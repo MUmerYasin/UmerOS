@@ -1,0 +1,40 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run Bandit (static security analysis)
+        run: |
+          pip install bandit
+          bandit -r .
+      - name: Run Safety (dependency vulnerability check)
+        run: |
+          pip install safety
+          safety check -r requirements.txt --full-report
+      - name: Run Trivy (container scanning)
+        uses: aquasecurity/trivy-action@0.12.0
+        with:
+          image-ref: "docker.io/library/python:3.12-slim"
+          format: "table"
+          exit-code: "1"
+      - name: Run OWASP ZAP baseline scan (API security)
+        uses: zaproxy/action-baseline@v0.11.0
+        with:
+          target: "http://localhost:8000"
+          rules_file_name: "zap-rules.tsv"

@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: umeros_app
+    environment:
+      - OIDC_JWKS_URL=${OIDC_JWKS_URL}
+      - OIDC_ISSUER=${OIDC_ISSUER}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE}
+      - OIDC_AUTH_URL=${OIDC_AUTH_URL}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL}
+    ports:
+      - "8000:8000"
+    networks:
+      - umeros_net
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: umeros_caddy
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "443:443"
+      - "80:80"
+    depends_on:
+      - app
+    networks:
+      - umeros_net
+
+networks:
+  umeros_net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
