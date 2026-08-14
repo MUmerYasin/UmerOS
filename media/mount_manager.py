@@ -76,6 +76,10 @@ class MediaConfig:
     )
     stale_threshold_s: int = 86400  # 24 h
 
+    def __post_init__(self) -> None:
+        if isinstance(self.media_root, str):
+            self.media_root = Path(self.media_root)
+
 
 # ---------------------------------------------------------------------------
 # Mount-point path helpers
