@@ -17,8 +17,19 @@ Licence: Apache 2.0
 from __future__ import annotations
 
 import logging
-import pwd
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    class _PwdModule:
+        struct_passwd = object
+        def getpwnam(self, name: str) -> object: ...
+    pwd: _PwdModule = None  # type: ignore[assignment]
+else:
+    try:
+        import pwd
+    except ImportError:
+        pwd = None  # type: ignore[assignment]
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -98,13 +109,14 @@ class PasswdManager:
     def find(self, *, uid: Optional[int] = None, name: Optional[str] = None) -> Optional[PasswdEntry]:
         if uid is None and name is None:
             raise ValueError("must supply uid or name")
-        # Try the pwd database first.
-        try:
-            if uid == 0 or name == "root":
-                pw = pwd.getpwnam("root")
-                return PasswdEntry.from_struct(pw)
-        except KeyError:
-            pass
+        # Try the pwd database first (Unix only).
+        if pwd is not None:
+            try:
+                if uid == 0 or name == "root":
+                    pw = pwd.getpwnam("root")
+                    return PasswdEntry.from_struct(pw)
+            except KeyError:
+                pass
         # Fall back to the file.
         for entry in self.read():
             if uid is not None and entry.uid == uid:
@@ -192,11 +204,12 @@ def _selftest() -> bool:
         return False
     if e.as_line() != line:
         return False
-    # from_struct
-    pw = pwd.struct_passwd(("root", "x", "0", "0", "root", "/root", "/bin/bash"))
-    e2 = PasswdEntry.from_struct(pw)
-    if e2.uid != 0 or e2.home != "/root":
-        return False
+    # from_struct (Unix only).
+    if pwd is not None:
+        pw = pwd.struct_passwd(("root", "x", "0", "0", "root", "/root", "/bin/bash"))
+        e2 = PasswdEntry.from_struct(pw)
+        if e2.uid != 0 or e2.home != "/root":
+            return False
     # File round-trip.
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "passwd"

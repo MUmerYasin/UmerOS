@@ -35,7 +35,7 @@ from proc.ioports import get as get_ioports
 from proc.dma import get as get_dma
 from proc.modules import get as get_modules
 from proc.mounts import get as get_mounts
-from proc.pids import list_all as get_pids
+from proc.pid_entries import list_all as get_pids
 from proc.pid_status import get as get_pid_status
 from proc.pid_cmdline import get as get_pid_cmdline
 from proc.pid_environ import get as get_pid_environ

@@ -252,17 +252,22 @@ class RootDotfilesManager:
             created = True
         else:
             existing = path.read_text(encoding="utf-8", errors="replace")
-            if existing != body:
-                if not force:
-                    return DotfileResult(
-                        name=name,
-                        path=str(path),
-                        created=False, updated=False,
-                        mode=stat.S_IMODE(path.stat().st_mode),
-                        size_bytes=path.stat().st_size,
-                        note="exists with different content; pass force=True to overwrite",
-                    )
+            current_mode = stat.S_IMODE(path.stat().st_mode)
+            content_differs = existing != body
+            mode_differs = current_mode != mode
+            if (content_differs or mode_differs) and not force:
+                return DotfileResult(
+                    name=name,
+                    path=str(path),
+                    created=False, updated=False,
+                    mode=current_mode,
+                    size_bytes=path.stat().st_size,
+                    note="exists with different content or mode; pass force=True to overwrite",
+                )
+            if content_differs:
                 path.write_text(body, encoding="utf-8")
+                updated = True
+            if mode_differs:
                 updated = True
         try:
             os.chmod(path, mode)
@@ -363,7 +368,7 @@ def _selftest() -> bool:
         if not priv.created:
             return False
         st = (home / ".bash_history").stat()
-        if stat.S_IMODE(st.st_mode) != 0o600:
+        if os.name != "nt" and stat.S_IMODE(st.st_mode) != 0o600:
             return False
         # Re-running should be a no-op (no creation, no update).
         report2 = mgr.ensure_all()

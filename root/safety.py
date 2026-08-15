@@ -310,7 +310,8 @@ def _selftest() -> bool:
         (home / ".ssh" / "id_rsa").chmod(0o644)
         (home / "Mail").mkdir()
         auditor = RootSafetyAuditor(home=str(home))
-        report = auditor.audit(env={"PATH": "/tmp:."})
+        sep = os.pathsep
+        report = auditor.audit(env={"PATH": sep.join(["/tmp", "."])})
         codes = {f.code for f in report.findings}
         if "PATH001" not in codes:
             return False
@@ -319,27 +320,30 @@ def _selftest() -> bool:
             pass
         if "HIST001" not in codes:
             return False
-        if "SSH001" not in codes:
-            return False
-        if "SSH002" not in codes:
-            return False
+        if os.name != "nt":
+            # SSH permission checks require Unix-style file modes.
+            if "SSH001" not in codes:
+                return False
+            if "SSH002" not in codes:
+                return False
         if "STATE001" not in codes:
             return False
         # CRITICAL findings (LD_PRELOAD, world-writable PATH) must be
         # flagged as blocking.
         env2 = {"PATH": "/tmp", "LD_PRELOAD": "/tmp/evil.so"}
-        # Make a world-writable /tmp-style dir for the path check.
-        with tempfile.TemporaryDirectory() as tmp2:
-            world = Path(tmp2) / "world"
-            world.mkdir()
-            world.chmod(0o777)
-            env2["PATH"] = str(world)
-            report2 = auditor.audit(env=env2)
+        if os.name != "nt":
+            # Make a world-writable /tmp-style dir for the path check.
+            with tempfile.TemporaryDirectory() as tmp2:
+                world = Path(tmp2) / "world"
+                world.mkdir()
+                world.chmod(0o777)
+                env2["PATH"] = str(world)
+        report2 = auditor.audit(env=env2)
         if not report2.has_blocking():
             return False
         if "LD002" not in {f.code for f in report2.findings}:
             return False
-        if "PATH003" not in {f.code for f in report2.findings}:
+        if os.name != "nt" and "PATH003" not in {f.code for f in report2.findings}:
             return False
         # Render.
         text = report.render()

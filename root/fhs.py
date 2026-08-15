@@ -12,6 +12,7 @@ Licence: Apache 2.0
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -219,20 +220,19 @@ def _selftest() -> bool:
         dm.ensure_all(force=True)
         auditor = FHSRootAuditor(home=str(home))
         report = auditor.audit()
-        # No errors expected on a freshly bootstrapped home.
-        if not report.ok:
+        # No errors expected on a freshly bootstrapped home (Unix only;
+        # Windows chmod does not restrict access so FHS002 always fires).
+        if os.name != "nt" and not report.ok:
             return False
         # Drop a forbidden subdir and re-audit.
         (home / "Mail").mkdir()
         report2 = auditor.audit()
-        if any(i.code == "FHS004" for i in report2.issues):
-            pass
-        else:
+        if not any(i.code == "FHS004" for i in report2.issues):
             return False
-        # Tighten permissions - should now fail FHS002.
+        # Tighten permissions - should now fail FHS002 (Unix only).
         home.chmod(0o755)
         report3 = auditor.audit()
-        if not any(i.code == "FHS002" for i in report3.issues):
+        if os.name != "nt" and not any(i.code == "FHS002" for i in report3.issues):
             return False
         # Render.
         text = report3.render()

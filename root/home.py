@@ -3,7 +3,7 @@ Umer OS /root - home directory manager
 =====================================
 Manages the system administrator (``root``) home directory.
 
-The TLDP /root reference spells out three requirements that drive
+/root reference spells out three requirements that drive
 this module:
 
 1. ``/root`` is the *recommended* home directory of the system
@@ -33,10 +33,22 @@ from __future__ import annotations
 
 import logging
 import os
-import pwd
 import shutil
 import stat
 import time
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Structured passwd entry type hint - never executed at runtime.
+    class _PwdModule:
+        struct_passwd = object
+        def getpwnam(self, name: str) -> object: ...
+    pwd: _PwdModule = None  # type: ignore[assignment]
+else:
+    try:
+        import pwd
+    except ImportError:
+        pwd = None  # type: ignore[assignment]
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -122,7 +134,24 @@ class RootHomeInfo:
 # Passwd helper
 # ---------------------------------------------------------------------------
 
-def find_root_passwd_entry(passwd_path: str = "/etc/passwd") -> Optional[pwd.struct_passwd]:
+class _PasswdFallback:
+    """Lightweight stand-in for ``pwd.struct_passwd`` when the ``pwd``
+    module is unavailable (Windows)."""
+    __slots__ = ("pw_name", "pw_passwd", "pw_uid", "pw_gid",
+                 "pw_gecos", "pw_dir", "pw_shell")
+
+    def __init__(self, name: str, passwd: str, uid: int, gid: int,
+                 gecos: str, home: str, shell: str) -> None:
+        self.pw_name = name
+        self.pw_passwd = passwd
+        self.pw_uid = uid
+        self.pw_gid = gid
+        self.pw_gecos = gecos
+        self.pw_dir = home
+        self.pw_shell = shell
+
+
+def find_root_passwd_entry(passwd_path: str = "/etc/passwd") -> Optional[object]:
     """Return the ``/etc/passwd`` row whose UID is 0, or None.
 
     Falls back to :func:`pwd.getpwnam` if the file is missing or
@@ -143,25 +172,20 @@ def find_root_passwd_entry(passwd_path: str = "/etc/passwd") -> Optional[pwd.str
                     except ValueError:
                         continue
                     if uid == ROOT_UID:
-                        # Return a struct_passwd-shaped dict-like object.
-                        return pwd.struct_passwd(
-                            (
-                                parts[0],      # pw_name
-                                parts[1],      # pw_passwd
-                                parts[2],      # pw_uid
-                                parts[3],      # pw_gid
-                                parts[4],      # pw_gecos
-                                parts[5],      # pw_dir
-                                parts[6],      # pw_shell
-                            )
+                        return _PasswdFallback(
+                            name=parts[0], passwd=parts[1],
+                            uid=int(parts[2]), gid=int(parts[3]),
+                            gecos=parts[4], home=parts[5], shell=parts[6],
                         )
         except OSError as exc:
             log.warning("could not read %s: %s", passwd_path, exc)
-    # Fallback to pwd database.
-    try:
-        return pwd.getpwnam("root")
-    except KeyError:
-        return None
+    # Fallback to pwd database (Unix only).
+    if pwd is not None:
+        try:
+            return pwd.getpwnam("root")
+        except KeyError:
+            pass
+    return None
 
 
 # ---------------------------------------------------------------------------
