@@ -1,0 +1,12 @@
+{
+  "general": {
+    "agreed_at": 1786792807.9267993,
+    "consent_token": "1643ecbf0be55a90bde1095e06d5e96cddc577a6dce0bf045f9ff7e115bfa63b",
+    "disclaimer_key": "general",
+    "disclaimer_version": "2.0.0",
+    "hostname": "MCRajaJang",
+    "machine_id": "4ad08e64fc13068c",
+    "status": "GRANTED",
+    "user_name": "test_user"
+  }
+}
