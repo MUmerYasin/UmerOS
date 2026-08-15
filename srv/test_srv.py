@@ -2,7 +2,7 @@
 Comprehensive Test Suite for UmerOS /srv Filesystem Hierarchy System
 =====================================================================
 
-Verifies all components of the /srv subsystem per TLDP and FHS 2.3/3.0.
+Verifies all components of the /srv subsystem 
 """
 
 import json
@@ -44,10 +44,10 @@ def test_imports() -> bool:
             SrvBackupManager,
             SrvManager,
         )
-        print("[OK] All /srv modules and classes imported successfully.")
+        print("✓ All /srv modules and classes imported successfully.")
         return True
     except Exception as e:
-        print(f"[FAIL] Import failed: {e}")
+        print(f"✗ Import failed: {e}")
         return False
 
 
@@ -90,7 +90,7 @@ def test_fhs_validation() -> bool:
         assert scheme_d == OrganizationScheme.BY_DOMAIN
         assert dom == "example.com"
 
-        print("[OK] FHS and TLDP compliance validation checks passed.")
+        print("✓ FHS and TLDP compliance validation checks passed.")
         return True
 
 
@@ -123,7 +123,7 @@ def test_hierarchy_bootstrap_and_trees() -> bool:
         scan = hier.scan_hierarchy()
         assert len(scan) >= 6
 
-        print(f"[OK] Bootstrapped {len(skeletons)} standard skeletons and created custom trees successfully.")
+        print(f"✓ Bootstrapped {len(skeletons)} standard skeletons and created custom trees successfully.")
         return True
 
 
@@ -169,7 +169,7 @@ def test_protocols() -> bool:
         nfs_line = SambaNfsServiceHandler.generate_nfs_export_line(srv_root / "nfs" / "exports")
         assert "/exports *(rw,sync,no_subtree_check)" in nfs_line.replace("\\", "/")
 
-        print("[OK] All protocol-specific handlers (WWW, FTP, Git, Rsync, TFTP, Samba, NFS) passed.")
+        print("✓ All protocol-specific handlers (WWW, FTP, Git, Rsync, TFTP, Samba, NFS) passed.")
         return True
 
 
@@ -196,7 +196,7 @@ def test_permissions_and_security() -> bool:
         audit = SrvPermissionManager.audit_service(www_dir)
         assert isinstance(audit.is_secure, bool)
 
-        print("[OK] Permission manager and security profiles validated.")
+        print("✓ Permission manager and security profiles validated.")
         return True
 
 
@@ -237,7 +237,7 @@ def test_backup_and_restore() -> bool:
         assert (restore_target / "my_service" / "data.txt").exists()
         assert (restore_target / "my_service" / "data.txt").read_text(encoding="utf-8") == "Hello UmerOS Service Data"
 
-        print("[OK] Backup creation (tar.gz & zip) and restoration verified.")
+        print("✓ Backup creation (tar.gz & zip) and restoration verified.")
         return True
 
 
@@ -246,8 +246,8 @@ def test_srv_manager_and_persistence() -> bool:
     print("Test 7: SrvManager & Registry Persistence")
     print("=" * 60)
     with tempfile.TemporaryDirectory() as tmpdir:
-        srv_root = (Path(tmpdir) / "srv").resolve()
-        reg_file = (Path(tmpdir) / "registry.json").resolve()
+        srv_root = Path(tmpdir) / "srv"
+        reg_file = Path(tmpdir) / "registry.json"
 
         from srv.manager import SrvManager
         from srv.fhs import StandardProtocol
@@ -288,7 +288,7 @@ def test_srv_manager_and_persistence() -> bool:
         register_service("legacy_service", str(srv_root / "legacy"))
         assert get_service_path("legacy_service") is not None
 
-        print("[OK] SrvManager, registry persistence, and audit system verified.")
+        print("✓ SrvManager, registry persistence, and audit system verified.")
         return True
 
 
@@ -303,7 +303,7 @@ def test_cli() -> bool:
     assert cli_main(["list"]) == 0
     assert cli_main(["audit"]) == 0
 
-    print("[OK] CLI commands executed successfully.")
+    print("✓ CLI commands executed successfully.")
     return True
 
 
@@ -328,7 +328,7 @@ def run_all_tests() -> bool:
             else:
                 failed += 1
         except Exception as ex:
-            print(f"[FAIL] Exception in {t.__name__}: {ex}")
+            print(f"✗ Exception in {t.__name__}: {ex}")
             import traceback
             traceback.print_exc()
             failed += 1

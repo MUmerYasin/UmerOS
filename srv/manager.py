@@ -83,7 +83,7 @@ class SrvManager:
                 data = json.load(f)
                 if isinstance(data, dict):
                     for name, rec_data in data.items():
-                        if isinstance(rec_data, dict):
+                        if isinstance(rec_data, dict) and not name.startswith((".", "__")):
                             self._services[name] = ServiceRecord.from_dict(rec_data)
         except Exception as e:
             log.warning(f"Failed to load srv registry from {self.registry_file}: {e}")

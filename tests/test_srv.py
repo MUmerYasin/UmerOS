@@ -4,9 +4,14 @@ pytest test suite for UmerOS /srv filesystem hierarchy.
 
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 import pytest
+
+_root_dir = str(Path(__file__).resolve().parent.parent)
+if _root_dir not in sys.path:
+    sys.path.insert(0, _root_dir)
 
 from srv import (
     FHSValidator,
