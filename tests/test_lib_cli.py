@@ -60,7 +60,12 @@ class TestLibSummary(unittest.TestCase):
             root = Path(tmp) / "lib"
             root.mkdir()
             self._make_tree(root)
-            info = lib_summary(lib_path=str(root))
+            etc = root.parent / "etc"
+            info = lib_summary(
+                lib_path=str(root),
+                ld_so_conf=str(etc / "ld.so.conf"),
+                ld_so_cache=str(etc / "ld.so.cache"),
+            )
             self.assertTrue(info.exists)
             self.assertGreaterEqual(info.essential_libraries, 1)
             self.assertIn("6.6.0-umeros", info.kernel_versions)

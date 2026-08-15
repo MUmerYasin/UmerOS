@@ -267,6 +267,208 @@ def build_pid_dir(adapter, pid: int) -> ProcDir:
         "se.vruntime\t\t\t0.000000\n"
         "nr_migrations\t\t\t0\n"))
 
+    # ── limits -- resource limits (rlimit) ────────────────────────
+    def _limits() -> str:
+        header = (
+            "Limit                     Soft Limit           Hard Limit"
+            "           Units     \n"
+        )
+        rows = [
+            ("Max cpu time", "            unlimited", "            unlimited",
+             "           seconds   "),
+            ("Max file size", "            unlimited", "            unlimited",
+             "           bytes     "),
+            ("Max data size", "            unlimited", "            unlimited",
+             "           bytes     "),
+            ("Max stack size", "            8388608",  "            unlimited",
+             "           bytes     "),
+            ("Max core file size", "            0",
+             "            unlimited", "           bytes     "),
+            ("Max resident set", "            unlimited", "            unlimited",
+             "           bytes     "),
+            ("Max processes", "            30718",  "            30718",
+             "           processes "),
+            ("Max open files", "            1024",  "            1048576",
+             "           files     "),
+            ("Max locked memory", "            67108864",  "            67108864",
+             "           bytes     "),
+            ("Max address space", "            unlimited", "            unlimited",
+             "           bytes     "),
+            ("Max file locks", "            unlimited", "            unlimited",
+             "           locks     "),
+            ("Max pending signals", "            30718",  "            30718",
+             "           signals   "),
+            ("Max msgqueue size", "            819200",  "            819200",
+             "           bytes     "),
+            ("Max nice priority", "            0",  "            0",
+             "                     "),
+            ("Max realtime priority", "            0",  "            0",
+             "                     "),
+            ("Max realtime timeout", "            unlimited", "            unlimited",
+             "           us        "),
+        ]
+        return header + "\n".join(
+            "".join(cols) for cols in rows
+        ) + "\n"
+
+    file("limits", _limits)
+
+    # ── mounts -- process mount list ──────────────────────────────
+    def _proc_mounts() -> str:
+        mounts = [
+            "/dev/root / ext4 ro,relatime 0 0",
+            "proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0",
+            "sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0",
+            "devtmpfs /dev devtmpfs rw,nosuid,size=1024k 0 0",
+            "tmpfs /tmp tmpfs rw,nosuid,nodev,noexec 0 0",
+        ]
+        return "\n".join(mounts) + "\n"
+
+    file("mounts", _proc_mounts)
+
+    # ── mountinfo -- extended mount info ──────────────────────────
+    def _proc_mountinfo() -> str:
+        entries = [
+            "0 0 8:1 / / rw,relatime shared:1 - ext4 /dev/root ro,errors=continue",
+            "1 0 0:10 / /proc rw,nosuid,nodev,noexec,relatime shared:9"
+            " - proc proc rw,nosuid,nodev,noexec,relatime",
+            "2 1 0:11 / /sys rw,nosuid,nodev,noexec,relatime shared:2"
+            " - sysfs sysfs rw,nosuid,nodev,noexec,relatime",
+            "3 2 0:5 / /dev rw,nosuid shared:5"
+            " - devtmpfs devtmpfs rw,nosuid,size=1024k,mode=755,uid=0",
+            "4 0 0:12 / /tmp rw,nosuid,nodev shared:8"
+            " - tmpfs tmpfs rw,nosuid,nodev,noexec",
+        ]
+        return "\n".join(entries) + "\n"
+
+    file("mountinfo", _proc_mountinfo)
+
+    # ── net/ -- per-process network info ──────────────────────────
+    net_dir = ProcDir("net")
+
+    def _net_dev() -> str:
+        return (
+            "Inter-|   Receive                                                "
+            "|  Transmit\n"
+            " face |bytes    packets errs drop fifo frame compressed"
+            "    multicast|bytes    packets errs drop fifo frame compressed\n"
+            "    lo:       0       0    0    0    0     0"
+            "          0         0        0       0    0    0    0     0"
+            "          0\n"
+            "  eth0:       0       0    0    0    0     0"
+            "          0         0        0       0    0    0    0     0"
+            "          0\n"
+        )
+
+    net_dir.add(ProcFile("dev", _net_dev))
+
+    def _net_tcp() -> str:
+        return (
+            "  sl  local_address rem_address   st tx_queue:rx_queue"
+            " tr:tm->when retrnsmt   uid  timeout inode\n"
+            "   0: 0100007F:0035 00000000:0000 0A"
+            " 00000000:00000000 00:00000000 0"
+            "        0 12345\n"
+        )
+
+    net_dir.add(ProcFile("tcp", _net_tcp))
+
+    def _net_tcp6() -> str:
+        return (
+            "  sl  local_address                         "
+            "remote_address                        st "
+            "tx_queue:rx_queue tr:tm->when retrnsmt   uid  timeout inode\n"
+            "   0: 00000000000000000000000001000000:0035"
+            " 00000000000000000000000000000000:0000 0A"
+            " 00000000:00000000 00:00000000 0"
+            "        0 12346\n"
+        )
+
+    net_dir.add(ProcFile("tcp6", _net_tcp6))
+
+    def _net_udp() -> str:
+        return (
+            "  sl  local_address rem_address   st"
+            " tx_queue:rx_queue tr:tm->when retrnsmt   uid  timeout inode\n"
+            "   0: 0100007F:0035 00000000:0000 0A"
+            " 00000000:00000000 00:00000000 0"
+            "        0 12347\n"
+        )
+
+    net_dir.add(ProcFile("udp", _net_udp))
+
+    def _net_unix() -> str:
+        return (
+            "Num       RefCount Protocol Flags    Type St Inode Path\n"
+            "         1: 00000002 00000000 00000000"
+            " 0001 01     1234 /run/systemd/notify\n"
+        )
+
+    net_dir.add(ProcFile("unix", _net_unix))
+
+    def _net_arp() -> str:
+        return "IP address       HW type     Flags       HW address     Mask Device\n"
+
+    net_dir.add(ProcFile("arp", _net_arp))
+
+    def _net_route() -> str:
+        return (
+            "Iface   Destination     Gateway         Flags"
+            "   RefCnt Use     Metric  Mask            MTU"
+            "      Window  IRTT\n"
+            "eth0    00000000        0100A8C0        0003"
+            "   0       0       100     00000000        0"
+            "       0       0\n"
+        )
+
+    net_dir.add(ProcFile("route", _net_route))
+
+    def _net_netstat() -> str:
+        return "TcpExt: SyncookiesSent 0 SyncookiesRecv 0\n"
+
+    net_dir.add(ProcFile("netstat", _net_netstat))
+
+    def _net_snmp() -> str:
+        return (
+            "Ip:\n"
+            "    Forwarding   0    DefaultTTL   64\n"
+            "Tcp:\n"
+            "    RtoAlgorithm 1    RtoMin   200\n"
+            "Udp:\n"
+            "    InDatagrams  0    NoPorts  0\n"
+        )
+
+    net_dir.add(ProcFile("snmp", _net_snmp))
+
+    pid_dir.add(net_dir)
+
+    # ── task/ -- per-thread info ──────────────────────────────────
+    task_dir = ProcDir("task")
+    # Create a thread dir for the main thread (tid == pid)
+    main_tid_dir = ProcDir(str(pid))
+    main_tid_dir.add(ProcFile("comm", lambda: f"{name}\n"))
+    main_tid_dir.add(ProcFile("status", lambda: (
+        f"Name:\t{name}\n"
+        f"State:\t{state} ({_STATUS_TEXT.get(state, 'unknown')})\n"
+        f"Tgid:\t{pid}\n"
+        f"Pid:\t{pid}\n"
+        f"PPid:\t{ppid}\n"
+        f"TracerPid:\t0\n"
+        f"Uid:\t{uid}\t{uid}\t{uid}\t{uid}\n"
+        f"Gid:\t0\t0\t0\t0\n"
+        f"FDSize:\t1024\n"
+        f"Threads:\t1\n"
+    )))
+    main_tid_dir.add(ProcFile("stat", lambda: f"{pid} ({name}) {state} {ppid}\n"))
+    main_tid_dir.add(ProcFile("wchan", lambda: "0\n"))
+    main_tid_dir.add(ProcFile("syscall", lambda: "318\n"))
+    main_tid_dir.add(ProcFile("smaps_rollup", lambda: (
+        f"Rss:                {max(rss, 4096) // 1024} kB\n"
+        f"Pss:                {max(rss, 4096) // 1024 // 2} kB\n"
+    )))
+    task_dir.add(main_tid_dir)
+    pid_dir.add(task_dir)
+
     return pid_dir
 
 

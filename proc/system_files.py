@@ -421,6 +421,22 @@ def _video(adapter) -> str:
     return "Boot video device is 0000:00:02.0\n"
 
 
+def _softirqs(adapter) -> str:
+    """Render /proc/softirqs -- software interrupt statistics."""
+    counts = adapter.softirq_counts()
+    irq_names = [
+        "HI", "TIMER", "NET_TX", "NET_RX", "BLOCK", "IRQ_POLL",
+        "TASKLET", "SCHED", "HRTIMER", "RCU",
+    ]
+    header = f"{'':>8}" + "".join(f"{n:>12}" for n in irq_names) + "\n"
+    lines = [header]
+    for cpu_id in range(max(len(counts), 1)):
+        vals = [counts.get(i, 0) for i in range(len(irq_names))]
+        row = f"CPU{cpu_id}" + "".join(f"{v:>12}" for v in vals) + "\n"
+        lines.append(row)
+    return "".join(lines)
+
+
 def register_system_entries(fs: "ProcFileSystem") -> None:
     """Attach every system-wide entry to the /proc root."""
     adapter = fs.adapter
@@ -468,6 +484,35 @@ def register_system_entries(fs: "ProcFileSystem") -> None:
     file("execdomains", lambda: _execdomains(adapter))
     file("filesystems", lambda: _filesystems(adapter))
     file("mounts", lambda: _mounts(adapter))
+    file("softirqs", lambda: _softirqs(adapter))
+
+    # ── /proc/fs/ -- filesystem-specific info ────────────────────
+    fs_dir = ProcDir("fs")
+    fs_dir.add(ProcFile("file-nr", lambda: "0 0 0\n"))
+    fs_dir.add(ProcFile("file-nodes", lambda: "0\n"))
+    fs_dir.add(ProcFile("inodes", lambda: "0 0 0\n"))
+    fs_dir.add(ProcFile("dentry-state",
+                        lambda: "0 0 0 0 0 0\n"))
+    fs_dir.add(ProcFile("nr_block_dev_in_use", lambda: "0\n"))
+    # /proc/fs/ext4/  (placeholder for ext4 stats)
+    ext4 = ProcDir("ext4")
+    ext4.add(ProcFile("options", lambda: "rw,relatime,data=ordered\n"))
+    ext4.add(ProcFile("mb_groups", lambda: ""))
+    fs_dir.add(ext4)
+    # /proc/fs/xfs/
+    xfs = ProcDir("xfs")
+    xfs.add(ProcFile("stat", lambda: (
+        "xfs_stat\n"
+        "allocates: 0\n"
+        "frees: 0\n")))
+    fs_dir.add(xfs)
+    # /proc/fs/fuse/
+    fuse = ProcDir("fuse")
+    fuse.add(ProcFile("connections", lambda: "0\n"))
+    fuse.add(ProcFile("waiting_queue", lambda: ""))
+    fuse.add(ProcFile("abort", lambda: ""))
+    fs_dir.add(fuse)
+    root.add(fs_dir)
 
     # ── /proc/irq/<n>/ — writable SMP affinity masks ─────────────
     irq_dir = ProcDir("irq")
