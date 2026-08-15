@@ -933,6 +933,201 @@ class TestBuildPidDir(unittest.TestCase):
             build_pid_dir(self.adapter, 99999)
 
 
+# ── New /proc entries (TLDP gap fill) ──────────────────────────
+
+class TestSoftirqs(unittest.TestCase):
+    def setUp(self):
+        self.adapter = KernelAdapter()
+        self.fs = ProcFileSystem(self.adapter)
+
+    def test_softirqs_readable(self):
+        data = self.fs.read("/proc/softirqs")
+        self.assertIsInstance(data, str)
+        self.assertTrue(len(data) > 0)
+
+    def test_softirqs_contains_header(self):
+        data = self.fs.read("/proc/softirqs")
+        self.assertIn("CPU0", data)
+
+    def test_softirqs_contains_irq_names(self):
+        data = self.fs.read("/proc/softirqs")
+        self.assertIn("HI", data)
+        self.assertIn("TIMER", data)
+        self.assertIn("NET_TX", data)
+        self.assertIn("NET_RX", data)
+        self.assertIn("SCHED", data)
+
+    def test_softirqs_counts_populated(self):
+        data = self.fs.read("/proc/softirqs")
+        for line in data.splitlines()[1:]:
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                counts = parts[1:]
+                self.assertTrue(all(c.isdigit() for c in counts), f"Non-numeric count in: {line}")
+
+
+class TestProcFsDirectory(unittest.TestCase):
+    def setUp(self):
+        self.adapter = KernelAdapter()
+        self.fs = ProcFileSystem(self.adapter)
+
+    def test_fs_directory_exists(self):
+        names = self.fs.list("/proc")
+        self.assertIn("fs", names)
+
+    def test_fs_directory_is_listable(self):
+        entries = self.fs.list("/proc/fs")
+        self.assertIn("file-nr", entries)
+        self.assertIn("inodes", entries)
+
+    def test_fs_file_nr(self):
+        data = self.fs.read("/proc/fs/file-nr")
+        self.assertIn("0", data)
+
+    def test_fs_inodes(self):
+        data = self.fs.read("/proc/fs/inodes")
+        self.assertIn("0", data)
+
+    def test_fs_ext4_subdir(self):
+        entries = self.fs.list("/proc/fs")
+        self.assertIn("ext4", entries)
+
+    def test_fs_ext4_options(self):
+        data = self.fs.read("/proc/fs/ext4/options")
+        self.assertIn("relatime", data)
+
+
+class TestPidLimits(unittest.TestCase):
+    def setUp(self):
+        self.adapter = KernelAdapter()
+        self.fs = ProcFileSystem(self.adapter)
+
+    def test_limits_readable(self):
+        data = self.fs.read("/proc/1/limits")
+        self.assertIn("Limit", data)
+
+    def test_limits_contains_core(self):
+        data = self.fs.read("/proc/1/limits")
+        self.assertIn("Max core file size", data)
+
+    def test_limits_contains_nproc(self):
+        data = self.fs.read("/proc/1/limits")
+        self.assertIn("Max processes", data)
+
+    def test_limits_all_pids(self):
+        for pid in self.adapter.pids():
+            data = self.fs.read(f"/proc/{pid}/limits")
+            self.assertIn("Limit", data)
+
+
+class TestPidMounts(unittest.TestCase):
+    def setUp(self):
+        self.adapter = KernelAdapter()
+        self.fs = ProcFileSystem(self.adapter)
+
+    def test_mounts_readable(self):
+        data = self.fs.read("/proc/1/mounts")
+        self.assertIn("/", data)
+
+    def test_mounts_format(self):
+        data = self.fs.read("/proc/1/mounts")
+        for line in data.splitlines():
+            parts = line.split()
+            self.assertGreaterEqual(len(parts), 4)
+
+    def test_mounts_contains_proc(self):
+        data = self.fs.read("/proc/1/mounts")
+        self.assertIn("proc", data)
+
+
+class TestPidMountinfo(unittest.TestCase):
+    def setUp(self):
+        self.adapter = KernelAdapter()
+        self.fs = ProcFileSystem(self.adapter)
+
+    def test_mountinfo_readable(self):
+        data = self.fs.read("/proc/1/mountinfo")
+        self.assertIn("/", data)
+
+    def test_mountinfo_extended_format(self):
+        data = self.fs.read("/proc/1/mountinfo")
+        for line in data.splitlines():
+            parts = line.split()
+            self.assertGreaterEqual(len(parts), 10)
+
+    def test_mountinfo_contains_mount_id(self):
+        data = self.fs.read("/proc/1/mountinfo")
+        for line in data.splitlines()[:1]:
+            parts = line.split()
+            self.assertTrue(parts[0].isdigit(), "First field should be mount ID")
+
+
+class TestPidNet(unittest.TestCase):
+    def setUp(self):
+        self.adapter = KernelAdapter()
+        self.fs = ProcFileSystem(self.adapter)
+
+    def test_net_directory_exists(self):
+        entries = self.fs.list("/proc/1")
+        self.assertIn("net", entries)
+
+    def test_net_dev(self):
+        data = self.fs.read("/proc/1/net/dev")
+        self.assertIn("lo", data)
+
+    def test_net_tcp(self):
+        data = self.fs.read("/proc/1/net/tcp")
+        self.assertIn("sl", data)
+
+    def test_net_udp(self):
+        data = self.fs.read("/proc/1/net/udp")
+        self.assertIn("sl", data)
+
+    def test_net_unix(self):
+        data = self.fs.read("/proc/1/net/unix")
+        self.assertIn("Num", data)
+
+    def test_net_arp(self):
+        data = self.fs.read("/proc/1/net/arp")
+        self.assertIn("IP address", data)
+
+    def test_net_route(self):
+        data = self.fs.read("/proc/1/net/route")
+        self.assertIn("Destination", data)
+
+
+class TestPidTask(unittest.TestCase):
+    def setUp(self):
+        self.adapter = KernelAdapter()
+        self.fs = ProcFileSystem(self.adapter)
+
+    def test_task_directory_exists(self):
+        entries = self.fs.list("/proc/1")
+        self.assertIn("task", entries)
+
+    def test_task_main_thread(self):
+        entries = self.fs.list("/proc/1/task")
+        self.assertIn("1", entries)
+
+    def test_task_comm(self):
+        data = self.fs.read("/proc/1/task/1/comm")
+        self.assertIsInstance(data, str)
+        self.assertTrue(len(data.strip()) > 0)
+
+    def test_task_status(self):
+        data = self.fs.read("/proc/1/task/1/status")
+        self.assertIn("Name:", data)
+        self.assertIn("Pid:", data)
+
+    def test_task_stat(self):
+        data = self.fs.read("/proc/1/task/1/stat")
+        self.assertIn("(", data)
+
+    def test_task_smaps_rollup(self):
+        data = self.fs.read("/proc/1/task/1/smaps_rollup")
+        self.assertIn("Rss:", data)
+
+
 # ── Wrapper modules (for drivers/driver_service.py compatibility) ──
 
 class TestWrapperModules(unittest.TestCase):
