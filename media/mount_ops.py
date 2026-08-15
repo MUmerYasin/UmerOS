@@ -382,6 +382,11 @@ def set_simulation(value: bool) -> None:
     _use_simulation = value
 
 
+def get_sim_mounts() -> Dict[str, Dict[str, Any]]:
+    """Return a copy of the simulated mount table (for testing)."""
+    return dict(_sim_mounts)
+
+
 def clear_sim_mounts() -> None:
     """Clear all simulated mounts (for testing)."""
     _sim_mounts.clear()

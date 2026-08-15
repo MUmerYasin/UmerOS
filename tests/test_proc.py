@@ -987,9 +987,9 @@ class TestWrapperModules(unittest.TestCase):
 class _MockVFS:
     """Minimal mock of the kernel's VirtualFileSystem."""
     def __init__(self):
-        self.root = ProcDir("/", is_dir=True)
-        self.root.children["proc"] = ProcDir("proc", is_dir=True)
-        self.root.children["home"] = ProcDir("home", is_dir=True)
+        self.root = ProcDir("/")
+        self.root.children["proc"] = ProcDir("proc")
+        self.root.children["home"] = ProcDir("home")
         self.cwd = "/home/umer"
 
     def _resolve(self, path):

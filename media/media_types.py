@@ -30,6 +30,7 @@ Licence: Apache 2.0
 
 from __future__ import annotations
 
+import os
 from enum import Enum, auto
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
@@ -134,6 +135,27 @@ class MountNaming:
     numbered: bool = True
     max_count: int = 0     # 0 = unlimited
     symlink_name: Optional[str] = None
+
+    @classmethod
+    def mount_point_for(cls, media_type: MediaType, base_path: str,
+                        index: int = 0) -> Optional[str]:
+        """Compute the mount-point path for a given media type.
+
+        Args:
+            media_type: The :class:`MediaType` to mount.
+            base_path:  Root directory (typically ``"/media"``).
+            index:      Zero-based device index for numbered mounts.
+
+        Returns:
+            The full filesystem path, or ``None`` if the type has no
+            naming rule registered.
+        """
+        naming = MOUNT_NAMING.get(media_type)
+        if naming is None:
+            return None
+        if naming.numbered:
+            return os.path.join(base_path, f"{naming.base_name}{index}")
+        return os.path.join(base_path, naming.base_name)
 
 
 # Default naming rules for every FHS + extended media type.

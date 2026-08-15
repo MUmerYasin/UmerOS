@@ -309,6 +309,8 @@ def detect_fs_type(
     Returns:
         Best-guess ``FsType``.
     """
+    if isinstance(device_path, bytes):
+        device_path = device_path.decode("utf-8", errors="replace")
     name = os.path.basename(device_path).lower()
 
     # --- 1. Name heuristics ---
