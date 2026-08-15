@@ -1,11 +1,8 @@
 """
 Umer OS /root
 =============
-A pure-Python implementation of the
-[TLDP /root reference](https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/root.html),
-tailored to UmerOS.
 
-The TLDP /root page focuses on three things:
+ /root page focuses on three things:
 
 * ``/root`` is the system administrator's home directory.
 * It is **not** under ``/home`` because ``/home`` is often on a

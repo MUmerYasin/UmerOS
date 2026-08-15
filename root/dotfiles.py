@@ -3,7 +3,7 @@ Umer OS /root - dotfiles manager
 ================================
 Manages the dotfiles inside root's home directory.
 
-The TLDP /root page does not mandate specific dotfiles - those are
+/root page does not mandate specific dotfiles - those are
 distribution choice - but in practice every Linux root account ships
 with the following:
 

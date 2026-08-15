@@ -999,19 +999,20 @@ class TestProcFsDirectory(unittest.TestCase):
 
 class TestPidLimits(unittest.TestCase):
     def setUp(self):
-        self.adapter = KernelAdapter()
+        self.kernel = _MockKernel()
+        self.adapter = KernelAdapter(kernel=self.kernel)
         self.fs = ProcFileSystem(self.adapter)
 
     def test_limits_readable(self):
-        data = self.fs.read("/proc/1/limits")
+        data = self.fs.read("/proc/1000/limits")
         self.assertIn("Limit", data)
 
     def test_limits_contains_core(self):
-        data = self.fs.read("/proc/1/limits")
+        data = self.fs.read("/proc/1000/limits")
         self.assertIn("Max core file size", data)
 
     def test_limits_contains_nproc(self):
-        data = self.fs.read("/proc/1/limits")
+        data = self.fs.read("/proc/1000/limits")
         self.assertIn("Max processes", data)
 
     def test_limits_all_pids(self):
@@ -1022,41 +1023,43 @@ class TestPidLimits(unittest.TestCase):
 
 class TestPidMounts(unittest.TestCase):
     def setUp(self):
-        self.adapter = KernelAdapter()
+        self.kernel = _MockKernel()
+        self.adapter = KernelAdapter(kernel=self.kernel)
         self.fs = ProcFileSystem(self.adapter)
 
     def test_mounts_readable(self):
-        data = self.fs.read("/proc/1/mounts")
+        data = self.fs.read("/proc/1000/mounts")
         self.assertIn("/", data)
 
     def test_mounts_format(self):
-        data = self.fs.read("/proc/1/mounts")
+        data = self.fs.read("/proc/1000/mounts")
         for line in data.splitlines():
             parts = line.split()
             self.assertGreaterEqual(len(parts), 4)
 
     def test_mounts_contains_proc(self):
-        data = self.fs.read("/proc/1/mounts")
+        data = self.fs.read("/proc/1000/mounts")
         self.assertIn("proc", data)
 
 
 class TestPidMountinfo(unittest.TestCase):
     def setUp(self):
-        self.adapter = KernelAdapter()
+        self.kernel = _MockKernel()
+        self.adapter = KernelAdapter(kernel=self.kernel)
         self.fs = ProcFileSystem(self.adapter)
 
     def test_mountinfo_readable(self):
-        data = self.fs.read("/proc/1/mountinfo")
+        data = self.fs.read("/proc/1000/mountinfo")
         self.assertIn("/", data)
 
     def test_mountinfo_extended_format(self):
-        data = self.fs.read("/proc/1/mountinfo")
+        data = self.fs.read("/proc/1000/mountinfo")
         for line in data.splitlines():
             parts = line.split()
             self.assertGreaterEqual(len(parts), 10)
 
     def test_mountinfo_contains_mount_id(self):
-        data = self.fs.read("/proc/1/mountinfo")
+        data = self.fs.read("/proc/1000/mountinfo")
         for line in data.splitlines()[:1]:
             parts = line.split()
             self.assertTrue(parts[0].isdigit(), "First field should be mount ID")
@@ -1064,67 +1067,69 @@ class TestPidMountinfo(unittest.TestCase):
 
 class TestPidNet(unittest.TestCase):
     def setUp(self):
-        self.adapter = KernelAdapter()
+        self.kernel = _MockKernel()
+        self.adapter = KernelAdapter(kernel=self.kernel)
         self.fs = ProcFileSystem(self.adapter)
 
     def test_net_directory_exists(self):
-        entries = self.fs.list("/proc/1")
+        entries = self.fs.list("/proc/1000")
         self.assertIn("net", entries)
 
     def test_net_dev(self):
-        data = self.fs.read("/proc/1/net/dev")
+        data = self.fs.read("/proc/1000/net/dev")
         self.assertIn("lo", data)
 
     def test_net_tcp(self):
-        data = self.fs.read("/proc/1/net/tcp")
+        data = self.fs.read("/proc/1000/net/tcp")
         self.assertIn("sl", data)
 
     def test_net_udp(self):
-        data = self.fs.read("/proc/1/net/udp")
+        data = self.fs.read("/proc/1000/net/udp")
         self.assertIn("sl", data)
 
     def test_net_unix(self):
-        data = self.fs.read("/proc/1/net/unix")
+        data = self.fs.read("/proc/1000/net/unix")
         self.assertIn("Num", data)
 
     def test_net_arp(self):
-        data = self.fs.read("/proc/1/net/arp")
+        data = self.fs.read("/proc/1000/net/arp")
         self.assertIn("IP address", data)
 
     def test_net_route(self):
-        data = self.fs.read("/proc/1/net/route")
+        data = self.fs.read("/proc/1000/net/route")
         self.assertIn("Destination", data)
 
 
 class TestPidTask(unittest.TestCase):
     def setUp(self):
-        self.adapter = KernelAdapter()
+        self.kernel = _MockKernel()
+        self.adapter = KernelAdapter(kernel=self.kernel)
         self.fs = ProcFileSystem(self.adapter)
 
     def test_task_directory_exists(self):
-        entries = self.fs.list("/proc/1")
+        entries = self.fs.list("/proc/1000")
         self.assertIn("task", entries)
 
     def test_task_main_thread(self):
-        entries = self.fs.list("/proc/1/task")
-        self.assertIn("1", entries)
+        entries = self.fs.list("/proc/1000/task")
+        self.assertIn("1000", entries)
 
     def test_task_comm(self):
-        data = self.fs.read("/proc/1/task/1/comm")
+        data = self.fs.read("/proc/1000/task/1000/comm")
         self.assertIsInstance(data, str)
         self.assertTrue(len(data.strip()) > 0)
 
     def test_task_status(self):
-        data = self.fs.read("/proc/1/task/1/status")
+        data = self.fs.read("/proc/1000/task/1000/status")
         self.assertIn("Name:", data)
         self.assertIn("Pid:", data)
 
     def test_task_stat(self):
-        data = self.fs.read("/proc/1/task/1/stat")
+        data = self.fs.read("/proc/1000/task/1000/stat")
         self.assertIn("(", data)
 
     def test_task_smaps_rollup(self):
-        data = self.fs.read("/proc/1/task/1/smaps_rollup")
+        data = self.fs.read("/proc/1000/task/1000/smaps_rollup")
         self.assertIn("Rss:", data)
 
 
