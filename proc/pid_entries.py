@@ -1,0 +1,299 @@
+"""Per-process /proc/<pid> directories.
+
+Each live scheduler task gets a full Linux-style process directory:
+
+    cmdline  comm  environ  status  stat  statm  maps  mem  cpu
+    fd/  cwd  exe  root  loginuid  oom_score  oom_score_adj  io
+    cgroup  sched
+
+Formats mirror the real procfs: ``cmdline``/``environ`` are NUL
+separated, ``stat`` is the classic single-line field dump, ``status``
+is the human-readable key/value block, and ``cwd``/``exe``/``root``
+are symlinks.  PID 0 (the kernel itself) is addressable directly but
+hidden from the /proc listing, exactly like the idle task on Linux.
+"""
+from __future__ import annotations
+
+import os
+from typing import Any, Dict
+
+from proc.nodes import ProcDir, ProcFile, ProcSymlink
+
+_STATUS_TEXT = {
+    "R": "running (on thread)", "S": "sleeping", "D": "disk sleep",
+    "Z": "zombie", "T": "stopped",
+}
+
+
+def _cmdline_list(task: Dict[str, Any]) -> list:
+    name = task["name"]
+    return [f"/usr/bin/{name}", "--quantum-scheduler"]
+
+
+def _environ(task: Dict[str, Any]) -> Dict[str, str]:
+    return {
+        "HOME": "/home/umer",
+        "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+        "TERM": "umer-term",
+        "SHELL": "/bin/umersh",
+        "USER": "umer",
+        "PWD": "/home/umer",
+        "LANG": "en_US.UTF-8",
+        "UMEROS_VERSION": "2.1.0",
+        "UMER_QUANTUM_SCHED": "1",
+    }
+
+
+def _nul_join(items) -> str:
+    return "".join(str(item) + "\0" for item in items)
+
+
+def _uid_gid(adapter, pid: int) -> tuple:
+    cred_store = getattr(adapter.kernel, "cred_store", None)
+    cred = None
+    get_fn = getattr(cred_store, "get", None)
+    if callable(get_fn):
+        try:
+            cred = get_fn(pid)
+        except Exception:  # noqa: BLE001
+            cred = None
+    if cred is not None:
+        uid = int(getattr(cred, "uid", getattr(cred, "euid", 0)) or 0)
+        gid = int(getattr(cred, "gid", getattr(cred, "egid", 0)) or 0)
+    else:
+        uid, gid = (0, 0) if pid in (0, 1000) else (1000, 1000)
+    return uid, gid
+
+
+def _rss(adapter, pid: int) -> int:
+    return adapter.memory_by_pid().get(pid, 0)
+
+
+def _vmsize(adapter, task: Dict[str, Any]) -> int:
+    rss = _rss(adapter, task["pid"])
+    code = 4 * 1024 * 1024 + len(task["name"]) * 64 * 1024
+    return rss + code
+
+
+def build_pid_dir(adapter, pid: int) -> ProcDir:
+    """Construct the /proc/<pid> directory for one task."""
+    task = adapter.task(pid)
+    if task is None:
+        raise FileNotFoundError(f"no such process: {pid}")
+
+    name = task["name"]
+    state = adapter.state_letter(task["state"])
+    ppid = task.get("parent_pid")
+    if ppid is None:
+        ppid = 0 if pid != 1000 else 0
+    uid, gid = _uid_gid(adapter, pid)
+    rss = _rss(adapter, pid)
+    vmsize = _vmsize(adapter, task)
+    owner = "root" if uid == 0 else "umer"
+    dir_mode = "r-xr-xr-x"
+
+    pid_dir = ProcDir(str(pid), mode=dir_mode, owner=owner)
+    pid_dir.meta_task = task  # type: ignore[attr-defined]
+
+    def file(fname, read, write=None, mode="r--r--r--", **kw):
+        return pid_dir.add(ProcFile(fname, read=read, write=write,
+                                    mode=mode, owner=owner, **kw))
+
+    # ── identity ─────────────────────────────────────────────────
+    file("cmdline", lambda: _nul_join(_cmdline_list(task)))
+    file("comm", lambda: name + "\n")
+
+    # ── environment (NUL separated, like Linux) ──────────────────
+    file("environ", lambda: _nul_join(
+        f"{k}={v}" for k, v in _environ(task).items()))
+
+    # ── status — human readable block ────────────────────────────
+    def _status() -> str:
+        threads = 1
+        pending = "0000000000000000"
+        cap_full = "0000003fffffffff"
+        lines = [
+            f"Name:\t{name}",
+            f"Umask:\t0022",
+            f"State:\t{state} ({_STATUS_TEXT.get(state, 'sleeping')})",
+            f"Tgid:\t{pid}",
+            f"Pid:\t{pid}",
+            f"PPid:\t{ppid}",
+            f"TracerPid:\t0",
+            f"Uid:\t{uid}\t{uid}\t{uid}\t{uid}",
+            f"Gid:\t{gid}\t{gid}\t{gid}\t{gid}",
+            f"FDSize:\t64",
+            f"Groups:\t{0 if gid == 0 else 1000}",
+            f"NStgid:\t{pid}",
+            f"NSpid:\t{pid}",
+            f"NSpgid:\t{pid}",
+            f"NSsid:\t{pid}",
+            f"VmPeak:\t{(vmsize + 1048576) // 1024} kB",
+            f"VmSize:\t{vmsize // 1024} kB",
+            f"VmLck:\t0 kB",
+            f"VmPin:\t0 kB",
+            f"VmHWM:\t{max(rss, 4096) // 1024} kB",
+            f"VmRSS:\t{max(rss, 4096) // 1024} kB",
+            f"VmData:\t{rss // 1024} kB",
+            f"VmStk:\t132 kB",
+            f"VmExe:\t{(vmsize - rss) // 1024} kB",
+            f"VmLib:\t2048 kB",
+            f"VmPTE:\t64 kB",
+            f"VmSwap:\t0 kB",
+            f"CoreDumping:\t0",
+            f"Threads:\t{threads}",
+            f"SigQ:\t0/{32768 - pid}",
+            f"SigPnd:\t{pending}",
+            f"ShdPnd:\t{pending}",
+            f"SigBlk:\t{pending}",
+            f"SigIgn:\t{pending}",
+            f"SigCgt:\t0000000180000000",
+            f"CapInh:\t0000000000000000",
+            f"CapPrm:\t{cap_full if uid == 0 else '0000000000000000'}",
+            f"CapEff:\t{cap_full if uid == 0 else '0000000000000000'}",
+            f"CapBnd:\t{cap_full}",
+            f"CapAmb:\t0000000000000000",
+            f"NoNewPrivs:\t0",
+            f"Seccomp:\t0",
+            f"Seccomp_filters:\t0",
+            f"Speculation_Store_Bypass:\tvulnerable",
+            f"Cpus_allowed:\t3",
+            f"Cpus_allowed_list:\t0-1",
+            f"Mems_allowed:\t00000000",
+            f"voluntary_ctxt_switches:\t{int(task['cpu_time'] * 90) + 1}",
+            f"nonvoluntary_ctxt_switches:\t{int(task['cpu_time'] * 12)}",
+        ]
+        return "\n".join(lines) + "\n"
+
+    file("status", _status)
+
+    # ── stat — machine readable one-liner ────────────────────────
+    def _stat_line() -> str:
+        hz = 100
+        utime = int(task["cpu_time"] * hz)
+        starttime = max(int(adapter.uptime() * hz) - utime - 10, 1)
+        nice = 0
+        fields = [
+            pid, f"({name})", state, ppid, pid, pid, 0, 0, 0,  # tty/pgroup
+            0, 0,  # tpgid, flags
+            12, 34, 2, 1,  # minflt cminflt majflt cmajflt
+            utime, utime // 8,  # utime stime
+            0, 0,  # cutime cstime
+            int(task.get("priority", 0.5) * 100), nice, 1,  # priority nice threads
+            0, starttime,  # itrealvalue, starttime
+            vmsize, rss // 1024 * 4,  # vsize, rss (pages)
+            0, 0, 0, 0, 0, 0,  # rsslim startcode endcode startstack kstkesp kstkeip
+            0, 0, 0, 0, 0,  # signal blocked sigignore sigcatch wchan
+            0, 0, 0,  # 0 0 exit_signal
+            int(task["cpu_time"] * 1000),  # processor (last CPU)
+            1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,  # rt prio, policy, delayacct...
+        ]
+        return " ".join(str(f) for f in fields) + "\n"
+
+    file("stat", _stat_line)
+
+    # ── statm — memory in pages: size resident shared text lib data dt
+    def _statm() -> str:
+        page = 4096
+        size = vmsize // page
+        resident = max(rss, 4096) // page
+        return f"{size} {resident} 128 64 2048 {resident} 0\n"
+
+    file("statm", _statm)
+
+    # ── symlinks ─────────────────────────────────────────────────
+    pid_dir.add(ProcSymlink("cwd", lambda: "/home/umer", owner=owner))
+    pid_dir.add(ProcSymlink(
+        "exe", lambda: f"/usr/bin/{name}", owner=owner))
+    pid_dir.add(ProcSymlink("root", "/", owner=owner))
+
+    # ── fd/ — open file descriptors ──────────────────────────────
+    fd_dir = ProcDir("fd", mode=dir_mode, owner=owner)
+    fd_dir.add(ProcSymlink("0", "/dev/null", owner=owner))
+    fd_dir.add(ProcSymlink("1", "/dev/console", owner=owner))
+    fd_dir.add(ProcSymlink("2", "/dev/console", owner=owner))
+    pid_dir.add(fd_dir)
+
+    # ── maps — memory mappings ───────────────────────────────────
+    def _maps() -> str:
+        exe_base = 0x00400000
+        lines = [
+            f"{exe_base:08x}-{exe_base + 0x10000:08x} r-xp 00000000 fd:01 {pid + 10:<8} /usr/bin/{name}",
+            f"{exe_base + 0x10000:08x}-{exe_base + 0x11000:08x} r--p 00010000 fd:01 {pid + 10:<8} /usr/bin/{name}",
+            "7f8a40000000-7f8a40100000 rw-p 00000000 00:00 0        [heap]",
+            "7f8a50000000-7f8a50021000 r--p 00000000 fd:01 4096     /usr/lib/libumer.so",
+            "7f8a51000000-7f8a51400000 rw-p 00000000 00:00 0        [stack]",
+            "7ffd1c000000-7ffd1c021000 rw-p 00000000 00:00 0        [vvar]",
+        ]
+        for base, size_bytes in _pid_allocations(adapter, pid):
+            lines.append(
+                f"{base:016x}-{base + max(size_bytes, 1):016x} "
+                f"rw-p 00000000 00:00 0        [umer_alloc:{size_bytes}]")
+        return "\n".join(lines) + "\n"
+
+    file("maps", _maps)
+
+    # ── mem — process memory image (root only) ───────────────────
+    pid_dir.add(ProcFile(
+        "mem", lambda: f"<memory image of {name} ({rss} bytes resident)>\n",
+        mode="r--------", virtual_size=rss))
+
+    # ── cpu — last/current CPU ───────────────────────────────────
+    file("cpu", lambda: f"cpu {pid % 2}\n")
+
+    # ── io — I/O statistics ──────────────────────────────────────
+    def _io() -> str:
+        rchar = int(task["cpu_time"] * 16384) + 4096
+        return (f"rchar: {rchar}\nwchar: {rchar // 4}\n"
+                f"syscr: {int(task['cpu_time'] * 90) + 8}\n"
+                f"syscw: {int(task['cpu_time'] * 12) + 2}\n"
+                "read_bytes: 0\nwrite_bytes: 0\n"
+                "cancelled_write_bytes: 0\n")
+
+    file("io", _io)
+
+    # ── misc knobs ───────────────────────────────────────────────
+    file("loginuid", lambda: "4294967295\n")
+    file("oom_score", lambda: f"{min(pid % 100, 99)}\n")
+    file("oom_score_adj",
+         lambda: f"{adapter.oom_adj.get(pid, 0)}\n",
+         write=lambda text, p=pid: adapter.oom_adj.__setitem__(
+             p, max(-1000, min(1000, int(text.strip() or 0)))),
+         mode="rw-r--r--")
+    file("cgroup", lambda: "0::/\n")
+    file("sched", lambda: (
+        f"{name} ({pid})\n"
+        "se.exec_start\t\t\t0.000000\n"
+        "se.vruntime\t\t\t0.000000\n"
+        "nr_migrations\t\t\t0\n"))
+
+    return pid_dir
+
+
+def _pid_allocations(adapter, pid: int):
+    """[(base, size)] of the memory manager's live allocations for pid."""
+    allocs = getattr(getattr(adapter.kernel, "memory", None), "_allocs", None)
+    if not allocs:
+        return []
+    out = []
+    for base, entry in allocs.items():
+        try:
+            if isinstance(entry, tuple) and len(entry) == 3:
+                entry_pid, _pages, size = entry
+            elif isinstance(entry, tuple) and len(entry) == 2:
+                entry_pid, size = entry
+            else:
+                continue
+            if int(entry_pid) == pid:
+                out.append((int(base), int(size)))
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+def pid_dir_signature(adapter, pid: int):
+    """Cheap signature used to invalidate cached pid directories."""
+    task = adapter.task(pid)
+    if task is None:
+        return None
+    return (pid, task["name"], task["state"])
