@@ -110,6 +110,7 @@ class DepmodCommand(SbinCommand):
     usage = "depmod [-a] [-e] [-F System.map] [-n] [-v] [version]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
+        args = args or []
         analyze = "-a" in args
         version = None
 
@@ -144,3 +145,44 @@ class DepmodCommand(SbinCommand):
 
         print(f"depmod: written /lib/modules/{version}/modules.dep")
         return 0
+
+
+def _selftest() -> bool:
+    """Run self-tests for /sbin kernel module commands."""
+    tests_passed = 0
+    tests_failed = 0
+
+    def check(condition: bool, msg: str):
+        nonlocal tests_passed, tests_failed
+        if condition:
+            tests_passed += 1
+        else:
+            tests_failed += 1
+            print(f"  FAIL: {msg}")
+
+    cmd = InsmodCommand()
+    check(cmd.name == "insmod", "insmod name")
+    check(cmd.execute(["test.ko"]) == 0, "insmod test.ko -> 0")
+    check(cmd.execute() == 1, "insmod no args -> 1")
+
+    cmd = RmmodCommand()
+    check(cmd.name == "rmmod", "rmmod name")
+    check(cmd.execute(["test"]) == 0, "rmmod test -> 0")
+    check(cmd.execute() == 1, "rmmod no args -> 1")
+
+    cmd = ModprobeCommand()
+    check(cmd.name == "modprobe", "modprobe name")
+    check(cmd.execute(["e1000"]) == 0, "modprobe e1000 -> 0")
+    check(cmd.execute() == 1, "modprobe no args -> 1")
+
+    cmd = LsmodCommand()
+    check(cmd.name == "lsmod", "lsmod name")
+    check(cmd.execute() == 0, "lsmod -> 0")
+
+    cmd = DepmodCommand()
+    check(cmd.name == "depmod", "depmod name")
+    check(cmd.execute() == 0, "depmod no args -> 0")
+    check(cmd.execute(["-a"]) == 0, "depmod -a -> 0")
+
+    print(f"sbin/modules.py: {tests_passed} passed, {tests_failed} failed")
+    return tests_failed == 0

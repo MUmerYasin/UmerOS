@@ -47,13 +47,22 @@ class SysctlCommand(SbinCommand):
 
     def execute(self, args: Optional[List[str]] = None) -> int:
         if not args:
-            # Show all parameters
+            print("sysctl: missing operand", file=sys.stderr)
+            return 1
+
+        param = args[0]
+
+        if param in ("-h", "--help"):
+            return 0
+
+        if param in ("-a", "--all"):
             for key, value in sorted(self.DEFAULT_PARAMS.items()):
                 print(f"{key} = {value}")
             return 0
 
-        param = args[0]
-        if param in ("-a", "--all"):
+        if param in ("-p", "--system"):
+            # Load from /etc/sysctl.conf (simulate)
+            print("sysctl: loading from /etc/sysctl.conf")
             for key, value in sorted(self.DEFAULT_PARAMS.items()):
                 print(f"{key} = {value}")
             return 0
@@ -162,3 +171,47 @@ class LdconfigCommand(SbinCommand):
             if not d.startswith("-"):
                 print(f"[*] ldconfig: processing directory '{d}'")
         return 0
+
+
+def _selftest() -> bool:
+    """Run self-tests for /sbin system commands."""
+    tests_passed = 0
+    tests_failed = 0
+
+    def check(condition: bool, msg: str):
+        nonlocal tests_passed, tests_failed
+        if condition:
+            tests_passed += 1
+        else:
+            tests_failed += 1
+            print(f"  FAIL: {msg}")
+
+    cmd = SysctlCommand()
+    check(cmd.name == "sysctl", "sysctl name")
+    check(cmd.execute() == 1, "sysctl no args -> 1")
+    check(cmd.execute(["-a"]) == 0, "sysctl -a -> 0")
+    check(cmd.execute(["-h"]) == 0, "sysctl -h -> 0")
+    check(cmd.execute(["-p"]) == 0, "sysctl -p -> 0")
+    check(cmd.execute(["-w", "kernel.hostname", "test"]) == 0, "sysctl -w key val -> 0")
+    check(cmd.execute(["-n", "kernel.hostname"]) == 0, "sysctl -n key -> 0")
+    check(cmd.execute(["kernel.hostname"]) == 0, "sysctl kernel.hostname -> 0")
+    check(cmd.execute(["unknown.key"]) == 1, "sysctl unknown -> 1")
+
+    cmd = HwclockCommand()
+    check(cmd.name == "hwclock", "hwclock name")
+    check(cmd.execute() == 0, "hwclock no args -> 0")
+    check(cmd.execute(["-r"]) == 0, "hwclock -r -> 0")
+    check(cmd.execute(["-w"]) == 0, "hwclock -w -> 0")
+    check(cmd.execute(["-s"]) == 0, "hwclock -s -> 0")
+    check(cmd.execute(["-h"]) == 0, "hwclock -h -> 0")
+
+    cmd = LdconfigCommand()
+    check(cmd.name == "ldconfig", "ldconfig name")
+    check(cmd.execute() == 0, "ldconfig no args -> 0")
+    check(cmd.execute(["-v"]) == 0, "ldconfig -v -> 0")
+    check(cmd.execute(["-p"]) == 0, "ldconfig -p -> 0")
+    check(cmd.execute(["-V"]) == 0, "ldconfig -V -> 0")
+    check(cmd.execute(["-f", "/etc/ld.so.conf"]) == 0, "ldconfig -f -> 0")
+
+    print(f"sbin/system.py: {tests_passed} passed, {tests_failed} failed")
+    return tests_failed == 0

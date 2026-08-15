@@ -1,0 +1,33 @@
+{
+  "__pycache__": {
+    "base_path": "F:\\Pension Person Details\\UmerOS\\srv\\__pycache__",
+    "cgi_path": null,
+    "conf_path": null,
+    "config": {
+      "access_mode": "rw",
+      "admin_contact": "admin@umeros.local",
+      "allow_anonymous": false,
+      "custom_settings": {},
+      "department": null,
+      "domain": null,
+      "enable_cgi": false,
+      "enable_ssl": false,
+      "name": "__pycache__",
+      "port": null,
+      "protocol": "www",
+      "quota_bytes": 0,
+      "scheme": "custom"
+    },
+    "created_at": 1786791712.7461612,
+    "data_path": "F:\\Pension Person Details\\UmerOS\\srv\\__pycache__",
+    "dir_count": 0,
+    "file_count": 9,
+    "is_fhs_compliant": true,
+    "metadata": {},
+    "name": "__pycache__",
+    "size_bytes": 102812,
+    "status": "active",
+    "updated_at": 1786791712.7461615,
+    "upload_path": null
+  }
+}

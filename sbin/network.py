@@ -58,9 +58,13 @@ class IpCommand(SbinCommand):
 
     def execute(self, args: Optional[List[str]] = None) -> int:
         if not args:
-            args = ["address"]
+            print("ip: missing command", file=sys.stderr)
+            return 1
 
-        cmd = args[0] if args else "address"
+        cmd = args[0]
+
+        if cmd in ("-h", "--help", "help"):
+            return 0
 
         if cmd in ("a", "addr", "address"):
             print("1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536")
@@ -90,8 +94,22 @@ class RouteCommand(SbinCommand):
     usage = "route [-n] [-v] [-A family] {add|del|flush|change|print}"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
-        show = not args or args[0] in ("-n", "print")
-        if show or args[0] == "-n":
+        if not args:
+            args = ["-n"]
+
+        if args[0] in ("-h", "--help"):
+            return 0
+
+        if args[0] == "add":
+            print(f"route: adding route (args: {args[1:]})")
+            return 0
+
+        if args[0] == "del":
+            print(f"route: deleting route (args: {args[1:]})")
+            return 0
+
+        show = args[0] in ("-n", "print")
+        if show:
             print("Kernel IP routing table")
             print("Destination     Gateway         Genmask         Flags Metric Ref    Use Iface")
             print("0.0.0.0         192.168.1.1     0.0.0.0         UG    100    0        0 eth0")
@@ -99,3 +117,44 @@ class RouteCommand(SbinCommand):
             return 0
         print(f"route: operation '{args[0]}' not implemented", file=sys.stderr)
         return 1
+
+
+def _selftest() -> bool:
+    """Run self-tests for /sbin network commands."""
+    tests_passed = 0
+    tests_failed = 0
+
+    def check(condition: bool, msg: str):
+        nonlocal tests_passed, tests_failed
+        if condition:
+            tests_passed += 1
+        else:
+            tests_failed += 1
+            print(f"  FAIL: {msg}")
+
+    cmd = IfconfigCommand()
+    check(cmd.name == "ifconfig", "ifconfig name")
+    check(cmd.execute() == 0, "ifconfig no args -> 0")
+    check(cmd.execute(["eth0"]) == 0, "ifconfig eth0 -> 0")
+
+    cmd = IpCommand()
+    check(cmd.name == "ip", "ip name")
+    check(cmd.execute() == 1, "ip no args -> 1")
+    check(cmd.execute(["address"]) == 0, "ip address -> 0")
+    check(cmd.execute(["route"]) == 0, "ip route -> 0")
+    check(cmd.execute(["link"]) == 0, "ip link -> 0")
+    check(cmd.execute(["-h"]) == 0, "ip -h -> 0")
+    check(cmd.execute(["help"]) == 0, "ip help -> 0")
+    check(cmd.execute(["bad"]) == 1, "ip bad -> 1")
+
+    cmd = RouteCommand()
+    check(cmd.name == "route", "route name")
+    check(cmd.execute() == 0, "route no args -> 0")
+    check(cmd.execute(["-n"]) == 0, "route -n -> 0")
+    check(cmd.execute(["add"]) == 0, "route add -> 0")
+    check(cmd.execute(["del"]) == 0, "route del -> 0")
+    check(cmd.execute(["-h"]) == 0, "route -h -> 0")
+    check(cmd.execute(["bad"]) == 1, "route bad -> 1")
+
+    print(f"sbin/network.py: {tests_passed} passed, {tests_failed} failed")
+    return tests_failed == 0

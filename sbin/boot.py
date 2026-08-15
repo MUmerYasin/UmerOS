@@ -61,16 +61,65 @@ class InitCommand(SbinCommand):
     def execute(self, args: Optional[List[str]] = None) -> int:
         level = 3
         if args:
-            try:
-                level = int(args[0])
-            except ValueError:
-                print(f"init: invalid runlevel '{args[0]}'", file=sys.stderr)
-                return 1
+            arg = args[0]
+            if arg == "-q":
+                return 0
+            if arg == "s":
+                level = 1
+            else:
+                try:
+                    level = int(arg)
+                except ValueError:
+                    print(f"init: invalid runlevel '{arg}'", file=sys.stderr)
+                    return 1
         if level not in self.LEVELS:
             print(f"init: unknown runlevel {level}", file=sys.stderr)
             return 1
         print(f"[*] init: switching to runlevel {level} ({self.LEVELS[level]})", file=sys.stderr)
         return 0
+
+
+def _selftest() -> bool:
+    """Run self-tests for /sbin boot commands."""
+    tests_passed = 0
+    tests_failed = 0
+
+    def check(condition: bool, msg: str):
+        nonlocal tests_passed, tests_failed
+        if condition:
+            tests_passed += 1
+        else:
+            tests_failed += 1
+            print(f"  FAIL: {msg}")
+
+    cmd = HaltCommand()
+    check(cmd.name == "halt", "halt name")
+    check(cmd.execute() == 0, "halt no args -> 0")
+    check(cmd.execute(["-w"]) == 0, "halt -w -> 0")
+    check(cmd.execute(["-f"]) == 0, "halt -f -> 0")
+    check(cmd.execute(["-p"]) == 0, "halt -p -> 0")
+
+    cmd = InitCommand()
+    check(cmd.name == "init", "init name")
+    check(cmd.execute() == 0, "init no args -> 0")
+    check(cmd.execute(["3"]) == 0, "init 3 -> 0")
+    check(cmd.execute(["5"]) == 0, "init 5 -> 0")
+    check(cmd.execute(["s"]) == 0, "init s -> 0")
+    check(cmd.execute(["-q"]) == 0, "init -q -> 0")
+    check(cmd.execute(["99"]) == 1, "init 99 -> 1")
+    check(cmd.execute(["unknown"]) == 1, "init unknown -> 1")
+
+    check(PoweroffCommand().execute() == 0, "poweroff -> 0")
+    check(RebootCommand().execute() == 0, "reboot -> 0")
+    check(ShutdownCommand().execute() == 1, "shutdown no args -> 1")
+    check(ShutdownCommand().execute(["now"]) == 0, "shutdown now -> 0")
+    check(GettyCommand().execute() == 0, "getty -> 0")
+    check(FastbootCommand().execute() == 0, "fastboot -> 0")
+    check(FasthaltCommand().execute() == 0, "fasthalt -> 0")
+    check(UpdateCommand().execute() == 0, "update -> 0")
+
+    print(f"sbin/boot.py: {tests_passed} passed, {tests_failed} failed")
+    return tests_failed == 0
 
 
 class PoweroffCommand(SbinCommand):
