@@ -75,7 +75,7 @@ Primary file types:
 
 Important Linux workflow constraints:
 
-- The Linux source tree itself rejects source directories containing spaces or colons (`Old Linux Code/Makefile`, line 217). The current Windows path `F:\Pension Person Details\UmerOS\Old Linux Code` has both a drive colon and spaces, so it is not a suitable direct kernel build path.
+- The Linux source tree itself rejects source directories containing spaces or colons (`Old Linux Code/Makefile`, line 217). The current Windows path `UmerOS\Old Linux Code` has both a drive colon and spaces, so it is not a suitable direct kernel build path.
 - This Windows environment has no visible `make`, `gcc`, or `perl`; WSL is installed only as a stub and has no Linux distribution configured.
 - Local static checks found no `.orig`, `.rej`, `.bak`, object/module build artifacts, Zone.Identifier files, or reparse-point symlinks in `Old Linux Code`.
 - Some zero-length files exist; these are likely legitimate placeholders/test fixtures in the kernel tree, not automatically corruption.

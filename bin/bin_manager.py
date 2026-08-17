@@ -2,15 +2,13 @@
 UmerOS /bin Hierarchy Manager
 ==============================
 Central registry for /bin essential command binaries.
-
-According to FHS 3.0 / TLDP:
   - /bin contains essential command binaries required for booting, restoring,
     recovering, and/or repairing the system in addition to binaries in /usr/bin.
   - /bin must be statically linked (LSB).
   - No subdirectories allowed in /bin.
   - Essential for both root and non-privileged users.
 
-Required /bin commands (FSSTND):
+Required /bin commands:
   cat, chgrp, chmod, chown, cp, date, dd, df, dmesg, echo, false, hostname,
   kill, ln, login, ls, mkdir, mknod, more, mount, mv, ps, pwd, rm, rmdir,
   sh, stty, su, sync, true, umount, uname
@@ -26,10 +24,9 @@ Module Registry:
   - user_commands.py: SuCommand, LoginCommand
   - boolean_ops.py: TrueCommand, FalseCommand, TestCommand, BracketTestCommand,
     YesCommand, PrintenvCommand, EnvCommand
-  - shell.py: ShCommand, SedCommand, GzipCommand, GunzipCommand, ZcatCommand,
-    NetstatCommand, PingCommand
+  - shell.py: ShCommand, SedCommand, TarCommand, GzipCommand, GunzipCommand,
+    ZcatCommand, NetstatCommand, PingCommand, CpioCommand
   - device.py: MknodCommand
-  - archive.py: TarCommand
   - network_cmds.py: IfconfigCommand, IpCommand, RouteCommand, ArpCommand
   - csh.py: CshCommand
   - ed.py: EdCommand
@@ -133,6 +130,7 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     # shell.py
     "sh": ("shell", "ShCommand"),
     "sed": ("shell", "SedCommand"),
+    "cpio": ("shell", "CpioCommand"),
     # device.py
     "mknod": ("device", "MknodCommand"),
     # archive.py
@@ -153,7 +151,6 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     # ed.py
     "ed": ("ed", "EdCommand"),
     # usr_commands.py
-    "cpio": ("usr_commands", "CpioCommand"),
     "fold": ("usr_commands", "FoldCommand"),
     "nohup": ("usr_commands", "NohupCommand"),
     "nsenter": ("usr_commands", "NsenterCommand"),

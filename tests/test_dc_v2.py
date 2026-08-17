@@ -2,7 +2,7 @@ import sys, importlib.util
 
 spec = importlib.util.spec_from_file_location(
     'umerOS.quantum.dynamic_circuits_v2',
-    r'F:\Pension Person Details\UmerOS\quantum\dynamic_circuits_v2.py'
+    r'UmerOS\quantum\dynamic_circuits_v2.py'
 )
 mod = importlib.util.module_from_spec(spec)
 sys.modules['umerOS.quantum.dynamic_circuits_v2'] = mod

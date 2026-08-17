@@ -1,8 +1,8 @@
 """
-UmerOS /sources — Linux Filesystem Hierarchy Glossary Subsystem 
+UmerOS Glossary
 ================================================================================
 
-Exhaustive definitions and architecture reference for Linux filesystem, kernel,
+Exhaustive definitions and architecture reference for filesystem, kernel,
 and system administration terminology.
 
 

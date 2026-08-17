@@ -7,8 +7,6 @@ verification gates, contributor attributions, donation
 sponsorships, maintainer profiles,
 open-source licensing compliance, and pre-execution safety checkpoints.
 
-
-
 Modules:
 --------
 disclaimer   - DisclaimerNotice, DisclaimerRegistry, RiskLevel, UmerOS waivers

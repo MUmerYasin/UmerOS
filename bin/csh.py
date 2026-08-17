@@ -20,6 +20,9 @@ class CshCommand:
     """
 
     def __init__(self) -> None:
+        self.name = "csh"
+        self.description = "C shell command interpreter"
+        self.usage = "csh [-c command] [-h] [-v] [-x]"
         self._running = False
 
     def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
@@ -138,3 +141,22 @@ class CshCommand:
 
     def help(self) -> str:
         return "UmerOS C Shell (csh) - C-like command interpreter"
+
+
+def _selftest() -> bool:
+    """Run self-tests for csh module."""
+    try:
+        # CshCommand (non-interactive tests only)
+        cs = CshCommand()
+        assert cs.name == "csh"
+        assert cs.execute(["-c", "exit"]) == 0
+        assert cs.execute(["-c", "echo hello"]) == 0
+
+        # Test exit code from command
+        assert cs.execute(["-c", "nonexistent_cmd_xyz"]) != 0
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False

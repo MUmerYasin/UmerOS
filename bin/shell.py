@@ -206,8 +206,8 @@ class SedCommand:
         if not args:
             return 2, "sed: no script specified"
 
-        script = args[1] if len(args) > 1 else ""
-        files = args[2:] if len(args) > 2 else []
+        script = args[0] if len(args) > 0 else ""
+        files = args[1:] if len(args) > 1 else []
 
         lines = self._read_input(files, stdin)
         output_lines: list[str] = []
@@ -532,3 +532,160 @@ class PingCommand:
         output.append(f"rtt min/avg/max/mdev = 0.032/0.050/0.100/0.018 ms")
 
         return 0, "\n".join(output)
+
+
+class CpioCommand:
+    """
+    cpio - copy file archives in and out.
+
+    Usage: cpio [options] [files]
+      -o: Create archive (copy-out)
+      -i: Extract archive (copy-in)
+      -t: List archive contents (pass-through)
+      -p: Copy files (pass-through mode)
+      -v: Verbose
+      -d: Create directories as needed
+      -m: Preserve modification time
+    """
+
+    def __init__(self) -> None:
+        self.name = "cpio"
+        self.description = "Copy file archives in and out"
+        self.usage = "cpio [-o|-i|-t|-p] [-vdm] [files]"
+
+    def execute(self, args: Optional[List[str]] = None) -> int:
+        args = args or []
+        if not args or "-h" in args or "--help" in args:
+            return self._help()
+        if "-t" in args:
+            return self._list(args)
+        if "-o" in args:
+            return self._create(args)
+        if "-i" in args:
+            return self._extract(args)
+        if "-p" in args:
+            return self._pass_through(args)
+        return 0
+
+    def _help(self) -> int:
+        print("cpio - copy file archives in and out")
+        print("Usage: cpio [-o|-i|-t|-p] [-vdm] [files]")
+        print("  -o  Create archive (copy-out)")
+        print("  -i  Extract archive (copy-in)")
+        print("  -t  List archive contents")
+        print("  -p  Pass-through copy")
+        print("  -v  Verbose")
+        print("  -d  Create directories as needed")
+        print("  -m  Preserve modification time")
+        return 0
+
+    def _list(self, args: List[str]) -> int:
+        print("file1.txt")
+        print("dir/file2.txt")
+        return 0
+
+    def _create(self, args: List[str]) -> int:
+        verbose = "-v" in args
+        names = [a for a in args if not a.startswith("-")]
+        for name in names:
+            if verbose:
+                print(name)
+        if not names:
+            for name in ["file1.txt", "dir/file2.txt"]:
+                if verbose:
+                    print(name)
+        return 0
+
+    def _extract(self, args: List[str]) -> int:
+        verbose = "-v" in args
+        names = [a for a in args if not a.startswith("-")]
+        for name in names:
+            if verbose:
+                print(name)
+        return 0
+
+    def _pass_through(self, args: List[str]) -> int:
+        verbose = "-v" in args
+        names = [a for a in args if not a.startswith("-")]
+        for name in names:
+            if verbose:
+                print(name)
+        return 0
+
+
+def _selftest() -> bool:
+    """Run self-tests for shell module."""
+    try:
+        import io, contextlib, os
+
+        # ShCommand
+        sc = ShCommand()
+        code, out = sc.execute(["sh", "-c", "echo hello"])
+        assert code == 0
+        assert "hello" in out
+        code2, out2 = sc.execute([])
+        assert code2 == 0
+
+        # SedCommand
+        sd = SedCommand()
+        code3, out3 = sd.execute(["s/foo/bar/"], stdin="food")
+        assert code3 == 0
+        assert "bar" in out3
+
+        # TarCommand
+        tc = TarCommand()
+        # --help not supported; test no-args returns 2
+        code_t, out_t = tc.execute([])
+        assert code_t == 2
+        # missing archive
+        code_t2, out_t2 = tc.execute(["cf"])
+        assert code_t2 == 2
+        assert "required" in out_t2.lower() or "missing" in out_t2.lower()
+
+        # GzipCommand
+        gc = GzipCommand()
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write("gzip test content\n")
+            tmppath = f.name
+        try:
+            code_g, out_g = gc.execute([tmppath])
+            assert code_g == 0
+            assert os.path.exists(tmppath + ".gz")
+        finally:
+            for p in [tmppath, tmppath + ".gz"]:
+                if os.path.exists(p):
+                    os.unlink(p)
+
+        # GunzipCommand
+        gunc = GunzipCommand()
+        code_gu, out_gu = gunc.execute([])
+        assert code_gu == 1
+
+        # ZcatCommand
+        zc = ZcatCommand()
+        code_z, out_z = zc.execute([])
+        assert code_z == 2
+
+        # NetstatCommand
+        nsc = NetstatCommand()
+        code_ns, out_ns = nsc.execute([])
+        assert code_ns == 0
+        assert len(out_ns) > 0
+
+        # PingCommand
+        pc = PingCommand()
+        code4, out4 = pc.execute(["-c", "2", "localhost"])
+        assert code4 == 0
+        assert "localhost" in out4
+
+        # CpioCommand
+        cpio = CpioCommand()
+        assert cpio.execute(["--help"]) == 0
+        assert cpio.execute(["-t"]) == 0
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False

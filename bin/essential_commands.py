@@ -1133,6 +1133,132 @@ class MoreCommand:
                 line_count = 0
 
 
+def _selftest() -> bool:
+    """Run self-tests for essential_commands module."""
+    try:
+        import io, contextlib, tempfile
+
+        # CatCommand
+        cc = CatCommand()
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write("line1\nline2\nline3\n")
+            tmppath = f.name
+        try:
+            f = io.StringIO()
+            with contextlib.redirect_stdout(f):
+                assert cc.execute([tmppath]) == 0
+            assert "line1" in f.getvalue()
+            try:
+                result = cc.execute(["nonexistent_file_xyz_xyz_xyz"])
+                assert result == 1
+            except (FileNotFoundError, OSError):
+                pass
+            # -n flag
+            f2 = io.StringIO()
+            with contextlib.redirect_stdout(f2):
+                assert cc.execute([tmppath], options=CatOptions.NUMBER_ALL) == 0
+        finally:
+            os.unlink(tmppath)
+
+        # LsCommand
+        lc = LsCommand()
+        f3 = io.StringIO()
+        with contextlib.redirect_stdout(f3):
+            assert lc.execute([]) == 0
+
+        # CpCommand
+        cocp = CpCommand()
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+            f.write("copy test\n")
+            src = f.name
+        dst = src + ".copy"
+        tmpdir = None
+        try:
+            assert cocp.execute([src], dst) == 0
+            assert os.path.exists(dst)
+            # -r with directory
+            tmpdir = tempfile.mkdtemp()
+            os.rmdir(tmpdir)
+            assert cocp.execute([src], tmpdir, flags=CpFlags.RECURSIVE) == 0
+        finally:
+            for p in [src, dst]:
+                if os.path.exists(p):
+                    os.unlink(p)
+            if tmpdir and os.path.isdir(tmpdir):
+                os.rmdir(tmpdir)
+
+        # MvCommand
+        mv = MvCommand()
+        src2 = tempfile.mktemp(suffix=".txt")
+        dst2 = tempfile.mktemp(suffix=".txt")
+        try:
+            with open(src2, "w") as f:
+                f.write("move test\n")
+            assert mv.execute([src2], dst2) == 0
+            assert os.path.exists(dst2)
+        finally:
+            for p in [src2, dst2]:
+                if os.path.exists(p):
+                    os.unlink(p)
+
+        # RmCommand
+        rm = RmCommand()
+        tmpf = tempfile.mktemp(suffix=".txt")
+        with open(tmpf, "w") as f:
+            f.write("delete me\n")
+        assert rm.execute([tmpf]) == 0
+        assert not os.path.exists(tmpf)
+
+        # MkdirCommand
+        mk = MkdirCommand()
+        tmpdir2 = tempfile.mktemp()
+        assert mk.execute([tmpdir2]) == 0
+        assert os.path.isdir(tmpdir2)
+
+        # RmdirCommand
+        rmd = RmdirCommand()
+        assert rmd.execute([tmpdir2]) == 0
+        assert not os.path.isdir(tmpdir2)
+
+        # LnCommand
+        ln = LnCommand()
+        src3 = tempfile.mktemp(suffix=".txt")
+        lnk = src3 + ".link"
+        try:
+            with open(src3, "w") as f:
+                f.write("link test\n")
+            assert ln.execute([src3], lnk) == 0
+            assert os.path.exists(lnk)
+        finally:
+            for p in [src3, lnk]:
+                if os.path.exists(p):
+                    os.unlink(p)
+
+        # DdCommand
+        dd = DdCommand()
+        dd_out = tempfile.mktemp()
+        try:
+            dd.execute(["if=/dev/null", f"of={dd_out}", "count=1", "bs=512"])
+        except Exception:
+            pass
+        if os.path.exists(dd_out):
+            os.unlink(dd_out)
+
+        # MoreCommand (just check it handles missing file gracefully)
+        mc = MoreCommand()
+        assert hasattr(mc, 'execute')
+        try:
+            mc.execute(["/nonexistent_file_xyz"])
+        except (FileNotFoundError, Exception):
+            pass  # MoreCommand handles this internally but just in case
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False
+
+
 # ─── Module Exports ──────────────────────────────────────────────────────────
 
 __all__ = [

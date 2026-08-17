@@ -1,5 +1,5 @@
 """
-UmerOS Legal & Compliance — Maintainers & Authorship Subsystem (TLDP Appendix C)
+UmerOS Legal & Compliance — Maintainers & Authorship Subsystem (Appendix C)
 ================================================================================
 
 Maintains cryptographic identities, signing fingerprints, and maintainer

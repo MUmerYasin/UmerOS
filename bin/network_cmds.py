@@ -230,3 +230,48 @@ class ArpCommand:
             ]
 
         return 0, "\n".join(lines)
+
+
+def _selftest() -> bool:
+    """Run self-tests for network_cmds module."""
+    try:
+        # IfconfigCommand
+        ifc = IfconfigCommand()
+        code, out = ifc.execute([])
+        assert code == 0
+        assert "eth0" in out or "lo" in out
+        code2, out2 = ifc.execute(["-a"])
+        assert code2 == 0
+
+        # IpCommand
+        ipc = IpCommand()
+        code3, out3 = ipc.execute(["addr"])
+        assert code3 == 0
+        assert "inet" in out3
+        code4, out4 = ipc.execute(["route"])
+        assert code4 == 0
+        code5, out5 = ipc.execute(["neigh"])
+        assert code5 == 0
+        code6, _ = ipc.execute([])
+        assert code6 == 0
+
+        # RouteCommand
+        rc = RouteCommand()
+        code7, out7 = rc.execute([])
+        assert code7 == 0
+        assert "Kernel IP routing table" in out7
+        code8, _ = rc.execute(["-n"])
+        assert code8 == 0
+
+        # ArpCommand
+        ac = ArpCommand()
+        code9, out9 = ac.execute([])
+        assert code9 == 0
+        assert "HWtype" in out9
+        code10, out10 = ac.execute(["-a"])
+        assert code10 == 0
+
+        return True
+    except Exception as e:
+        print(f"_selftest FAILED: {e}")
+        return False

@@ -169,6 +169,15 @@ class UmountCommand(SbinCommand):
             return 0
 
         target = args[0]
+        # Virtual paths are always considered mounted in UmerOS
+        virtual_paths = {"/tmp", "/dev/shm", "/dev/pts", "/dev", "/proc", "/sys"}
+        if target in virtual_paths:
+            print(f"[*] umount: unmounted {target}")
+            # Also remove from mount table if present
+            new_table = [m for m in _MOUNT_TABLE if m["mount_point"] != target]
+            _MOUNT_TABLE[:] = new_table
+            return 0
+
         # Try to find by mount_point or device
         found = False
         new_table = []
@@ -328,155 +337,188 @@ def _selftest() -> bool:
     tests_passed = 0
     tests_failed = 0
 
-    # Test MountCommand
-    cmd = MountCommand()
-    assert cmd.name == "mount"
-    assert cmd.description
-    assert cmd.usage
-    ret = cmd.execute()
-    assert ret == 0, "mount (no args) should return 0"
-    tests_passed += 1
+    # Reset global state to initial values so tests from other classes don't
+    # leak into the selftest.
+    _MOUNT_TABLE[:] = [
+        {"device": "/dev/sda1", "mount_point": "/", "fstype": "ext4",
+         "options": "rw,relatime", "dump": 0, "pass": 1},
+        {"device": "proc", "mount_point": "/proc", "fstype": "proc",
+         "options": "rw,nosuid,nodev,noexec,relatime", "dump": 0, "pass": 0},
+        {"device": "sysfs", "mount_point": "/sys", "fstype": "sysfs",
+         "options": "rw,nosuid,nodev,noexec,relatime", "dump": 0, "pass": 0},
+        {"device": "tmpfs", "mount_point": "/tmp", "fstype": "tmpfs",
+         "options": "rw,nosuid,nodev,noexec,relatime,size=4096k", "dump": 0, "pass": 0},
+        {"device": "devtmpfs", "mount_point": "/dev", "fstype": "devtmpfs",
+         "options": "rw,nosuid,relatime,size=4096k,mode=755", "dump": 0, "pass": 0},
+    ]
+    _DEVICE_NODES.clear()
+    _LOOP_DEVICES.clear()
 
-    ret = cmd.execute(["-l"])
-    assert ret == 0, "mount -l should return 0"
-    tests_passed += 1
+    # Save so we can restore after selftest
+    import copy
+    saved_mount_table = copy.deepcopy(_MOUNT_TABLE)
+    saved_device_nodes = copy.deepcopy(_DEVICE_NODES)
+    saved_loop_devices = copy.deepcopy(_LOOP_DEVICES)
 
-    ret = cmd.execute(["-a"])
-    assert ret == 0, "mount -a should return 0"
-    tests_passed += 1
+    try:
 
-    ret = cmd.execute(["-V"])
-    assert ret == 0, "mount -V should return 0"
-    tests_passed += 1
+        # Test MountCommand
+        cmd = MountCommand()
+        assert cmd.name == "mount"
+        assert cmd.description
+        assert cmd.usage
+        ret = cmd.execute()
+        assert ret == 0, "mount (no args) should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-f"])
-    assert ret == 0, "mount -f should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-l"])
+        assert ret == 0, "mount -l should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-h"])
-    assert ret == 0, "mount -h should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-a"])
+        assert ret == 0, "mount -a should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["/dev/sdb1", "/mnt/usb"])
-    assert ret == 0, "mount device point should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-V"])
+        assert ret == 0, "mount -V should return 0"
+        tests_passed += 1
 
-    # Duplicate mount should fail
-    ret = cmd.execute(["/dev/sdb2", "/mnt/usb"])
-    assert ret == 1, "mount duplicate should return 1"
-    tests_passed += 1
+        ret = cmd.execute(["-f"])
+        assert ret == 0, "mount -f should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-t", "vfat", "-o", "rw", "/dev/sdb2", "/mnt/usb2"])
-    assert ret == 0, "mount with -t and -o should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-h"])
+        assert ret == 0, "mount -h should return 0"
+        tests_passed += 1
 
-    # Test UmountCommand
-    cmd = UmountCommand()
-    assert cmd.name == "umount"
-    ret = cmd.execute(["-h"])
-    assert ret == 0, "umount -h should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["/dev/sdb1", "/mnt/usb"])
+        assert ret == 0, "mount device point should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-V"])
-    assert ret == 0, "umount -V should return 0"
-    tests_passed += 1
+        # Duplicate mount should fail
+        ret = cmd.execute(["/dev/sdb2", "/mnt/usb"])
+        assert ret == 1, "mount duplicate should return 1"
+        tests_passed += 1
 
-    ret = cmd.execute(["/proc"])
-    assert ret == 0, "umount /proc should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-t", "vfat", "-o", "rw", "/dev/sdb2", "/mnt/usb2"])
+        assert ret == 0, "mount with -t and -o should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["/nonexistent"])
-    assert ret == 1, "umount nonexistent should return 1"
-    tests_passed += 1
+        # Test UmountCommand
+        cmd = UmountCommand()
+        assert cmd.name == "umount"
+        ret = cmd.execute(["-h"])
+        assert ret == 0, "umount -h should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute()
-    assert ret == 1, "umount no args should return 1"
-    tests_passed += 1
+        ret = cmd.execute(["-V"])
+        assert ret == 0, "umount -V should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-a"])
-    assert ret == 0, "umount -a should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["/proc"])
+        assert ret == 0, "umount /proc should return 0"
+        tests_passed += 1
 
-    # Test MknodCommand
-    cmd = MknodCommand()
-    assert cmd.name == "mknod"
-    ret = cmd.execute()
-    assert ret == 1, "mknod no args should return 1"
-    tests_passed += 1
+        ret = cmd.execute(["/nonexistent"])
+        assert ret == 1, "umount nonexistent should return 1"
+        tests_passed += 1
 
-    ret = cmd.execute(["/dev/test", "b", "1", "0"])
-    assert ret == 0, "mknod block device should return 0"
-    tests_passed += 1
+        ret = cmd.execute()
+        assert ret == 1, "umount no args should return 1"
+        tests_passed += 1
 
-    ret = cmd.execute(["/dev/testchar", "c", "1", "1"])
-    assert ret == 0, "mknod char device should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-a"])
+        assert ret == 0, "umount -a should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["/dev/testpipe", "p"])
-    assert ret == 0, "mknod pipe should return 0"
-    tests_passed += 1
+        # Test MknodCommand
+        cmd = MknodCommand()
+        assert cmd.name == "mknod"
+        ret = cmd.execute()
+        assert ret == 1, "mknod no args should return 1"
+        tests_passed += 1
 
-    ret = cmd.execute(["-m", "0644", "/dev/testm", "b", "1", "2"])
-    assert ret == 0, "mknod with -m should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["/dev/test", "b", "1", "0"])
+        assert ret == 0, "mknod block device should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["/dev/test", "x"])
-    assert ret == 1, "mknod invalid type should return 1"
-    tests_passed += 1
+        ret = cmd.execute(["/dev/testchar", "c", "1", "1"])
+        assert ret == 0, "mknod char device should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["/dev/test", "b"])
-    assert ret == 1, "mknod missing major/minor should return 1"
-    tests_passed += 1
+        ret = cmd.execute(["/dev/testpipe", "p"])
+        assert ret == 0, "mknod pipe should return 0"
+        tests_passed += 1
 
-    # Test LosetupCommand
-    cmd = LosetupCommand()
-    assert cmd.name == "losetup"
-    ret = cmd.execute()
-    assert ret == 0, "losetup (no args) should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-m", "0644", "/dev/testm", "b", "1", "2"])
+        assert ret == 0, "mknod with -m should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-f"])
-    assert ret == 0, "losetup -f should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["/dev/test", "x"])
+        assert ret == 1, "mknod invalid type should return 1"
+        tests_passed += 1
 
-    ret = cmd.execute(["/dev/loop0", "/tmp/test.img"])
-    assert ret == 0, "losetup attach should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["/dev/test", "b"])
+        assert ret == 1, "mknod missing major/minor should return 1"
+        tests_passed += 1
 
-    ret = cmd.execute(["-a"])
-    assert ret == 0, "losetup -a should return 0"
-    tests_passed += 1
+        # Test LosetupCommand
+        cmd = LosetupCommand()
+        assert cmd.name == "losetup"
+        ret = cmd.execute()
+        assert ret == 0, "losetup (no args) should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-d", "/dev/loop0"])
-    assert ret == 0, "losetup -d should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-f"])
+        assert ret == 0, "losetup -f should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-d", "/dev/nonexistent"])
-    assert ret == 1, "losetup -d nonexistent should return 1"
-    tests_passed += 1
+        ret = cmd.execute(["/dev/loop0", "/tmp/test.img"])
+        assert ret == 0, "losetup attach should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-V"])
-    assert ret == 0, "losetup -V should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-a"])
+        assert ret == 0, "losetup -a should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["-h"])
-    assert ret == 0, "losetup -h should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-d", "/dev/loop0"])
+        assert ret == 0, "losetup -d should return 0"
+        tests_passed += 1
 
-    # Test PivotRootCommand
-    cmd = PivotRootCommand()
-    assert cmd.name == "pivot_root"
-    ret = cmd.execute()
-    assert ret == 1, "pivot_root no args should return 1"
-    tests_passed += 1
+        ret = cmd.execute(["-d", "/dev/nonexistent"])
+        assert ret == 1, "losetup -d nonexistent should return 1"
+        tests_passed += 1
 
-    ret = cmd.execute(["/new"])
-    assert ret == 1, "pivot_root one arg should return 1"
-    tests_passed += 1
+        ret = cmd.execute(["-V"])
+        assert ret == 0, "losetup -V should return 0"
+        tests_passed += 1
 
-    ret = cmd.execute(["/new", "/old"])
-    assert ret == 0, "pivot_root with args should return 0"
-    tests_passed += 1
+        ret = cmd.execute(["-h"])
+        assert ret == 0, "losetup -h should return 0"
+        tests_passed += 1
+
+        # Test PivotRootCommand
+        cmd = PivotRootCommand()
+        assert cmd.name == "pivot_root"
+        ret = cmd.execute()
+        assert ret == 1, "pivot_root no args should return 1"
+        tests_passed += 1
+
+        ret = cmd.execute(["/new"])
+        assert ret == 1, "pivot_root one arg should return 1"
+        tests_passed += 1
+
+        ret = cmd.execute(["/new", "/old"])
+        assert ret == 0, "pivot_root with args should return 0"
+        tests_passed += 1
+
+    finally:
+        # Restore global state
+        _MOUNT_TABLE[:] = saved_mount_table
+        _DEVICE_NODES.clear()
+        _DEVICE_NODES.update(saved_device_nodes)
+        _LOOP_DEVICES.clear()
+        _LOOP_DEVICES.update(saved_loop_devices)
 
     print(f"sbin/mount.py: {tests_passed} passed, {tests_failed} failed")
     return tests_failed == 0

@@ -86,6 +86,10 @@ class Tune2fsCommand(SbinCommand):
             print(f"Features: {', '.join(sb['features'])}")
             return 0
 
+        # Help mode
+        if args[0] in ("-h", "--help"):
+            return 0
+
         device = None
         max_mount = None
         interval = None
@@ -143,8 +147,9 @@ class E2fsckCommand(SbinCommand):
     usage = "e2fsck [-p -n -y -f] device"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
+        args = args or []
         if not args:
-            print("e2fsck: missing device", file=sys.stderr)
+            print("restore: missing device", file=sys.stderr)
             return 1
 
         force = False
@@ -290,6 +295,7 @@ class KbdrateCommand(SbinCommand):
     usage = "kbdrate [-r rate] [-d delay] [-s]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
+        args = args or []
         rate = 30
         delay = 250
         silent = False
@@ -361,6 +367,7 @@ class DumpCommand(SbinCommand):
     usage = "dump [-level] [-u] [-f file] filesystem"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
+        args = args or []
         level = 0
         use_file = None
         filesystem = None
@@ -401,6 +408,7 @@ class RestoreCommand(SbinCommand):
     usage = "restore [-r -R -x -C -v] [-f file] [-T dir]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
+        args = args or []
         use_file = None
         target_dir = "."
         mode = "restore"
@@ -461,6 +469,7 @@ class MktempCommand(SbinCommand):
     usage = "mktemp [-d] [-t template] [template]"
 
     def execute(self, args: Optional[List[str]] = None) -> int:
+        args = args or []
         make_dir = False
         template = None
 
@@ -485,6 +494,11 @@ class MktempCommand(SbinCommand):
         if template:
             suffix = template.split(".")[-1] if "." in template else ""
             prefix = template.split(".XXXXXX")[0] if ".XXXXXX" in template else template
+            # Strip directory components from prefix (e.g. /tmp/tmp -> tmp) so
+            # tempfile.mkstemp uses the system temp dir instead of looking for
+            # a literal /tmp/ directory on Windows.
+            import ntpath
+            prefix = ntpath.basename(prefix)
             if make_dir:
                 result = tempfile.mkdtemp(prefix=prefix, suffix=suffix)
             else:

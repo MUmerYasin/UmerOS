@@ -648,6 +648,11 @@ class SttyCommand:
       Settings: raw, cooked, sane, evenp, oddp, parenb, etc.
     """
 
+    def __init__(self) -> None:
+        self.name = "stty"
+        self.description = "Change and print terminal line settings"
+        self.usage = "stty [-a] [-g] [settings]"
+
     def execute(self, args: List[str] | None = None) -> int:
         args = args or []
         if not args or "-a" in args:
@@ -755,6 +760,11 @@ class SyncCommand:
       -f: Force sync (ignore errors)
     """
 
+    def __init__(self) -> None:
+        self.name = "sync"
+        self.description = "Flush filesystem buffers"
+        self.usage = "sync [-d] [-f]"
+
     def execute(self, args: List[str] | None = None) -> int:
         args = args or []
         force = "-f" in args
@@ -772,3 +782,53 @@ class SyncCommand:
             except Exception:
                 pass
             return 0
+
+
+def _selftest() -> bool:
+    """Run self-tests for process module."""
+    try:
+        import io, contextlib
+
+        # PsCommand
+        pc = PsCommand()
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            assert pc.execute() == 0
+        assert "PID" in f.getvalue()
+
+        # KillCommand
+        kc = KillCommand()
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            assert kc.execute(["-l"]) == 0
+        assert len(f.getvalue()) > 0
+        if os.name != 'nt':
+            assert kc.execute([str(os.getpid()), "0"]) == 0
+
+        # MountCommand
+        mc = MountCommand()
+        f2 = io.StringIO()
+        with contextlib.redirect_stdout(f2):
+            mc.execute([])
+        assert len(f2.getvalue()) > 0
+
+        # UmountCommand
+        uc = UmountCommand()
+        assert uc.execute([]) == 1
+
+        # SttyCommand (may fail on non-terminal; just verify no crash)
+        stc = SttyCommand()
+        stc.execute(["-h"])
+
+        # SyncCommand
+        sync = SyncCommand()
+        code = sync.execute()
+        assert code == 0
+        code2 = sync.execute(["-f"])
+        assert code2 == 0
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False

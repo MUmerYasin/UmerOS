@@ -3,7 +3,7 @@ UmerOS /bin Boolean & Shell Commands
 =====================================
 Boolean operations and shell primitives: true, false, sh
 
-FHS 3.0: Essential commands for scripting and control flow.
+Essential commands for scripting and control flow.
 true/false are used in shell scripts for conditional logic.
 sh is the POSIX shell required in /bin.
 """
@@ -417,3 +417,59 @@ class EnvCommand:
         except OSError as e:
             print(f"env: {e}", file=sys.stderr)
             return 126
+
+
+def _selftest() -> bool:
+    """Run self-tests for boolean_ops module."""
+    try:
+        # TrueCommand
+        tc = TrueCommand()
+        assert tc.execute() == 0
+        assert tc.execute(["ignored"]) == 0
+
+        # FalseCommand
+        fc = FalseCommand()
+        assert fc.execute() == 1
+        assert fc.execute(["ignored"]) == 1
+
+        # TestCommand
+        tcmd = TestCommand()
+        assert tcmd.execute() == 1
+        assert tcmd.execute(["-n", "hello"]) == 0
+        assert tcmd.execute(["-z", ""]) == 0
+        assert tcmd.execute(["-z", "x"]) == 1
+        assert tcmd.execute(["1", "-eq", "1"]) == 0
+        assert tcmd.execute(["1", "-ne", "2"]) == 0
+        assert tcmd.execute(["1", "-gt", "2"]) == 1
+        assert tcmd.execute(["2", "-gt", "1"]) == 0
+        assert tcmd.execute(["2", "-lt", "1"]) == 1
+        assert tcmd.execute(["1", "-le", "1"]) == 0
+        assert tcmd.execute(["1", "-ge", "1"]) == 0
+
+        # BracketTestCommand
+        btc = BracketTestCommand()
+        assert btc.execute() == 2
+        assert btc.execute(["-n", "hello", "]"]) == 0
+        assert btc.execute(["-z", "", "]"]) == 0
+        assert btc.execute(["1", "-eq", "1", "]"]) == 0
+        assert btc.execute(["hello"]) == 2  # missing ]
+
+        # YesCommand (skip execute — infinite loop on Windows)
+        yc = YesCommand()
+        assert hasattr(yc, 'execute')
+
+        # PrintenvCommand
+        pec = PrintenvCommand()
+        assert pec.execute() == 0
+        assert pec.execute(["PATH"]) == 0 or pec.execute(["PATH"]) == 1
+        assert pec.execute(["NONEXISTENT_VAR_UMEROS"]) == 1
+
+        # EnvCommand
+        ec = EnvCommand()
+        assert ec.execute() == 0
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False

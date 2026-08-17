@@ -1,5 +1,5 @@
 """
-UmerOS /sources — UNIX System V Signals Subsystem (TLDP Appendix A)
+UmerOS /sources — UNIX System V Signals Subsystem (Appendix A)
 ===================================================================
 
 Complete implementation of the POSIX & UNIX System V signal specification,

@@ -1152,6 +1152,74 @@ class PwdCommand:
         return os.getcwd()
 
 
+def _selftest() -> bool:
+    """Run self-tests for system_info module."""
+    try:
+        import io, contextlib
+
+        # UnameCommand
+        uc = UnameCommand()
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            assert uc.execute(UnameFlag.SYSNAME, output=f) == 0
+        assert len(f.getvalue().strip()) > 0
+        f2 = io.StringIO()
+        with contextlib.redirect_stdout(f2):
+            assert uc.execute(UnameFlag.ALL, output=f2) == 0
+        assert len(f2.getvalue().strip()) > 0
+
+        # DmesgCommand
+        dc = DmesgCommand()
+        f3 = io.StringIO()
+        with contextlib.redirect_stdout(f3):
+            assert dc.execute(output=f3) == 0
+        assert len(f3.getvalue()) > 0
+
+        # HostnameCommand
+        hc = HostnameCommand()
+        f4 = io.StringIO()
+        with contextlib.redirect_stdout(f4):
+            assert hc.execute(output=f4) == 0
+        assert len(f4.getvalue().strip()) > 0
+
+        # DfCommand
+        dfc = DfCommand()
+        f5 = io.StringIO()
+        with contextlib.redirect_stdout(f5):
+            try:
+                dfc.execute(output=f5)
+                assert len(f5.getvalue()) > 0
+            except (AttributeError, OSError):
+                pass  # os.statvfs not available on Windows
+
+        # EchoCommand
+        ec = EchoCommand()
+        f6 = io.StringIO()
+        with contextlib.redirect_stdout(f6):
+            assert ec.execute(["hello", "world"], output=f6) == 0
+        assert f6.getvalue().strip() == "hello world"
+
+        # DateCommand
+        dc2 = DateCommand()
+        f7 = io.StringIO()
+        with contextlib.redirect_stdout(f7):
+            assert dc2.execute(output=f7) == 0
+        assert len(f7.getvalue().strip()) > 0
+
+        # PwdCommand
+        pc = PwdCommand()
+        f8 = io.StringIO()
+        with contextlib.redirect_stdout(f8):
+            assert pc.execute(output=f8) == 0
+        assert len(f8.getvalue().strip()) > 0
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False
+
+
 # ─── Module Exports ──────────────────────────────────────────────────────────
 
 __all__ = [

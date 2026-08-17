@@ -20,6 +20,9 @@ class EdCommand:
     """
 
     def __init__(self) -> None:
+        self.name = "ed"
+        self.description = "Line editor"
+        self.usage = "ed [-h] [-s] [file]"
         self._buffer: List[str] = []
         self._current_line = 0
         self._modified = False
@@ -213,3 +216,27 @@ class EdCommand:
 
     def help(self) -> str:
         return "UmerOS ed - line editor"
+
+
+def _selftest() -> bool:
+    """Run self-tests for ed module."""
+    try:
+        import io, contextlib
+
+        # EdCommand (non-interactive; pipe commands via stdin)
+        ec = EdCommand()
+        # Verify instantiation
+        assert ec.name == "ed"
+        assert "ed" in ec.description.lower() or "editor" in ec.description.lower()
+
+        # Test with stdin commands
+        stdin_text = "a\nfirst line\nsecond line\n.\n1\nl\nq\n"
+        f = io.StringIO(stdin_text)
+        out = io.StringIO()
+        result = ec.execute([], stdin=f, stdout=out)
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False

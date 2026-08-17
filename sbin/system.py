@@ -67,9 +67,16 @@ class SysctlCommand(SbinCommand):
                 print(f"{key} = {value}")
             return 0
 
-        if param in ("-w", "--write") and len(args) >= 3:
-            key = args[1]
-            value = args[2]
+        if param in ("-w", "--write"):
+            # Handle both "-w key value" (3 args) and "-w key=value" (2 args) formats
+            if len(args) >= 3:
+                key = args[1]
+                value = args[2]
+            elif len(args) == 2 and "=" in args[1]:
+                key, value = args[1].split("=", 1)
+            else:
+                print("sysctl: -w requires key=value or key value", file=sys.stderr)
+                return 1
             print(f"[*] sysctl: setting '{key}' = '{value}'")
             return 0
 

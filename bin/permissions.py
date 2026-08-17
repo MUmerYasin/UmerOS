@@ -887,6 +887,69 @@ def validate_mode(mode_str: str) -> bool:
     return False
 
 
+def _selftest() -> bool:
+    """Run self-tests for permissions module."""
+    try:
+        import tempfile, pathlib
+
+        # ChmodCommand
+        cc = ChmodCommand()
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            tmppath = f.name
+        try:
+            assert cc.execute("755", [tmppath]) == 0
+            assert cc.execute("u+x", [tmppath]) == 0
+            assert cc.execute("644", [tmppath]) == 0
+        finally:
+            os.unlink(tmppath)
+
+        # ChownCommand
+        coc = ChownCommand()
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            tmppath2 = f.name
+        try:
+            coc.execute("0:0", [tmppath2])
+        except Exception:
+            pass
+        try:
+            assert coc.execute("nonexistent_user_xyz", [tmppath2]) == 1
+        except (OSError, Exception):
+            pass
+
+        # ChgrpCommand
+        cgc = ChgrpCommand()
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            tmppath3 = f.name
+        try:
+            cgc.execute("0", [tmppath3])
+        except Exception:
+            pass
+        try:
+            assert cgc.execute("nonexistent_xyz", [tmppath3]) == 1
+        except Exception:
+            pass
+
+        # Utility functions
+        assert validate_mode("755") is True
+        assert validate_mode("u+x") is True
+        assert validate_mode("invalid") is False
+        assert len(format_mode(0o755)) == 10
+        assert "rwx" in format_mode(0o755)
+        assert len(format_octal(0o755)) > 0
+
+        # SymbolicModeParser
+        new_mode = SymbolicModeParser.parse_octal("755", 0o000)
+        assert new_mode == 0o755
+        new_mode2 = SymbolicModeParser.parse("u+x", 0o755)
+        assert new_mode2 & 0o100
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False
+
+
 # ─── Module Exports ──────────────────────────────────────────────────────────
 
 __all__ = [

@@ -2,7 +2,7 @@
 UmerOS /sources — Master Sources, Specifications & Standards Manager
 ====================================================================
 
-Central coordinator for Linux filesystem hierarchy bibliography, System V signals,
+Central coordinator for bibliography, System V signals,
 architecture glossary, kernel documentation specifications, and source tree management.
 
 Author: UmerOS Project

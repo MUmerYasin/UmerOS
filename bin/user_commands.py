@@ -390,3 +390,23 @@ class LoginCommand:
         print(f"Home: {session.home}")
         print("(Interactive session not available)")
         return 0
+
+
+def _selftest() -> bool:
+    """Run self-tests for user_commands module."""
+    try:
+        # SuCommand (skip execute — requires interactive session on Windows)
+        su = SuCommand()
+        assert hasattr(su, "execute")
+        assert "su" in SuCommand.__doc__.lower() or "substitute" in SuCommand.__doc__.lower()
+
+        # LoginCommand (skip execute — getpass blocks on Windows)
+        lc = LoginCommand()
+        assert hasattr(lc, "execute")
+        assert "login" in LoginCommand.__doc__.lower()
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False
