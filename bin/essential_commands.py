@@ -1,7 +1,7 @@
 """
 UmerOS /bin Essential File Operation Commands
 ==============================================
-Implementation of core file manipulation commands per FHS 3.0.
+Implementation of core file manipulation commands
 
 Commands implemented:
   cat    - Concatenate files and print to stdout
@@ -160,21 +160,38 @@ class CatCommand:
 
     def __init__(self) -> None:
         self.name = "cat"
+        self.description = "concatenate files and print to stdout"
+        self.usage = "cat [OPTION]... [FILE]..."
 
     def execute(
         self,
-        files: List[str],
+        args: Optional[List[str]] = None,
+        *,
+        files: Optional[List[str]] = None,
         options: int = CatOptions.NONE,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute cat command."""
+        """Execute cat command.
+
+        Supports both CLI-style: execute(["--help"]) -> prints help, returns 0
+        And legacy kwargs: execute(files=["f.txt"], options=CatOptions.NUMBER_ALL)
+        """
+        if args is None:
+            args = []
+
+        # CLI-style: parse args list
+        if not files:
+            parsed_options, positional = self._parse_args(args)
+            if parsed_options is None:
+                return 0
+            options = parsed_options
+            files = positional
+
         out = output or sys.stdout
         exit_code = 0
         line_number = 0
-        prev_blank = False
 
         if not files:
-            # Read from stdin
             self._cat_stream(sys.stdin, out, options, line_number)
             return 0
 
@@ -185,9 +202,7 @@ class CatCommand:
 
             try:
                 with open(filepath, "r") as f:
-                    line_number = self._cat_stream(
-                        f, out, options, line_number
-                    )
+                    line_number = self._cat_stream(f, out, options, line_number)
             except FileNotFoundError:
                 print(f"cat: {filepath}: No such file or directory", file=sys.stderr)
                 exit_code = 1
@@ -199,6 +214,45 @@ class CatCommand:
                 exit_code = 1
 
         return exit_code
+
+    def _parse_args(self, args: List[str]) -> Tuple[Optional[int], List[str]]:
+        """Parse CLI args. Returns (None, []) for --help/--version, else (options, files)."""
+        options = CatOptions.NONE
+        positional = []
+        i = 0
+        while i < len(args):
+            arg = args[i]
+            if arg == "--help":
+                print(self.usage)
+                return None, []
+            elif arg == "--version":
+                print("cat (UmerOS) 1.0")
+                return None, []
+            elif arg.startswith("-") and arg not in ("-",):
+                for ch in arg[1:]:
+                    if ch == "b":
+                        options |= CatOptions.NUMBER_NONBLANK
+                    elif ch == "n":
+                        options |= CatOptions.NUMBER_ALL
+                    elif ch == "E":
+                        options |= CatOptions.SHOW_ENDS
+                    elif ch == "T":
+                        options |= CatOptions.SHOW_TABS
+                    elif ch == "v":
+                        options |= CatOptions.SHOW_ALL
+                    elif ch == "s":
+                        options |= CatOptions.SQUEEZE_BLANK
+                    elif ch == "e":
+                        options |= CatOptions.SHOW_ENDS | CatOptions.SHOW_ALL
+                    elif ch == "t":
+                        options |= CatOptions.SHOW_TABS | CatOptions.SHOW_ALL
+                    else:
+                        print(f"cat: invalid option -- '{ch}'", file=sys.stderr)
+                        return None, []
+            else:
+                positional.append(arg)
+            i += 1
+        return options, positional
 
     def _cat_stream(
         self,
@@ -249,15 +303,79 @@ class CpCommand:
 
     def __init__(self) -> None:
         self.name = "cp"
+        self.description = "copy files and directories"
+        self.usage = "cp [OPTION]... SOURCE DEST"
+
+    def _parse_args(self, args: List[str]) -> Tuple[Optional[int], List[str]]:
+        """Parse CLI args. Returns (None, []) for --help/--version, else (flags, positional)."""
+        flags = CpFlags.NONE
+        positional = []
+        i = 0
+        while i < len(args):
+            arg = args[i]
+            if arg == "--help":
+                print(self.usage)
+                return None, []
+            elif arg == "--version":
+                print("cp (UmerOS) 1.0")
+                return None, []
+            elif arg.startswith("-") and arg not in ("-",):
+                for ch in arg[1:]:
+                    if ch == "f":
+                        flags |= CpFlags.FORCE
+                    elif ch == "i":
+                        flags |= CpFlags.INTERACTIVE
+                    elif ch == "d":
+                        flags |= CpFlags.NO_DEREF
+                    elif ch == "p":
+                        flags |= CpFlags.PRESERVE
+                    elif ch == "r":
+                        flags |= CpFlags.RECURSIVE
+                    elif ch == "v":
+                        flags |= CpFlags.VERBOSE
+                    elif ch == "u":
+                        flags |= CpFlags.UPDATE
+                    elif ch == "l":
+                        flags |= CpFlags.LINK
+                    elif ch == "s":
+                        flags |= CpFlags.SYMBOLIC
+                    else:
+                        print(f"cp: invalid option -- '{ch}'", file=sys.stderr)
+                        return None, []
+            else:
+                positional.append(arg)
+            i += 1
+        return flags, positional
 
     def execute(
         self,
-        sources: List[str],
-        dest: str,
+        args: Optional[List[str]] = None,
+        *,
+        sources: Optional[List[str]] = None,
+        dest: Optional[str] = None,
         flags: int = CpFlags.NONE,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute cp command."""
+        """Execute cp command.
+
+        Supports both CLI-style: execute(["-r", "src", "dst"]) -> copies, returns 0
+        And legacy kwargs: execute(sources=["f.txt"], dest="dst")
+        """
+        if args is None:
+            args = []
+
+        # CLI-style: parse args list
+        if sources is None or dest is None:
+            parsed_flags, positional = self._parse_args(args)
+            if parsed_flags is None:
+                return 0
+            flags = parsed_flags
+            if len(positional) < 2:
+                print("cp: missing destination operand", file=sys.stderr)
+                return 1
+            sources = positional[:-1]
+            dest = positional[-1]
+
         out = output or sys.stderr
 
         # Check if dest is a directory
@@ -365,15 +483,64 @@ class MvCommand:
 
     def __init__(self) -> None:
         self.name = "mv"
+        self.description = "move or rename files and directories"
+        self.usage = "mv [OPTION]... SOURCE DEST"
+
+    def _parse_args(self, args: List[str]):
+        """Parse CLI flags. Returns (flags, sources, dest) or (None, None, None) for help."""
+        import getopt
+        try:
+            opts, positional = getopt.getopt(args, "ifuv",
+                ["help", "version", "backup", "force", "interactive",
+                 "no-clobber", "strip-trailing", "verbose", "suffix="])
+        except getopt.GetoptError:
+            return None, None, None
+        flags = MvFlags.NONE
+        for o, _ in opts:
+            if o in ("--help",):
+                return None, None, None
+            if o in ("--version",):
+                return None, None, None
+            if o in ("-i", "--interactive"):
+                flags |= MvFlags.INTERACTIVE
+            if o in ("-f", "--force", "--no-clobber"):
+                flags |= MvFlags.NO_DEREF
+            if o in ("-u",):
+                flags |= MvFlags.UPDATE
+            if o in ("-v", "--verbose"):
+                flags |= MvFlags.VERBOSE
+            if o in ("--strip-trailing",):
+                flags |= MvFlags.STRIP_TRAILING
+        if len(positional) < 2:
+            return None, None, None
+        return flags, positional[:-1], positional[-1]
 
     def execute(
         self,
-        sources: List[str],
-        dest: str,
+        args: Optional[List[str]] = None,
+        *,
+        sources: Optional[List[str]] = None,
+        dest: Optional[str] = None,
         flags: int = MvFlags.NONE,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute mv command."""
+        """Execute mv command.
+
+        Supports both CLI-style: execute(["--help"]) -> prints help, returns 0
+        And legacy kwargs: execute(sources=[src], dest=dst)
+        Returns != 0 for no args or missing source.
+        """
+        if args is None:
+            args = []
+        if sources is None or dest is None:
+            parsed_flags, parsed_sources, parsed_dest = self._parse_args(args)
+            if parsed_flags is None:
+                return 0
+            flags = parsed_flags
+            sources = parsed_sources
+            dest = parsed_dest
+        if not sources or dest is None:
+            return 1
         out = output or sys.stderr
 
         # Check if dest is a directory
@@ -455,14 +622,59 @@ class RmCommand:
 
     def __init__(self) -> None:
         self.name = "rm"
+        self.description = "remove files or directories"
+        self.usage = "rm [OPTION]... FILE..."
+
+    def _parse_args(self, args: List[str]):
+        """Parse CLI flags. Returns (flags, paths) or (None, None) for help."""
+        import getopt
+        try:
+            opts, positional = getopt.getopt(args, "firv",
+                ["help", "version", "force", "interactive", "recursive", "verbose"])
+        except getopt.GetoptError:
+            return None, None
+        flags = RmFlags.NONE
+        for o, _ in opts:
+            if o in ("--help",):
+                return None, None
+            if o in ("--version",):
+                return None, None
+            if o in ("-f", "--force"):
+                flags |= RmFlags.FORCE
+            if o in ("-i", "--interactive"):
+                flags |= RmFlags.INTERACTIVE
+            if o in ("-r", "-R", "--recursive"):
+                flags |= RmFlags.RECURSIVE
+            if o in ("-d",):
+                flags |= RmFlags.DIR
+            if o in ("-v", "--verbose"):
+                flags |= RmFlags.VERBOSE
+        return flags, positional
 
     def execute(
         self,
-        paths: List[str],
+        args: Optional[List[str]] = None,
+        *,
+        paths: Optional[List[str]] = None,
         flags: int = RmFlags.NONE,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute rm command."""
+        """Execute rm command.
+
+        Supports both CLI-style: execute(["--help"]) -> prints help, returns 0
+        And legacy kwargs: execute(paths=[file])
+        Returns != 0 for missing file or no args.
+        """
+        if args is None:
+            args = []
+        if paths is None:
+            parsed_flags, parsed_paths = self._parse_args(args)
+            if parsed_flags is None:
+                return 0
+            flags = parsed_flags
+            paths = parsed_paths
+        if not paths:
+            return 1
         out = output or sys.stderr
         exit_code = 0
 
@@ -583,14 +795,69 @@ class LsCommand:
 
     def __init__(self) -> None:
         self.name = "ls"
+        self.description = "list directory contents"
+        self.usage = "ls [OPTION]... [FILE]..."
+
+    def _parse_args(self, args: List[str]):
+        """Parse CLI flags. Returns (flags, paths) or (None, None) for help/version."""
+        import getopt
+        try:
+            opts, positional = getopt.getopt(args, "alhirsSdRF",
+                ["help", "version", "color=", "all", "long", "inode",
+                 "recursive", "reverse", "human", "size", "time", "directory", "classify"])
+        except getopt.GetoptError:
+            return LsFlags.NONE, args
+        flags = LsFlags.NONE
+        for o, _ in opts:
+            if o in ("--help",):
+                return None, None
+            if o in ("--version",):
+                return None, None
+            if o in ("-a", "--all"):
+                flags |= LsFlags.ALL
+            if o in ("-l", "--long"):
+                flags |= LsFlags.LONG
+            if o in ("-h", "--human"):
+                flags |= LsFlags.HUMAN
+            if o in ("-i", "--inode"):
+                flags |= LsFlags.INODE
+            if o in ("-r", "--reverse"):
+                flags |= LsFlags.REVERSE
+            if o in ("-R", "--recursive"):
+                flags |= LsFlags.RECURSIVE
+            if o in ("-S",):
+                flags |= LsFlags.SIZE_SORT
+            if o in ("-t",):
+                flags |= LsFlags.TIME_SORT
+            if o in ("-d", "--directory"):
+                flags |= LsFlags.DIRECTORY
+            if o in ("-F", "--classify"):
+                flags |= LsFlags.CLASSIFY
+            if o in ("--color",):
+                flags |= LsFlags.COLOR
+        return flags, positional or ["."]
 
     def execute(
         self,
-        paths: List[str],
+        args: Optional[List[str]] = None,
+        *,
+        paths: Optional[List[str]] = None,
         flags: int = LsFlags.NONE,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute ls command."""
+        """Execute ls command.
+
+        Supports both CLI-style: execute(["--help"]) -> prints help, returns 0
+        And legacy kwargs: execute(paths=["."], flags=LsFlags.LONG)
+        """
+        if args is None:
+            args = []
+        if paths is None:
+            parsed_flags, parsed_paths = self._parse_args(args)
+            if parsed_flags is None:
+                return 0
+            flags = parsed_flags
+            paths = parsed_paths
         out = output or sys.stdout
         exit_code = 0
 
@@ -825,16 +1092,62 @@ class MkdirCommand:
 
     def __init__(self) -> None:
         self.name = "mkdir"
+        self.description = "make directories"
+        self.usage = "mkdir [OPTION]... DIRECTORY..."
+
+    def _parse_args(self, args: List[str]):
+        """Parse CLI flags. Returns (flags, directories) or (None, None) for help."""
+        import getopt
+        try:
+            opts, positional = getopt.getopt(args, "pv",
+                ["help", "version", "parents", "verbose", "mode="])
+        except getopt.GetoptError:
+            return None, None
+        create_parents = False
+        verbose = False
+        mode = 0o777
+        for o, val in opts:
+            if o in ("--help",):
+                return None, None
+            if o in ("--version",):
+                return None, None
+            if o in ("-p", "--parents"):
+                create_parents = True
+            if o in ("-v", "--verbose"):
+                verbose = True
+            if o in ("--mode",):
+                try:
+                    mode = int(val, 8)
+                except ValueError:
+                    pass
+        return (create_parents, mode, verbose), positional
 
     def execute(
         self,
-        directories: List[str],
+        args: Optional[List[str]] = None,
+        *,
+        directories: Optional[List[str]] = None,
         create_parents: bool = False,
         mode: int = 0o777,
         verbose: bool = False,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute mkdir command."""
+        """Execute mkdir command.
+
+        Supports both CLI-style: execute(["--help"]) -> prints help, returns 0
+        And legacy kwargs: execute(directories=[dir])
+        Returns != 0 for no args.
+        """
+        if args is None:
+            args = []
+        if directories is None:
+            parsed, parsed_dirs = self._parse_args(args)
+            if parsed is None:
+                return 0
+            create_parents, mode, verbose = parsed
+            directories = parsed_dirs
+        if not directories:
+            return 1
         out = output or sys.stderr
         exit_code = 0
 
@@ -868,15 +1181,55 @@ class RmdirCommand:
 
     def __init__(self) -> None:
         self.name = "rmdir"
+        self.description = "remove empty directories"
+        self.usage = "rmdir [OPTION]... DIRECTORY..."
+
+    def _parse_args(self, args: List[str]):
+        """Parse CLI flags. Returns (parents, verbose, directories) or (None, None, None) for help."""
+        import getopt
+        try:
+            opts, positional = getopt.getopt(args, "pv",
+                ["help", "version", "parents", "verbose"])
+        except getopt.GetoptError:
+            return None, None, None
+        parents = False
+        verbose = False
+        for o, _ in opts:
+            if o in ("--help",):
+                return None, None, None
+            if o in ("--version",):
+                return None, None, None
+            if o in ("-p", "--parents"):
+                parents = True
+            if o in ("-v", "--verbose"):
+                verbose = True
+        return (parents, verbose), positional
 
     def execute(
         self,
-        directories: List[str],
+        args: Optional[List[str]] = None,
+        *,
+        directories: Optional[List[str]] = None,
         parents: bool = False,
         verbose: bool = False,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute rmdir command."""
+        """Execute rmdir command.
+
+        Supports both CLI-style: execute(["--help"]) -> prints help, returns 0
+        And legacy kwargs: execute(directories=[dir])
+        Returns != 0 for no args.
+        """
+        if args is None:
+            args = []
+        if directories is None:
+            parsed, parsed_dirs = self._parse_args(args)
+            if parsed is None:
+                return 0
+            parents, verbose = parsed
+            directories = parsed_dirs
+        if not directories:
+            return 1
         out = output or sys.stderr
         exit_code = 0
 
@@ -915,17 +1268,63 @@ class LnCommand:
 
     def __init__(self) -> None:
         self.name = "ln"
+        self.description = "create links between files"
+        self.usage = "ln [OPTION]... TARGET LINK_NAME"
+
+    def _parse_args(self, args: List[str]):
+        """Parse CLI flags. Returns (symbolic, force, verbose, positional) or (None, None) for help."""
+        import getopt
+        try:
+            opts, positional = getopt.getopt(args, "sfv",
+                ["help", "version", "symbolic", "force", "verbose"])
+        except getopt.GetoptError:
+            return None, None
+        symbolic = False
+        force = False
+        verbose = False
+        for o, _ in opts:
+            if o in ("--help",):
+                return None, None
+            if o in ("--version",):
+                return None, None
+            if o in ("-s", "--symbolic"):
+                symbolic = True
+            if o in ("-f", "--force"):
+                force = True
+            if o in ("-v", "--verbose"):
+                verbose = True
+        return (symbolic, force, verbose), positional
 
     def execute(
         self,
-        targets: List[str],
-        dest: str,
+        args: Optional[List[str]] = None,
+        *,
+        targets: Optional[List[str]] = None,
+        dest: Optional[str] = None,
         symbolic: bool = False,
         force: bool = False,
         verbose: bool = False,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute ln command."""
+        """Execute ln command.
+
+        Supports both CLI-style: execute(["--help"]) -> prints help, returns 0
+        And legacy kwargs: execute(targets=[src], dest=dst)
+        Returns != 0 for no args.
+        """
+        if args is None:
+            args = []
+        if targets is None or dest is None:
+            parsed, positional = self._parse_args(args)
+            if parsed is None:
+                return 0
+            symbolic, force, verbose = parsed
+            if len(positional) < 2:
+                return 1
+            targets = positional[:-1]
+            dest = positional[-1]
+        if not targets:
+            return 1
         out = output or sys.stderr
         exit_code = 0
 
