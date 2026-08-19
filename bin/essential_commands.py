@@ -19,6 +19,7 @@ Commands implemented:
 
 from __future__ import annotations
 
+import builtins
 import os
 import shutil
 import stat
@@ -179,8 +180,11 @@ class CatCommand:
         if args is None:
             args = []
 
+        # Kwargs-style: options was explicitly provided, treat args as filenames
+        if not files and options != CatOptions.NONE:
+            files = [a for a in args if not a.startswith("-")]
         # CLI-style: parse args list
-        if not files:
+        elif not files:
             parsed_options, positional = self._parse_args(args)
             if parsed_options is None:
                 return 0
@@ -203,14 +207,15 @@ class CatCommand:
             try:
                 with open(filepath, "r") as f:
                     line_number = self._cat_stream(f, out, options, line_number)
-            except FileNotFoundError:
+            except builtins.FileNotFoundError:
                 print(f"cat: {filepath}: No such file or directory", file=sys.stderr)
                 exit_code = 1
-            except IsADirectoryError:
+            except builtins.IsADirectoryError:
                 print(f"cat: {filepath}: Is a directory", file=sys.stderr)
                 exit_code = 1
-            except PermissionError:
+            except builtins.PermissionError:
                 print(f"cat: {filepath}: Permission denied", file=sys.stderr)
+                sys.stderr.flush()
                 exit_code = 1
 
         return exit_code
@@ -1573,12 +1578,12 @@ def _selftest() -> bool:
         dst = src + ".copy"
         tmpdir = None
         try:
-            assert cocp.execute([src], dst) == 0
+            assert cocp.execute([src, dst]) == 0
             assert os.path.exists(dst)
             # -r with directory
             tmpdir = tempfile.mkdtemp()
             os.rmdir(tmpdir)
-            assert cocp.execute([src], tmpdir, flags=CpFlags.RECURSIVE) == 0
+            assert cocp.execute(["-r", src, tmpdir]) == 0
         finally:
             for p in [src, dst]:
                 if os.path.exists(p):
@@ -1593,7 +1598,7 @@ def _selftest() -> bool:
         try:
             with open(src2, "w") as f:
                 f.write("move test\n")
-            assert mv.execute([src2], dst2) == 0
+            assert mv.execute([src2, dst2]) == 0
             assert os.path.exists(dst2)
         finally:
             for p in [src2, dst2]:
@@ -1626,7 +1631,7 @@ def _selftest() -> bool:
         try:
             with open(src3, "w") as f:
                 f.write("link test\n")
-            assert ln.execute([src3], lnk) == 0
+            assert ln.execute([src3, lnk]) == 0
             assert os.path.exists(lnk)
         finally:
             for p in [src3, lnk]:

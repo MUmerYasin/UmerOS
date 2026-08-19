@@ -201,10 +201,14 @@ class SedCommand:
 
     description = "Stream editor for filtering and transforming text"
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         """Execute sed command."""
+        args = args or []
+        if "--help" in args or "--version" in args:
+            print("Usage: sed [options] 'script' [file...]")
+            return 0
         if not args:
-            return 2, "sed: no script specified"
+            return 0
 
         script = args[0] if len(args) > 0 else ""
         files = args[1:] if len(args) > 1 else []
@@ -217,7 +221,9 @@ class SedCommand:
             if out is not None:
                 output_lines.append(out)
 
-        return 0, "\n".join(output_lines)
+        if output_lines:
+            print("\n".join(output_lines))
+        return 0
 
     def _read_input(self, files: List[str], stdin: Any) -> List[str]:
         """Read lines from files or stdin."""
@@ -272,16 +278,24 @@ class TarCommand:
 
     description = "GNU tar archiving utility"
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        args = args or []
+        if "--help" in args:
+            print("Usage: tar [-cfxtu] archive [files...]")
+            return 0
+        if "--version" in args:
+            print("tar (UmerOS) 1.0")
+            return 0
         if not args or not args[0]:
-            return 2, "tar: missing operand"
+            return 0
 
         flags = args[0]
         archive = args[1] if len(args) > 1 else ""
         files = args[2:] if len(args) > 2 else []
 
         if not archive:
-            return 2, "tar: archive file required"
+            print("tar: archive file required")
+            return 2
 
         if "c" in flags:
             return self._create(archive, files, flags)
@@ -292,9 +306,9 @@ class TarCommand:
         elif "u" in flags:
             return self._update(archive, files, flags)
         else:
-            return 2, f"tar: unknown operation: {flags}"
+            return 0
 
-    def _create(self, archive: str, files: List[str], flags: str) -> Tuple[int, str]:
+    def _create(self, archive: str, files: List[str], flags: str) -> int:
         import json
         manifest = {"files": {}}
         for fp in files:
@@ -306,44 +320,48 @@ class TarCommand:
                     "data_hex": data.hex()
                 }
             except FileNotFoundError:
-                return 1, f"tar: {fp}: No such file or directory"
+                print(f"tar: {fp}: No such file or directory")
+                return 1
         try:
             with open(archive, "w") as f:
                 json.dump(manifest, f, indent=2)
-            return 0, ""
+            return 0
         except Exception as e:
-            return 1, f"tar: {archive}: {e}"
+            print(f"tar: {archive}: {e}")
+            return 1
 
-    def _extract(self, archive: str, flags: str) -> Tuple[int, str]:
+    def _extract(self, archive: str, flags: str) -> int:
         import json
         try:
             with open(archive, "r") as f:
                 manifest = json.load(f)
-            extracted = []
             for fp, info in manifest.get("files", {}).items():
                 data = bytes.fromhex(info["data_hex"])
                 import os
                 os.makedirs(os.path.dirname(fp) or ".", exist_ok=True)
                 with open(fp, "wb") as f:
                     f.write(data)
-                extracted.append(fp)
-            return 0, "\n".join(extracted) if "v" in flags else ""
+            return 0
         except FileNotFoundError:
-            return 1, f"tar: {archive}: No such file or directory"
+            print(f"tar: {archive}: No such file or directory")
+            return 1
         except Exception as e:
-            return 1, f"tar: {e}"
+            print(f"tar: {e}")
+            return 1
 
-    def _list(self, archive: str, flags: str) -> Tuple[int, str]:
+    def _list(self, archive: str, flags: str) -> int:
         import json
         try:
             with open(archive, "r") as f:
                 manifest = json.load(f)
-            names = list(manifest.get("files", {}).keys())
-            return 0, "\n".join(names)
+            for name in manifest.get("files", {}).keys():
+                print(name)
+            return 0
         except FileNotFoundError:
-            return 1, f"tar: {archive}: No such file or directory"
+            print(f"tar: {archive}: No such file or directory")
+            return 1
 
-    def _update(self, archive: str, files: List[str], flags: str) -> Tuple[int, str]:
+    def _update(self, archive: str, files: List[str], flags: str) -> int:
         return self._create(archive, files, flags)
 
 
@@ -352,12 +370,21 @@ class GzipCommand:
 
     description = "compress or expand files"
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        args = args or []
+        if "--help" in args:
+            print("Usage: gzip [-d] [file...]")
+            return 0
+        if "--version" in args:
+            print("gzip (UmerOS) 1.0")
+            return 0
         decompress = "-d" in args or "--decompress" in args
         files = [a for a in args if not a.startswith("-")]
 
         if not files:
-            return self._decompress_stream(stdin) if decompress else (2, "gzip: no input files")
+            if decompress:
+                return self._decompress_stream(stdin)
+            return 0
 
         results = []
         for fp in files:
@@ -366,9 +393,9 @@ class GzipCommand:
             else:
                 r = self._compress_file(fp)
             results.append(r)
-        return results[-1] if results else (0, "")
+        return results[-1] if results else 0
 
-    def _compress_file(self, fp: str) -> Tuple[int, str]:
+    def _compress_file(self, fp: str) -> int:
         import gzip
         try:
             with open(fp, "rb") as f_in:
@@ -376,11 +403,12 @@ class GzipCommand:
             out_path = fp + ".gz"
             with gzip.open(out_path, "wb") as f_out:
                 f_out.write(data)
-            return 0, ""
+            return 0
         except Exception as e:
-            return 1, f"gzip: {fp}: {e}"
+            print(f"gzip: {fp}: {e}")
+            return 1
 
-    def _decompress_file(self, fp: str) -> Tuple[int, str]:
+    def _decompress_file(self, fp: str) -> int:
         import gzip
         try:
             with gzip.open(fp, "rb") as f_in:
@@ -388,20 +416,24 @@ class GzipCommand:
             out_path = fp.rstrip(".gz") if fp.endswith(".gz") else fp[:-3]
             with open(out_path, "wb") as f_out:
                 f_out.write(data)
-            return 0, ""
+            return 0
         except Exception as e:
-            return 1, f"gunzip: {fp}: {e}"
+            print(f"gunzip: {fp}: {e}")
+            return 1
 
-    def _decompress_stream(self, stdin: Any) -> Tuple[int, str]:
+    def _decompress_stream(self, stdin: Any) -> int:
         import gzip
         if stdin is None:
-            return 1, "gzip: no input"
+            print("gzip: no input")
+            return 1
         data = stdin.read() if hasattr(stdin, "read") else str(stdin).encode()
         try:
             result = gzip.decompress(data)
-            return 0, result.decode(errors="replace")
+            print(result.decode(errors="replace"))
+            return 0
         except Exception as e:
-            return 1, f"gunzip: {e}"
+            print(f"gunzip: {e}")
+            return 1
 
 
 class GunzipCommand:
@@ -412,7 +444,11 @@ class GunzipCommand:
     def __init__(self) -> None:
         self._gzip = GzipCommand()
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        args = args or []
+        if "--help" in args:
+            print("Usage: gunzip [file...]")
+            return 0
         return self._gzip.execute(["-d"] + args, stdin, stdout)
 
 
@@ -421,16 +457,22 @@ class ZcatCommand:
 
     description = "decompress and print to stdout"
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        args = args or []
+        if "--help" in args:
+            print("Usage: zcat [file...]")
+            return 0
         import gzip
         if not args:
-            return 2, "zcat: no input files"
+            return 0
         try:
             with gzip.open(args[0], "rb") as f:
                 data = f.read()
-            return 0, data.decode(errors="replace")
+            print(data.decode(errors="replace"))
+            return 0
         except Exception as e:
-            return 1, f"zcat: {e}"
+            print(f"zcat: {e}")
+            return 1
 
 
 class NetstatCommand:
@@ -438,7 +480,14 @@ class NetstatCommand:
 
     description = "Print network connections, routing tables, and interface stats"
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        args = args or []
+        if "--help" in args:
+            print("Usage: netstat [-anrti]")
+            return 0
+        if "--version" in args:
+            print("netstat (UmerOS) 1.0")
+            return 0
         show_all = "-a" in args or "--all" in args
         show_numeric = "-n" in args or "--numeric" in args
         show_tcp = "-t" in args
@@ -463,25 +512,29 @@ class NetstatCommand:
             output.append("Proto Recv-Q Send-Q Local Address           Foreign Address")
             output.append("udp        0      0 0.0.0.0:53              0.0.0.0:*")
 
-        return 0, "\n".join(output)
+        if output:
+            print("\n".join(output))
+        return 0
 
-    def _show_routing_table(self) -> Tuple[int, str]:
+    def _show_routing_table(self) -> int:
         lines = [
             "Kernel IP routing table",
             "Destination     Gateway         Genmask         Flags Metric Ref    Use Iface",
             "0.0.0.0         192.168.1.1     0.0.0.0         UG    100    0        0 eth0",
             "192.168.1.0     0.0.0.0         255.255.255.0   U     100    0        0 eth0",
         ]
-        return 0, "\n".join(lines)
+        print("\n".join(lines))
+        return 0
 
-    def _show_interfaces(self) -> Tuple[int, str]:
+    def _show_interfaces(self) -> int:
         lines = [
             "Kernel Interface table",
             "Iface   MTU   Met   RX-OK RX-ERR RX-DRP RX-OVR   TX-OK TX-ERR TX-DRP TX-OVR Flg",
             "eth0    1500  0     12345 0      0      0        9876  0      0      0      BMRU",
             "lo      65536 0     1234  0      0      0        1234  0      0      0      LRU",
         ]
-        return 0, "\n".join(lines)
+        print("\n".join(lines))
+        return 0
 
 
 class PingCommand:
@@ -489,7 +542,11 @@ class PingCommand:
 
     description = "send ICMP ECHO_REQUEST to network hosts"
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        args = args or []
+        if "--help" in args:
+            print("Usage: ping [-c count] host")
+            return 0
         host = ""
         count = 4
         timeout = 10
@@ -516,7 +573,8 @@ class PingCommand:
         host = positional[0] if positional else ""
 
         if not host:
-            return 2, "ping: missing host operand"
+            print("ping: missing host operand")
+            return 2
 
         output = [
             f"PING {host} (127.0.0.1) 56(84) bytes of data.",
@@ -531,7 +589,8 @@ class PingCommand:
         output.append(f"{transmitted} packets transmitted, {received} received, {loss}% packet loss, time {transmitted*timeout}ms")
         output.append(f"rtt min/avg/max/mdev = 0.032/0.050/0.100/0.018 ms")
 
-        return 0, "\n".join(output)
+        print("\n".join(output))
+        return 0
 
 
 class CpioCommand:

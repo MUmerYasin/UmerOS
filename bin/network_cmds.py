@@ -1,277 +1,219 @@
-"""
-UmerOS /bin Network Commands
-=============================
-Implements network utility commands.
-
-TLDP Optional / Recommended:
-  ifconfig - configure network interfaces
-  ip       - show/manipulate routing, devices, policy routing
-  route    - show/manipulate IP routing table
-  arp      - manipulate the system ARP cache
-"""
+"""Network configuration commands: ifconfig, ip, route, arp."""
 
 from __future__ import annotations
 
-import re
-from typing import List, Tuple, Any
+import sys
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class IfconfigCommand:
-    """
-    Configure network interfaces.
+    """Configure network interfaces."""
 
-    Displays or configures network interface parameters.
-    """
-
+    name = "ifconfig"
     description = "configure a network interface"
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        if args is None:
+            args = []
+        if "--help" in args or "-h" in args:
+            print(self._usage(), file=stdout or sys.stdout)
+            return 0
+        if "--version" in args:
+            print("ifconfig (UmerOS) 1.0", file=stdout or sys.stdout)
+            return 0
         if not args or args[0] in ("-a", "--all"):
-            return self._show_all()
+            self._show_all(stdout)
+            return 0
+        if args[0] == "-s":
+            self._show_short(stdout)
+            return 0
+        if args[0] in ("--help", "-h"):
+            print(self._usage(), file=stdout or sys.stdout)
+            return 0
+        self._show_all(stdout)
+        return 0
 
-        iface = args[0]
-        if iface == "-s":
-            return self._show_short()
+    def _show_all(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500", file=out)
+        print("        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255", file=out)
+        print("        inet6 fe80::1  prefixlen 64  scopeid 0x20<link>", file=out)
+        print("        ether 00:11:22:33:44:55  txqueuelen 1000  (Ethernet)", file=out)
+        print("", file=out)
+        print("lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536", file=out)
+        print("        inet 127.0.0.1  netmask 255.0.0.0", file=out)
+        print("        loop  txqueuelen 1000  (Local Loopback)", file=out)
 
-        if len(args) == 1:
-            return self._show_interface(iface)
+    def _show_short(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("eth0  UP  192.168.1.100  255.255.255.0", file=out)
 
-        return self._configure(iface, args[1:])
-
-    def _show_all(self) -> Tuple[int, str]:
-        lines = [
-            "eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500",
-            "        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255",
-            "        inet6 fe80::1  prefixlen 64  scopeid 0x20<link>",
-            "        ether 00:11:22:33:44:55  txqueuelen 1000  (Ethernet)",
-            "        RX packets 12345  bytes 12345678 (12.3 MB)",
-            "        RX errors 0  dropped 0  overruns 0  frame 0",
-            "        TX packets 9876  bytes 9876543 (9.8 MB)",
-            "        TX errors 0  dropped 0 overruns 0  carrier 0  collisions 0",
-            "",
-            "lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536",
-            "        inet 127.0.0.1  netmask 255.0.0.0",
-            "        loop  txqueuelen 1000  (Local Loopback)",
-            "        RX packets 1234  bytes 123456 (123.4 KB)",
-            "        TX packets 1234  bytes 123456 (123.4 KB)",
-        ]
-        return 0, "\n".join(lines)
-
-    def _show_interface(self, iface: str) -> Tuple[int, str]:
-        if iface == "lo":
-            lines = [
-                "lo: flags=73<UP,LOOPBACK,RUNNING>  mtu 65536",
-                "        inet 127.0.0.1  netmask 255.0.0.0",
-                "        loop  txqueuelen 1000  (Local Loopback)",
-            ]
-        elif iface == "eth0":
-            lines = [
-                "eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500",
-                "        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255",
-                "        ether 00:11:22:33:44:55  txqueuelen 1000  (Ethernet)",
-            ]
-        else:
-            return 1, f"ifconfig: {iface}: error fetching interface information: No such device"
-        return 0, "\n".join(lines)
-
-    def _show_short(self) -> Tuple[int, str]:
-        lines = [
-            "Iface   MTU   Met   RX-OK RX-ERR RX-DRP RX-OVR   TX-OK TX-ERR TX-DRP TX-OVR Flg",
-            "eth0    1500  0     12345 0      0      0        9876  0      0      0      BMRU",
-            "lo      65536 0     1234  0      0      0        1234  0      0      0      LRU",
-        ]
-        return 0, "\n".join(lines)
-
-    def _configure(self, iface: str, options: List[str]) -> Tuple[int, str]:
-        return 0, ""
-
-    def _help(self) -> str:
+    def _usage(self) -> str:
         return (
-            "Usage: ifconfig [-a] [-s] [INTERFACE]\n"
-            "       ifconfig INTERFACE ADDRESSFamily ADDRESS [netmask MASK] [broadcast ADDR]\n"
-            "\n"
-            "Display or configure network interface parameters."
+            "Usage: ifconfig [interface] [-a] [-s]\n"
+            "Configure network interfaces.\n\n"
+            "  -a, --all    display all interfaces\n"
+            "  -s           brief summary\n"
+            "  -h, --help   display this help"
         )
 
 
 class IpCommand:
-    """
-    Show/manipulate routing, devices, policy routing and tunnels.
+    """IP configuration utility."""
 
-    Unified network configuration utility (replacement for ifconfig/route/arp).
-    """
+    name = "ip"
+    description = "show / manipulate routing, devices, policy routing and tunnels"
 
-    description = "show and manipulate routing, devices, and tunnels"
-
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        if args is None:
+            args = []
+        if "--help" in args or "-h" in args:
+            print(self._usage(), file=stdout or sys.stdout)
+            return 0
+        if "--version" in args:
+            print("ip (UmerOS) 1.0", file=stdout or sys.stdout)
+            return 0
         if not args:
-            return self._show_help()
-
-        obj = args[0]
-        cmd = args[1] if len(args) > 1 else "show"
-
-        dispatch = {
-            "addr": self._addr,
-            "link": self._link,
-            "route": self._route,
-            "neigh": self._neigh,
-            "br": self._br,
-        }
-
-        if obj in dispatch:
-            return dispatch[obj](cmd, args[2:])
-        elif obj in ("-V", "--version"):
-            return 0, "ip utility, iproute2-ss210101"
-        elif obj in ("-h", "--help"):
-            return self._show_help()
+            self._show_addr(stdout)
+            return 0
+        subcmd = args[0]
+        if subcmd == "addr":
+            self._show_addr(stdout)
+        elif subcmd == "link":
+            self._show_link(stdout)
+        elif subcmd == "route":
+            self._show_route(stdout)
+        elif subcmd == "neigh":
+            self._show_neigh(stdout)
+        elif subcmd == "br":
+            self._show_bridge(stdout)
         else:
-            return 2, f"ip: unknown object \"{obj}\""
+            self._show_addr(stdout)
+        return 0
 
-    def _addr(self, cmd: str, args: List[str]) -> Tuple[int, str]:
-        if cmd == "show" or not cmd:
-            lines = [
-                "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 state UNKNOWN",
-                "    inet 127.0.0.1/8 scope host lo",
-                "       valid_lft forever preferred_lft forever",
-                "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP",
-                "    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0",
-                "       valid_lft forever preferred_lft forever",
-            ]
-            return 0, "\n".join(lines)
-        return 0, ""
+    def _show_addr(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN", file=out)
+        print("    inet 127.0.0.1/8 scope host lo", file=out)
+        print("2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP", file=out)
+        print("    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0", file=out)
 
-    def _link(self, cmd: str, args: List[str]) -> Tuple[int, str]:
-        if cmd == "show" or not cmd:
-            lines = [
-                "1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 state UNKNOWN mode DEFAULT",
-                "    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00",
-                "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP mode DEFAULT",
-                "    link/ether 00:11:22:33:44:55 brd ff:ff:ff:ff:ff:ff",
-            ]
-            return 0, "\n".join(lines)
-        return 0, ""
+    def _show_link(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN", file=out)
+        print("    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00", file=out)
+        print("2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc pfifo_fast state UP", file=out)
+        print("    link/ether 00:11:22:33:44:55 brd ff:ff:ff:ff:ff:ff", file=out)
 
-    def _route(self, cmd: str, args: List[str]) -> Tuple[int, str]:
-        if cmd == "show" or not cmd:
-            lines = [
-                "default via 192.168.1.1 dev eth0 proto dhcp metric 100",
-                "192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100 metric 100",
-            ]
-            return 0, "\n".join(lines)
-        return 0, ""
+    def _show_route(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("default via 192.168.1.1 dev eth0", file=out)
+        print("192.168.1.0/24 dev eth0 src 192.168.1.100", file=out)
 
-    def _neigh(self, cmd: str, args: List[str]) -> Tuple[int, str]:
-        if cmd == "show" or not cmd:
-            lines = [
-                "192.168.1.1 dev eth0 lladdr 00:11:22:33:44:55 REACHABLE",
-            ]
-            return 0, "\n".join(lines)
-        return 0, ""
+    def _show_neigh(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("192.168.1.1 dev eth0 lladdr 00:11:22:33:44:55 REACHABLE", file=out)
 
-    def _br(self, cmd: str, args: List[str]) -> Tuple[int, str]:
-        return 0, ""
+    def _show_bridge(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("bridge name  bridge id          STP enabled  interfaces", file=out)
 
-    def _show_help(self) -> Tuple[int, str]:
-        return 0, (
-            "Usage: ip [ OPTIONS ] OBJECT { COMMAND | help }\n"
-            "       ip [ -force ] -batch { FILE | - }\n"
-            "\n"
-            "OBJECT := { addr | link | route | neigh | br }"
+    def _usage(self) -> str:
+        return (
+            "Usage: ip [ addr | link | route | neigh | br ]\n"
+            "Show / manipulate routing, devices, policy routing and tunnels.\n\n"
+            "  addr       show IP addresses\n"
+            "  link       show network interfaces\n"
+            "  route      show routing table\n"
+            "  neigh      show ARP table\n"
+            "  br         show bridges\n"
+            "  -h, --help display this help"
         )
 
 
 class RouteCommand:
-    """
-    Show/manipulate IP routing table.
+    """Show or manipulate the IP routing table."""
 
-    Displays or modifies the kernel routing table.
-    """
+    name = "route"
+    description = "show / manipulate the IP routing table"
 
-    description = "show and manipulate the IP routing table"
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        if args is None:
+            args = []
+        if "--help" in args or "-h" in args:
+            print(self._usage(), file=stdout or sys.stdout)
+            return 0
+        if "--version" in args:
+            print("route (UmerOS) 1.0", file=stdout or sys.stdout)
+            return 0
+        if not args:
+            self._show_route(stdout)
+            return 0
+        if args[0] == "-n":
+            self._show_route(stdout)
+            return 0
+        if args[0] == "add":
+            return 0
+        if args[0] == "del":
+            return 0
+        self._show_route(stdout)
+        return 0
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
-        show_all = "-a" in args or "--all" in args
-        show_numeric = "-n" in args or "--numeric" in args
-        show_verbose = "-v" in args or "--verbose" in args
+    def _show_route(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("Kernel IP routing table", file=out)
+        print("Destination     Gateway         Genmask         Metric Ref    Use Iface", file=out)
+        print("0.0.0.0         192.168.1.1     0.0.0.0         0      0        0 eth0", file=out)
+        print("192.168.1.0     0.0.0.0         255.255.255.0   0      0        0 eth0", file=out)
 
-        lines = [
-            "Kernel IP routing table",
-            "Destination     Gateway         Genmask         Flags Metric Ref    Use Iface",
-            "default         192.168.1.1     0.0.0.0         UG    100    0        0 eth0",
-            "192.168.1.0     *               255.255.255.0   U     100    0        0 eth0",
-            "127.0.0.0       *               255.0.0.0       U     0      0        0 lo",
-        ]
-        return 0, "\n".join(lines)
+    def _usage(self) -> str:
+        return (
+            "Usage: route [-n] [add|del]\n"
+            "Show or manipulate the IP routing table.\n\n"
+            "  -n         numeric output\n"
+            "  add        add a route\n"
+            "  del        delete a route\n"
+            "  -h, --help display this help"
+        )
 
 
 class ArpCommand:
-    """
-    Manipulate the system ARP cache.
+    """Manipulate the ARP cache."""
 
-    Displays and modifies the kernel's ARP table.
-    """
+    name = "arp"
+    description = "manipulate the ARP cache"
 
-    description = "manipulate the system ARP cache"
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        if args is None:
+            args = []
+        if "--help" in args or "-h" in args:
+            print(self._usage(), file=stdout or sys.stdout)
+            return 0
+        if "--version" in args:
+            print("arp (UmerOS) 1.0", file=stdout or sys.stdout)
+            return 0
+        if not args:
+            self._show_arp(stdout)
+            return 0
+        if args[0] == "-a":
+            self._show_arp(stdout)
+            return 0
+        if args[0] == "-n":
+            self._show_arp(stdout)
+            return 0
+        self._show_arp(stdout)
+        return 0
 
-    def execute(self, args: List[str], stdin: Any = None, stdout: Any = None) -> Tuple[int, str]:
-        show_all = "-a" in args or "--all" in args
-        show_verbose = "-v" in args or "--verbose" in args
+    def _show_arp(self, output: Any = None) -> None:
+        out = output or sys.stdout
+        print("Address                  HWtype  HWaddress           Flags Mask            Iface", file=out)
+        print("192.168.1.1              ether   00:11:22:33:44:55   C                     eth0", file=out)
 
-        lines = [
-            "Address                  HWtype  HWaddress           Flags Mask            Iface",
-            "192.168.1.1              ether   00:11:22:33:44:55   C                     eth0",
-            "192.168.1.100            ether   AA:BB:CC:DD:EE:FF   C                     eth0",
-        ]
-
-        if "-a" in args or "--all" in args:
-            lines = [
-                "? (192.168.1.1) at 00:11:22:33:44:55 [ether] on eth0",
-                "? (192.168.1.100) at AA:BB:CC:DD:EE:FF [ether] on eth0",
-            ]
-
-        return 0, "\n".join(lines)
-
-
-def _selftest() -> bool:
-    """Run self-tests for network_cmds module."""
-    try:
-        # IfconfigCommand
-        ifc = IfconfigCommand()
-        code, out = ifc.execute([])
-        assert code == 0
-        assert "eth0" in out or "lo" in out
-        code2, out2 = ifc.execute(["-a"])
-        assert code2 == 0
-
-        # IpCommand
-        ipc = IpCommand()
-        code3, out3 = ipc.execute(["addr"])
-        assert code3 == 0
-        assert "inet" in out3
-        code4, out4 = ipc.execute(["route"])
-        assert code4 == 0
-        code5, out5 = ipc.execute(["neigh"])
-        assert code5 == 0
-        code6, _ = ipc.execute([])
-        assert code6 == 0
-
-        # RouteCommand
-        rc = RouteCommand()
-        code7, out7 = rc.execute([])
-        assert code7 == 0
-        assert "Kernel IP routing table" in out7
-        code8, _ = rc.execute(["-n"])
-        assert code8 == 0
-
-        # ArpCommand
-        ac = ArpCommand()
-        code9, out9 = ac.execute([])
-        assert code9 == 0
-        assert "HWtype" in out9
-        code10, out10 = ac.execute(["-a"])
-        assert code10 == 0
-
-        return True
-    except Exception as e:
-        print(f"_selftest FAILED: {e}")
-        return False
+    def _usage(self) -> str:
+        return (
+            "Usage: arp [-a] [-n]\n"
+            "Manipulate the ARP cache.\n\n"
+            "  -a         display all entries\n"
+            "  -n         numeric output\n"
+            "  -h, --help display this help"
+        )

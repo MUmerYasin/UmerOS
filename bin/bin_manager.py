@@ -70,19 +70,19 @@ FHS_REQUIRED_SBIN: List[str] = [
 ]
 
 # Binary categories per FHS/TLDP
-BIN_CATEGORIES = {
-    "FILE_OPS": "File manipulation (cp, mv, rm, ln, mkdir, rmdir, ls)",
-    "TEXT": "Text processing (cat, echo, more)",
-    "PERMISSIONS": "Permission management (chmod, chown, chgrp)",
-    "SYSTEM_INFO": "System information (uname, dmesg, hostname, df)",
-    "PROCESS": "Process management (ps, kill)",
-    "FILESYSTEM": "Filesystem operations (mount, umount, dd, mknod)",
-    "USER": "User operations (su, login)",
-    "TIME": "Time and date (date)",
-    "SHELL": "Shell and boolean operations (sh, true, false)",
-    "SYNC": "System sync (sync)",
-    "PATH": "Path operations (pwd)",
-}
+BIN_CATEGORIES = [
+    "FILE_OPS",
+    "TEXT",
+    "PERMISSIONS",
+    "SYSTEM_INFO",
+    "PROCESS",
+    "FILESYSTEM",
+    "USER",
+    "TIME",
+    "SHELL",
+    "SYNC",
+    "PATH",
+]
 
 # Command import registry: maps command name to (module, class_name)
 COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
@@ -519,29 +519,29 @@ class BinCategory(IntEnum):
 
 class BinPrivilege(IntEnum):
     """Required privilege level."""
-    USER = 0
-    SUDO = 1
-    ROOT = 2
-    ADMIN = 3
+    USER = 1
+    SUDO = 2
+    ROOT = 3
+    ADMIN = 4
     ANY = 99
 
 
 class BinStatus(IntEnum):
     """Binary status."""
     ACTIVE = 1
-    DEPRECATED = 2
-    REPLACED = 3
-    REMOVED = 4
-    BROKEN = 5
+    INACTIVE = 2
+    MISSING = 3
+    OBSOLETE = 4
+    RESERVED = 5
 
 
 class BinType(IntEnum):
     """Binary type."""
     ELF_STATIC = 1
     ELF_DYNAMIC = 2
-    SHELL_SCRIPT = 3
+    SCRIPT = 3
     SYMLINK = 4
-    UNKNOWN = 0
+    UNKNOWN = 5
 
 
 # ─── Data Structures ────────────────────────────────────────────────────────

@@ -110,7 +110,7 @@ class TestCatCommand(unittest.TestCase):
         f2 = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         f1.write("line1\n")
         f2.write("line2\n")
-        f1.flush(); f2.flush()
+        f1.close(); f2.close()
         try:
             out = io.StringIO()
             rc = self.cmd.execute([f1.name, f2.name], output=out)
@@ -155,7 +155,7 @@ class TestCatCommand(unittest.TestCase):
         try:
             out = io.StringIO()
             self.cmd.execute([fname], options=CatOptions.SQUEEZE_BLANK, output=out)
-            lines = out.getvalue().split("\n")
+            lines = out.getvalue().rstrip("\n").split("\n")
             non_empty = [l for l in lines if l.strip() == ""]
             self.assertLessEqual(len(non_empty), 1)
         finally:
@@ -201,6 +201,7 @@ class TestCpCommand(unittest.TestCase):
         src = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         src.write("copy me\n")
         src.flush()
+        src.close()
         dst_path = src.name + ".dst"
         try:
             rc = self.cmd.execute([src.name, dst_path])
@@ -285,6 +286,7 @@ class TestMvCommand(unittest.TestCase):
         src = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         src.write("move me\n")
         src.flush()
+        src.close()
         dst_path = src.name + ".moved"
         try:
             rc = self.cmd.execute([src.name, dst_path])
@@ -313,6 +315,7 @@ class TestRmCommand(unittest.TestCase):
         f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         f.write("delete me\n")
         f.flush()
+        f.close()
         fname = f.name
         try:
             rc = self.cmd.execute([fname])
@@ -458,6 +461,7 @@ class TestLnCommand(unittest.TestCase):
         src = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         src.write("link me\n")
         src.flush()
+        src.close()
         dst = src.name + ".lnk"
         try:
             rc = self.cmd.execute([src.name, dst])
@@ -472,6 +476,7 @@ class TestLnCommand(unittest.TestCase):
         src = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
         src.write("symlink me\n")
         src.flush()
+        src.close()
         dst = src.name + ".sym"
         try:
             rc = self.cmd.execute(["-s", src.name, dst])
@@ -1001,6 +1006,7 @@ class TestChmodCommand(unittest.TestCase):
         f.write("chmod me\n")
         f.flush()
         fname = f.name
+        f.close()
         try:
             rc = self.cmd.execute(["755", fname])
             self.assertEqual(rc, 0)
@@ -1012,6 +1018,7 @@ class TestChmodCommand(unittest.TestCase):
         f.write("chmod me\n")
         f.flush()
         fname = f.name
+        f.close()
         try:
             rc = self.cmd.execute(["u+x", fname])
             self.assertEqual(rc, 0)

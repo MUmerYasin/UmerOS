@@ -251,22 +251,106 @@ class ChmodCommand:
 
     def execute(
         self,
-        mode: str,
-        files: List[str],
-        recursive: bool = False,
-        verbose: bool = False,
-        silent: bool = False,
-        reference_file: Optional[str] = None,
-        output: Optional[sys.stdout.__class__] = None,
+        args: Optional[List[str]] = None,
+        *,
+        _mode: Optional[str] = None,
+        _files: Optional[List[str]] = None,
+        _recursive: bool = False,
+        _verbose: bool = False,
+        _silent: bool = False,
+        _reference_file: Optional[str] = None,
     ) -> int:
         """Execute chmod command."""
-        out = output or sys.stderr
+        # Determine mode, file list, and extra flags from either calling convention
+        recursive = _recursive
+        verbose = _verbose
+        silent = _silent
+        reference_file = _reference_file
+        file_list: List[str] = []
+        mode: Optional[str] = _mode
+
+        if args is not None and not isinstance(args, str) and mode is not None:
+            # New style: execute(["-R", "755", "file"], _mode="755", _files=["file"])
+            file_list = list(_files) if _files else []
+            # Parse the args list for extra flags
+            for arg in args:
+                if arg == "-R" or arg == "--recursive":
+                    recursive = True
+                elif arg in ("-v", "--verbose"):
+                    verbose = True
+                elif arg in ("-c", "--changes"):
+                    verbose = True
+                elif arg in ("-f", "--silent", "--quiet"):
+                    silent = True
+                elif arg == "--preserve-root":
+                    pass
+                elif arg == "--no-preserve-root":
+                    pass
+                elif arg.startswith("--reference="):
+                    reference_file = arg.split("=", 1)[1]
+        else:
+            # Build a flat list from whatever the caller sent
+            flat: List[str] = []
+            if isinstance(args, str):
+                flat.append(args)
+            elif isinstance(args, list):
+                flat.extend(args)
+            if _files:
+                flat.extend(_files)
+
+            if not flat:
+                print("chmod: missing operand", file=sys.stderr)
+                return 1
+
+            if flat[0] == "--help":
+                print(self.__doc__)
+                return 0
+            if flat[0] == "--version":
+                print("chmod (UmerOS) 1.0")
+                return 0
+
+            # Parse flags and collect positional args
+            positional: List[str] = []
+            for arg in flat:
+                if arg == "-R" or arg == "--recursive":
+                    recursive = True
+                elif arg in ("-v", "--verbose"):
+                    verbose = True
+                elif arg in ("-c", "--changes"):
+                    verbose = True
+                elif arg in ("-f", "--silent", "--quiet"):
+                    silent = True
+                elif arg == "--preserve-root":
+                    pass
+                elif arg == "--no-preserve-root":
+                    pass
+                elif arg.startswith("--reference="):
+                    reference_file = arg.split("=", 1)[1]
+                elif arg.startswith("-") and len(arg) > 1:
+                    pass  # unknown flag
+                else:
+                    positional.append(arg)
+
+            if not positional:
+                print("chmod: missing operand", file=sys.stderr)
+                return 1
+            if mode is None:
+                mode = positional[0]
+                file_list = positional[1:]
+            else:
+                file_list = positional
+
+        if not mode:
+            print("chmod: missing mode operand", file=sys.stderr)
+            return 1
+
+        out = sys.stderr
         exit_code = 0
 
         if reference_file:
-            return self._chmod_reference(files, reference_file, recursive, verbose, out)
+            return self._chmod_reference(file_list, reference_file, recursive, verbose, out)
 
-        for filepath in files:
+        for filepath in file_list:
             result = self._chmod_single(filepath, mode, recursive, verbose, silent, out)
             if result != 0:
                 exit_code = result
@@ -417,26 +501,109 @@ class ChownCommand:
 
     def execute(
         self,
-        owner_spec: str,
-        files: List[str],
-        recursive: bool = False,
-        verbose: bool = False,
-        silent: bool = False,
-        dereference: bool = False,
-        from_owner: Optional[str] = None,
-        reference_file: Optional[str] = None,
-        output: Optional[sys.stdout.__class__] = None,
+        args: Optional[List[str]] = None,
+        *,
+        _owner_spec: Optional[str] = None,
+        _files: Optional[List[str]] = None,
+        _recursive: bool = False,
+        _verbose: bool = False,
+        _silent: bool = False,
+        _dereference: bool = False,
+        _from_owner: Optional[str] = None,
+        _reference_file: Optional[str] = None,
     ) -> int:
         """Execute chown command."""
-        out = output or sys.stderr
+        recursive = _recursive
+        verbose = _verbose
+        silent = _silent
+        dereference = _dereference
+        from_owner = _from_owner
+        reference_file = _reference_file
+        file_list: List[str] = []
+        owner_spec: Optional[str] = _owner_spec
+
+        if args is not None and not isinstance(args, str) and owner_spec is not None:
+            # New style: keyword args with explicit owner_spec
+            file_list = list(_files) if _files else []
+            for arg in args:
+                if arg == "-R" or arg == "--recursive":
+                    recursive = True
+                elif arg in ("-v", "--verbose"):
+                    verbose = True
+                elif arg in ("-f", "--silent", "--quiet"):
+                    silent = True
+                elif arg in ("-H", "-L"):
+                    dereference = True
+                elif arg == "-P":
+                    dereference = False
+                elif arg.startswith("--from="):
+                    from_owner = arg.split("=", 1)[1]
+                elif arg.startswith("--reference="):
+                    reference_file = arg.split("=", 1)[1]
+        else:
+            # Build a flat list from whatever the caller sent
+            flat: List[str] = []
+            if isinstance(args, str):
+                flat.append(args)
+            elif isinstance(args, list):
+                flat.extend(args)
+            if _files:
+                flat.extend(_files)
+
+            if not flat:
+                print("chown: missing operand", file=sys.stderr)
+                return 1
+
+            if flat[0] == "--help":
+                print(self.__doc__)
+                return 0
+            if flat[0] == "--version":
+                print("chown (UmerOS) 1.0")
+                return 0
+
+            positional: List[str] = []
+            for arg in flat:
+                if arg == "-R" or arg == "--recursive":
+                    recursive = True
+                elif arg in ("-v", "--verbose"):
+                    verbose = True
+                elif arg in ("-f", "--silent", "--quiet"):
+                    silent = True
+                elif arg in ("-H", "-L"):
+                    dereference = True
+                elif arg == "-P":
+                    dereference = False
+                elif arg.startswith("--from="):
+                    from_owner = arg.split("=", 1)[1]
+                elif arg.startswith("--reference="):
+                    reference_file = arg.split("=", 1)[1]
+                elif arg.startswith("-") and len(arg) > 1:
+                    pass  # unknown flag
+                else:
+                    positional.append(arg)
+
+            if not positional:
+                print("chown: missing operand", file=sys.stderr)
+                return 1
+            if owner_spec is None:
+                owner_spec = positional[0]
+                file_list = positional[1:]
+            else:
+                file_list = positional
+
+        if not owner_spec:
+            print("chown: missing owner operand", file=sys.stderr)
+            return 1
+
+        out = sys.stderr
         exit_code = 0
 
         if reference_file:
-            return self._chown_reference(files, reference_file, recursive, verbose, out)
+            return self._chown_reference(file_list, reference_file, recursive, verbose, out)
 
         user_spec = UserSpec.parse(owner_spec)
 
-        for filepath in files:
+        for filepath in file_list:
             result = self._chown_single(
                 filepath, user_spec, recursive, verbose, silent, dereference, from_owner, out
             )
@@ -653,24 +820,107 @@ class ChgrpCommand:
 
     def execute(
         self,
-        group: str,
-        files: List[str],
-        recursive: bool = False,
-        verbose: bool = False,
-        silent: bool = False,
-        dereference: bool = False,
-        from_group: Optional[str] = None,
-        reference_file: Optional[str] = None,
-        output: Optional[sys.stdout.__class__] = None,
+        args: Optional[List[str]] = None,
+        *,
+        _group: Optional[str] = None,
+        _files: Optional[List[str]] = None,
+        _recursive: bool = False,
+        _verbose: bool = False,
+        _silent: bool = False,
+        _dereference: bool = False,
+        _from_group: Optional[str] = None,
+        _reference_file: Optional[str] = None,
     ) -> int:
         """Execute chgrp command."""
-        out = output or sys.stderr
+        recursive = _recursive
+        verbose = _verbose
+        silent = _silent
+        dereference = _dereference
+        from_group = _from_group
+        reference_file = _reference_file
+        file_list: List[str] = []
+        group: Optional[str] = _group
+
+        if args is not None and not isinstance(args, str) and group is not None:
+            # New style: keyword args with explicit group
+            file_list = list(_files) if _files else []
+            for arg in args:
+                if arg == "-R" or arg == "--recursive":
+                    recursive = True
+                elif arg in ("-v", "--verbose"):
+                    verbose = True
+                elif arg in ("-f", "--silent", "--quiet"):
+                    silent = True
+                elif arg in ("-H", "-L"):
+                    dereference = True
+                elif arg == "-P":
+                    dereference = False
+                elif arg.startswith("--from="):
+                    from_group = arg.split("=", 1)[1]
+                elif arg.startswith("--reference="):
+                    reference_file = arg.split("=", 1)[1]
+        else:
+            # Build a flat list from whatever the caller sent
+            flat: List[str] = []
+            if isinstance(args, str):
+                flat.append(args)
+            elif isinstance(args, list):
+                flat.extend(args)
+            if _files:
+                flat.extend(_files)
+
+            if not flat:
+                print("chgrp: missing operand", file=sys.stderr)
+                return 1
+
+            if flat[0] == "--help":
+                print(self.__doc__)
+                return 0
+            if flat[0] == "--version":
+                print("chgrp (UmerOS) 1.0")
+                return 0
+
+            positional: List[str] = []
+            for arg in flat:
+                if arg == "-R" or arg == "--recursive":
+                    recursive = True
+                elif arg in ("-v", "--verbose"):
+                    verbose = True
+                elif arg in ("-f", "--silent", "--quiet"):
+                    silent = True
+                elif arg in ("-H", "-L"):
+                    dereference = True
+                elif arg == "-P":
+                    dereference = False
+                elif arg.startswith("--from="):
+                    from_group = arg.split("=", 1)[1]
+                elif arg.startswith("--reference="):
+                    reference_file = arg.split("=", 1)[1]
+                elif arg.startswith("-") and len(arg) > 1:
+                    pass  # unknown flag
+                else:
+                    positional.append(arg)
+
+            if not positional:
+                print("chgrp: missing operand", file=sys.stderr)
+                return 1
+            if group is None:
+                group = positional[0]
+                file_list = positional[1:]
+            else:
+                file_list = positional
+
+        if not group:
+            print("chgrp: missing group operand", file=sys.stderr)
+            return 1
+
+        out = sys.stderr
         exit_code = 0
 
         if reference_file:
-            return self._chgrp_reference(files, reference_file, recursive, verbose, out)
+            return self._chgrp_reference(file_list, reference_file, recursive, verbose, out)
 
-        for filepath in files:
+        for filepath in file_list:
             result = self._chgrp_single(
                 filepath, group, recursive, verbose, silent, dereference, from_group, out
             )

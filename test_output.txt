@@ -1,0 +1,1100 @@
+FEFE...................[: missing `]'
+.[: missing `]'
+F..cat: C:\Users\MCRAJA~1\AppData\Local\Temp: Permission denied
+..cat: /nonexistent.txt: No such file or directory
+........EE.EEEEC:\Program Files\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <_TemporaryFileWrapper file=<_io.TextIOWrapper name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpbgxs8evm.txt' mode='w' encoding='cp1252'>>
+  _warnings.warn(self.warn_message, ResourceWarning)
+EC:\Program Files\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <_TemporaryFileWrapper file=<_io.TextIOWrapper name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpk3n7w92k.txt' mode='w' encoding='cp1252'>>
+  _warnings.warn(self.warn_message, ResourceWarning)
+.EE.EC:\Program Files\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <_TemporaryFileWrapper file=<_io.TextIOWrapper name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpifs7v2at.txt' mode='w' encoding='cp1252'>>
+  _warnings.warn(self.warn_message, ResourceWarning)
+.cp: cannot stat '/nonexistent_src': No such file or directory
+.cp: missing destination operand
+....E..F.csh: Can't open --help
+cp [OPTION]... SOURCE DEST
+cp (UmerOS) 1.0
+cpio - copy file archives in and out
+Usage: cpio [-o|-i|-t|-p] [-vdm] [files]
+  -o  Create archive (copy-out)
+  -i  Extract archive (copy-in)
+  -t  List archive contents
+  -p  Pass-through copy
+  -v  Verbose
+  -d  Create directories as needed
+  -m  Preserve modification time
+cpio - copy file archives in and out
+Usage: cpio [-o|-i|-t|-p] [-vdm] [files]
+  -o  Create archive (copy-out)
+  -i  Extract archive (copy-in)
+  -t  List archive contents
+  -p  Pass-through copy
+  -v  Verbose
+  -d  Create directories as needed
+  -m  Preserve modification time
+UmerOS csh (stub) - type 'exit' to quit
+csh% 
+Wed Aug 19 13:32:39  2026
+0+0 records in
+0+0 records out
+0 bytes copied <_io.TextIOWrapper name='<stderr>' mode='w' encoding='cp1252'>
+[1787128259.95] UmerOS kernel booting
+[1787128260.95] Memory: 1024MB available
+[1787128261.95] CPU: Python virtual processor
+[1787128262.95] Filesystem: UmerFS initialized
+[1787128263.95] Warning: running in emulation mode
+[1787128259.95] UmerOS kernel booting
+[1787128260.95] Memory: 1024MB available
+[1787128261.95] CPU: Python virtual processor
+[1787128262.95] Filesystem: UmerFS initialized
+[1787128263.95] Warning: running in emulation mode
+[1787128259.95] UmerOS kernel booting
+[1787128260.95] Memory: 1024MB available
+[1787128261.95] CPU: Python virtual processor
+[1787128262.95] Filesystem: UmerFS initialized
+[1787128263.95] Warning: running in emulation mode
+
+F..E.EEE.E.EEEEE............FEEenv: '--help': No such file or directory
+F.F.....FEFFEE.FFEFFFEsssssEC:\Program Files\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <_TemporaryFileWrapper file=<_io.TextIOWrapper name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpgpcdnwo9.txt' mode='w' encoding='cp1252'>>
+  _warnings.warn(self.warn_message, ResourceWarning)
+..EC:\Program Files\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <_TemporaryFileWrapper file=<_io.TextIOWrapper name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpj4q87_mm.txt' mode='w' encoding='cp1252'>>
+  _warnings.warn(self.warn_message, ResourceWarning)
+..ssss....ls: cannot access '/nonexistent_dir_xyz': No such file or directory
+.......FEF.E.ssssmv: cannot move 'C:\Users\MCRAJA~1\AppData\Local\Temp\tmpq4a9cfzn.txt' to 'C:\Users\MCRAJA~1\AppData\Local\Temp\tmpq4a9cfzn.txt.moved': [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpq4a9cfzn.txt'
+EC:\Program Files\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <_TemporaryFileWrapper file=<_io.TextIOWrapper name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpq4a9cfzn.txt' mode='w' encoding='cp1252'>>
+  _warnings.warn(self.warn_message, ResourceWarning)
+.mv: cannot stat '/nonexistent_src_mv': No such file or directory
+.F.FFEF..ssss..rm: cannot remove 'C:\Users\MCRAJA~1\AppData\Local\Temp\tmp07al_4_l.txt': [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmp07al_4_l.txt'
+EC:\Program Files\Python314\Lib\tempfile.py:484: ResourceWarning: Implicitly cleaning up <_TemporaryFileWrapper file=<_io.TextIOWrapper name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmp07al_4_l.txt' mode='w' encoding='cp1252'>>
+  _warnings.warn(self.warn_message, ResourceWarning)
+.rm: cannot remove '/nonexistent_rm_file': No such file or directory
+.....FEFE.F.[: missing `]'
+[: missing `]'
+....cat: nonexistent_file_xyz_xyz_xyz: No such file or directory
+...s..s......sssssssssssssFFEF.F........sss........ssFE
+======================================================================
+ERROR: test_archive_tar_no_args (tests.test_bin.TestArchiveTarCommand.test_archive_tar_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1387, in test_archive_tar_no_args
+    rc = self.cmd.execute()
+TypeError: TarCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_arp_no_args (tests.test_bin.TestArpCommand.test_arp_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1255, in test_arp_no_args
+    rc = self.cmd.execute()
+TypeError: ArpCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_chgrp_help (tests.test_bin.TestChgrpCommand.test_chgrp_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1058, in test_chgrp_help
+    rc = self.cmd.execute(["--help"])
+TypeError: ChgrpCommand.execute() missing 1 required positional argument: 'files'
+
+======================================================================
+ERROR: test_chgrp_no_args (tests.test_bin.TestChgrpCommand.test_chgrp_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1054, in test_chgrp_no_args
+    rc = self.cmd.execute()
+TypeError: ChgrpCommand.execute() missing 2 required positional arguments: 'group' and 'files'
+
+======================================================================
+ERROR: test_chmod_help (tests.test_bin.TestChmodCommand.test_chmod_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1026, in test_chmod_help
+    rc = self.cmd.execute(["--help"])
+TypeError: ChmodCommand.execute() missing 1 required positional argument: 'files'
+
+======================================================================
+ERROR: test_chmod_missing_file (tests.test_bin.TestChmodCommand.test_chmod_missing_file)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1022, in test_chmod_missing_file
+    rc = self.cmd.execute(["755", "/nonexistent_chmod_file"])
+TypeError: ChmodCommand.execute() missing 1 required positional argument: 'files'
+
+======================================================================
+ERROR: test_chmod_no_args (tests.test_bin.TestChmodCommand.test_chmod_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 996, in test_chmod_no_args
+    rc = self.cmd.execute()
+TypeError: ChmodCommand.execute() missing 2 required positional arguments: 'mode' and 'files'
+
+======================================================================
+ERROR: test_chmod_numeric (tests.test_bin.TestChmodCommand.test_chmod_numeric)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1005, in test_chmod_numeric
+    rc = self.cmd.execute(["755", fname])
+TypeError: ChmodCommand.execute() missing 1 required positional argument: 'files'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1008, in test_chmod_numeric
+    os.unlink(fname)
+    ~~~~~~~~~^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpbgxs8evm.txt'
+
+======================================================================
+ERROR: test_chmod_symbolic (tests.test_bin.TestChmodCommand.test_chmod_symbolic)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1016, in test_chmod_symbolic
+    rc = self.cmd.execute(["u+x", fname])
+TypeError: ChmodCommand.execute() missing 1 required positional argument: 'files'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1019, in test_chmod_symbolic
+    os.unlink(fname)
+    ~~~~~~~~~^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpk3n7w92k.txt'
+
+======================================================================
+ERROR: test_chown_help (tests.test_bin.TestChownCommand.test_chown_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1042, in test_chown_help
+    rc = self.cmd.execute(["--help"])
+TypeError: ChownCommand.execute() missing 1 required positional argument: 'files'
+
+======================================================================
+ERROR: test_chown_no_args (tests.test_bin.TestChownCommand.test_chown_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1038, in test_chown_no_args
+    rc = self.cmd.execute()
+TypeError: ChownCommand.execute() missing 2 required positional arguments: 'owner_spec' and 'files'
+
+======================================================================
+ERROR: test_cp_file (tests.test_bin.TestCpCommand.test_cp_file)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 212, in test_cp_file
+    os.unlink(src.name)
+    ~~~~~~~~~^^^^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpifs7v2at.txt'
+
+======================================================================
+ERROR: test_cpio_create (tests.test_bin.TestCpioCommand.test_cpio_create)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 977, in test_cpio_create
+    rc = self.cmd.execute(["-o", "-H", "newc"], stdin=io.StringIO(fname + "\n"))
+TypeError: CpioCommand.execute() got an unexpected keyword argument 'stdin'
+
+======================================================================
+ERROR: test_date_help (tests.test_bin.TestDateCommand.test_date_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 628, in test_date_help
+    rc = self.cmd.execute(["--help"])
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 1038, in execute
+    print(now.strftime(fmt), file=out)
+          ~~~~~~~~~~~~^^^^^
+TypeError: strftime() argument 1 must be str, not list
+
+======================================================================
+ERROR: test_date_version (tests.test_bin.TestDateCommand.test_date_version)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 632, in test_date_version
+    rc = self.cmd.execute(["--version"])
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 1038, in execute
+    print(now.strftime(fmt), file=out)
+          ~~~~~~~~~~~~^^^^^
+TypeError: strftime() argument 1 must be str, not list
+
+======================================================================
+ERROR: test_dd_basic (tests.test_bin.TestDdCommand.test_dd_basic)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 411, in test_dd_basic
+    rc = self.cmd.execute(["if=/dev/null", "of=/dev/null", "bs=512", "count=1"])
+  File "F:\Pension Person Details\UmerOS\bin\essential_commands.py", line 1426, in execute
+    input_stream: BinaryIO = open(if_file, "rb")
+                             ~~~~^^^^^^^^^^^^^^^
+TypeError: expected str, bytes or os.PathLike object, not list
+
+======================================================================
+ERROR: test_dd_help (tests.test_bin.TestDdCommand.test_dd_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 399, in test_dd_help
+    rc = self.cmd.execute(["--help"])
+  File "F:\Pension Person Details\UmerOS\bin\essential_commands.py", line 1426, in execute
+    input_stream: BinaryIO = open(if_file, "rb")
+                             ~~~~^^^^^^^^^^^^^^^
+TypeError: expected str, bytes or os.PathLike object, not list
+
+======================================================================
+ERROR: test_dd_version (tests.test_bin.TestDdCommand.test_dd_version)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 403, in test_dd_version
+    rc = self.cmd.execute(["--version"])
+  File "F:\Pension Person Details\UmerOS\bin\essential_commands.py", line 1426, in execute
+    input_stream: BinaryIO = open(if_file, "rb")
+                             ~~~~^^^^^^^^^^^^^^^
+TypeError: expected str, bytes or os.PathLike object, not list
+
+======================================================================
+ERROR: test_df_help (tests.test_bin.TestDfCommand.test_df_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 588, in test_df_help
+    rc = self.cmd.execute(["--help"])
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 623, in execute
+    filesystems = self._get_filesystems()
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 729, in _get_filesystems
+    st = os.statvfs("/")
+         ^^^^^^^^^^
+AttributeError: module 'os' has no attribute 'statvfs'
+
+======================================================================
+ERROR: test_df_human (tests.test_bin.TestDfCommand.test_df_human)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 576, in test_df_human
+    rc = self.cmd.execute(["-h"])
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 623, in execute
+    filesystems = self._get_filesystems()
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 729, in _get_filesystems
+    st = os.statvfs("/")
+         ^^^^^^^^^^
+AttributeError: module 'os' has no attribute 'statvfs'
+
+======================================================================
+ERROR: test_df_inodes (tests.test_bin.TestDfCommand.test_df_inodes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 580, in test_df_inodes
+    rc = self.cmd.execute(["-i"])
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 623, in execute
+    filesystems = self._get_filesystems()
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 729, in _get_filesystems
+    st = os.statvfs("/")
+         ^^^^^^^^^^
+AttributeError: module 'os' has no attribute 'statvfs'
+
+======================================================================
+ERROR: test_df_kilobytes (tests.test_bin.TestDfCommand.test_df_kilobytes)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 584, in test_df_kilobytes
+    rc = self.cmd.execute(["-k"])
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 623, in execute
+    filesystems = self._get_filesystems()
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 729, in _get_filesystems
+    st = os.statvfs("/")
+         ^^^^^^^^^^
+AttributeError: module 'os' has no attribute 'statvfs'
+
+======================================================================
+ERROR: test_df_no_args (tests.test_bin.TestDfCommand.test_df_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 572, in test_df_no_args
+    rc = self.cmd.execute()
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 623, in execute
+    filesystems = self._get_filesystems()
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 729, in _get_filesystems
+    st = os.statvfs("/")
+         ^^^^^^^^^^
+AttributeError: module 'os' has no attribute 'statvfs'
+
+======================================================================
+ERROR: test_bin_status_values (tests.test_bin.TestEnums.test_bin_status_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1532, in test_bin_status_values
+    self.assertTrue(BinStatus.INACTIVE)
+                    ^^^^^^^^^^^^^^^^^^
+AttributeError: type object 'BinStatus' has no attribute 'INACTIVE'. Did you mean: 'ACTIVE'?
+
+======================================================================
+ERROR: test_bin_type_values (tests.test_bin.TestEnums.test_bin_type_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1546, in test_bin_type_values
+    self.assertTrue(BinType.SCRIPT)
+                    ^^^^^^^^^^^^^^
+AttributeError: type object 'BinType' has no attribute 'SCRIPT'
+
+======================================================================
+ERROR: test_gunzip_no_args (tests.test_bin.TestGunzipCommand.test_gunzip_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 904, in test_gunzip_no_args
+    rc = self.cmd.execute()
+TypeError: GunzipCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_gzip_no_args (tests.test_bin.TestGzipCommand.test_gzip_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 878, in test_gzip_no_args
+    rc = self.cmd.execute()
+TypeError: GzipCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_hostname_help (tests.test_bin.TestHostnameCommand.test_hostname_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 563, in test_hostname_help
+    rc = self.cmd.execute(["--help"])
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 455, in execute
+    return self._set_hostname(new_name)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "F:\Pension Person Details\UmerOS\bin\system_info.py", line 522, in _set_hostname
+    subprocess.run(["hostname", hostname], capture_output=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python314\Lib\subprocess.py", line 555, in run
+    with Popen(*popenargs, **kwargs) as process:
+         ~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python314\Lib\subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python314\Lib\subprocess.py", line 1477, in _execute_child
+    args = list2cmdline(args)
+  File "C:\Program Files\Python314\Lib\subprocess.py", line 615, in list2cmdline
+    for arg in map(os.fsdecode, seq):
+               ~~~^^^^^^^^^^^^^^^^^^
+  File "<frozen os>", line 869, in fsdecode
+TypeError: expected str, bytes or os.PathLike object, not list
+
+======================================================================
+ERROR: test_ifconfig_no_args (tests.test_bin.TestIfconfigCommand.test_ifconfig_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1204, in test_ifconfig_no_args
+    rc = self.cmd.execute()
+TypeError: IfconfigCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_ip_no_args (tests.test_bin.TestIpCommand.test_ip_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1221, in test_ip_no_args
+    rc = self.cmd.execute()
+TypeError: IpCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_ln_hard_link (tests.test_bin.TestLnCommand.test_ln_hard_link)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 467, in test_ln_hard_link
+    os.unlink(src.name)
+    ~~~~~~~~~^^^^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpgpcdnwo9.txt'
+
+======================================================================
+ERROR: test_ln_symbolic (tests.test_bin.TestLnCommand.test_ln_symbolic)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 481, in test_ln_symbolic
+    os.unlink(src.name)
+    ~~~~~~~~~^^^^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpj4q87_mm.txt'
+
+======================================================================
+ERROR: test_mknod_no_args (tests.test_bin.TestMknodCommand.test_mknod_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1328, in test_mknod_no_args
+    rc = self.cmd.execute()
+TypeError: MknodCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_more_help (tests.test_bin.TestMoreCommand.test_more_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 434, in test_more_help
+    rc = self.cmd.execute(["--help"])
+  File "F:\Pension Person Details\UmerOS\bin\essential_commands.py", line 1509, in execute
+    with open(filepath, "r") as f:
+         ~~~~^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '--help'
+
+======================================================================
+ERROR: test_mv_file (tests.test_bin.TestMvCommand.test_mv_file)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 291, in test_mv_file
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: 1 != 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 296, in test_mv_file
+    os.unlink(src.name)
+    ~~~~~~~~~^^^^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmpq4a9cfzn.txt'
+
+======================================================================
+ERROR: test_netstat_no_args (tests.test_bin.TestNetstatCommand.test_netstat_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 930, in test_netstat_no_args
+    rc = self.cmd.execute()
+TypeError: NetstatCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_rm_file (tests.test_bin.TestRmCommand.test_rm_file)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 319, in test_rm_file
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: 1 != 0
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 323, in test_rm_file
+    os.unlink(fname)
+    ~~~~~~~~~^^^^^^^
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\tmp07al_4_l.txt'
+
+======================================================================
+ERROR: test_route_no_args (tests.test_bin.TestRouteCommand.test_route_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1242, in test_route_no_args
+    rc = self.cmd.execute()
+TypeError: RouteCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_sed_no_args (tests.test_bin.TestSedCommand.test_sed_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 825, in test_sed_no_args
+    rc = self.cmd.execute()
+TypeError: SedCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_tar_no_args (tests.test_bin.TestTarCommand.test_tar_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 846, in test_tar_no_args
+    rc = self.cmd.execute()
+TypeError: TarCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+ERROR: test_zcat_no_args (tests.test_bin.TestZcatCommand.test_zcat_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 917, in test_zcat_no_args
+    rc = self.cmd.execute()
+TypeError: ZcatCommand.execute() missing 1 required positional argument: 'args'
+
+======================================================================
+FAIL: test_archive_tar_help (tests.test_bin.TestArchiveTarCommand.test_archive_tar_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1392, in test_archive_tar_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (2, 'tar: archive file required') != 0
+
+======================================================================
+FAIL: test_arp_help (tests.test_bin.TestArpCommand.test_arp_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1260, in test_arp_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, 'Address                  HWtype  HWa[203 chars]th0') != 0
+
+======================================================================
+FAIL: test_bracket_no_args (tests.test_bin.TestBracketTestCommand.test_bracket_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1138, in test_bracket_no_args
+    self.assertEqual(rc, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: 2 != 1
+
+======================================================================
+FAIL: test_cpio_no_args (tests.test_bin.TestCpioCommand.test_cpio_no_args)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 960, in test_cpio_no_args
+    self.assertNotEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: 0 == 0
+
+======================================================================
+FAIL: test_csh_help (tests.test_bin.TestCshCommand.test_csh_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1358, in test_csh_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: 1 != 0
+
+======================================================================
+FAIL: test_bin_privilege_values (tests.test_bin.TestEnums.test_bin_privilege_values)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1538, in test_bin_privilege_values
+    self.assertTrue(BinPrivilege.USER)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+AssertionError: <BinPrivilege.USER: 0> is not true
+
+======================================================================
+FAIL: test_env_help (tests.test_bin.TestEnvCommand.test_env_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1191, in test_env_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: 127 != 0
+
+======================================================================
+FAIL: test_bin_categories (tests.test_bin.TestFHSConstants.test_bin_categories)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1508, in test_bin_categories
+    self.assertIsInstance(BIN_CATEGORIES, (list, set, frozenset))
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'FILE_OPS': 'File manipulation (cp, mv, rm, ln, mkdir, rmdir, ls)', 'TEXT': 'Text processing (cat, echo, more)', 'PERMISSIONS': 'Permission management (chmod, chown, chgrp)', 'SYSTEM_INFO': 'System information (uname, dmesg, hostname, df)', 'PROCESS': 'Process management (ps, kill)', 'FILESYSTEM': 'Filesystem operations (mount, umount, dd, mknod)', 'USER': 'User operations (su, login)', 'TIME': 'Time and date (date)', 'SHELL': 'Shell and boolean operations (sh, true, false)', 'SYNC': 'System sync (sync)', 'PATH': 'Path operations (pwd)'} is not an instance of any of (<class 'list'>, <class 'set'>, <class 'frozenset'>)
+
+======================================================================
+FAIL: test_gunzip_help (tests.test_bin.TestGunzipCommand.test_gunzip_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 909, in test_gunzip_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (1, 'gzip: no input') != 0
+
+======================================================================
+FAIL: test_gzip_file (tests.test_bin.TestGzipCommand.test_gzip_file)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 892, in test_gzip_file
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, '') != 0
+
+======================================================================
+FAIL: test_gzip_help (tests.test_bin.TestGzipCommand.test_gzip_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 883, in test_gzip_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (2, 'gzip: no input files') != 0
+
+======================================================================
+FAIL: test_ifconfig_a (tests.test_bin.TestIfconfigCommand.test_ifconfig_a)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1209, in test_ifconfig_a
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, 'eth0: flags=4163<UP,BROADCAST,RUNNIN[676 chars]KB)') != 0
+
+======================================================================
+FAIL: test_ifconfig_help (tests.test_bin.TestIfconfigCommand.test_ifconfig_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1213, in test_ifconfig_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (1, 'ifconfig: --help: error fetching interface information: No such device') != 0
+
+======================================================================
+FAIL: test_ip_addr (tests.test_bin.TestIpCommand.test_ip_addr)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1230, in test_ip_addr
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, '1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65[271 chars]ver') != 0
+
+======================================================================
+FAIL: test_ip_help (tests.test_bin.TestIpCommand.test_ip_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1226, in test_ip_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, 'Usage: ip [ OPTIONS ] OBJECT { COMMA[100 chars]r }') != 0
+
+======================================================================
+FAIL: test_ip_link (tests.test_bin.TestIpCommand.test_ip_link)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1234, in test_ip_link
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, '1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65[217 chars]:ff') != 0
+
+======================================================================
+FAIL: test_mknod_help (tests.test_bin.TestMknodCommand.test_mknod_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1333, in test_mknod_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, 'Usage: mknod [-m mode] [-v] NAME TYP[320 chars]one') != 0
+
+======================================================================
+FAIL: test_mknod_version (tests.test_bin.TestMknodCommand.test_mknod_version)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1337, in test_mknod_version
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (2, "mknod: invalid device type ''") != 0
+
+======================================================================
+FAIL: test_mv_no_args_returns_error (tests.test_bin.TestMvCommand.test_mv_no_args_returns_error)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 302, in test_mv_no_args_returns_error
+    self.assertNotEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: 0 == 0
+
+======================================================================
+FAIL: test_netstat_all (tests.test_bin.TestNetstatCommand.test_netstat_all)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 939, in test_netstat_all
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, 'Active Internet connections (servers[379 chars]0:*') != 0
+
+======================================================================
+FAIL: test_netstat_help (tests.test_bin.TestNetstatCommand.test_netstat_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 935, in test_netstat_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, 'Active Internet connections (servers[241 chars]TEN') != 0
+
+======================================================================
+FAIL: test_ping_help (tests.test_bin.TestPingCommand.test_ping_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 948, in test_ping_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (2, 'ping: missing host operand') != 0
+
+======================================================================
+FAIL: test_route_help (tests.test_bin.TestRouteCommand.test_route_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1247, in test_route_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, 'Kernel IP routing table\nDestination[295 chars] lo') != 0
+
+======================================================================
+FAIL: test_sed_help (tests.test_bin.TestSedCommand.test_sed_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 830, in test_sed_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, '') != 0
+
+======================================================================
+FAIL: test_sed_version (tests.test_bin.TestSedCommand.test_sed_version)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 834, in test_sed_version
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, '') != 0
+
+======================================================================
+FAIL: test_tar_create (tests.test_bin.TestTarCommand.test_tar_create)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 865, in test_tar_create
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (0, '') != 0
+
+======================================================================
+FAIL: test_tar_help (tests.test_bin.TestTarCommand.test_tar_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 851, in test_tar_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (2, 'tar: archive file required') != 0
+
+======================================================================
+FAIL: test_tar_version (tests.test_bin.TestTarCommand.test_tar_version)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 855, in test_tar_version
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (2, 'tar: archive file required') != 0
+
+======================================================================
+FAIL: test_test_false (tests.test_bin.TestTestCommand.test_test_false)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 1099, in test_test_false
+    self.assertEqual(rc, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_zcat_help (tests.test_bin.TestZcatCommand.test_zcat_help)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\tests\test_bin.py", line 922, in test_zcat_help
+    self.assertEqual(rc, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^
+AssertionError: (1, "zcat: [Errno 2] No such file or directory: '--help'") != 0
+
+----------------------------------------------------------------------
+Ran 240 tests in 0.106s
+
+FAILED (failures=30, errors=41, skipped=37)
+
+ALLUSERSPROFILE=C:\ProgramData
+APPDATA=C:\Users\MC Raja Jang\AppData\Roaming
+BIN=C:\src\flutter\bin
+CHOCOLATEYINSTALL=C:\ProgramData\chocolatey
+CHOCOLATEYLASTPATHUPDATE=134247857778852980
+CHROME_CRASHPAD_PIPE_NAME=\\.\pipe\crashpad_17424_VIHDWXODDQUEEDDD
+COMMONPROGRAMFILES=C:\Program Files\Common Files
+COMMONPROGRAMFILES(X86)=C:\Program Files (x86)\Common Files
+COMMONPROGRAMW6432=C:\Program Files\Common Files
+COMPUTERNAME=MCRAJAJANG
+COMSPEC=C:\Windows\system32\cmd.exe
+DRIVERDATA=C:\Windows\System32\Drivers\DriverData
+FPS_BROWSER_APP_PROFILE_STRING=Internet Explorer
+FPS_BROWSER_USER_PROFILE_STRING=Default
+HOMEDRIVE=C:
+HOMEPATH=\Users\MC Raja Jang
+LOCALAPPDATA=C:\Users\MC Raja Jang\AppData\Local
+LOGONSERVER=\\MCRAJAJANG
+NO_PROXY=127.0.0.1,localhost,::1
+NUMBER_OF_PROCESSORS=20
+ONEDRIVE=C:\Users\MC Raja Jang\OneDrive
+OPENCODE_CLIENT=desktop
+OPENCODE_DISABLE_EMBEDDED_WEB_UI=true
+OPENCODE_EXPERIMENTAL_FILEWATCHER=true
+OPENCODE_EXPERIMENTAL_ICON_DISCOVERY=true
+OPENCODE_SERVER_PASSWORD=1da39851-86d2-4bfc-aea4-e1184ef5c561
+OPENCODE_SERVER_USERNAME=opencode
+OS=Windows_NT
+PATH=C:\Program Files\PowerShell\7;C:\Program Files\Python314\Scripts\;C:\Program Files\Python314\;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\src\flutter\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\Microsoft SQL Server\170\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin;C:\ProgramData\chocolatey\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\ProgramData\AndroidCLI;C:\Program Files\Git\cmd;C:\Program Files\nodejs\;C:\Program Files\dotnet\;C:\Program Files\GitHub CLI\;C:\Program Files\Docker\Docker\resources\bin;C:\Android\Sdk;C:\Tools\NuGet;C:\Program Files\PowerShell\7\;C:\Users\MC Raja Jang\.minimax\bin;C:\Users\MC Raja Jang\AppData\Local\qwen-code\bin;C:\Users\MC Raja Jang\.kimi-code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\OpenAI\Codex\bin;C:\Users\MC Raja Jang\.local\bin;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\MC Raja Jang\AppData\Local\Microsoft\WindowsApps;C:\Users\MC Raja Jang\AppData\Local\Python\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Antigravity IDE\bin;C:\src\flutter\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Local\Programs\Ollama;C:\Users\MC Raja Jang\.lmstudio\bin;C:\Users\MC Raja Jang\AppData\Roaming\npm;C:\Users\MC Raja Jang\.dotnet\tools;C:\Users\MC Raja Jang\AppData\Local\cursor-agent;C:\Android\Sdk;C:\Users\MC Raja Jang\bin
+PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW;.CPL
+POWERSHELL_DISTRIBUTION_CHANNEL=MSI:Windows 10 Pro
+PROCESSOR_ARCHITECTURE=AMD64
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 191 Stepping 2, GenuineIntel
+PROCESSOR_LEVEL=6
+PROCESSOR_REVISION=bf02
+PROGRAMDATA=C:\ProgramData
+PROGRAMFILES=C:\Program Files
+PROGRAMFILES(X86)=C:\Program Files (x86)
+PROGRAMW6432=C:\Program Files
+PSMODULEPATH=C:\Users\MC Raja Jang\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules
+PUBLIC=C:\Users\Public
+SESSIONNAME=Console
+SYSTEMDRIVE=C:
+SYSTEMROOT=C:\Windows
+TEMP=C:\Users\MCRAJA~1\AppData\Local\Temp
+TMP=C:\Users\MCRAJA~1\AppData\Local\Temp
+USERDOMAIN=MCRAJAJANG
+USERDOMAIN_ROAMINGPROFILE=MCRAJAJANG
+USERNAME=MC Raja Jang
+USERPROFILE=C:\Users\MC Raja Jang
+WINDIR=C:\Windows
+XDG_STATE_HOME=C:\Users\MC Raja Jang\AppData\Roaming\ai.opencode.desktop
+ZES_ENABLE_SYSMAN=1
+MCRajaJang
+-p  .agents  .claude  .git  .github  .gitignore  .pytest_cache  .qodo  .vscode  .zcode  __init__.py  __pycache__  add_entries.py  ai  ai_config.json  bin  boot  build  Caddyfile  cloud  compatibility  core  count_cmds.py  crash_test.log  dev  diag2.py  diag2_err.txt  diag2_out.txt  diagnose.py  diagnose_output.txt  dist  docker-compose.yml  Dockerfile  docs  drivers  err.txt  etc  examples  feedback  find_dupe.py  fs  gen_regs.py  home  HostFiles  initrd  installer  kernel  legal  lib  liboqs  LICENSE  main.py  MainTask  media  mnt  network  node_modules  Old Linux Code  opt  out.txt  package-lock.json  package.json  packages  proc  Prompt Operating System Quantum Computing new.docx  Prompt Operating System Quantum Computing.docx  quantum  README.md  requirements.txt  root  run2.bat  run_diag.bat  sbin  scripts  sdk  security  settings.local.json  setup.py  Skills  sources  srv  start.bat  test_one.py  test_output.txt  test_selftest.py  tests  tmp  tools  ui  umer_fs  UmerOS-GUI.spec  usr  uvicorn_logger.json  var  ~$x g.docx
+-p  __init__.py  __pycache__  add_entries.py  ai  ai_config.json  bin  boot  build  Caddyfile  cloud  compatibility  core  count_cmds.py  crash_test.log  dev  diag2.py  diag2_err.txt  diag2_out.txt  diagnose.py  diagnose_output.txt  dist  docker-compose.yml  Dockerfile  docs  drivers  err.txt  etc  examples  feedback  find_dupe.py  fs  gen_regs.py  home  HostFiles  initrd  installer  kernel  legal  lib  liboqs  LICENSE  main.py  MainTask  media  mnt  network  node_modules  Old Linux Code  opt  out.txt  package-lock.json  package.json  packages  proc  Prompt Operating System Quantum Computing new.docx  Prompt Operating System Quantum Computing.docx  quantum  README.md  requirements.txt  root  run2.bat  run_diag.bat  sbin  scripts  sdk  security  settings.local.json  setup.py  Skills  sources  srv  start.bat  test_one.py  test_output.txt  test_selftest.py  tests  tmp  tools  ui  umer_fs  UmerOS-GUI.spec  usr  uvicorn_logger.json  var  ~$x g.docx
+drwxrwxrwx   1    0    0        0 Aug 18 13:17 -p
+-rw-rw-rw-   1    0    0       47 Aug 06 16:00 __init__.py
+drwxrwxrwx   1    0    0        0 Aug 19 12:55 __pycache__
+-rw-rw-rw-   1    0    0     5677 Aug 05 17:19 add_entries.py
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 ai
+-rw-rw-rw-   1    0    0      422 Jul 23 15:35 ai_config.json
+drwxrwxrwx   1    0    0    12288 Aug 19 12:49 bin
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 boot
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 build
+-rw-rw-rw-   1    0    0      378 Aug 14 13:29 Caddyfile
+drwxrwxrwx   1    0    0        0 Aug 19 12:10 cloud
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 compatibility
+drwxrwxrwx   1    0    0        0 Aug 19 12:10 core
+-rw-rw-rw-   1    0    0      173 Aug 05 17:20 count_cmds.py
+-rw-rw-rw-   1    0    0      237 Aug 07 12:31 crash_test.log
+drwxrwxrwx   1    0    0    12288 Aug 19 12:10 dev
+-rw-rw-rw-   1    0    0     1649 Aug 17 12:50 diag2.py
+-rw-rw-rw-   1    0    0       32 Aug 17 11:37 diag2_err.txt
+-rw-rw-rw-   1    0    0        0 Aug 17 11:37 diag2_out.txt
+-rw-rw-rw-   1    0    0     2215 Aug 17 12:50 diagnose.py
+-rw-rw-rw-   1    0    0       32 Aug 17 11:35 diagnose_output.txt
+drwxrwxrwx   1    0    0        0 Aug 07 13:34 dist
+-rw-rw-rw-   1    0    0      718 Aug 14 13:30 docker-compose.yml
+-rw-rw-rw-   1    0    0      827 Aug 14 13:07 Dockerfile
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 docs
+drwxrwxrwx   1    0    0    16384 Aug 19 12:10 drivers
+-rw-rw-rw-   1    0    0      107 Aug 17 11:39 err.txt
+drwxrwxrwx   1    0    0    28672 Aug 19 12:10 etc
+drwxrwxrwx   1    0    0        0 Aug 19 12:10 examples
+drwxrwxrwx   1    0    0        0 Aug 15 16:46 feedback
+-rw-rw-rw-   1    0    0      274 Aug 05 17:21 find_dupe.py
+drwxrwxrwx   1    0    0        0 Aug 19 12:10 fs
+-rw-rw-rw-   1    0    0      340 Aug 05 17:16 gen_regs.py
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 home
+drwxrwxrwx   1    0    0        0 Jul 20 14:18 HostFiles
+drwxrwxrwx   1    0    0     4096 Aug 19 12:49 initrd
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 installer
+drwxrwxrwx   1    0    0     8192 Aug 19 12:10 kernel
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 legal
+drwxrwxrwx   1    0    0     4096 Aug 19 12:49 lib
+drwxrwxrwx   1    0    0     8192 Aug 15 13:44 liboqs
+-rw-rw-rw-   1    0    0     1015 Jun 22 15:21 LICENSE
+-rw-rw-rw-   1    0    0       65 Jun 22 16:07 main.py
+drwxrwxrwx   1    0    0        0 Jun 22 14:13 MainTask
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 media
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 mnt
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 network
+drwxrwxrwx   1    0    0    32768 Jul 18 14:28 node_modules
+drwxrwxrwx   1    0    0     8192 Jun 15 16:12 Old Linux Code
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 opt
+-rw-rw-rw-   1    0    0        0 Aug 17 11:39 out.txt
+-rw-rw-rw-   1    0    0    59959 Jul 18 14:28 package-lock.json
+-rw-rw-rw-   1    0    0      122 Jul 18 14:28 package.json
+drwxrwxrwx   1    0    0        0 Aug 19 12:10 packages
+drwxrwxrwx   1    0    0     8192 Aug 19 12:10 proc
+-rw-rw-rw-   1    0    0    22809 Jun 10 18:24 Prompt Operating System Quantum Computing new.docx
+-rw-rw-rw-   1    0    0    20089 Jun 10 18:24 Prompt Operating System Quantum Computing.docx
+drwxrwxrwx   1    0    0    12288 Aug 19 12:10 quantum
+-rw-rw-rw-   1    0    0    37173 Aug 14 15:11 README.md
+-rw-rw-rw-   1    0    0     4858 Aug 14 13:36 requirements.txt
+drwxrwxrwx   1    0    0     4096 Aug 19 12:49 root
+-rwxrwxrwx   1    0    0       80 Aug 17 11:37 run2.bat
+-rwxrwxrwx   1    0    0      122 Aug 17 12:52 run_diag.bat
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 sbin
+drwxrwxrwx   1    0    0        0 Aug 14 13:32 scripts
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 sdk
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 security
+-rw-rw-rw-   1    0    0      746 Jun 15 15:19 settings.local.json
+-rw-rw-rw-   1    0    0      868 Jun 22 15:21 setup.py
+drwxrwxrwx   1    0    0        0 Jun 12 15:03 Skills
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 sources
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 srv
+-rwxrwxrwx   1    0    0      805 Aug 17 12:51 start.bat
+-rw-rw-rw-   1    0    0     1343 Aug 17 11:39 test_one.py
+-rw-rw-rw-   1    0    0        0 Aug 19 13:32 test_output.txt
+-rw-rw-rw-   1    0    0     3515 Aug 17 12:51 test_selftest.py
+drwxrwxrwx   1    0    0    12288 Aug 19 12:49 tests
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 tmp
+drwxrwxrwx   1    0    0        0 Aug 19 12:10 tools
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 ui
+drwxrwxrwx   1    0    0        0 Aug 06 17:47 umer_fs
+-rw-rw-rw-   1    0    0      720 Aug 07 13:04 UmerOS-GUI.spec
+drwxrwxrwx   1    0    0    16384 Aug 19 12:10 usr
+-rw-rw-rw-   1    0    0      676 Aug 14 13:13 uvicorn_logger.json
+drwxrwxrwx   1    0    0     4096 Aug 19 12:10 var
+-rw-rw-rw-   1    0    0      162 May 26 15:41 ~$x g.docx
+line1
+line2
+ALLUSERSPROFILE=C:\ProgramData
+APPDATA=C:\Users\MC Raja Jang\AppData\Roaming
+BIN=C:\src\flutter\bin
+CHOCOLATEYINSTALL=C:\ProgramData\chocolatey
+CHOCOLATEYLASTPATHUPDATE=134247857778852980
+CHROME_CRASHPAD_PIPE_NAME=\\.\pipe\crashpad_17424_VIHDWXODDQUEEDDD
+COMMONPROGRAMFILES=C:\Program Files\Common Files
+COMMONPROGRAMFILES(X86)=C:\Program Files (x86)\Common Files
+COMMONPROGRAMW6432=C:\Program Files\Common Files
+COMPUTERNAME=MCRAJAJANG
+COMSPEC=C:\Windows\system32\cmd.exe
+DRIVERDATA=C:\Windows\System32\Drivers\DriverData
+FPS_BROWSER_APP_PROFILE_STRING=Internet Explorer
+FPS_BROWSER_USER_PROFILE_STRING=Default
+HOMEDRIVE=C:
+HOMEPATH=\Users\MC Raja Jang
+LOCALAPPDATA=C:\Users\MC Raja Jang\AppData\Local
+LOGONSERVER=\\MCRAJAJANG
+NO_PROXY=127.0.0.1,localhost,::1
+NUMBER_OF_PROCESSORS=20
+ONEDRIVE=C:\Users\MC Raja Jang\OneDrive
+OPENCODE_CLIENT=desktop
+OPENCODE_DISABLE_EMBEDDED_WEB_UI=true
+OPENCODE_EXPERIMENTAL_FILEWATCHER=true
+OPENCODE_EXPERIMENTAL_ICON_DISCOVERY=true
+OPENCODE_SERVER_PASSWORD=1da39851-86d2-4bfc-aea4-e1184ef5c561
+OPENCODE_SERVER_USERNAME=opencode
+OS=Windows_NT
+PATH=C:\Program Files\PowerShell\7;C:\Program Files\Python314\Scripts\;C:\Program Files\Python314\;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\src\flutter\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\Microsoft SQL Server\170\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin;C:\ProgramData\chocolatey\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\ProgramData\AndroidCLI;C:\Program Files\Git\cmd;C:\Program Files\nodejs\;C:\Program Files\dotnet\;C:\Program Files\GitHub CLI\;C:\Program Files\Docker\Docker\resources\bin;C:\Android\Sdk;C:\Tools\NuGet;C:\Program Files\PowerShell\7\;C:\Users\MC Raja Jang\.minimax\bin;C:\Users\MC Raja Jang\AppData\Local\qwen-code\bin;C:\Users\MC Raja Jang\.kimi-code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\OpenAI\Codex\bin;C:\Users\MC Raja Jang\.local\bin;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\MC Raja Jang\AppData\Local\Microsoft\WindowsApps;C:\Users\MC Raja Jang\AppData\Local\Python\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Antigravity IDE\bin;C:\src\flutter\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Local\Programs\Ollama;C:\Users\MC Raja Jang\.lmstudio\bin;C:\Users\MC Raja Jang\AppData\Roaming\npm;C:\Users\MC Raja Jang\.dotnet\tools;C:\Users\MC Raja Jang\AppData\Local\cursor-agent;C:\Android\Sdk;C:\Users\MC Raja Jang\bin
+PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW;.CPL
+POWERSHELL_DISTRIBUTION_CHANNEL=MSI:Windows 10 Pro
+PROCESSOR_ARCHITECTURE=AMD64
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 191 Stepping 2, GenuineIntel
+PROCESSOR_LEVEL=6
+PROCESSOR_REVISION=bf02
+PROGRAMDATA=C:\ProgramData
+PROGRAMFILES=C:\Program Files
+PROGRAMFILES(X86)=C:\Program Files (x86)
+PROGRAMW6432=C:\Program Files
+PSMODULEPATH=C:\Users\MC Raja Jang\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules
+PUBLIC=C:\Users\Public
+SESSIONNAME=Console
+SYSTEMDRIVE=C:
+SYSTEMROOT=C:\Windows
+TEMP=C:\Users\MCRAJA~1\AppData\Local\Temp
+TMP=C:\Users\MCRAJA~1\AppData\Local\Temp
+USERDOMAIN=MCRAJAJANG
+USERDOMAIN_ROAMINGPROFILE=MCRAJAJANG
+USERNAME=MC Raja Jang
+USERPROFILE=C:\Users\MC Raja Jang
+WINDIR=C:\Windows
+XDG_STATE_HOME=C:\Users\MC Raja Jang\AppData\Roaming\ai.opencode.desktop
+ZES_ENABLE_SYSMAN=1
+C:\Program Files\PowerShell\7;C:\Program Files\Python314\Scripts\;C:\Program Files\Python314\;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\src\flutter\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\Microsoft SQL Server\170\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin;C:\ProgramData\chocolatey\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\ProgramData\AndroidCLI;C:\Program Files\Git\cmd;C:\Program Files\nodejs\;C:\Program Files\dotnet\;C:\Program Files\GitHub CLI\;C:\Program Files\Docker\Docker\resources\bin;C:\Android\Sdk;C:\Tools\NuGet;C:\Program Files\PowerShell\7\;C:\Users\MC Raja Jang\.minimax\bin;C:\Users\MC Raja Jang\AppData\Local\qwen-code\bin;C:\Users\MC Raja Jang\.kimi-code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\OpenAI\Codex\bin;C:\Users\MC Raja Jang\.local\bin;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\MC Raja Jang\AppData\Local\Microsoft\WindowsApps;C:\Users\MC Raja Jang\AppData\Local\Python\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Antigravity IDE\bin;C:\src\flutter\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Local\Programs\Ollama;C:\Users\MC Raja Jang\.lmstudio\bin;C:\Users\MC Raja Jang\AppData\Roaming\npm;C:\Users\MC Raja Jang\.dotnet\tools;C:\Users\MC Raja Jang\AppData\Local\cursor-agent;C:\Android\Sdk;C:\Users\MC Raja Jang\bin
+ALLUSERSPROFILE=C:\ProgramData
+APPDATA=C:\Users\MC Raja Jang\AppData\Roaming
+BIN=C:\src\flutter\bin
+CHOCOLATEYINSTALL=C:\ProgramData\chocolatey
+CHOCOLATEYLASTPATHUPDATE=134247857778852980
+CHROME_CRASHPAD_PIPE_NAME=\\.\pipe\crashpad_17424_VIHDWXODDQUEEDDD
+COMMONPROGRAMFILES=C:\Program Files\Common Files
+COMMONPROGRAMFILES(X86)=C:\Program Files (x86)\Common Files
+COMMONPROGRAMW6432=C:\Program Files\Common Files
+COMPUTERNAME=MCRAJAJANG
+COMSPEC=C:\Windows\system32\cmd.exe
+DRIVERDATA=C:\Windows\System32\Drivers\DriverData
+FPS_BROWSER_APP_PROFILE_STRING=Internet Explorer
+FPS_BROWSER_USER_PROFILE_STRING=Default
+HOMEDRIVE=C:
+HOMEPATH=\Users\MC Raja Jang
+LOCALAPPDATA=C:\Users\MC Raja Jang\AppData\Local
+LOGONSERVER=\\MCRAJAJANG
+NO_PROXY=127.0.0.1,localhost,::1
+NUMBER_OF_PROCESSORS=20
+ONEDRIVE=C:\Users\MC Raja Jang\OneDrive
+OPENCODE_CLIENT=desktop
+OPENCODE_DISABLE_EMBEDDED_WEB_UI=true
+OPENCODE_EXPERIMENTAL_FILEWATCHER=true
+OPENCODE_EXPERIMENTAL_ICON_DISCOVERY=true
+OPENCODE_SERVER_PASSWORD=1da39851-86d2-4bfc-aea4-e1184ef5c561
+OPENCODE_SERVER_USERNAME=opencode
+OS=Windows_NT
+PATH=C:\Program Files\PowerShell\7;C:\Program Files\Python314\Scripts\;C:\Program Files\Python314\;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\src\flutter\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\Microsoft SQL Server\170\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin;C:\ProgramData\chocolatey\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\ProgramData\AndroidCLI;C:\Program Files\Git\cmd;C:\Program Files\nodejs\;C:\Program Files\dotnet\;C:\Program Files\GitHub CLI\;C:\Program Files\Docker\Docker\resources\bin;C:\Android\Sdk;C:\Tools\NuGet;C:\Program Files\PowerShell\7\;C:\Users\MC Raja Jang\.minimax\bin;C:\Users\MC Raja Jang\AppData\Local\qwen-code\bin;C:\Users\MC Raja Jang\.kimi-code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\OpenAI\Codex\bin;C:\Users\MC Raja Jang\.local\bin;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\MC Raja Jang\AppData\Local\Microsoft\WindowsApps;C:\Users\MC Raja Jang\AppData\Local\Python\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Antigravity IDE\bin;C:\src\flutter\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Local\Programs\Ollama;C:\Users\MC Raja Jang\.lmstudio\bin;C:\Users\MC Raja Jang\AppData\Roaming\npm;C:\Users\MC Raja Jang\.dotnet\tools;C:\Users\MC Raja Jang\AppData\Local\cursor-agent;C:\Android\Sdk;C:\Users\MC Raja Jang\bin
+PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW;.CPL
+POWERSHELL_DISTRIBUTION_CHANNEL=MSI:Windows 10 Pro
+PROCESSOR_ARCHITECTURE=AMD64
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 191 Stepping 2, GenuineIntel
+PROCESSOR_LEVEL=6
+PROCESSOR_REVISION=bf02
+PROGRAMDATA=C:\ProgramData
+PROGRAMFILES=C:\Program Files
+PROGRAMFILES(X86)=C:\Program Files (x86)
+PROGRAMW6432=C:\Program Files
+PSMODULEPATH=C:\Users\MC Raja Jang\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules
+PUBLIC=C:\Users\Public
+SESSIONNAME=Console
+SYSTEMDRIVE=C:
+SYSTEMROOT=C:\Windows
+TEMP=C:\Users\MCRAJA~1\AppData\Local\Temp
+TMP=C:\Users\MCRAJA~1\AppData\Local\Temp
+USERDOMAIN=MCRAJAJANG
+USERDOMAIN_ROAMINGPROFILE=MCRAJAJANG
+USERNAME=MC Raja Jang
+USERPROFILE=C:\Users\MC Raja Jang
+WINDIR=C:\Windows
+XDG_STATE_HOME=C:\Users\MC Raja Jang\AppData\Roaming\ai.opencode.desktop
+ZES_ENABLE_SYSMAN=1
+C:\Program Files\PowerShell\7;C:\Program Files\Python314\Scripts\;C:\Program Files\Python314\;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\src\flutter\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\Microsoft SQL Server\170\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin;C:\ProgramData\chocolatey\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\ProgramData\AndroidCLI;C:\Program Files\Git\cmd;C:\Program Files\nodejs\;C:\Program Files\dotnet\;C:\Program Files\GitHub CLI\;C:\Program Files\Docker\Docker\resources\bin;C:\Android\Sdk;C:\Tools\NuGet;C:\Program Files\PowerShell\7\;C:\Users\MC Raja Jang\.minimax\bin;C:\Users\MC Raja Jang\AppData\Local\qwen-code\bin;C:\Users\MC Raja Jang\.kimi-code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\OpenAI\Codex\bin;C:\Users\MC Raja Jang\.local\bin;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\MC Raja Jang\AppData\Local\Microsoft\WindowsApps;C:\Users\MC Raja Jang\AppData\Local\Python\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Antigravity IDE\bin;C:\src\flutter\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Local\Programs\Ollama;C:\Users\MC Raja Jang\.lmstudio\bin;C:\Users\MC Raja Jang\AppData\Roaming\npm;C:\Users\MC Raja Jang\.dotnet\tools;C:\Users\MC Raja Jang\AppData\Local\cursor-agent;C:\Android\Sdk;C:\Users\MC Raja Jang\bin
+ALLUSERSPROFILE=C:\ProgramData
+APPDATA=C:\Users\MC Raja Jang\AppData\Roaming
+BIN=C:\src\flutter\bin
+CHOCOLATEYINSTALL=C:\ProgramData\chocolatey
+CHOCOLATEYLASTPATHUPDATE=134247857778852980
+CHROME_CRASHPAD_PIPE_NAME=\\.\pipe\crashpad_17424_VIHDWXODDQUEEDDD
+COMMONPROGRAMFILES=C:\Program Files\Common Files
+COMMONPROGRAMFILES(X86)=C:\Program Files (x86)\Common Files
+COMMONPROGRAMW6432=C:\Program Files\Common Files
+COMPUTERNAME=MCRAJAJANG
+COMSPEC=C:\Windows\system32\cmd.exe
+DRIVERDATA=C:\Windows\System32\Drivers\DriverData
+FPS_BROWSER_APP_PROFILE_STRING=Internet Explorer
+FPS_BROWSER_USER_PROFILE_STRING=Default
+HOMEDRIVE=C:
+HOMEPATH=\Users\MC Raja Jang
+LOCALAPPDATA=C:\Users\MC Raja Jang\AppData\Local
+LOGONSERVER=\\MCRAJAJANG
+NO_PROXY=127.0.0.1,localhost,::1
+NUMBER_OF_PROCESSORS=20
+ONEDRIVE=C:\Users\MC Raja Jang\OneDrive
+OPENCODE_CLIENT=desktop
+OPENCODE_DISABLE_EMBEDDED_WEB_UI=true
+OPENCODE_EXPERIMENTAL_FILEWATCHER=true
+OPENCODE_EXPERIMENTAL_ICON_DISCOVERY=true
+OPENCODE_SERVER_PASSWORD=1da39851-86d2-4bfc-aea4-e1184ef5c561
+OPENCODE_SERVER_USERNAME=opencode
+OS=Windows_NT
+PATH=C:\Program Files\PowerShell\7;C:\Program Files\Python314\Scripts\;C:\Program Files\Python314\;C:\Program Files\Common Files\Oracle\Java\javapath;C:\Program Files (x86)\Common Files\Oracle\Java\java8path;C:\Program Files (x86)\Common Files\Oracle\Java\javapath;C:\src\flutter\bin;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files\Microsoft SQL Server\170\Tools\Binn\;C:\Program Files\Microsoft SQL Server\Client SDK\ODBC\170\Tools\Binn\;C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin;C:\ProgramData\chocolatey\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\ProgramData\AndroidCLI;C:\Program Files\Git\cmd;C:\Program Files\nodejs\;C:\Program Files\dotnet\;C:\Program Files\GitHub CLI\;C:\Program Files\Docker\Docker\resources\bin;C:\Android\Sdk;C:\Tools\NuGet;C:\Program Files\PowerShell\7\;C:\Users\MC Raja Jang\.minimax\bin;C:\Users\MC Raja Jang\AppData\Local\qwen-code\bin;C:\Users\MC Raja Jang\.kimi-code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\OpenAI\Codex\bin;C:\Users\MC Raja Jang\.local\bin;C:\Program Files\MySQL\MySQL Shell 8.0\bin\;C:\Users\MC Raja Jang\AppData\Local\Microsoft\WindowsApps;C:\Users\MC Raja Jang\AppData\Local\Python\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\MC Raja Jang\AppData\Local\Programs\Antigravity IDE\bin;C:\src\flutter\bin;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\site-packages;C:\Users\MC Raja Jang\AppData\Roaming\Python\Python314\Scripts;C:\Users\MC Raja Jang\AppData\Local\Programs\Ollama;C:\Users\MC Raja Jang\.lmstudio\bin;C:\Users\MC Raja Jang\AppData\Roaming\npm;C:\Users\MC Raja Jang\.dotnet\tools;C:\Users\MC Raja Jang\AppData\Local\cursor-agent;C:\Android\Sdk;C:\Users\MC Raja Jang\bin
+PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW;.CPL
+POWERSHELL_DISTRIBUTION_CHANNEL=MSI:Windows 10 Pro
+PROCESSOR_ARCHITECTURE=AMD64
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 191 Stepping 2, GenuineIntel
+PROCESSOR_LEVEL=6
+PROCESSOR_REVISION=bf02
+PROGRAMDATA=C:\ProgramData
+PROGRAMFILES=C:\Program Files
+PROGRAMFILES(X86)=C:\Program Files (x86)
+PROGRAMW6432=C:\Program Files
+PSMODULEPATH=C:\Users\MC Raja Jang\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules
+PUBLIC=C:\Users\Public
+SESSIONNAME=Console
+SYSTEMDRIVE=C:
+SYSTEMROOT=C:\Windows
+TEMP=C:\Users\MCRAJA~1\AppData\Local\Temp
+TMP=C:\Users\MCRAJA~1\AppData\Local\Temp
+USERDOMAIN=MCRAJAJANG
+USERDOMAIN_ROAMINGPROFILE=MCRAJAJANG
+USERNAME=MC Raja Jang
+USERPROFILE=C:\Users\MC Raja Jang
+WINDIR=C:\Windows
+XDG_STATE_HOME=C:\Users\MC Raja Jang\AppData\Roaming\ai.opencode.desktop
+ZES_ENABLE_SYSMAN=1
+hello
+cpio - copy file archives in and out
+Usage: cpio [-o|-i|-t|-p] [-vdm] [files]
+  -o  Create archive (copy-out)
+  -i  Extract archive (copy-in)
+  -t  List archive contents
+  -p  Pass-through copy
+  -v  Verbose
+  -d  Create directories as needed
+  -m  Preserve modification time
+file1.txt
+dir/file2.txt
