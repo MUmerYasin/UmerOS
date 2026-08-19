@@ -158,3 +158,44 @@ class TarCommand:
             "  v    verbose output\n"
             "  -h, --help    display this help"
         )
+
+
+def _selftest() -> bool:
+    """Run self-tests for archive module."""
+    try:
+        import tempfile, os
+
+        tc = TarCommand()
+        # --help
+        assert tc.execute(["--help"]) == 0
+        # --version
+        assert tc.execute(["--version"]) == 0
+        # no-args returns 1 (missing operand)
+        assert tc.execute([]) == 1
+        # missing archive file
+        assert tc.execute(["cf"]) == 1
+
+        # Create and extract round-trip
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+            f.write("archive test content\n")
+            src = f.name
+        archive_path = src + ".tar"
+        try:
+            assert tc.execute(["cvf", archive_path, src]) == 0
+            assert os.path.exists(archive_path)
+            # List
+            assert tc.execute(["tvf", archive_path]) == 0
+            # Extract
+            os.unlink(src)
+            assert tc.execute(["xvf", archive_path]) == 0
+            assert os.path.exists(src)
+        finally:
+            for p in [src, archive_path]:
+                if os.path.exists(p):
+                    os.unlink(p)
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False

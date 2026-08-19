@@ -1147,9 +1147,9 @@ def _selftest() -> bool:
         with tempfile.NamedTemporaryFile(delete=False) as f:
             tmppath = f.name
         try:
-            assert cc.execute("755", [tmppath]) == 0
-            assert cc.execute("u+x", [tmppath]) == 0
-            assert cc.execute("644", [tmppath]) == 0
+            assert cc.execute(["755", tmppath]) == 0
+            assert cc.execute(["u+x", tmppath]) == 0
+            assert cc.execute(["644", tmppath]) == 0
         finally:
             os.unlink(tmppath)
 
@@ -1158,11 +1158,11 @@ def _selftest() -> bool:
         with tempfile.NamedTemporaryFile(delete=False) as f:
             tmppath2 = f.name
         try:
-            coc.execute("0:0", [tmppath2])
+            coc.execute(["0:0", tmppath2])
         except Exception:
             pass
         try:
-            assert coc.execute("nonexistent_user_xyz", [tmppath2]) == 1
+            assert coc.execute(["nonexistent_user_xyz", tmppath2]) == 1
         except (OSError, Exception):
             pass
 
@@ -1171,11 +1171,11 @@ def _selftest() -> bool:
         with tempfile.NamedTemporaryFile(delete=False) as f:
             tmppath3 = f.name
         try:
-            cgc.execute("0", [tmppath3])
+            cgc.execute(["0", tmppath3])
         except Exception:
             pass
         try:
-            assert cgc.execute("nonexistent_xyz", [tmppath3]) == 1
+            assert cgc.execute(["nonexistent_xyz", tmppath3]) == 1
         except Exception:
             pass
 

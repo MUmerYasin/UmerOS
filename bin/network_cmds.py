@@ -217,3 +217,47 @@ class ArpCommand:
             "  -n         numeric output\n"
             "  -h, --help display this help"
         )
+
+
+def _selftest() -> bool:
+    """Run self-tests for network_cmds module."""
+    try:
+        # IfconfigCommand
+        ic = IfconfigCommand()
+        assert ic.execute(["--help"]) == 0
+        assert ic.execute(["--version"]) == 0
+        assert ic.execute([]) == 0
+        assert ic.execute(["-a"]) == 0
+        assert ic.execute(["-s"]) == 0
+
+        # IpCommand
+        ipc = IpCommand()
+        assert ipc.execute(["--help"]) == 0
+        assert ipc.execute(["--version"]) == 0
+        assert ipc.execute([]) == 0
+        assert ipc.execute(["addr"]) == 0
+        assert ipc.execute(["link"]) == 0
+        assert ipc.execute(["route"]) == 0
+
+        # RouteCommand
+        rc = RouteCommand()
+        assert rc.execute(["--help"]) == 0
+        assert rc.execute(["--version"]) == 0
+        assert rc.execute([]) == 0
+        assert rc.execute(["-n"]) == 0
+        assert rc.execute(["add"]) == 0
+        assert rc.execute(["del"]) == 0
+
+        # ArpCommand
+        ac = ArpCommand()
+        assert ac.execute(["--help"]) == 0
+        assert ac.execute(["--version"]) == 0
+        assert ac.execute([]) == 0
+        assert ac.execute(["-a"]) == 0
+        assert ac.execute(["-n"]) == 0
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False

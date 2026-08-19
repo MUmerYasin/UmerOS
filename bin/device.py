@@ -100,3 +100,27 @@ class MknodCommand:
             "  -v, --verbose     explain what is being done\n"
             "  -h, --help        display this help"
         )
+
+
+def _selftest() -> bool:
+    """Run self-tests for device module."""
+    try:
+        mc = MknodCommand()
+        # --help
+        assert mc.execute(["--help"]) == 0
+        # --version
+        assert mc.execute(["--version"]) == 0
+        # no-args returns 1
+        assert mc.execute([]) == 1
+        # missing device type
+        assert mc.execute(["test_node"]) == 1
+        # invalid type
+        assert mc.execute(["test_node", "x"]) == 1
+        # missing device number for block
+        assert mc.execute(["test_node", "b"]) == 1
+
+        return True
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        print(f"_selftest FAILED: {e}")
+        return False
