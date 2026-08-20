@@ -1,23 +1,79 @@
 """
 UmerOS Boot System
 ===================
-Complete /boot filesystem implementation for UmerOS.
+Complete /boot filesystem implementation for UmerOS, covering the
+FHS 3.0 ``/boot`` requirements (ch03s05), the Linux/x86 boot
+protocol, the UAPI Boot Loader Specification (BLS, UAPI.1) and the
+Unified Kernel Image specification (UKI, UAPI.5).
 
-Modules:
-    - kernel_image: Kernel image management (vmlinuz, System.map, config)
-    - grub_manager: Complete GRUB2 configuration manager
-    - systemd_boot: systemd-boot loader manager
-    - efi_system: EFI System Partition, Secure Boot, NVRAM
-    - boot_params: Kernel command line and sysctl parameters
-    - microcode: CPU microcode update management
-    - boot_splash: Boot splash and framebuffer graphics
-    - crash_kernel: kdump/crash kernel for post-mortem debugging
+Modules
+-------
 
-Usage:
-    from umeros_boot import BootParamsManager, GRUBManager, EFISystemManager
+* :mod:`boot.kernel_image`  - kernel image management (vmlinuz, System.map, config)
+* :mod:`boot.grub_manager`  - complete GRUB2 configuration manager
+* :mod:`boot.systemd_boot`  - systemd-boot / BLS Type #1 entries
+* :mod:`boot.efi_system`   - EFI System Partition, Secure Boot, NVRAM
+* :mod:`boot.boot_params`   - kernel command line and sysctl parameters
+* :mod:`boot.microcode`     - CPU microcode update management
+* :mod:`boot.boot_splash`   - boot splash and framebuffer graphics
+* :mod:`boot.crash_kernel`  - kdump / crash kernel for post-mortem
+* :mod:`boot.bootloader`    - generic boot loader abstraction
+* :mod:`boot.boot_manager`  - top-level /boot manager
+* :mod:`boot.initrd_manager` - initramfs / initrd management
+* :mod:`boot.bzimage`       - Linux/x86 bzImage header parser
+* :mod:`boot.efi_stub`      - EFI stub / UKI (PE/COFF) detection
+* :mod:`boot.cmdline`       - kernel command line parser/builder
+* :mod:`boot.info`          - one-shot /boot summary
+* :mod:`boot.fhs`           - FHS 3.0 /boot audit
+* :mod:`boot.__main__`      - ``python -m boot`` CLI
+
+References
+----------
+
+* https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s05.html
+* https://uapi-group.org/specifications/specs/boot_loader_specification/
+* https://uapi-group.org/specifications/specs/unified_kernel_image/
+* https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html
+* Linux/Documentation/x86/boot.txt
+
+Quick start
+-----------
+
+::
+
+    from boot import (
+        KernelImageManager, GrubManager, SystemdBootManager,
+        BzImageInspector, EfiStubInspector, parse_cmdline,
+        boot_summary, FHSBootAuditor,
+    )
+
+    # What's installed?
+    s = boot_summary("/boot")
+    print(s.render_table())
+
+    # Parse the running kernel's bzImage header
+    bh = BzImageInspector("/boot").inspect("vmlinuz-6.8.0-umerOS")
+    print(bh.protocol_string())        # e.g. "2.0e"
+
+    # Audit FHS 3.0 conformance
+    audit = FHSBootAuditor("/boot").audit()
+    if not audit.ok:
+        for issue in audit.issues:
+            print(issue)
+
+    # Or use the CLI:
+    #   python -m boot selftest
+    #   python -m boot info /boot
+    #   python -m boot audit /boot
+    #   python -m boot bzimage /boot/vmlinuz-6.8.0-umerOS
+
+Author:  Umer OS Project
+Licence: Apache 2.0
 """
 
-__version__ = "1.0.0"
+from __future__ import annotations
+
+__version__ = "2.0.0"
 __author__ = "UmerOS Development Team"
 
 # Core imports
@@ -53,10 +109,13 @@ from .boot_params import (
     BootParamsManager,
 )
 from .microcode import (
+    CPUVendor,
+    MicrocodeSignificance,
+    MicrocodeUpdate,
+    CPUInfo,
+    MicrocodeParser,
     MicrocodeManager,
     MicrocodeInstaller,
-    MicrocodeVendor,
-    CPUInfo,
 )
 from .boot_splash import (
     PlymouthManager,
@@ -75,6 +134,35 @@ from .crash_kernel import (
     KdumpDumpTarget,
     KdumpServiceState,
 )
+from .bzimage import (
+    BzImageHeader,
+    BzImageInspector,
+    BzImageType,
+    HDRS_MAGIC,
+    parse_bzimage_header,
+)
+from .efi_stub import (
+    EfiImage,
+    EfiImageType,
+    EfiStubInspector,
+    UKI_SECTIONS,
+    parse_efi_image,
+)
+from .cmdline import (
+    CmdParam,
+    CmdParamKind,
+    CmdlineIssue,
+    KNOWN_KEYS,
+    PRESETS,
+    ParsedCmdline,
+    build_cmdline,
+    parse_cmdline,
+    preset,
+    validate,
+)
+from .info import BootSummary, boot_summary
+from .fhs import FHSBootAuditor, FHSIssue, FHSIssueSeverity, FHSReport
+
 
 __all__ = [
     # Version
@@ -107,10 +195,13 @@ __all__ = [
     "SysctlManager",
     "BootParamsManager",
     # microcode
+    "CPUVendor",
+    "MicrocodeSignificance",
+    "MicrocodeUpdate",
+    "CPUInfo",
+    "MicrocodeParser",
     "MicrocodeManager",
     "MicrocodeInstaller",
-    "MicrocodeVendor",
-    "CPUInfo",
     # boot_splash
     "PlymouthManager",
     "FramebufferManager",
@@ -126,4 +217,35 @@ __all__ = [
     "CrashKernelManager",
     "KdumpDumpTarget",
     "KdumpServiceState",
+    # bzimage
+    "BzImageHeader",
+    "BzImageInspector",
+    "BzImageType",
+    "HDRS_MAGIC",
+    "parse_bzimage_header",
+    # efi_stub
+    "EfiImage",
+    "EfiImageType",
+    "EfiStubInspector",
+    "UKI_SECTIONS",
+    "parse_efi_image",
+    # cmdline
+    "CmdParam",
+    "CmdParamKind",
+    "CmdlineIssue",
+    "KNOWN_KEYS",
+    "PRESETS",
+    "ParsedCmdline",
+    "build_cmdline",
+    "parse_cmdline",
+    "preset",
+    "validate",
+    # info
+    "BootSummary",
+    "boot_summary",
+    # fhs
+    "FHSBootAuditor",
+    "FHSIssue",
+    "FHSIssueSeverity",
+    "FHSReport",
 ]

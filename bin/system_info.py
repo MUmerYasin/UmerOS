@@ -440,6 +440,7 @@ class HostnameCommand:
 
     def execute(
         self,
+        args: Optional[List[str]] = None,
         new_name: Optional[str] = None,
         alias: bool = False,
         domain: bool = False,
@@ -450,6 +451,28 @@ class HostnameCommand:
     ) -> int:
         """Execute hostname command."""
         out = output or sys.stdout
+
+        if args is not None:
+            if "--help" in args:
+                print(self.__doc__)
+                return 0
+            if "--version" in args:
+                print("hostname (UmerOS coreutils) 1.0")
+                return 0
+            # Parse -a, -d, -f, -i, -s flags
+            for a in args:
+                if a in ("-a", "--alias"):
+                    alias = True
+                elif a in ("-d", "--domain"):
+                    domain = True
+                elif a in ("-f", "--fqdn", "--long"):
+                    fqdn = True
+                elif a in ("-i", "--ip-address"):
+                    ip_address = True
+                elif a in ("-s", "--short"):
+                    short = True
+                elif not a.startswith("-"):
+                    new_name = a
 
         if new_name:
             return self._set_hostname(new_name)
@@ -607,6 +630,7 @@ class DfCommand:
 
     def execute(
         self,
+        args: Optional[List[str]] = None,
         paths: Optional[List[str]] = None,
         human_readable: bool = False,
         show_inodes: bool = False,
@@ -618,6 +642,30 @@ class DfCommand:
         """Execute df command."""
         out = output or sys.stdout
         exit_code = 0
+
+        # Handle args list from CLI
+        if args is not None:
+            if "--help" in args:
+                print(self.__doc__ or "df - report file system disk space usage")
+                return 0
+            if "--version" in args:
+                print("df (UmerOS coreutils) 1.0")
+                return 0
+            for a in args:
+                if a in ("-h", "--human-readable"):
+                    human_readable = True
+                elif a in ("-i", "--inodes"):
+                    show_inodes = True
+                elif a in ("-T", "--print-type"):
+                    show_type = True
+                elif a in ("-k", "--kilobytes"):
+                    block_size = 1024
+                elif a.startswith("--exclude-type="):
+                    exclude_type = a.split("=", 1)[1]
+                elif not a.startswith("-"):
+                    if paths is None:
+                        paths = []
+                    paths.append(a)
 
         # Get filesystem information
         filesystems = self._get_filesystems()

@@ -540,7 +540,7 @@ class MvCommand:
         if sources is None or dest is None:
             parsed_flags, parsed_sources, parsed_dest = self._parse_args(args)
             if parsed_flags is None:
-                return 0
+                return 1
             flags = parsed_flags
             sources = parsed_sources
             dest = parsed_dest
@@ -1409,6 +1409,7 @@ class DdCommand:
 
     def execute(
         self,
+        args: Optional[List[str]] = None,
         if_file: Optional[str] = None,
         of_file: Optional[str] = None,
         bs: int = DEFAULT_BLOCK_SIZE,
@@ -1419,6 +1420,31 @@ class DdCommand:
     ) -> int:
         """Execute dd command."""
         out = output or sys.stderr
+
+        # Handle args list from CLI
+        if args is not None:
+            if "--help" in args:
+                print(self.__doc__)
+                return 0
+            if "--version" in args:
+                print("dd (UmerOS coreutils) 1.0")
+                return 0
+            if not args:
+                return 0
+            # Parse if=, of=, bs=, count=, skip=, seek= from args
+            for arg in args:
+                if arg.startswith("if="):
+                    if_file = arg[3:]
+                elif arg.startswith("of="):
+                    of_file = arg[3:]
+                elif arg.startswith("bs="):
+                    bs = int(arg[3:])
+                elif arg.startswith("count="):
+                    count = int(arg[6:])
+                elif arg.startswith("skip="):
+                    skip = int(arg[5:])
+                elif arg.startswith("seek="):
+                    seek = int(arg[5:])
 
         try:
             # Open input
@@ -1492,11 +1518,19 @@ class MoreCommand:
 
     def execute(
         self,
-        files: List[str],
+        files: Optional[List[str]] = None,
         lines_per_page: int = 24,
         output: Optional[IO[str]] = None,
     ) -> int:
         """Execute more command."""
+        if files is None:
+            files = []
+        if "--help" in files:
+            print(self.__doc__)
+            return 0
+        if "--version" in files:
+            print("more (UmerOS coreutils) 1.0")
+            return 0
         out = output or sys.stdout
         exit_code = 0
 

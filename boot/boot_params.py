@@ -869,3 +869,56 @@ class BootParamsManager:
             "sysctl": self.sysctl.status(),
             "config_dir": str(self._boot_config_dir),
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Round-trip the command line and sysctl managers."""
+    # 1. KernelCommandLine: parse, build, validate, preset.
+    kcl = KernelCommandLine()
+    parsed = kcl.parse("root=/dev/sda1 ro quiet console=ttyS0,115200")
+    if "root" not in parsed or parsed["root"].value != "/dev/sda1":
+        return False
+    rebuilt = kcl.build(parsed)
+    if "root=/dev/sda1" not in rebuilt or "quiet" not in rebuilt:
+        return False
+    errs = kcl.validate("ro quiet")
+    if not any("root" in e for e in errs):
+        return False
+    default_preset = kcl.get_preset("default")
+    if "root=" not in default_preset:
+        return False
+    s = kcl.status()
+    if s["total_params"] < 5:
+        return False
+
+    # 2. SysctlManager: list, set/get, apply profile.
+    sm = SysctlManager()
+    if not sm.list_params():
+        return False
+    sm.set("net.ipv4.tcp_syncookies", 1)
+    val = sm.get("net.ipv4.tcp_syncookies")
+    if val is None or val.value != 1:
+        return False
+    sm.apply_profile("secure")
+    text = sm.generate_config("99-test.conf")
+    if "net.ipv4.tcp_syncookies" not in text:
+        return False
+
+    # 3. BootParamsManager: full integration against a temp dir.
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        from pathlib import Path
+        cfg_dir = Path(tmp) / "etc" / "sysctl.d"
+        cfg_dir.mkdir(parents=True)
+        cfg_dir.joinpath("99-test.conf").write_text(
+            "net.ipv4.ip_forward = 1\n"
+        )
+        bpm = BootParamsManager(sysctl_config_dir=cfg_dir)
+        st = bpm.status()
+        if "config_dir" not in st:
+            return False
+    return True

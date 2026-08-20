@@ -494,3 +494,47 @@ class BootSplashManager:
             "plymouth": self.plymouth.status(),
             "framebuffer": self.framebuffer.status(),
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Round-trip the boot-splash managers against a temp /boot."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        from pathlib import Path
+        bd = Path(tmp) / "boot"
+        bd.mkdir()
+
+        # PlymouthManager: install a stub theme and verify status.
+        pm = PlymouthManager(theme_dir=bd / "plymouth" / "themes" / "umeros")
+        pm.theme_dir.mkdir(parents=True, exist_ok=True)
+        (pm.theme_dir / "umeros.plymouth").write_text(
+            "[Plymouth Theme]\nName=Umeros\nDescription=stub\n"
+        )
+        if not pm.install_theme():
+            return False
+        if not pm.set_active_theme("umeros"):
+            return False
+        st = pm.status()
+        if st["active_theme"] != "umeros":
+            return False
+
+        # FramebufferManager: configure a 1024x768x32 mode and read it back.
+        fb = FramebufferManager()
+        fb.set_mode(1024, 768, 32)
+        if fb.current_mode() is None:
+            return False
+
+        # BootSplashManager: full integration.
+        bsm = BootSplashManager(
+            technology=SplashTechnology.PLYMOUTH,
+            active_theme="umeros",
+        )
+        bsm.plymouth = pm
+        st = bsm.status()
+        if "plymouth" not in st:
+            return False
+    return True

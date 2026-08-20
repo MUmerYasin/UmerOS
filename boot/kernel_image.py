@@ -508,3 +508,44 @@ class KernelImageManager:
             config_path=config_path,
             set_as_default=True,
         )
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Round-trip the kernel image manager against a temp /boot.
+
+    Creates a sample kernel, registers it, lists versions, and checks
+    that the integrity verifier accepts the new image.
+    """
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        bd = Path(tmp)
+        mgr = KernelImageManager(bd)
+        ki = mgr.create_sample_kernel("6.8.0-umerOS", size_kb=8)
+        if ki.vmlinuz_size <= 0:
+            return False
+        if "6.8.0-umerOS" not in mgr.list_versions():
+            return False
+        if mgr.default_version != "6.8.0-umerOS":
+            return False
+        integrity = mgr.verify_integrity()
+        if not integrity.get("vmlinuz_exists"):
+            return False
+        # Register a second kernel and remove it.
+        mgr.create_sample_kernel("6.9.0-umerOS", size_kb=4)
+        if len(mgr.list_versions()) != 2:
+            return False
+        if not mgr.remove_kernel("6.9.0-umerOS"):
+            return False
+        if len(mgr.list_versions()) != 1:
+            return False
+        # set_default round-trip
+        if not mgr.set_default("6.8.0-umerOS"):
+            return False
+        cmd = mgr.get_cmdline_from_config()
+        if "root=" not in cmd:
+            return False
+    return True

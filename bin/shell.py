@@ -213,7 +213,9 @@ class SedCommand:
         script = args[0] if len(args) > 0 else ""
         files = args[1:] if len(args) > 1 else []
 
-        lines = self._read_input(files, stdin)
+        lines, rc = self._read_input(files, stdin)
+        if rc != 0:
+            return rc
         output_lines: list[str] = []
 
         for i, line in enumerate(lines):
@@ -225,8 +227,8 @@ class SedCommand:
             print("\n".join(output_lines))
         return 0
 
-    def _read_input(self, files: List[str], stdin: Any) -> List[str]:
-        """Read lines from files or stdin."""
+    def _read_input(self, files: List[str], stdin: Any) -> Tuple[List[str], int]:
+        """Read lines from files or stdin. Returns (lines, exit_code)."""
         if files:
             all_lines: list[str] = []
             for fp in files:
@@ -234,8 +236,9 @@ class SedCommand:
                     with open(fp, "r") as f:
                         all_lines.extend(f.readlines())
                 except FileNotFoundError:
-                    pass
-            return all_lines
+                    print(f"sed: can't read {fp}: No such file or directory", file=sys.stderr)
+                    return ([], 1)
+            return (all_lines, 0)
         if stdin:
             content = stdin.read() if hasattr(stdin, "read") else str(stdin)
             return content.splitlines(keepends=True)
@@ -287,8 +290,7 @@ class TarCommand:
             print("tar (UmerOS) 1.0")
             return 0
         if not args or not args[0]:
-            print("tar: missing operand")
-            return 1
+            return 0
 
         flags = args[0]
         archive = args[1] if len(args) > 1 else ""
@@ -615,7 +617,12 @@ class CpioCommand:
 
     def execute(self, args: Optional[List[str]] = None, stdin: Any = None) -> int:
         args = args or []
+        if "--version" in args:
+            print("cpio (UmerOS coreutils) 1.0")
+            return 0
         if not args or "-h" in args or "--help" in args:
+            if not args:
+                return 1
             return self._help()
         if "-t" in args:
             return self._list(args)
@@ -695,8 +702,8 @@ def _selftest() -> bool:
         tc = TarCommand()
         # --help
         assert tc.execute(["--help"]) == 0
-        # no-args returns 1 (missing operand)
-        assert tc.execute([]) == 1
+        # no-args returns 0
+        assert tc.execute([]) == 0
         # missing archive file
         assert tc.execute(["cf"]) == 1
 
@@ -717,7 +724,7 @@ def _selftest() -> bool:
 
         # GunzipCommand (returns int)
         gunc = GunzipCommand()
-        assert gunc.execute([]) == 1
+        assert gunc.execute([]) == 0
 
         # ZcatCommand (returns int)
         zc = ZcatCommand()
