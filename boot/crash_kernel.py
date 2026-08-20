@@ -507,3 +507,73 @@ class CrashKernelManager:
 
     def status(self) -> Dict[str, Any]:
         return self.get_status()
+
+
+# ── Self-test ──────────────────────────────────────────────────────────────
+
+def _selftest() -> List[str]:
+    """Validate crash_kernel module classes and functionality."""
+    errors: List[str] = []
+
+    try:
+        from boot.crash_kernel import (
+            CrashKernelManager,
+            KdumpConfig,
+            KdumpConfigManager,
+            VmcoreInfo,
+        )
+    except ImportError as exc:
+        errors.append(f"Import failed: {exc}")
+        return errors
+
+    # KdumpConfig dataclass
+    try:
+        cfg = KdumpConfig()
+        if cfg.enabled is not True:
+            errors.append("KdumpConfig.enabled should default to True")
+    except Exception as exc:
+        errors.append(f"KdumpConfig creation failed: {exc}")
+
+    # VmcoreInfo dataclass
+    try:
+        info = VmcoreInfo(
+            timestamp="2025-01-01T00:00:00",
+            size_bytes=1024,
+            path="/var/crash/vmcore",
+        )
+        if info.size_bytes != 1024:
+            errors.append("VmcoreInfo.size_bytes mismatch")
+        if info.path != "/var/crash/vmcore":
+            errors.append("VmcoreInfo.path mismatch")
+    except Exception as exc:
+        errors.append(f"VmcoreInfo creation failed: {exc}")
+
+    # CrashKernelManager
+    import tempfile, os
+    try:
+        tmp = tempfile.mkdtemp()
+        ckm = CrashKernelManager(base_path=tmp)
+        st = ckm.get_status()
+        if not isinstance(st, dict):
+            errors.append("CrashKernelManager.get_status() should return dict")
+        if "kdump_enabled" not in st:
+            errors.append("get_status() missing kdump_enabled key")
+    except Exception as exc:
+        errors.append(f"CrashKernelManager init/status failed: {exc}")
+    finally:
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # KdumpConfigManager
+    try:
+        tmp = tempfile.mkdtemp()
+        cfg_path = os.path.join(tmp, "kdump.conf")
+        kcm = KdumpConfigManager(config_path=cfg_path)
+        if not isinstance(kcm.config, KdumpConfig):
+            errors.append("KdumpConfigManager.config should be KdumpConfig")
+    except Exception as exc:
+        errors.append(f"KdumpConfigManager init failed: {exc}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    return errors

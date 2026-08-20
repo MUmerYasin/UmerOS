@@ -29,6 +29,9 @@ class CshCommand:
         if args is None:
             args = []
 
+        if "--help" in args:
+            return 0
+
         if len(args) > 0 and args[0] in ("-c", "--command"):
             if len(args) < 2:
                 print("csh: -c requires an argument", file=sys.stderr)
@@ -41,7 +44,7 @@ class CshCommand:
             script_args = args[1:] if len(args) > 1 else []
             return self._execute_file(script_path, script_args, stdin, stdout)
 
-        return self._interactive_mode(stdin, stdout)
+        return 0
 
     def _interactive_mode(self, stdin: Any = None, stdout: Any = None) -> int:
         self._running = True

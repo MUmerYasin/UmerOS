@@ -784,3 +784,65 @@ class GrubManager:
             "theme": self.theme.name if self.theme else None,
             "timeout": self.config.timeout,
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Run built-in self-test for grub_manager."""
+    import shutil
+    import tempfile
+
+    td = tempfile.mkdtemp(prefix="umeros_grub_test_")
+    try:
+        boot_dir = Path(td) / "boot"
+
+        # GrubEnv
+        env = GrubEnv(boot_dir / "grub" / "grubenv")
+        env.set("key1", "value1")
+        assert env.get("key1") == "value1"
+        env.delete("key1")
+        assert env.get("key1") is None
+
+        # GrubConfig defaults
+        cfg = GrubConfig()
+        assert cfg.timeout == 5
+        assert isinstance(cfg.menu_entries, list)
+
+        # GrubMenuEntry
+        entry = GrubMenuEntry(title="Linux", linux_path="/boot/vmlinuz")
+        assert entry.title == "Linux"
+        assert entry.linux_path == "/boot/vmlinuz"
+
+        # GrubModule
+        mod = GrubModule(name="normal", module_type="command")
+        assert mod.name == "normal"
+        assert mod.module_type == "command"
+
+        # GrubTheme
+        thm = GrubTheme(name="default")
+        assert thm.name == "default"
+
+        # GrubModuleManager
+        mm = GrubModuleManager(boot_dir / "grub")
+        mod2 = mm.load_module("normal")
+        assert mod2 is not None
+        assert mod2.loaded is True
+        loaded = mm.get_loaded()
+        assert "normal" in loaded
+
+        # GrubManager
+        mgr = GrubManager(boot_dir)
+        s = mgr.status()
+        assert "platform" in s
+        assert "timeout" in s
+
+        return True
+    except Exception as exc:  # noqa: BLE001
+        import sys
+        print(f"grub_manager selftest FAILED: {exc}", file=sys.stderr)
+        return False
+    finally:
+        shutil.rmtree(td, ignore_errors=True)

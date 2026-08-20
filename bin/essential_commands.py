@@ -196,7 +196,10 @@ class CatCommand:
         line_number = 0
 
         if not files:
-            self._cat_stream(sys.stdin, out, options, line_number)
+            try:
+                self._cat_stream(sys.stdin, out, options, line_number)
+            except builtins.OSError:
+                pass  # Windows: stdin may not support reading
             return 0
 
         for filepath in files:
@@ -537,6 +540,9 @@ class MvCommand:
         """
         if args is None:
             args = []
+        if "--help" in args:
+            print(self.usage)
+            return 0
         if sources is None or dest is None:
             parsed_flags, parsed_sources, parsed_dest = self._parse_args(args)
             if parsed_flags is None:

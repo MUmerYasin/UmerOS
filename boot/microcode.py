@@ -550,3 +550,75 @@ class MicrocodeInstaller:
     def get_grub_cmdline(self) -> str:
         """Get GRUB configuration for microcode loading."""
         return "initrd /boot/ucode.img /boot/initrd.img"
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Run built-in self-test for microcode."""
+    import shutil
+    import tempfile
+
+    td = tempfile.mkdtemp(prefix="umeros_ucode_test_")
+    try:
+        firmware_dir = Path(td) / "firmware"
+        initrd_dir = Path(td) / "initrd"
+        firmware_dir.mkdir()
+        initrd_dir.mkdir()
+
+        # CPUInfo
+        info = CPUInfo(
+            vendor=CPUVendor.INTEL,
+            family=6,
+            model=142,
+            stepping=10,
+            microcode_version="0xB4",
+            model_name="Test CPU",
+            flags=["sse4", "avx2"],
+        )
+        assert info.vendor == CPUVendor.INTEL
+        assert info.signature == (6 << 8) | (142 << 4) | 10
+        d = info.to_dict()
+        assert d["vendor"] == "intel"
+        assert d["flags_count"] == 2
+
+        # MicrocodeUpdate
+        update = MicrocodeUpdate(
+            vendor=CPUVendor.INTEL,
+            cpu_family=6,
+            cpu_model=142,
+            stepping=10,
+            microcode_version="0xB5",
+            date="2024-01-15",
+            signature=info.signature,
+            significance=MicrocodeSignificance.CRITICAL,
+            description="Security fix",
+            cve_fixes=["CVE-2024-0001"],
+        )
+        assert update.significance == MicrocodeSignificance.CRITICAL
+        assert "CVE-2024-0001" in update.cve_fixes
+
+        # MicrocodeManager
+        mgr = MicrocodeManager(firmware_dir, initrd_dir)
+        # scan_updates should not crash even with empty dirs
+        updates = mgr.scan_updates()
+        assert isinstance(updates, list)
+
+        # get_grub_cmdline
+        line = mgr.get_grub_cmdline()
+        assert "initrd" in line
+
+        # MicrocodeParser.compute_checksum
+        data = b"\x00" * 64
+        cs = MicrocodeParser.compute_checksum(data)
+        assert isinstance(cs, int)
+
+        return True
+    except Exception as exc:  # noqa: BLE001
+        import sys
+        print(f"microcode selftest FAILED: {exc}", file=sys.stderr)
+        return False
+    finally:
+        shutil.rmtree(td, ignore_errors=True)

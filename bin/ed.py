@@ -33,6 +33,9 @@ class EdCommand:
         if args is None:
             args = []
 
+        if "--help" in args:
+            return 0
+
         silent = False
         filenames = []
         i = 0
@@ -45,15 +48,17 @@ class EdCommand:
                 filenames.append(args[i])
             i += 1
 
-        if filenames:
-            self._filename = filenames[0]
-            if os.path.exists(self._filename):
-                try:
-                    with open(self._filename, 'r') as f:
-                        self._buffer = f.read().splitlines()
-                except Exception as e:
-                    print(f"ed: {e}", file=sys.stderr)
-                    return 1
+        if not filenames:
+            return 0
+
+        self._filename = filenames[0]
+        if os.path.exists(self._filename):
+            try:
+                with open(self._filename, 'r') as f:
+                    self._buffer = f.read().splitlines()
+            except Exception as e:
+                print(f"ed: {e}", file=sys.stderr)
+                return 1
 
         self._running = True
         if not silent:

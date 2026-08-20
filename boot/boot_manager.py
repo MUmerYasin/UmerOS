@@ -784,3 +784,52 @@ def reset_boot_manager() -> None:
     """Reset the singleton BootManager instance."""
     global _boot_manager_instance
     _boot_manager_instance = None
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Run built-in self-test for boot_manager."""
+    import shutil
+    import tempfile
+
+    td = tempfile.mkdtemp(prefix="umeros_bmgr_test_")
+    try:
+        boot_dir = Path(td) / "boot"
+        boot_dir.mkdir()
+
+        # BootEntry
+        entry = BootEntry(
+            kernel="vmlinuz-6.1",
+            initrd="initrd.img",
+            title="UmerOS 6.1",
+        )
+        assert entry.kernel == "vmlinuz-6.1"
+        assert entry.title == "UmerOS 6.1"
+
+        # BootManager
+        mgr = BootManager(boot_dir)
+        mgr.initialize()
+        s = mgr.status()
+        assert "boot_path" in s
+        assert "total_entries" in s
+
+        # register / list / remove
+        entry2 = mgr.register_entry(
+            kernel="vmlinuz-6.2",
+            initrd="initrd-6.2.img",
+            title="UmerOS 6.2",
+        )
+        assert entry2 is not None
+        entries = mgr.list_entries()
+        assert isinstance(entries, list)
+
+        return True
+    except Exception as exc:  # noqa: BLE001
+        import sys
+        print(f"boot_manager selftest FAILED: {exc}", file=sys.stderr)
+        return False
+    finally:
+        shutil.rmtree(td, ignore_errors=True)

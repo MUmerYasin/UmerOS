@@ -386,3 +386,69 @@ class SystemdBootManager:
             "total_entries": len(self._entries),
             "entries": list(self._entries.keys()),
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Run built-in self-test for systemd_boot."""
+    import shutil
+    import tempfile
+
+    td = tempfile.mkdtemp(prefix="umeros_sdb_test_")
+    try:
+        boot_dir = Path(td) / "boot"
+
+        # LoaderConfig
+        cfg = LoaderConfig()
+        assert cfg.default == "UmerOS.conf"
+        assert cfg.timeout == 5
+        conf_str = cfg.to_conf()
+        assert "default" in conf_str
+        assert "timeout" in conf_str
+
+        # LoaderConfig.from_conf
+        cfg2 = LoaderConfig.from_conf(conf_str)
+        assert cfg2.default == "UmerOS.conf"
+        assert cfg2.timeout == 5
+
+        # BootEntry
+        be = BootEntry(title="Linux 6.1", linux="/boot/vmlinuz-6.1")
+        assert be.title == "Linux 6.1"
+        assert be.linux == "/boot/vmlinuz-6.1"
+        conf = be.to_conf()
+        assert "title" in conf
+        assert "linux" in conf
+
+        # SystemdBootManager
+        mgr = SystemdBootManager(boot_dir)
+        s = mgr.status()
+        assert "loader_dir" in s
+        assert "total_entries" in s
+        assert s["timeout"] == 5
+
+        # add_entry / get_entry / list_entries
+        entry = mgr.add_entry(
+            title="UmerOS",
+            linux="/boot/vmlinuz",
+            filename="umeros.conf",
+        )
+        assert entry is not None
+        assert mgr.get_entry("umeros.conf") is not None
+        entries = mgr.list_entries()
+        assert "umeros.conf" in entries
+
+        # remove_entry
+        ok = mgr.remove_entry("umeros.conf")
+        assert ok is True
+        assert mgr.get_entry("umeros.conf") is None
+
+        return True
+    except Exception as exc:  # noqa: BLE001
+        import sys
+        print(f"systemd_boot selftest FAILED: {exc}", file=sys.stderr)
+        return False
+    finally:
+        shutil.rmtree(td, ignore_errors=True)

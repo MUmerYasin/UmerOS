@@ -241,8 +241,8 @@ class SedCommand:
             return (all_lines, 0)
         if stdin:
             content = stdin.read() if hasattr(stdin, "read") else str(stdin)
-            return content.splitlines(keepends=True)
-        return []
+            return (content.splitlines(keepends=True), 0)
+        return ([], 0)
 
     def _apply_script(self, script: str, line: str, line_num: int) -> Optional[str]:
         """Apply a sed script to a single line."""

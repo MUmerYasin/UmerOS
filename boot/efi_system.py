@@ -672,3 +672,56 @@ class EFISystemManager:
             },
             "secure_boot": sb_status,
         }
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Run built-in self-test for efi_system."""
+    import shutil
+    import tempfile
+
+    td = tempfile.mkdtemp(prefix="umeros_efi_test_")
+    try:
+        esp_path = Path(td) / "efi"
+
+        # EFISystemPartition
+        esp = EFISystemPartition(esp_path)
+        esp.initialize()
+        assert esp_path.exists()
+
+        # EFIBinary
+        binary = EFIBinary(
+            name="bootx64.efi",
+            path="/EFI/BOOT/BOOTX64.EFI",
+            architecture="x86_64",
+        )
+        assert binary.name == "bootx64.efi"
+        assert binary.architecture == "x86_64"
+
+        # NVRAMVariable
+        var = NVRAMVariable(name="BootOrder", var_type="uint16", value="0000")
+        assert var.name == "BootOrder"
+        assert var.var_type == "uint16"
+
+        # SecureBootKey
+        key = SecureBootKey(name="PK", kek="db", signature_type="RSA2048")
+        assert key.name == "PK"
+
+        # EFISystemManager
+        data_dir = Path(td) / "data"
+        mgr = EFISystemManager(esp_path, data_dir)
+        s = mgr.status()
+        assert "esp" in s
+        assert "nvram" in s
+        assert "secure_boot" in s
+
+        return True
+    except Exception as exc:  # noqa: BLE001
+        import sys
+        print(f"efi_system selftest FAILED: {exc}", file=sys.stderr)
+        return False
+    finally:
+        shutil.rmtree(td, ignore_errors=True)

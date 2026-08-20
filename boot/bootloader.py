@@ -293,3 +293,31 @@ def main(
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Run built-in self-test for bootloader."""
+    import shutil
+    import tempfile
+
+    td = tempfile.mkdtemp(prefix="umeros_bl_test_")
+    try:
+        # main() with no kernel_path should succeed (skip hash check)
+        rc = main()
+        assert rc == 0
+
+        # main() with non-existent kernel should fail
+        rc2 = main(kernel_path="/nonexistent/kernel", expected_hash="abc")
+        assert rc2 == 1
+
+        return True
+    except Exception as exc:  # noqa: BLE001
+        import sys
+        print(f"bootloader selftest FAILED: {exc}", file=sys.stderr)
+        return False
+    finally:
+        shutil.rmtree(td, ignore_errors=True)

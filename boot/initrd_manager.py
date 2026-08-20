@@ -615,3 +615,59 @@ def reset_initrd_manager() -> None:
     """Reset the singleton InitrdManager instance."""
     global _initrd_manager_instance
     _initrd_manager_instance = None
+
+
+# ---------------------------------------------------------------------------
+# Self-test
+# ---------------------------------------------------------------------------
+
+def _selftest() -> bool:
+    """Run built-in self-test for initrd_manager."""
+    import shutil
+    import tempfile
+
+    td = tempfile.mkdtemp(prefix="umeros_initrd_test_")
+    try:
+        boot_dir = Path(td) / "boot"
+        boot_dir.mkdir()
+
+        # InitrdImage dataclass
+        img = InitrdImage(
+            name="initrd.img",
+            path=str(boot_dir / "initrd.img"),
+            format=InitrdFormat.CPIO_GZ,
+        )
+        assert img.name == "initrd.img"
+        assert img.format == InitrdFormat.CPIO_GZ
+        assert img.purpose == InitrdPurpose.BOOT
+
+        # InitrdModule dataclass
+        mod = InitrdModule(name="ext4.ko", path="/lib/modules/ext4.ko")
+        assert mod.name == "ext4.ko"
+        assert isinstance(mod.dependencies, list)
+
+        # InitrdManager
+        mgr = InitrdManager(boot_dir)
+        ok = mgr.initialize()
+        assert ok is True
+        assert mgr._initialized is True
+
+        # register_image
+        (boot_dir / "initrd.img").write_bytes(b"\x00" * 64)
+        mgr2 = InitrdManager(boot_dir)
+        mgr2.initialize()
+        img2 = mgr2.register_image(
+            name="initrd-5.15.0.img",
+            path=str(boot_dir / "initrd.img"),
+        )
+        assert img2 is not None
+        assert img2.name == "initrd-5.15.0.img"
+        assert mgr2.get_image("initrd-5.15.0.img") is not None
+
+        return True
+    except Exception as exc:  # noqa: BLE001
+        import sys
+        print(f"initrd_manager selftest FAILED: {exc}", file=sys.stderr)
+        return False
+    finally:
+        shutil.rmtree(td, ignore_errors=True)

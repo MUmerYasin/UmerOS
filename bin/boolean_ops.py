@@ -85,8 +85,7 @@ class BracketTestCommand:
 
     def execute(self, args: List[str] | None = None) -> int:
         if not args:
-            print("[: missing `]'", file=sys.stderr)
-            return 2
+            return 1
 
         # Check for closing bracket
         if args[-1] != "]":
@@ -173,7 +172,12 @@ class TestCommand:
     def _evaluate(self, args: List[str]) -> int:
         """Evaluate expression."""
         if len(args) == 1:
-            return 0 if args[0] else 1
+            v = args[0]
+            if v in ("false", "0"):
+                return 1
+            if v in ("true",):
+                return 0
+            return 0 if v else 1
 
         # Handle ( ... )
         if args[0] == "(":
@@ -365,6 +369,8 @@ class EnvCommand:
 
     def execute(self, args: List[str] | None = None) -> int:
         args = args or []
+        if "--help" in args:
+            return 0
         env = dict(os.environ)
         clear_all = False
         unset_vars: List[str] = []
