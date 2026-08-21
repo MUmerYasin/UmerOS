@@ -57,6 +57,9 @@ Commands:
     bls [path]              Enumerate BLS Type #1 entries.
     uki [path]              Enumerate UKI (Type #2) images.
     kernels [path]          List installed kernels.
+    memtest                 Show memtest86+ information and status.
+    log                     Show boot log statistics and events.
+    signing                 Show Secure Boot and kernel signing status.
     help                    Print this help text.
 """
 
@@ -81,6 +84,9 @@ _SELFTEST_MODULES = (
     "boot.cmdline",
     "boot.info",
     "boot.fhs",
+    "boot.memtest",
+    "boot.boot_log",
+    "boot.kernel_signing",
 )
 
 
@@ -251,6 +257,59 @@ def _cmd_kernels(args: List[str]) -> int:
 
 
 # ---------------------------------------------------------------------------
+# memtest / log / signing
+# ---------------------------------------------------------------------------
+
+def _cmd_memtest(_args: List[str]) -> int:
+    from boot.memtest import MemtestDetector, MemtestManager
+    import json
+    detector = MemtestDetector()
+    binaries = detector.find_binaries()
+    print("Memtest86+ binaries found:", len(binaries))
+    for b in binaries:
+        print(f"  {b.name}  v{b.version}  {b.path}")
+    manager = MemtestManager()
+    status = manager.get_status()
+    print(json.dumps(status, indent=2))
+    return 0
+
+
+def _cmd_log(args: List[str]) -> int:
+    from boot.boot_log import BootLogger, BootAnalyzer
+    import json
+    logger = BootLogger()
+    stats = logger.get_stats()
+    print("Boot Log Statistics:")
+    print(json.dumps(stats.as_dict(), indent=2))
+    if stats.last_boot:
+        print(f"Last boot: {stats.last_boot.boot_id}  "
+              f"success={stats.last_boot.success}")
+    analyzer = BootAnalyzer(logger)
+    failures = analyzer.get_failure_summary()
+    if failures:
+        print("Failure summary:")
+        for k, v in failures.items():
+            print(f"  {k}: {v}")
+    return 0
+
+
+def _cmd_signing(_args: List[str]) -> int:
+    from boot.kernel_signing import SecureBootManager, KeyType
+    import json
+    sb = SecureBootManager()
+    info = sb.get_system_info()
+    print("Kernel Signing / Secure Boot:")
+    print(json.dumps(info, indent=2))
+    db_keys = sb.get_db_keys()
+    if db_keys:
+        print(f"DB keys: {len(db_keys)}")
+    pk = sb.get_pk()
+    if pk:
+        print(f"Platform Key: {pk.subject}")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Dispatcher
 # ---------------------------------------------------------------------------
 
@@ -265,6 +324,9 @@ _TABLE = {
     "bls":       _cmd_bls,
     "uki":       _cmd_uki,
     "kernels":   _cmd_kernels,
+    "memtest":   _cmd_memtest,
+    "log":       _cmd_log,
+    "signing":   _cmd_signing,
 }
 
 

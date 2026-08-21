@@ -26,6 +26,8 @@
 - `initrd/` = 17 early-boot modules (5k LOC, best baseline). 🔴 H91 eval(); H92 no cap gate boot ops; H93 cpio traversal; H94/H95/H96/H97.
 - `installer/` = 3 files. 🔴 H98 double UmerInstaller; H99 waiver fail-open; H101 rollback rmtree; H100/H102–H109.
 - `kernel/` = 40-file microkernel (~10k LOC). Two tiers: strong baseline cluster + off-baseline toy/REPL cluster. 🔴 H110 no-op placeholders → zero-trust/IPC/mem INERT (real modules commented out L1569-71); H111 dummy CryptoEngine.verify→True; H112 SecuritySandbox.register only prints. H113–H127 (sudo no auth, kill/shutdown ungated, cap lifecycle unwired, GUI Popen Tkinter, ipc try_receive skips HMAC, is_root bypass, cgroup implicit-allow, umer_kernel1 dep, Kivy drift, dead REPLs, import-time crypto, kivy req, udev RUN unimpl+0o666, panic taint ValueError).
+- `legal/` = 12-file compliance/consent package (92K) — implements licensing/consent/safety the §4.2/§4.3 mandate. 🔴 H128 license framework codifies **Apache-2.0 as primary, no GPL-3.0** (H7 lives here — resolve it in this folder); H129 license audit fail-open (any "License"/"Copyright" = compliant); H130 `get_license_text("GPL-3.0")` returns Apache-2.0 text. 🔴 H131 consent gate fails OPEN (non-TTY auto-grant) + H135 `cli.py consent` hardcodes "I AGREE". 🟡 H132 forgeable "crypto" consent token; H136 decorative DCO; H138 hardcoded PQC/PGP fingerprints; H139 soft/fail-open `safety_check`. 🟡/🔴 H140 broken `test_legal.py` Test 4 (name not in roster → test fails); H141 tests encode fail-open consent CLI. 💭 H137 real PII/IBANs hardcoded.
+- `lib/` = 33-source FHS `/lib` simulation (25 top-level + 8 `lostfound/`): shared-lib/ELF/dynamic-linker/kernel-module/fs-layout. **Best-disciplined folder in the study** (every module has full baseline; zero dangerous calls; `lostfound/fsck.py` fail-closed). 🔴 H3 `PASSWORD="password"` security.py:72 re-confirmed (latent). 🔴 H146 `ssl_libs.py:414-427` `_check_is_trusted` trusts on mere CA-bundle file presence + `check_trust` trusts any `is_ca` (trust fail-open, H17/H111 family). 🔴 H147 `ssl_libs.py:82-92` `is_expired`→False + `days_until_expiry`→365 (certs never expire). 💭 H148 `ssl_libs.py` "simplified" string-parse sim, no `cryptography` (needs `[EXPERIMENTAL]`). 🟡 H149 ~23 `lib/` files + README:138 Apache-2.0 — **largest Apache-2.0 cluster, H7**. 💭 H150 `security.py` registers `pam_permit.so` "Always permit" (low-risk fail-open trap).
 
 ## Known 🔴 security hotspots (fail-open / cap-gate / dummy-crypto family)
 - H1 live OpenRouter key `settings.local.json`.
@@ -52,8 +54,15 @@
 - **H110 kernel no-op placeholders → zero-trust/IPC/mem account INERT.**
 - **H111 kernel dummy CryptoEngine.verify → True.**
 - **H112 kernel SecuritySandbox.register only prints.**
+- **H128 legal license framework Apache-2.0 primary, no GPL-3.0 (H7 lives here).**
+- **H129 legal license audit fail-open (any "License"/"Copyright" = compliant).**
+- **H130 legal `get_license_text("GPL-3.0")` returns Apache-2.0 text.**
+- **H131 legal consent gate fails OPEN (non-TTY auto-grant).**
+- **H135 legal `cli.py consent` hardcodes "I AGREE" (auto-grants).**
+- **H146 lib `ssl_libs.py:414-427` `_check_is_trusted` returns True on mere CA-bundle file presence + `check_trust` trusts any `is_ca` (trust/verify fail-open, H17/H111/H129 family).**
+- **H147 lib `ssl_libs.py:82-92` `is_expired` always False + `days_until_expiry` hardcoded 365 (certificates never expire; expiry fail-open).**
 
 ## Project layout notes
 - ~735 active Python modules; `tests/` unittest/pytest split, NO CI test step; `security_scan.yml` only workflow.
 - `Old Linux Code/` (~93k files) reference-only, excluded from review.
-- **Cross-cutting remediation pass (offered 6×, NOT yet requested):** fix the fail-open / cap-gating / dummy-crypto family — H17/H27/H28/H29/H46/H51/H60/H64/H66/H73/H83/H91/H92/H93/H98/H99/H101/H110/H111/H112/H113/H115/H117. Awaits user go-ahead.
+- **Cross-cutting remediation pass (offered 8×, NOT yet requested):** fix the fail-open / cap-gating / dummy-crypto family — H17/H27/H28/H29/H46/H51/H60/H64/H66/H73/H83/H91/H92/H93/H98/H99/H101/H110/H111/H112/H113/H115/H117/**H128/H129/H130/H131/H135**/**H146/H147**. `lib/` adds 2 new 🔴 (SSL trust + expiry) to the family. Awaits user go-ahead.

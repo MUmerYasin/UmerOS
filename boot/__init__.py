@@ -25,6 +25,9 @@ Modules
 * :mod:`boot.cmdline`       - kernel command line parser/builder
 * :mod:`boot.info`          - one-shot /boot summary
 * :mod:`boot.fhs`           - FHS 3.0 /boot audit
+* :mod:`boot.memtest`       - Memtest86+ integration and result parsing
+* :mod:`boot.boot_log`      - Boot event logging and analytics
+* :mod:`boot.kernel_signing` - Secure Boot and UEFI kernel signing
 * :mod:`boot.__main__`      - ``python -m boot`` CLI
 
 References
@@ -162,6 +165,47 @@ from .cmdline import (
 )
 from .info import BootSummary, boot_summary
 from .fhs import FHSBootAuditor, FHSIssue, FHSIssueSeverity, FHSReport
+from .memtest import (
+    MemtestVersion,
+    MemtestStatus,
+    MemtestTestType,
+    MemoryErrorType,
+    MemtestConfig,
+    MemtestResult,
+    MemoryError,
+    MemtestBinary,
+    MemtestDetector,
+    MemtestCommandBuilder,
+    MemtestResultParser,
+    MemtestManager,
+)
+from .boot_log import (
+    BootLogLevel,
+    BootPhase,
+    BootEventType,
+    BootEvent,
+    BootSession,
+    BootStats,
+    BootLogger,
+    BootAnalyzer,
+)
+from .kernel_signing import (
+    SecureBootState as KernelSecureBootState,
+    SignatureStatus,
+    KeyType,
+    KeyAlgorithm,
+    SignatureFormat,
+    SigningKey,
+    Signature,
+    UKISection,
+    KernelSignatureInfo,
+    SigningConfig,
+    PEParser,
+    SignatureVerifier,
+    MOKManager,
+    SigningCommandBuilder,
+    SecureBootManager as KernelSecureBootManager,
+)
 
 
 __all__ = [
@@ -248,4 +292,42 @@ __all__ = [
     "FHSIssue",
     "FHSIssueSeverity",
     "FHSReport",
+    # memtest
+    "MemtestVersion",
+    "MemtestStatus",
+    "MemtestTestType",
+    "MemoryErrorType",
+    "MemtestConfig",
+    "MemtestResult",
+    "MemoryError",
+    "MemtestBinary",
+    "MemtestDetector",
+    "MemtestCommandBuilder",
+    "MemtestResultParser",
+    "MemtestManager",
+    # boot_log
+    "BootLogLevel",
+    "BootPhase",
+    "BootEventType",
+    "BootEvent",
+    "BootSession",
+    "BootStats",
+    "BootLogger",
+    "BootAnalyzer",
+    # kernel_signing
+    "KernelSecureBootState",
+    "SignatureStatus",
+    "KeyType",
+    "KeyAlgorithm",
+    "SignatureFormat",
+    "SigningKey",
+    "Signature",
+    "UKISection",
+    "KernelSignatureInfo",
+    "SigningConfig",
+    "PEParser",
+    "SignatureVerifier",
+    "MOKManager",
+    "SigningCommandBuilder",
+    "KernelSecureBootManager",
 ]

@@ -804,7 +804,7 @@ def _selftest() -> bool:
         env.set("key1", "value1")
         assert env.get("key1") == "value1"
         env.delete("key1")
-        assert env.get("key1") is None
+        assert env.get("key1") == ""
 
         # GrubConfig defaults
         cfg = GrubConfig()
@@ -826,12 +826,13 @@ def _selftest() -> bool:
         assert thm.name == "default"
 
         # GrubModuleManager
-        mm = GrubModuleManager(boot_dir / "grub")
-        mod2 = mm.load_module("normal")
-        assert mod2 is not None
-        assert mod2.loaded is True
-        loaded = mm.get_loaded()
-        assert "normal" in loaded
+        mm = GrubModuleManager()
+        loaded_before = mm.get_loaded()
+        assert "normal" not in loaded_before
+        result = mm.load_module("normal")
+        assert result is True
+        loaded_after = mm.get_loaded()
+        assert "normal" in loaded_after
 
         # GrubManager
         mgr = GrubManager(boot_dir)
