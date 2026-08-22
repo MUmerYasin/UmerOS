@@ -9,6 +9,14 @@
 
 #include "object.h"
 
+/* Forward declarations */
+typedef struct _frame PyFrameObject;
+typedef struct _codeobject PyCodeObject;
+typedef struct _threadstate PyThreadState;
+
+/* Global thread state - defined in object.c */
+extern PyThreadState _current_thread;
+
 #ifdef __cplusplus
 extern "C" {
 #endif

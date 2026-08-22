@@ -11,7 +11,7 @@ FHS 3.0:
   /var/tmp      — Temporary files preserved between reboots
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0
 """
 
 from __future__ import annotations
@@ -24,6 +24,10 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
+
+# [FIX H303] Shared guard that keeps caller-supplied names inside the
+# manager-owned root (defeats directory-traversal / cron-RCE, CWE-22).
+from ._path_guard import safe_child, PathTraversalError
 
 log = logging.getLogger("UmerOS.Var.DirectoryManager")
 
@@ -74,17 +78,27 @@ class VarDirectoryManager:
     def create_local_directory(self, name: str) -> bool:
         """Create a subdirectory in /var/local."""
         try:
-            target = self.local_path / name
+            # [FIX H303] contain the caller-supplied name inside /var/local.
+            target = safe_child(self.local_path, name)
             target.mkdir(parents=True, exist_ok=True)
             log.info("Created /var/local/%s", name)
             return True
+        except PathTraversalError as e:
+            # Refuse the traversal attempt; do NOT touch anything outside root.
+            log.error("Refused path-traversal in create_local_directory: %s", e)
+            return False
         except Exception as e:
             log.error("Failed to create /var/local/%s: %s", name, e)
             return False
 
     def remove_local_item(self, name: str) -> bool:
         """Remove an item from /var/local."""
-        target = self.local_path / name
+        try:
+            # [FIX H303] contain the caller-supplied name inside /var/local.
+            target = safe_child(self.local_path, name)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in remove_local_item: %s", e)
+            return False
         if not target.exists():
             return False
         try:
@@ -103,7 +117,12 @@ class VarDirectoryManager:
     def acquire_lock(self, name: str, pid: Optional[int] = None,
                      description: str = "") -> bool:
         """Create a lock file in /var/lock."""
-        lock_file = self.lock_path / name
+        try:
+            # [FIX H303] contain the caller-supplied name inside /var/lock.
+            lock_file = safe_child(self.lock_path, name)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in acquire_lock: %s", e)
+            return False
         try:
             self.lock_path.mkdir(parents=True, exist_ok=True)
             pid_str = str(pid or os.getpid())
@@ -120,7 +139,12 @@ class VarDirectoryManager:
 
     def release_lock(self, name: str) -> bool:
         """Release a lock file."""
-        lock_file = self.lock_path / name
+        try:
+            # [FIX H303] contain the caller-supplied name inside /var/lock.
+            lock_file = safe_child(self.lock_path, name)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in release_lock: %s", e)
+            return False
         if not lock_file.exists():
             return False
         try:
@@ -151,14 +175,22 @@ class VarDirectoryManager:
                             info.pid = int(line.split(":", 1)[1].strip())
                         elif line.startswith("Description:"):
                             info.description = line.split(":", 1)[1].strip()
-                except Exception:
-                    pass
+                except Exception as e:
+                    # [FIX H305] fail-closed: a malformed lock file is a
+                    # best-effort metadata parse, not a silent swallow.
+                    log.debug("Could not parse lock metadata: %s", e)
                 locks.append(info)
         return locks
 
     def check_lock(self, name: str) -> bool:
         """Check if a lock exists."""
-        return (self.lock_path / name).exists()
+        try:
+            # [FIX H303] contain the caller-supplied name inside /var/lock.
+            lock_file = safe_child(self.lock_path, name)
+        except PathTraversalError:
+            # A traversal attempt is never a valid existing lock.
+            return False
+        return lock_file.exists()
 
     # ── /var/opt ────────────────────────────────────────────────────────
 
@@ -181,10 +213,14 @@ class VarDirectoryManager:
     def create_opt_directory(self, name: str) -> bool:
         """Create a subdirectory in /var/opt."""
         try:
-            target = self.opt_path / name
+            # [FIX H303] contain the caller-supplied name inside /var/opt.
+            target = safe_child(self.opt_path, name)
             target.mkdir(parents=True, exist_ok=True)
             log.info("Created /var/opt/%s", name)
             return True
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in create_opt_directory: %s", e)
+            return False
         except Exception as e:
             log.error("Failed to create /var/opt/%s: %s", name, e)
             return False
@@ -209,7 +245,12 @@ class VarDirectoryManager:
 
     def create_pid_file(self, name: str, pid: Optional[int] = None) -> bool:
         """Create a PID file in /var/run."""
-        pid_file = self.run_path / name
+        try:
+            # [FIX H303] contain the caller-supplied name inside /var/run.
+            pid_file = safe_child(self.run_path, name)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in create_pid_file: %s", e)
+            return False
         try:
             self.run_path.mkdir(parents=True, exist_ok=True)
             pid_file.write_text(str(pid or os.getpid()), encoding="utf-8")
@@ -221,7 +262,11 @@ class VarDirectoryManager:
 
     def read_pid_file(self, name: str) -> Optional[int]:
         """Read a PID file."""
-        pid_file = self.run_path / name
+        try:
+            # [FIX H303] contain the caller-supplied name inside /var/run.
+            pid_file = safe_child(self.run_path, name)
+        except PathTraversalError:
+            return None
         if not pid_file.exists():
             return None
         try:
@@ -231,7 +276,12 @@ class VarDirectoryManager:
 
     def remove_pid_file(self, name: str) -> bool:
         """Remove a PID file."""
-        pid_file = self.run_path / name
+        try:
+            # [FIX H303] contain the caller-supplied name inside /var/run.
+            pid_file = safe_child(self.run_path, name)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in remove_pid_file: %s", e)
+            return False
         if not pid_file.exists():
             return False
         try:

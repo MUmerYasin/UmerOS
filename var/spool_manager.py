@@ -10,7 +10,7 @@ FHS 3.0:
   /var/spool/cups/ — CUPS print spool
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0
 """
 
 from __future__ import annotations
@@ -21,6 +21,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
+
+# [FIX H303] Guard against directory-traversal (cron-RCE, CWE-22).
+from ._path_guard import safe_child, PathTraversalError
 
 log = logging.getLogger("UmerOS.Var.SpoolManager")
 
@@ -60,7 +63,12 @@ class SpoolManager:
 
     def list_spool_items(self, directory: str) -> List[SpoolItem]:
         """List all items in a spool subdirectory."""
-        spool_dir = self.spool_path / directory
+        try:
+            # [FIX H303] contain the caller-supplied directory inside /var/spool.
+            spool_dir = safe_child(self.spool_path, directory)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in list_spool_items: %s", e)
+            return []
         if not spool_dir.exists():
             return []
         items = []
@@ -83,14 +91,24 @@ class SpoolManager:
 
     def read_mailbox(self, username: str) -> str:
         """Read a user's mailbox."""
-        mailbox = self.mail_path / username
+        try:
+            # [FIX H303] contain the caller-supplied username inside /var/spool/mail.
+            mailbox = safe_child(self.mail_path, username)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in read_mailbox: %s", e)
+            return ""
         if not mailbox.exists():
             return ""
         return mailbox.read_text(encoding="utf-8")
 
     def write_mailbox(self, username: str, message: str) -> bool:
         """Write to a user's mailbox."""
-        mailbox = self.mail_path / username
+        try:
+            # [FIX H303] contain the caller-supplied username inside /var/spool/mail.
+            mailbox = safe_child(self.mail_path, username)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in write_mailbox: %s", e)
+            return False
         try:
             mailbox.parent.mkdir(parents=True, exist_ok=True)
             with open(mailbox, "a", encoding="utf-8") as f:
@@ -102,7 +120,12 @@ class SpoolManager:
 
     def clear_mailbox(self, username: str) -> bool:
         """Clear a user's mailbox."""
-        mailbox = self.mail_path / username
+        try:
+            # [FIX H303] contain the caller-supplied username inside /var/spool/mail.
+            mailbox = safe_child(self.mail_path, username)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in clear_mailbox: %s", e)
+            return False
         if not mailbox.exists():
             return False
         try:
@@ -120,14 +143,30 @@ class SpoolManager:
 
     def get_cron_user(self, username: str) -> str:
         """Get cron jobs for a specific user."""
-        cron_file = self.cron_path / username
+        try:
+            # [FIX H303] contain the caller-supplied username inside /var/spool/cron.
+            cron_file = safe_child(self.cron_path, username)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in get_cron_user: %s", e)
+            return ""
         if not cron_file.exists():
             return ""
         return cron_file.read_text(encoding="utf-8")
 
     def set_cron_user(self, username: str, jobs: str) -> bool:
-        """Set cron jobs for a user."""
-        cron_file = self.cron_path / username
+        """Set cron jobs for a user.
+
+        SECURITY (H303): ``username`` is now contained to /var/spool/cron.
+        Previously ``set_cron_user("../../etc/cron.d/x", jobs)`` would let a
+        caller plant a root-executed cron job — a direct privilege-escalation
+        (cron RCE). The guard makes that attempt raise and be refused.
+        """
+        try:
+            # [FIX H303] contain the caller-supplied username inside /var/spool/cron.
+            cron_file = safe_child(self.cron_path, username)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in set_cron_user: %s", e)
+            return False
         try:
             cron_file.parent.mkdir(parents=True, exist_ok=True)
             cron_file.write_text(jobs + "\n", encoding="utf-8")
@@ -148,7 +187,12 @@ class SpoolManager:
 
     def cleanup_old_items(self, directory: str, max_age_days: int = 30) -> int:
         """Remove items older than max_age_days from a spool directory."""
-        spool_dir = self.spool_path / directory
+        try:
+            # [FIX H303] contain the caller-supplied directory inside /var/spool.
+            spool_dir = safe_child(self.spool_path, directory)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in cleanup_old_items: %s", e)
+            return 0
         if not spool_dir.exists():
             return 0
         cutoff = time.time() - (max_age_days * 86400)

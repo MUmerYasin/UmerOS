@@ -37,9 +37,13 @@ typedef size_t  PyObjectHash;
 #define Py_XINCREF(op)            if (op) Py_INCREF(op)
 #define Py_XDECREF(op)            if (op) Py_DECREF(op)
 
-/* Forward declaration */
+/* Forward declarations */
 typedef struct _object PyObject;
 typedef struct _typeobject PyTypeObject;
+typedef struct _varobject PyVarObject;
+typedef struct _codeobject PyCodeObject;
+typedef struct _frame PyFrameObject;
+typedef struct _threadstate PyThreadState;
 
 /* ==================== TYPE FLAGS ==================== */
 
@@ -65,10 +69,57 @@ struct _object {
     PyObject_HEAD;
 };
 
+/* ==================== VAR OBJECT ==================== */
+
+struct _varobject {
+    PyObject ob_base;
+    Py_ssize_t ob_size;
+};
+
+/* ==================== CODE OBJECT ==================== */
+
+struct _codeobject {
+    PyObject ob_base;
+    uint8_t *code;
+    Py_ssize_t code_size;
+    PyObject **consts;
+    Py_ssize_t n_consts;
+    char **names;
+    Py_ssize_t n_names;
+    const char *filename;
+    const char *name;
+    int argcount;
+    int flags;
+};
+
+/* ==================== FRAME OBJECT ==================== */
+
+struct _frame {
+    PyObject ob_base;
+    PyCodeObject *f_code;
+    PyObject *f_globals;
+    PyObject *f_locals;
+    struct _frame *f_back;
+    Py_ssize_t f_lasti;
+    Py_ssize_t f_block_top;
+    PyObject **f_stacktop;
+};
+
+/* ==================== THREAD STATE ==================== */
+
+struct _threadstate {
+    PyFrameObject *frame;
+    Py_ssize_t recursion_depth;
+    int pending;
+    PyObject *exc_type;
+    PyObject *exc_value;
+    PyObject *exc_traceback;
+};
+
 /* ==================== TYPE OBJECT ==================== */
 
 struct _typeobject {
-    PyObject_HEAD
+    PyObject_HEAD;
     const char *tp_name;
     Py_ssize_t tp_basicsize;
     Py_ssize_t tp_itemsize;
@@ -224,6 +275,7 @@ PyObject* PyCFunction_NewEx(PyMethodDef *method, PyObject *self, PyObject *modul
 PyObject* PyObject_RichCompare(PyObject *v, PyObject *w, int op);
 int       PyObject_IsTrue(PyObject *v);
 int       PyObject_Not(PyObject *v);
+int       PyObject_Compare(PyObject *a, PyObject *b);
 
 /* ==================== CONVERSION ==================== */
 
@@ -255,10 +307,35 @@ PyObject*  PySequence_GetItem(PyObject *s, Py_ssize_t i);
 
 long    PyLong_AsLong(PyObject *obj);
 double  PyFloat_AsDouble(PyObject *obj);
+int     PyBool_AsLong(PyObject *obj);
 
 /* ==================== STRING REPR ==================== */
 
 const char* PyUnicode_AsString(PyObject *obj);
+PyObject*   PyUnicode_FromString(const char *u);
+PyObject*   PyUnicode_FromFormat(const char *fmt, ...);
+
+/* ==================== LIST PROTOCOL ==================== */
+
+PyObject*  PyList_New(Py_ssize_t size);
+Py_ssize_t PyList_Size(PyObject *list);
+PyObject*  PyList_GetItem(PyObject *list, Py_ssize_t i);
+int        PyList_Append(PyObject *list, PyObject *item);
+
+/* ==================== TUPLE PROTOCOL ==================== */
+
+PyObject*  PyTuple_New(Py_ssize_t size);
+Py_ssize_t PyTuple_Size(PyObject *tuple);
+PyObject*  PyTuple_GetItem(PyObject *tuple, Py_ssize_t i);
+
+/* ==================== DICT PROTOCOL ==================== */
+
+int        PyDict_SetItem(PyObject *dict, PyObject *key, PyObject *value);
+int        PyDict_SetItemString(PyObject *dict, const char *key, PyObject *value);
+PyObject*  PyDict_GetItemString(PyObject *dict, const char *key);
+PyObject*  PyDict_Keys(PyObject *dict);
+Py_ssize_t PyDict_Size(PyObject *dict);
+int        PyDict_Next(PyObject *dict, Py_ssize_t *pos, PyObject **key, PyObject **value);
 
 /* ==================== NEEDED FORWARD DECS ==================== */
 

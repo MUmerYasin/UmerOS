@@ -10,8 +10,6 @@
  */
 
 #include "../Include/umeros_python.h"
-#include "../Include/pycode.h"
-#include "../Include/pyvm.h"
 
 /* ==================== VM INTERNAL STACK ==================== */
 
@@ -271,7 +269,7 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
             case OP_BINARY_POWER: {
                 PyObject *right = Stack_Pop(stack);
                 PyObject *left = Stack_Pop(stack);
-                PyObject *result = PyNumber_Power(left, right, Py_None);
+                PyObject *result = PyNumber_Power(left, right);
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
                 Stack_Push(stack, result); Py_DECREF(result);

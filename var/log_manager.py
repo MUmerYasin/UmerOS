@@ -10,7 +10,7 @@ FHS 3.0:
   /var/log/dmesg  — Kernel ring buffer log
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0
 """
 
 from __future__ import annotations
@@ -22,6 +22,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+
+# [FIX H303] Guard against directory-traversal / arbitrary-append (CWE-22).
+from ._path_guard import safe_child, PathTraversalError
 
 log = logging.getLogger("UmerOS.Var.LogManager")
 
@@ -56,11 +59,24 @@ class LogManager:
 
     def write_log(self, filename: str, message: str, level: str = "info",
                   facility: str = "user") -> bool:
-        """Write an entry to a log file."""
-        log_file = self.log_path / filename
+        """Write an entry to a log file.
+
+        SECURITY (H303): ``filename`` is now contained to /var/log. Previously
+        ``write_log("../../etc/cron.d/x", payload)`` allowed arbitrary file
+        append outside the log directory. The guard refuses such attempts.
+        """
+        try:
+            # [FIX H303] contain the caller-supplied filename inside /var/log.
+            log_file = safe_child(self.log_path, filename)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in write_log: %s", e)
+            return False
         timestamp = datetime.now().strftime("%b %d %H:%M:%S")
         entry = f"{timestamp} {facility}[{os.getpid()}]: {message}"
         try:
+            # Ensure the log directory exists (robustness: write_log must not
+            # fail merely because /var/log was not pre-created).
+            self.log_path.mkdir(parents=True, exist_ok=True)
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(entry + "\n")
             return True
@@ -81,7 +97,12 @@ class LogManager:
 
     def read_log(self, filename: str, lines: int = 100) -> List[str]:
         """Read the last N lines from a log file."""
-        log_file = self.log_path / filename
+        try:
+            # [FIX H303] contain the caller-supplied filename inside /var/log.
+            log_file = safe_child(self.log_path, filename)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in read_log: %s", e)
+            return []
         if not log_file.exists():
             return []
         try:
@@ -124,7 +145,12 @@ class LogManager:
 
     def rotate_log(self, filename: str, max_size: int = 10 * 1024 * 1024) -> bool:
         """Rotate a log file if it exceeds max_size."""
-        log_file = self.log_path / filename
+        try:
+            # [FIX H303] contain the caller-supplied filename inside /var/log.
+            log_file = safe_child(self.log_path, filename)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in rotate_log: %s", e)
+            return False
         if not log_file.exists():
             return False
         if log_file.stat().st_size < max_size:
@@ -161,7 +187,12 @@ class LogManager:
 
     def get_log_stats(self, filename: str) -> Dict:
         """Get statistics for a log file."""
-        log_file = self.log_path / filename
+        try:
+            # [FIX H303] contain the caller-supplied filename inside /var/log.
+            log_file = safe_child(self.log_path, filename)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in get_log_stats: %s", e)
+            return {"exists": False}
         if not log_file.exists():
             return {"exists": False}
         lines = self.read_log(filename, lines=10000)
@@ -175,7 +206,12 @@ class LogManager:
     def search_logs(self, filename: str, pattern: str, max_results: int = 100) -> List[str]:
         """Search for pattern in a log file."""
         results = []
-        log_file = self.log_path / filename
+        try:
+            # [FIX H303] contain the caller-supplied filename inside /var/log.
+            log_file = safe_child(self.log_path, filename)
+        except PathTraversalError as e:
+            log.error("Refused path-traversal in search_logs: %s", e)
+            return []
         if not log_file.exists():
             return []
         for line in log_file.read_text(encoding="utf-8").splitlines():

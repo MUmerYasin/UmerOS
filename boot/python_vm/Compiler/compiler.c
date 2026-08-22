@@ -352,19 +352,19 @@ static int Parser_NextToken(Parser *parser) {
             if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_PERCENTEQUAL; }
             return TOKEN_PERCENT;
         case '=':
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_EQ; }
-            return TOKEN_EQUAL;
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_EQEQ; }
+            return TOKEN_EQ;
         case '!':
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_NOTEQUAL; }
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_NOTEQ; }
             return TOKEN_ERROR;
         case '<':
-            if (Lexer_Peek(parser->lexer) == '<') { Lexer_Advance(parser->lexer); return TOKEN_LEFTSHIFT; }
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_LESSEQUAL; }
-            return TOKEN_LESS;
+            if (Lexer_Peek(parser->lexer) == '<') { Lexer_Advance(parser->lexer); return TOKEN_LSHIFT; }
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_LE; }
+            return TOKEN_LT;
         case '>':
-            if (Lexer_Peek(parser->lexer) == '>') { Lexer_Advance(parser->lexer); return TOKEN_RIGHTSHIFT; }
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_GREATEREQUAL; }
-            return TOKEN_GREATER;
+            if (Lexer_Peek(parser->lexer) == '>') { Lexer_Advance(parser->lexer); return TOKEN_RSHIFT; }
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_GE; }
+            return TOKEN_GT;
         case '\n': return TOKEN_NL;
         default: return TOKEN_ERROR;
     }

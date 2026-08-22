@@ -39,15 +39,6 @@ typedef enum {
     OP_HAVE_ARGUMENT = 90
 } Opcode;
 
-/* ==================== COMPARE OPS ==================== */
-
-#define CMP_LT 0
-#define CMP_LE 1
-#define CMP_EQ 2
-#define CMP_NE 3
-#define CMP_GT 4
-#define CMP_GE 5
-
 /* ==================== CODE OBJECT FUNCTIONS ==================== */
 
 PyCodeObject* PyCode_New(uint8_t *code, Py_ssize_t code_size,

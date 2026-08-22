@@ -57,6 +57,7 @@ static PyObject* builtin_print(PyObject *self, PyObject *args, PyObject *kwargs)
     }
 
     fputs(end, stdout);
+    Py_INCREF(Py_None);
     return Py_None;
 }
 
@@ -231,8 +232,7 @@ static PyObject* builtin_min(PyObject *self, PyObject *args) {
     for (Py_ssize_t i = 1; i < nargs; i++) {
         PyObject *item = PyList_GetItem(args, i);
         if (item == NULL) return NULL;
-        if (Py_TYPE(result)->tp_compare &&
-            Py_TYPE(result)->tp_compare(result, item) > 0) {
+        if (PyObject_Compare(result, item) > 0) {
             result = item;
         }
     }
@@ -257,8 +257,7 @@ static PyObject* builtin_max(PyObject *self, PyObject *args) {
     for (Py_ssize_t i = 1; i < nargs; i++) {
         PyObject *item = PyList_GetItem(args, i);
         if (item == NULL) return NULL;
-        if (Py_TYPE(result)->tp_compare &&
-            Py_TYPE(result)->tp_compare(result, item) < 0) {
+        if (PyObject_Compare(result, item) < 0) {
             result = item;
         }
     }
