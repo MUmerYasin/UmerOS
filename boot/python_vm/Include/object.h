@@ -1,9 +1,8 @@
 /*
  * object.h - UmerOS Python Object System
  *
- * Core types: PyObject, PyVarObject, PyTypeObject,
- * PyThreadState, PyFrameObject, PyCodeObject.
- * This is the FOUNDATION header - all others depend on it.
+ * The foundation of the entire Python VM.
+ * Every value is a PyObject. Types are objects too.
  */
 
 #ifndef UMEROS_OBJECT_H
@@ -11,283 +10,270 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* ==================== TYPEDEFS ==================== */
+/* ==================== BASIC TYPES ==================== */
 
-typedef intptr_t Py_ssize_t;
+typedef int64_t Py_ssize_t;
+typedef size_t  PyObjectHash;
+
+/* Type tag used during debugging */
+#define PyObject_HEAD             \
+    Py_ssize_t ob_refcnt;        \
+    struct _typeobject *ob_type
+
+#define PyObject_HEAD_INIT(type)  \
+    1, (type)
+
+#define Py_REFCNT(op)             ((op)->ob_refcnt)
+#define Py_TYPE(op)               ((op)->ob_type)
+#define Py_SIZE(op)               (0) /* stub */
+
+#define Py_INCREF(op)             ((op)->ob_refcnt++)
+#define Py_DECREF(op)             do { if (--(op)->ob_refcnt == 0) Py_Dealloc(op); } while(0)
+#define Py_XINCREF(op)            if (op) Py_INCREF(op)
+#define Py_XDECREF(op)            if (op) Py_DECREF(op)
+
+/* Forward declaration */
 typedef struct _object PyObject;
 typedef struct _typeobject PyTypeObject;
-typedef struct _codeobject PyCodeObject;
-typedef struct _frameobject PyFrameObject;
-typedef struct _threadstate PyThreadState;
 
-/* ==================== BASE OBJECT ==================== */
+/* ==================== TYPE FLAGS ==================== */
+
+#define Py_TPFLAGS_DEFAULT       (1UL << 0)
+#define Py_TPFLAGS_BASETYPE      (1UL << 1)
+#define Py_TPFLAGS_HAVE_GC       (1UL << 2)
+#define Py_TPFLAGS_NUMBER        (1UL << 3)
+#define Py_TPFLAGS_SEQUENCE      (1UL << 4)
+#define Py_TPFLAGS_MAPPING       (1UL << 5)
+#define Py_TPFLAGS_IMMUTABLETYPE (1UL << 6)
+#define Py_TPFLAGS_UNICODE_SUBCLASS  (1UL << 7)
+#define Py_TPFLAGS_LONG_SUBCLASS     (1UL << 8)
+#define Py_TPFLAGS_LIST_SUBCLASS     (1UL << 9)
+#define Py_TPFLAGS_TUPLE_SUBCLASS    (1UL << 10)
+#define Py_TPFLAGS_DICT_SUBCLASS     (1UL << 11)
+#define Py_TPFLAGS_BYTES_SUBCLASS    (1UL << 12)
+#define Py_TPFLAGS_FLOAT_SUBCLASS    (1UL << 13)
+#define Py_TPFLAGS_BOOL_SUBCLASS     (1UL << 14)
+
+/* ==================== OBJECT STRUCTURE ==================== */
 
 struct _object {
-    Py_ssize_t ob_refcnt;
-    PyTypeObject *ob_type;
+    PyObject_HEAD;
 };
-
-#define PyObject_HEAD     PyObject ob_base
-#define PyObject_HEAD_INIT(type)  { 1, (type) }
-
-/* ==================== VARIABLE-SIZE OBJECT ==================== */
-
-typedef struct {
-    PyObject ob_base;
-    Py_ssize_t ob_size;
-} PyVarObject;
-
-#define PyVarObject_HEAD(type, size)  { { 1, (type) }, (size) }
 
 /* ==================== TYPE OBJECT ==================== */
 
 struct _typeobject {
-    PyObject ob_base;
-
+    PyObject_HEAD
     const char *tp_name;
     Py_ssize_t tp_basicsize;
     Py_ssize_t tp_itemsize;
 
-    void (*tp_dealloc)(PyObject *);
-    PyObject *(*tp_getattr)(PyObject *, const char *);
-    int (*tp_setattr)(PyObject *, const char *, PyObject *);
+    /* Construction / destruction */
+    PyObject* (*tp_new)(PyTypeObject *type, PyObject *args, PyObject *kwargs);
+    void      (*tp_dealloc)(PyObject *self);
 
-    PyObject *(*tp_repr)(PyObject *);
-    PyObject *(*tp_str)(PyObject *);
+    /* String representations */
+    PyObject* (*tp_repr)(PyObject *self);
+    PyObject* (*tp_str)(PyObject *self);
 
-    /* Numeric */
-    PyObject *(*tp_add)(PyObject *, PyObject *);
-    PyObject *(*tp_subtract)(PyObject *, PyObject *);
-    PyObject *(*tp_multiply)(PyObject *, PyObject *);
-    PyObject *(*tp_divide)(PyObject *, PyObject *);
-    PyObject *(*tp_modulo)(PyObject *, PyObject *);
-    PyObject *(*tp_neg)(PyObject *);
-    PyObject *(*tp_pos)(PyObject *);
-    PyObject *(*tp_abs)(PyObject *);
-    int (*tp_bool)(PyObject *);
+    /* Rich comparison */
+    PyObject* (*tp_richcompare)(PyObject *self, PyObject *other, int op);
 
-    int (*tp_compare)(PyObject *, PyObject *);
-    long (*tp_hash)(PyObject *);
-    PyObject *(*tp_call)(PyObject *, PyObject *, PyObject *);
+    /* Hash and bool */
+    PyObjectHash (*tp_hash)(PyObject *self);
+    int       (*tp_bool)(PyObject *self);
 
-    uint64_t tp_flags;
-    const char *tp_doc;
+    /* Number protocol */
+    PyObject* (*tp_add)(PyObject *a, PyObject *b);
+    PyObject* (*tp_subtract)(PyObject *a, PyObject *b);
+    PyObject* (*tp_multiply)(PyObject *a, PyObject *b);
+    PyObject* (*tp_true_divide)(PyObject *a, PyObject *b);
+    PyObject* (*tp_floor_divide)(PyObject *a, PyObject *b);
+    PyObject* (*tp_remainder)(PyObject *a, PyObject *b);
+    PyObject* (*tp_power)(PyObject *a, PyObject *b);
+    PyObject* (*tp_negative)(PyObject *self);
+    PyObject* (*tp_positive)(PyObject *self);
+    PyObject* (*tp_absolute)(PyObject *self);
+    PyObject* (*tp_and)(PyObject *a, PyObject *b);
+    PyObject* (*tp_xor)(PyObject *a, PyObject *b);
+    PyObject* (*tp_or)(PyObject *a, PyObject *b);
+    PyObject* (*tp_lshift)(PyObject *a, PyObject *b);
+    PyObject* (*tp_rshift)(PyObject *a, PyObject *b);
+
+    /* Sequence protocol */
+    Py_ssize_t (*tp_length)(PyObject *self);
+    PyObject* (*tp_concat)(PyObject *self, PyObject *other);
+    PyObject* (*tp_repeat)(PyObject *self, Py_ssize_t n);
+    PyObject* (*tp_item)(PyObject *self, Py_ssize_t index);
+
+    /* Attribute access */
+    PyObject* (*tp_getattro)(PyObject *self, PyObject *name);
+    int       (*tp_setattro)(PyObject *self, PyObject *name, PyObject *value);
+
+    /* Call protocol */
+    PyObject* (*tp_call)(PyObject *self, PyObject *args, PyObject *kwargs);
+
+    /* Base type */
+    PyTypeObject *tp_base;
+
+    /* Flags */
+    uint32_t tp_flags;
 };
 
-/* Type flags */
-#define TPFLAGS_DEFAULT 0
-
-/* ==================== REFERENCE COUNTING ==================== */
-
-static inline void Py_INCREF(PyObject *op) {
-    op->ob_refcnt++;
-}
-
-static inline void Py_DECREF(PyObject *op) {
-    if (op && --op->ob_refcnt == 0) {
-        if (op->ob_type && op->ob_type->tp_dealloc) {
-            op->ob_type->tp_dealloc(op);
-        }
-    }
-}
-
-static inline void Py_XDECREF(PyObject *op) {
-    if (op) {
-        Py_DECREF(op);
-    }
-}
-
-/* ==================== TYPE CHECKS ==================== */
-
-#define Py_TYPE(op) ((op)->ob_type)
-
-/* ==================== THREAD STATE ==================== */
-
-struct _threadstate {
-    PyObject *exc_type;
-    PyObject *exc_value;
-    PyObject *exc_traceback;
-    int pending;
-    int recursion_depth;
-    int recursion_limit;
-    PyFrameObject *frame;
-};
-
-extern PyThreadState _current_thread;
-
-PyThreadState* PyThreadState_Get(void);
-
-/* ==================== FRAME OBJECT ==================== */
-
-struct _frameobject {
-    PyObject ob_base;
-
-    PyCodeObject *f_code;
-    PyObject *f_globals;
-    PyObject *f_locals;
-
-    PyObject **f_stack;
-    PyObject **f_stacktop;
-
-    int f_lasti;
-    int f_block_top;
-
-    PyFrameObject *f_back;
-};
-
-PyFrameObject* PyFrame_New(PyCodeObject *code, PyObject *globals, PyObject *locals);
-void PyFrame_Free(PyFrameObject *frame);
-PyObject* PyFrame_GetLocal(PyFrameObject *frame, const char *name);
-void PyFrame_SetLocal(PyFrameObject *frame, const char *name, PyObject *value);
-PyObject* PyFrame_GetGlobal(PyFrameObject *frame, const char *name);
-
-/* Thread frame management */
-void PyThreadState_PushFrame(PyThreadState *tstate, PyFrameObject *frame);
-PyFrameObject* PyThreadState_PopFrame(PyThreadState *tstate);
-
-/* ==================== CODE OBJECT ==================== */
-
-struct _codeobject {
-    PyObject ob_base;
-
-    uint8_t *code;
-    Py_ssize_t code_size;
-
-    PyObject **consts;
-    Py_ssize_t n_consts;
-
-    PyObject **names;
-    Py_ssize_t n_names;
-
-    const char *filename;
-    const char *name;
-    int argcount;
-    int flags;
-};
-
-PyCodeObject* PyCode_New(uint8_t *code, Py_ssize_t code_size,
-                         PyObject **consts, Py_ssize_t n_consts);
-void PyCode_Free(PyCodeObject *code);
-
-/* ==================== DICT ==================== */
-
-PyObject* PyDict_New(void);
-int PyDict_SetItem(PyObject *dict, PyObject *key, PyObject *value);
-PyObject* PyDict_GetItem(PyObject *dict, PyObject *key);
-int PyDict_SetItemString(PyObject *dict, const char *key, PyObject *value);
-PyObject* PyDict_GetItemString(PyObject *dict, const char *key);
-
-/* ==================== LIST ==================== */
-
-PyObject* PyList_New(Py_ssize_t size);
-Py_ssize_t PyList_Size(PyObject *list);
-PyObject* PyList_GetItem(PyObject *list, Py_ssize_t index);
-int PyList_SetItem(PyObject *list, Py_ssize_t index, PyObject *value);
-
-/* ==================== TUPLE ==================== */
-
-PyObject* PyTuple_New(Py_ssize_t size);
-Py_ssize_t PyTuple_Size(PyObject *tuple);
-PyObject* PyTuple_GetItem(PyObject *tuple, Py_ssize_t index);
-int PyTuple_SetItem(PyObject *tuple, Py_ssize_t index, PyObject *value);
-
-/* ==================== LONG ==================== */
-
-PyObject* PyLong_FromLong(long value);
-long PyLong_AsLong(PyObject *obj);
-
-/* ==================== FLOAT ==================== */
-
-PyObject* PyFloat_FromDouble(double value);
-double PyFloat_AsDouble(PyObject *obj);
-
-/* ==================== UNICODE (STRING) ==================== */
-
-PyObject* PyUnicode_FromString(const char *str);
-PyObject* PyUnicode_FromStringAndSize(const char *str, Py_ssize_t size);
-const char* PyUnicode_AsString(PyObject *obj);
-const char* PyUnicode_AsStringAndSize(PyObject *obj, Py_ssize_t *size);
-Py_ssize_t PyUnicode_GetSize(PyObject *obj);
-PyObject* PyUnicode_FromFormat(const char *format, ...);
-
-static inline int PyUnicode_Check(PyObject *op) {
-    return op && op->ob_type && op->ob_type->tp_str != NULL;
-}
-
-/* ==================== BOOL ==================== */
-
-extern PyObject *Py_True;
-extern PyObject *Py_False;
-extern PyObject *Py_None;
-
-PyObject* PyBool_FromLong(long value);
-
-static inline int PyBool_Check(PyObject *op) {
-    return (op == Py_True || op == Py_False);
-}
-
-/* ==================== NONE ==================== */
-
-static inline int Py_None_Check(PyObject *op) {
-    return op == Py_None;
-}
-
-/* ==================== NUMBER OPERATIONS ==================== */
-
-PyObject* PyNumber_Add(PyObject *left, PyObject *right);
-PyObject* PyNumber_Subtract(PyObject *left, PyObject *right);
-PyObject* PyNumber_Multiply(PyObject *left, PyObject *right);
-PyObject* PyNumber_TrueDivide(PyObject *left, PyObject *right);
-PyObject* PyNumber_FloorDivide(PyObject *left, PyObject *right);
-PyObject* PyNumber_Remainder(PyObject *left, PyObject *right);
-PyObject* PyNumber_Power(PyObject *base, PyObject *exp, PyObject *mod);
-PyObject* PyNumber_Negative(PyObject *op);
-PyObject* PyNumber_Positive(PyObject *op);
-PyObject* PyNumber_Absolute(PyObject *op);
-
-/* ==================== OBJECT GENERIC ==================== */
-
-PyObject* PyObject_Str(PyObject *op);
-PyObject* PyObject_Repr(PyObject *op);
-int PyObject_IsTrue(PyObject *op);
-Py_ssize_t PyObject_Hash(PyObject *op);
-int PyObject_Compare(PyObject *a, PyObject *b);
-PyObject* PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs);
-PyObject* PyObject_GetAttr(PyObject *op, PyObject *name);
-int PyObject_SetAttr(PyObject *op, PyObject *name, PyObject *value);
-int PyCallable_Check(PyObject *op);
-
-/* ==================== TYPE ==================== */
-
-int PyType_Ready(PyTypeObject *type);
-int PyType_IsSubtype(PyTypeObject *a, PyTypeObject *b);
-
-/* ==================== OBJECT ALLOCATION ==================== */
+/* ==================== ALLOCATION ==================== */
 
 PyObject* PyObject_New(PyTypeObject *type);
-PyObject* PyObject_NewVar(PyTypeObject *type, Py_ssize_t size);
-void PyObject_Free(PyObject *op);
+void      Py_Dealloc(PyObject *self);
+void      PyObject_Print(PyObject *self);
 
-/* ==================== SEQUENCE ==================== */
+/* ==================== TYPE CHECKING ==================== */
 
-Py_ssize_t PySequence_Size(PyObject *seq);
-PyObject* PySequence_GetItem(PyObject *seq, Py_ssize_t i);
-int PySequence_Contains(PyObject *seq, PyObject *item);
+static inline int PyType_IsSubtype(PyTypeObject *a, PyTypeObject *b) {
+    while (a) {
+        if (a == b) return 1;
+        a = a->tp_base;
+    }
+    return 0;
+}
 
-/* ==================== ITERATOR ==================== */
+#define PyObject_TypeCheck(op, tp) \
+    (Py_TYPE(op) == (tp) || PyType_IsSubtype(Py_TYPE(op), (tp)))
 
-int PyIter_Check(PyObject *op);
-PyObject* PyIter_Next(PyObject *iter);
+/* Type-specific check macros (static inline to avoid duplicate symbols) */
+static inline int PyLong_Check(PyObject *op) {
+    return op && op->ob_type && (op->ob_type->tp_flags & Py_TPFLAGS_LONG_SUBCLASS);
+}
 
-/* ==================== IMPORT ==================== */
+static inline int PyFloat_Check(PyObject *op) {
+    return op && op->ob_type && (op->ob_type->tp_flags & Py_TPFLAGS_FLOAT_SUBCLASS);
+}
 
-PyObject* PyImport_ImportModule(const char *name);
+static inline int PyUnicode_Check(PyObject *op) {
+    return op && op->ob_type && (op->ob_type->tp_flags & Py_TPFLAGS_UNICODE_SUBCLASS);
+}
+
+static inline int PyBool_Check(PyObject *op) {
+    return op && op->ob_type && (op->ob_type->tp_flags & Py_TPFLAGS_BOOL_SUBCLASS);
+}
+
+static inline int PyList_Check(PyObject *op) {
+    return op && op->ob_type && (op->ob_type->tp_flags & Py_TPFLAGS_LIST_SUBCLASS);
+}
+
+static inline int PyTuple_Check(PyObject *op) {
+    return op && op->ob_type && (op->ob_type->tp_flags & Py_TPFLAGS_TUPLE_SUBCLASS);
+}
+
+static inline int PyDict_Check(PyObject *op) {
+    return op && op->ob_type && (op->ob_type->tp_flags & Py_TPFLAGS_DICT_SUBCLASS);
+}
+
+static inline int Py_None_Check(PyObject *op) {
+    extern PyTypeObject PyNone_Type;
+    return op && op->ob_type == &PyNone_Type;
+}
+
+static inline int PyCallable_Check(PyObject *op) {
+    return op && op->ob_type && op->ob_type->tp_call;
+}
+
+static inline int Py_IsTrue(PyObject *op) {
+    extern PyObject *Py_True;
+    return op == Py_True;
+}
+
+static inline int Py_IsFalse(PyObject *op) {
+    extern PyObject *Py_False;
+    return op == Py_False;
+}
+
+static inline int Py_IS_SUBCLASS(PyObject *derived, PyObject *base) {
+    if (!derived || !base) return 0;
+    return PyType_IsSubtype((PyTypeObject *)derived, (PyTypeObject *)base);
+}
+
+/* ==================== C FUNCTION TYPE ==================== */
+
+typedef PyObject* (*PyCFunction)(PyObject *self, PyObject *args);
+typedef PyObject* (*PyCFunctionWithKeywords)(PyObject *self, PyObject *args, PyObject *kwargs);
+
+typedef struct {
+    PyCFunction ml_meth;
+    int         ml_flags;
+    const char *ml_name;
+} PyMethodDef;
+
+#define PyCFunction_New(method, self) PyCFunction_NewEx(method, self, NULL)
+PyObject* PyCFunction_NewEx(PyMethodDef *method, PyObject *self, PyObject *module);
+
+/* ==================== COMPARISON ==================== */
+
+#define Py_LT 0
+#define Py_LE 1
+#define Py_EQ 2
+#define Py_NE 3
+#define Py_GT 4
+#define Py_GE 5
+#define Py_Is(a, b) ((a) == (b))
+
+PyObject* PyObject_RichCompare(PyObject *v, PyObject *w, int op);
+int       PyObject_IsTrue(PyObject *v);
+int       PyObject_Not(PyObject *v);
+
+/* ==================== CONVERSION ==================== */
+
+PyObject* PyNumber_Long(PyObject *o);
+PyObject* PyNumber_Float(PyObject *o);
+PyObject* PyNumber_Index(PyObject *o);
+
+/* ==================== NUMBER PROTOCOL ==================== */
+
+PyObject* PyNumber_Add(PyObject *v, PyObject *w);
+PyObject* PyNumber_Subtract(PyObject *v, PyObject *w);
+PyObject* PyNumber_Multiply(PyObject *v, PyObject *w);
+PyObject* PyNumber_TrueDivide(PyObject *v, PyObject *w);
+PyObject* PyNumber_FloorDivide(PyObject *v, PyObject *w);
+PyObject* PyNumber_Remainder(PyObject *v, PyObject *w);
+PyObject* PyNumber_Power(PyObject *v, PyObject *w);
+PyObject* PyNumber_Negative(PyObject *v);
+PyObject* PyNumber_Positive(PyObject *v);
+PyObject* PyNumber_Absolute(PyObject *v);
+
+/* ==================== SEQUENCE PROTOCOL ==================== */
+
+Py_ssize_t PyObject_Length(PyObject *o);
+PyObject*  PySequence_Concat(PyObject *s, PyObject *o);
+PyObject*  PySequence_Repeat(PyObject *o, Py_ssize_t count);
+PyObject*  PySequence_GetItem(PyObject *s, Py_ssize_t i);
+
+/* ==================== TYPE-SPECIFIC GETTERS ==================== */
+
+long    PyLong_AsLong(PyObject *obj);
+double  PyFloat_AsDouble(PyObject *obj);
+
+/* ==================== STRING REPR ==================== */
+
+const char* PyUnicode_AsString(PyObject *obj);
+
+/* ==================== NEEDED FORWARD DECS ==================== */
+
+PyTypeObject* PyType_FromSpec(const char *name, PyTypeObject *base);
+
+/* Known type objects */
+extern PyTypeObject PyLong_Type;
+extern PyTypeObject PyFloat_Type;
+extern PyTypeObject PyUnicode_Type;
+extern PyTypeObject PyBool_Type;
+extern PyTypeObject PyList_Type;
+extern PyTypeObject PyTuple_Type;
+extern PyTypeObject PyDict_Type;
+extern PyTypeObject PyNone_Type;
+extern PyTypeObject PyFunction_Type;
 
 #ifdef __cplusplus
 }

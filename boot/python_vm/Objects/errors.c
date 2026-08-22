@@ -1,175 +1,115 @@
 /*
- * errors.c - UmerOS Python Error System
+ * errors.c - UmerOS Python Error Handling
+ *
+ * Implementation of exception types and error indicators.
+ * Singleton values (Py_None, Py_True, Py_False) are in their type files.
  */
 
-#include "../Include/umeros_python.h"
+#include "pyerrors.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <stdlib.h>
 
-/* Exception type objects */
-typedef struct {
-    PyObject ob_base;
-    PyObject *args;
-    PyObject *cause;
-    PyObject *traceback;
-    char *message;
-} PyExceptionObject;
+/* ==================== GLOBAL EXCEPTIONS ==================== */
 
-/* Base exception type */
-static PyTypeObject PyBaseException_Type;
+static PyObject _exc_base_exception       = { 1, NULL };
+static PyObject _exc_exception            = { 1, NULL };
+static PyObject _exc_stop_iteration       = { 1, NULL };
+static PyObject _exc_error                = { 1, NULL };
+static PyObject _exc_value_error          = { 1, NULL };
+static PyObject _exc_type_error           = { 1, NULL };
+static PyObject _exc_runtime_error        = { 1, NULL };
+static PyObject _exc_name_error           = { 1, NULL };
+static PyObject _exc_key_error            = { 1, NULL };
+static PyObject _exc_index_error          = { 1, NULL };
+static PyObject _exc_attribute_error      = { 1, NULL };
+static PyObject _exc_zero_division_error  = { 1, NULL };
+static PyObject _exc_memory_error         = { 1, NULL };
+static PyObject _exc_overflow_error       = { 1, NULL };
+static PyObject _exc_syntax_error         = { 1, NULL };
+static PyObject _exc_import_error         = { 1, NULL };
+static PyObject _exc_recursion_error      = { 1, NULL };
+static PyObject _exc_not_implemented_error = { 1, NULL };
 
-/* Exception type objects */
-static PyObject _PyExc_BaseException_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_Exception_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_StopIteration_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_TypeError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_ValueError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_IndexError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_KeyError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_NameError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_AttributeError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_RuntimeError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_SyntaxError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_ImportError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_MemoryError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_ZeroDivisionError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_OSError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_IOError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_FileNotFoundError_struct = { .ob_refcnt = 1, .ob_type = NULL };
-static PyObject _PyExc_OverflowError_struct = { .ob_refcnt = 1, .ob_type = NULL };
+PyObject *PyExc_BaseException     = &_exc_base_exception;
+PyObject *PyExc_Exception         = &_exc_exception;
+PyObject *PyExc_StopIteration     = &_exc_stop_iteration;
+PyObject *PyExc_Error             = &_exc_error;
+PyObject *PyExc_ValueError        = &_exc_value_error;
+PyObject *PyExc_TypeError         = &_exc_type_error;
+PyObject *PyExc_RuntimeError      = &_exc_runtime_error;
+PyObject *PyExc_NameError         = &_exc_name_error;
+PyObject *PyExc_KeyError          = &_exc_key_error;
+PyObject *PyExc_IndexError        = &_exc_index_error;
+PyObject *PyExc_AttributeError    = &_exc_attribute_error;
+PyObject *PyExc_ZeroDivisionError = &_exc_zero_division_error;
+PyObject *PyExc_MemoryError       = &_exc_memory_error;
+PyObject *PyExc_OverflowError     = &_exc_overflow_error;
+PyObject *PyExc_SyntaxError       = &_exc_syntax_error;
+PyObject *PyExc_ImportError       = &_exc_import_error;
+PyObject *PyExc_RecursionError    = &_exc_recursion_error;
+PyObject *PyExc_NotImplementedError = &_exc_not_implemented_error;
 
-PyObject *PyExc_BaseException = &_PyExc_BaseException_struct;
-PyObject *PyExc_Exception = &_PyExc_Exception_struct;
-PyObject *PyExc_StopIteration = &_PyExc_StopIteration_struct;
-PyObject *PyExc_TypeError = &_PyExc_TypeError_struct;
-PyObject *PyExc_ValueError = &_PyExc_ValueError_struct;
-PyObject *PyExc_IndexError = &_PyExc_IndexError_struct;
-PyObject *PyExc_KeyError = &_PyExc_KeyError_struct;
-PyObject *PyExc_NameError = &_PyExc_NameError_struct;
-PyObject *PyExc_AttributeError = &_PyExc_AttributeError_struct;
-PyObject *PyExc_RuntimeError = &_PyExc_RuntimeError_struct;
-PyObject *PyExc_SyntaxError = &_PyExc_SyntaxError_struct;
-PyObject *PyExc_ImportError = &_PyExc_ImportError_struct;
-PyObject *PyExc_MemoryError = &_PyExc_MemoryError_struct;
-PyObject *PyExc_ZeroDivisionError = &_PyExc_ZeroDivisionError_struct;
-PyObject *PyExc_OSError = &_PyExc_OSError_struct;
-PyObject *PyExc_IOError = &_PyExc_IOError_struct;
-PyObject *PyExc_FileNotFoundError = &_PyExc_FileNotFoundError_struct;
-PyObject *PyExc_OverflowError = &_PyExc_OverflowError_struct;
+/* ==================== ERROR INDICATOR ==================== */
 
-/* Exception type name map */
-static struct { PyObject **type; const char *name; } exception_types[] = {
-    { &PyExc_BaseException, "BaseException" },
-    { &PyExc_Exception, "Exception" },
-    { &PyExc_StopIteration, "StopIteration" },
-    { &PyExc_TypeError, "TypeError" },
-    { &PyExc_ValueError, "ValueError" },
-    { &PyExc_IndexError, "IndexError" },
-    { &PyExc_KeyError, "KeyError" },
-    { &PyExc_NameError, "NameError" },
-    { &PyExc_AttributeError, "AttributeError" },
-    { &PyExc_RuntimeError, "RuntimeError" },
-    { &PyExc_SyntaxError, "SyntaxError" },
-    { &PyExc_ImportError, "ImportError" },
-    { &PyExc_MemoryError, "MemoryError" },
-    { &PyExc_ZeroDivisionError, "ZeroDivisionError" },
-    { &PyExc_OSError, "OSError" },
-    { &PyExc_IOError, "IOError" },
-    { &PyExc_FileNotFoundError, "FileNotFoundError" },
-    { &PyExc_OverflowError, "OverflowError" },
-    { NULL, NULL }
-};
+static PyObject *cur_exc_type    = NULL;
+static PyObject *cur_exc_value   = NULL;
+static char      cur_exc_msg[1024] = "";
 
-/* Initialize exception types */
-void PyErrors_Init(void) {
-    for (int i = 0; exception_types[i].type != NULL; i++) {
-        (*exception_types[i].type)->ob_type = &PyBaseException_Type;
-    }
-}
-
-/* Set a string exception */
-void PyErr_SetString(PyObject *type, const char *message) {
-    _current_thread.exc_type = type;
-    _current_thread.exc_value = PyUnicode_FromString(message);
-    _current_thread.pending = 1;
-}
-
-/* Set an object exception */
-void PyErr_SetObject(PyObject *type, PyObject *value) {
-    _current_thread.exc_type = type;
-    _current_thread.exc_value = value;
-    _current_thread.pending = 1;
-}
-
-/* Format and set an exception */
-void PyErr_Format(PyObject *type, const char *format, ...) {
-    char buffer[1024];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-    PyErr_SetString(type, buffer);
-}
-
-/* Check if exception is set */
 PyObject* PyErr_Occurred(void) {
-    if (_current_thread.pending) {
-        return _current_thread.exc_type;
-    }
-    return NULL;
+    return cur_exc_type;
 }
 
-/* Check if exception matches */
-PyObject* PyErr_ExceptionMatches(PyObject *exc) {
-    if (!_current_thread.pending) return NULL;
-    if (_current_thread.exc_type == exc) return exc;
-    return NULL;
-}
-
-/* Print exception to stderr */
-void PyErr_Print(void) {
-    if (!_current_thread.pending) return;
-
-    PyObject *exc_type = _current_thread.exc_type;
-    PyObject *exc_value = _current_thread.exc_value;
-
-    if (exc_type && exc_value) {
-        const char *type_name = "UnknownException";
-        for (int i = 0; exception_types[i].type != NULL; i++) {
-            if (*exception_types[i].type == exc_type) {
-                type_name = exception_types[i].name;
-                break;
-            }
-        }
-
-        const char *message = PyUnicode_AsString(exc_value);
-        if (message) {
-            fprintf(stderr, "%s: %s\n", type_name, message);
-        } else {
-            fprintf(stderr, "%s\n", type_name);
-        }
-    }
-
-    PyErr_Clear();
-}
-
-/* Clear the current exception */
 void PyErr_Clear(void) {
-    _current_thread.exc_type = NULL;
-    _current_thread.exc_value = NULL;
-    _current_thread.exc_traceback = NULL;
-    _current_thread.pending = 0;
+    cur_exc_type  = NULL;
+    cur_exc_value = NULL;
+    cur_exc_msg[0] = '\0';
 }
 
-/* Normalize exception */
-void PyErr_NormalizeException(PyObject **exc, PyObject **val, PyObject **tb) {
-    (void)exc; (void)val; (void)tb;
-    /* No-op for now */
+void PyErr_SetString(PyObject *type, const char *message) {
+    cur_exc_type = type;
+    strncpy(cur_exc_msg, message, sizeof(cur_exc_msg) - 1);
+    cur_exc_msg[sizeof(cur_exc_msg) - 1] = '\0';
 }
 
-/* Exception type object (simplified) */
-static PyTypeObject PyBaseException_Type = {
-    PyObject_HEAD_INIT(NULL)
-    .tp_name = "BaseException",
-    .tp_basicsize = sizeof(PyObject),
-    .tp_flags = TPFLAGS_DEFAULT,
-    .tp_doc = "Base exception type"
-};
+void PyErr_SetObject(PyObject *type, PyObject *value) {
+    cur_exc_type  = type;
+    cur_exc_value = value;
+}
+
+void PyErr_Format(PyObject *type, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(cur_exc_msg, sizeof(cur_exc_msg), fmt, args);
+    va_end(args);
+    cur_exc_type = type;
+}
+
+/* ==================== CONVENIENCE ERROR SETTERS ==================== */
+
+void PyErr_SetString_TypeError(const char *msg)    { PyErr_SetString(PyExc_TypeError, msg); }
+void PyErr_SetString_ValueError(const char *msg)   { PyErr_SetString(PyExc_ValueError, msg); }
+void PyErr_SetString_RuntimeError(const char *msg) { PyErr_SetString(PyExc_RuntimeError, msg); }
+void PyErr_SetString_NameError(const char *msg)    { PyErr_SetString(PyExc_NameError, msg); }
+void PyErr_SetString_KeyError(const char *msg)     { PyErr_SetString(PyExc_KeyError, msg); }
+void PyErr_SetString_IndexError(const char *msg)   { PyErr_SetString(PyExc_IndexError, msg); }
+void PyErr_SetString_AttributeError(const char *msg) { PyErr_SetString(PyExc_AttributeError, msg); }
+void PyErr_SetString_ZeroDivisionError(const char *msg) { PyErr_SetString(PyExc_ZeroDivisionError, msg); }
+void PyErr_SetString_MemoryError(const char *msg)  { PyErr_SetString(PyExc_MemoryError, msg); }
+void PyErr_SetString_OverflowError(const char *msg) { PyErr_SetString(PyExc_OverflowError, msg); }
+void PyErr_SetString_SyntaxError(const char *msg)  { PyErr_SetString(PyExc_SyntaxError, msg); }
+void PyErr_SetString_ImportError(const char *msg)  { PyErr_SetString(PyExc_ImportError, msg); }
+void PyErr_SetString_RecursionError(const char *msg) { PyErr_SetString(PyExc_RecursionError, msg); }
+void PyErr_SetString_NotImplementedError(const char *msg) { PyErr_SetString(PyExc_NotImplementedError, msg); }
+
+/* ==================== EXCEPTION CREATION ==================== */
+
+PyObject* PyErr_NewException(const char *name, PyObject *base, PyObject *dict) {
+    (void)name; (void)base; (void)dict;
+    PyObject *exc = (PyObject *)calloc(1, sizeof(PyObject));
+    if (exc) {
+        exc->ob_refcnt = 1;
+    }
+    return exc;
+}
