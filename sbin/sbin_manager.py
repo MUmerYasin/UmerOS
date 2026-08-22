@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 UmerOS /sbin Manager
 ====================
@@ -8,6 +21,19 @@ from __future__ import annotations
 import os
 import sys
 from typing import Any, Dict, List, Optional, Type
+
+# [FIX H233] Gate privileged /sbin command execution behind the zero-trust
+# capability bridge. `SbinManager.execute` runs system-level commands (halt,
+# reboot, mkfs, chroot, mount, insmod, …) with no capability check or audit, so
+# it must require the `sys.admin` capability when a CapabilityManager is wired
+# (fail-closed).
+try:
+    from core.capability_gate import gate, CAP_SYS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_SYS_ADMIN
 
 # ─── Import all command classes ─────────────────────────────────────────────
 from  os import path as _p
@@ -198,6 +224,10 @@ class SbinManager:
 
     def execute(self, command: str, args: Optional[List[str]] = None) -> int:
         """Execute a /sbin command."""
+        # [FIX H233] Require the system-admin capability before running any
+        # privileged /sbin command.  Enforced fail-closed when a CapabilityManager
+        # is wired; permissive (warning) when running standalone.
+        gate.require(CAP_SYS_ADMIN)
         cmd = self.get_command(command)
         if cmd is None:
             print(f"{command}: not found", file=sys.stderr)

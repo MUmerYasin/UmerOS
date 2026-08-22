@@ -37,11 +37,39 @@ tests: `test_packages.py`, `test_ssl.py`, `test_legal_scan.py`, `test_crypto_eng
 `test_pqc.py`. `srv/*` sibling imports converted to relative (H271 smell) to unblock `test_srv.py`.
 `cryptography`+`numpy` installed into the test venv. Full set: **59 passed**.
 
-Next RED cluster: **cap-gate (wire `CapabilityManager`)** — H227 (root passwd write ungated),
-H233 (sbin `execute()` no cap gate / no audit), H267/H273/H281/H283/H296 (per-folder privileged
-ops with no capability check: opt, media, mnt, proc, etc.), H304 (var deferred). Wire a single
-shared `core/capability.py` (or reuse existing `CapabilityManager`) and gate the no-op/ungated
-privileged entry points; add `# [FIX Hxxx]` comments + regression tests in `tests/`.
+## NEXT (where to pick up)
+**fail-open + dummy-crypto cluster CLOSED (2026-08-22, session 3)** — see above.
+
+**cap-gate cluster CLOSED (2026-08-22, session 5/6):** all 8 hotspots wired to the shared
+zero-trust bridge `core/capability_gate.py` (`gate` + `require(cap)`): **H227** (root passwd), **H233**
+(sbin execute), **H267** (srv backup restore rmtree), **H273** (srv apply_profile chmod), **H281** (tmp
+reaper), **H283** (tmp enforce_permissions chmod), **H296** (usr privileged FS — sendmail/misc_data/
+bsd_compat/games_data/xml managers), **H304** (var managers — directory/spool/log). Every gated entry
+point carries a `# [FIX Hxxx]` comment and uses the permissive-when-unwired / fail-closed-when-wired
+pattern so CLI/tests do not regress. `tests/test_cap_gate.py` now proves (a) gate-level allow/deny,
+(b) strict-mode deny, (c) per-module fail-closed integration for all 8 modules, and (d) a positive
+allow-when-held integration (var spool actually writes under a temp var_path). `test_cap_gate.py` +
+`test_var.py` = 32 passed, **0 regressions** from this work.
+
+Two fixes were needed to land H296 cleanly (both genuine bugs, now recorded):
+  * `usr/man_page.py` referenced an **undefined `ManPageStatus` enum** → `NameError` crashed
+    `import usr` and blocked the H296 integration tests. Added the missing `IntEnum` (MISSING/PARSED).
+  * `GamesDataManager.add_game_data` was **never gated** (only `remove_game_data` was) — added the
+    `# [FIX H296]` `gate.require(CAP_FS_ADMIN)` as its first statement.
+
+## NEXT (where to pick up)
+**Full `pytest tests/` is currently blocked by 6 PRE-EXISTING collection errors** (unrelated to the
+cap-gate cluster; 0 regressions from this work). They must be fixed so the whole suite collects:
+  * `tests/quantum/test_circuit.py`, `test_circuit_library.py`, `test_gates.py` — quantum test modules
+    fail to collect (depend on a missing/renamed module; see H120 hard-dep on `umer_kernel1.py`).
+  * `tests/test_dc_v2.py` — `FileNotFoundError: UmerOS/quantum/dynamic_circuits_v2.py` (missing source).
+  * `tests/test_sbin.py` — `ImportError: cannot import 'IfconfigCommand' from 'network'`.
+  * `tests/test_sources.py` — `ImportError: cannot import 'SourcesManager' from 'manager'` (fragile
+    sys.path import hack, H261 family — `from manager import` resolves to `legal/manager.py`).
+Fix these wiring/import bugs, then proceed to the **full YELLOW/BLUE sweep**. Outstanding **H7 licence
+sweep** (`Licence: Apache 2.0`→`License: GPL-3.0`) in opt/config.py, opt/var.py, opt/package.py,
+srv/backup.py, packages/umer_pkg.py, tmp/tmpfs.py headers (note `srv/backup.py` still carries
+`Licence: Apache 2.0` at line 16 — not yet fixed).
 
 ## Checklist
 
@@ -110,7 +138,7 @@ privileged entry points; add `# [FIX Hxxx]` comments + regression tests in `test
 - [ ] H246 | RED | `security/sandbox.py:35-104` `SecuritySandbox` | **SecuritySandbox provides no real isolation (masquerades as zero-trust)** - processes/permissions live in an 
 - [x] H265 | RED | `srv/backup.py:153-154` `restore_backup`/`_extract_archive` | **Tar extraction without `filter=` (CVE-2007-4559 path traversal)** - `tarfile.open(archive_path, "r:*")` then
 - [x] H266 | RED | `srv/backup.py:157` `restore_backup` | **Zip extraction without `filter=` (zip-slip)** - `zipf.extractall(temp_dir)` with no `filter=`; `zipfile` doe
-- [ ] H267 | RED | `srv/backup.py:181` `restore_backup` | **Destructive `shutil.rmtree` with no capability gate** - when `overwrite=True`, the destination folder is `sh
+- [x] H267 | RED | `srv/backup.py:181` `restore_backup` | **Destructive `shutil.rmtree` with no capability gate** - when `overwrite=True`, the destination folder is `sh
 - [ ] H268 | RED | `srv/hierarchy.py:275-290` `delete_service_tree` | **Destructive `shutil.rmtree` gated only by `force=True`, no capability check** - `if not force: raise Permiss
 - [x] H303 | RED | `var/directory_manager.py:77,87,94,184,106,212`, `var/spool_manager.py | **Path-traversal → arbitrary FS delete/write/RCE (CWE-22)** - `name`/`username`/`directory`/`filename` are joi
 ### YELLOW
@@ -224,7 +252,7 @@ privileged entry points; add `# [FIX Hxxx]` comments + regression tests in `test
 - [ ] H219 | YELLOW | `quantum/qkd.py:354-383` `key_reconciliation` | **Toy/wrong QKD error reconciliation** - the function simply flips Bob's bits to match Alice (`reconciled_bob[
 - [ ] H220 | YELLOW | `quantum/qrng.py` `QRNG`/`QuantumEntropy` | **Simulator, not a true entropy source** - `get_random_bytes`/`_extract_entropy` derive "random" bytes from a 
 - [ ] H226 | YELLOW | `root/` (9 `.py` modules + README.md) | **H7 Apache-2.0 header stray cluster** — 9 `.py` files each carry a docstring `Licence: Apache 2.0` line AND `
-- [ ] H227 | YELLOW | `root/passwd.py:131-143` `PasswdManager.write` + `passwd.py:175-190` ` | **Privileged `/etc/passwd` rewrite with no `CapabilityManager` gate** — `write()` backs up + overwrites `/etc/
+- [x] H227 | YELLOW | `root/passwd.py:131-143` `PasswdManager.write` + `passwd.py:175-190` ` | **Privileged `/etc/passwd` rewrite with no `CapabilityManager` gate** — `write()` backs up + overwrites `/etc/
 - [ ] H228 | YELLOW | `root/mail.py:207` `RootMailForwarder.ensure` | **Home dir created with default umask perms (~0755), not 0700** — `self.home.mkdir(parents=True, exist_ok=True
 - [ ] H232 | YELLOW | `sbin/` (all 9 `.py` modules) | **Missing GPL-3.0 license header in every module** - grep across all 9 files found ZERO `GPL`/`Apache`/`Copyri
 - [ ] H236 | YELLOW | `scripts/` (both `install_deps.py` + `test_endpoint.py`) | **Missing GPL-3.0 license header (both files)** - grep found zero `GPL`/`Apache`/`Copyright`/`Licence`/`Licens
@@ -247,24 +275,24 @@ privileged entry points; add `# [FIX Hxxx]` comments + regression tests in `test
 - [ ] H270 | YELLOW | `srv/fhs.py:51`, `srv/backup.py:37`, `srv/manager.py:49,57-71` | **Hardcoded Windows dev paths + `__init__`-time mkdir side effects** - `DEFAULT_SRV_ROOT = Path("F:/Pension Pe
 - [ ] H271 | YELLOW | `srv/*.py` (all modules) + `__init__.py:30-32`, `test_srv.py:16-21` | **Fragile absolute intra-package imports via sys.path hack** - modules import siblings by bare absolute name (
 - [ ] H272 | YELLOW | `srv/protocols.py:211-226` `generate_nfs_export_line`/`generate_samba_ | **Unvalidated interpolation into `/etc/exports` / `smb.conf` (config-injection)** - the functions build `f"{cl
-- [ ] H273 | YELLOW | `srv/permissions.py:139-171` `apply_profile` (+ `audit_service` 173-22 | **POSIX perm mutation/audit with no `CapabilityManager` gate** - `apply_profile` performs real `os.chmod` (POS
+- [x] H273 | YELLOW | `srv/permissions.py:139-171` `apply_profile` (+ `audit_service` 173-22 | **POSIX perm mutation/audit with no `CapabilityManager` gate** - `apply_profile` performs real `os.chmod` (POS
 - [ ] H278 | YELLOW | `tmp/` (10 of 11 modules: `__init__`, `fhs`, `hierarchy`, `secure_io`, | **Apache-2.0 licence strays (H7)** - each of these 10 module docstrings declares `Licence: Apache 2.0`, confli
 - [ ] H279 | YELLOW | `tmp/fhs.py:50`, `tmp/hierarchy.py:47-58,80-96`, `tmp/manager.py:42-51 | **Hardcoded Windows dev path + `__init__`-time mkdir side effects** - `DEFAULT_TMP_ROOT = Path("F:/Pension Per
 - [ ] H280 | YELLOW | `tmp/*.py` (all modules) + `__init__.py:34-35`, `test_tmp.py:19-22` | **Fragile absolute intra-package imports via sys.path hack** - modules import siblings by bare absolute name (
-- [ ] H281 | YELLOW | `tmp/reaper.py:86-202` `clean_by_age`/`clean_on_boot`/`clean_by_quota` | **Destructive reaper with no capability gate and no `tmp_root` containment** - the reaper `unlink()`s/`rmdir()
+- [x] H281 | YELLOW | `tmp/reaper.py:86-202` `clean_by_age`/`clean_on_boot`/`clean_by_quota` | **Destructive reaper with no capability gate and no `tmp_root` containment** - the reaper `unlink()`s/`rmdir()
 - [x] H282 | YELLOW | `tmp/tmpfs.py:129-138` `sync_to_disk` | **Path traversal on virtual-file name (arbitrary write)** - `sync_to_disk` writes `dest = target_path / name` 
-- [ ] H283 | YELLOW | `tmp/permissions.py:116-142` `enforce_permissions` | **Privileged `os.chmod` with no capability gate** - sets `os.chmod(tmp_root, 0o1777)` + socket dirs to `0o1777
+- [x] H283 | YELLOW | `tmp/permissions.py:116-142` `enforce_permissions` | **Privileged `os.chmod` with no capability gate** - sets `os.chmod(tmp_root, 0o1777)` + socket dirs to `0o1777
 - [ ] H288 | YELLOW | `tools/installer.py:21` | **Destructive `shutil.rmtree` with no capability gate** - `install_umer_os` does `shutil.rmtree(dst)` (where `
 - [ ] H289 | YELLOW | `tools/installer.py:13` | **Hardcoded default install root `/umer_os`** - `install_umer_os(target_dir="/umer_os")` bakes a Unix absolute
 - [ ] H290 | YELLOW | `tools/installer.py:16-22` | **CWD-relative source resolution (wrong-dir copy / fail-open)** - `src` names (`"kernel"`, `"quantum"`, ...) a
 - [ ] H291 | YELLOW | `tools/installer.py:1-3` | **Missing GPL-3.0 header + `from __future__` (H7 missing-header variant)** - the file opens with only `import 
 - [ ] H292 | YELLOW | `tools/installer.py:10` | **Interactive `input()` EULA with no GPL alignment / real consent** - `show_license()` prints an "AS IS" EULA 
-- [ ] H296 | YELLOW | `usr/sendmail_manager.py:185,195`, `usr/misc_data_manager.py:672,686-7 | **Privileged FS ops with no capability gate (cap-gate family)** - `os.symlink`(`/usr/lib/sendmail`)+`os.unlink
+- [x] H296 | YELLOW | `usr/sendmail_manager.py:185,195`, `usr/misc_data_manager.py:672,686-7 | **Privileged FS ops with no capability gate (cap-gate family)** - `os.symlink`(`/usr/lib/sendmail`)+`os.unlink
 - [ ] H297 | YELLOW | `usr/misc_data_manager.py:589`, `usr/bsd_compat_manager.py:101`, `usr/ | **Construction-time `mkdir` side effects at system paths** - managers call `BASE_DIR.mkdir(parents=True, exist
 - [ ] H298 | YELLOW | `usr/sendmail_manager.py`, `usr/misc_data_manager.py`, `usr/bsd_compat | **Fail-open broad `except Exception` around privileged ops** - privileged symlink/unlink/write/`rmtree` are wr
 - [ ] H299 | YELLOW | `usr/` (58 of 61 modules) | **H7 missing GPL-3.0 header cluster (largest in the tree)** - only `kernel_source_manager.py`, `rpm_manager.py
 - [ ] H300 | YELLOW | `usr/sendmail_manager.py`, `usr/misc_data_manager.py`, `usr/*` | **Hardcoded absolute `/usr/...` system paths** - class constants bake in `/usr/lib/sendmail`, `/usr/sbin/sendm
-- [ ] H304 | YELLOW | `var/directory_manager.py`, `var/spool_manager.py`, `var/log_manager.p | **Privileged FS ops with no capability gate (cap-gate family)** - `write_text`/`append`/`unlink`/`rename`/`shu
+- [x] H304 | YELLOW | `var/directory_manager.py`, `var/spool_manager.py`, `var/log_manager.p | **Privileged FS ops with no capability gate (cap-gate family)** - `write_text`/`append`/`unlink`/`rename`/`shu
 - [x] H305 | YELLOW | `var/directory_manager.py:81,97,117,130,154,188,218,229,240,259,273,29 | **Fail-open broad `except Exception`** - privileged write/unlink/rmtree/rename are wrapped in `except Exceptio
 - [x] H306 | YELLOW | `var/directory_manager.py:14`, `var/spool_manager.py:13`, `var/log_man | **H7 Apache-2.0 strays (wrong licence declared)** - 3 of 4 modules declare `Licence: Apache 2.0`, conflicting 
 ### BLUE
@@ -331,7 +359,7 @@ privileged entry points; add `# [FIX Hxxx]` comments + regression tests in `test
 - [ ] H229 | BLUE | `root/passwd.py:136` `PasswdManager.write` | **`.bak` copy uses default umask perms** — `bak.write_bytes(self.path.read_bytes())` writes the backup with th
 - [ ] H230 | BLUE | `root/home.py:384-393` `RootHomeManager.ensure` | **`os.chmod` follows symlinks + CLI takes an arbitrary path** — `ensure()` does `if not root.exists(): root.mk
 - [ ] H231 | BLUE | `root/dotfiles.py:232,240-283` `register_template`/`ensure` | **Template name path traversal** — `register_template(name, content)` stores an arbitrary name and `ensure()` 
-- [ ] H233 | BLUE | `sbin/sbin_manager.py` `SbinManager.execute` + all command `execute()` | **No `CapabilityManager` gate or audit logging on privileged-simulated ops** - `SbinManager.execute(command, a
+- [x] H233 | BLUE | `sbin/sbin_manager.py` `SbinManager.execute` + all command `execute()` | **No `CapabilityManager` gate or audit logging on privileged-simulated ops** - `SbinManager.execute(command, a
 - [ ] H234 | BLUE | `sbin/mount.py` + `sbin/filesystem.py` | **Privileged ops simulated against in-memory tables; real wiring must harden** - `MountCommand`/`UmountCommand
 - [ ] H235 | BLUE | `sbin/boot.py` + `sbin/maintenance.py` (`MktempCommand`) | **Commands masquerade as functional privileged tools; only `mktemp` does a real (safe) write** - `HaltCommand`
 - [ ] H238 | BLUE | `scripts/test_endpoint.py:10-14,28-39` `start_app`/`main` | **Fixed `time.sleep(3)` readiness wait + forged-token bypass** - `start_app()` blocks 3s then assumes the serv

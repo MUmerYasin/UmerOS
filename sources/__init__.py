@@ -1,15 +1,19 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 UmerOS /sources — Standards, Bibliography, Signals & Kernel Documentation
 ==========================================================================
-
-FHS & TLDP-compliant implementation of the reference standards, System V
-signals specification, architecture glossary, kernel specifications, and
-source code repositories.
-
-TLDP Reference:
-https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/sources.html
-https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/signals.html
-https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/glossary.html
 
 Modules:
 --------
@@ -22,7 +26,7 @@ manager      - SourcesManager (master unified query & controller)
 cli          - sources_ctl command line utility
 
 Author: UmerOS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3) 
 """
 
 from __future__ import annotations

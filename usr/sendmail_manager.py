@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 Sendmail Manager — Sendmail Symlink Management (/usr/lib/sendmail)
 
@@ -15,6 +28,20 @@ from enum import Enum, IntEnum
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
+
+# [FIX H296] Gate privileged /usr/lib/sendmail symlink mutation behind the
+# zero-trust capability bridge. Creating/removing the FHS sendmail symlink is a
+# privileged filesystem-admin operation that must require the `fs.admin`
+# capability when a CapabilityManager is wired (fail-closed); when no manager is
+# wired the gate stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
 
 
 class MTAType(Enum):
@@ -179,6 +206,8 @@ class SendmailManager:
 
     def create_sendmail_symlink(self, target: str) -> bool:
         """Create /usr/lib/sendmail symlink."""
+        # [FIX H296] privileged symlink creation -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             if self.LIB_SENDMAIL.exists() or self.LIB_SENDMAIL.is_symlink():
                 return False
@@ -190,6 +219,8 @@ class SendmailManager:
 
     def remove_sendmail_symlink(self) -> bool:
         """Remove /usr/lib/sendmail symlink."""
+        # [FIX H296] privileged symlink removal -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             if self.LIB_SENDMAIL.is_symlink():
                 self.LIB_SENDMAIL.unlink()

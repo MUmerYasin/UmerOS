@@ -7,8 +7,8 @@ and compatibility auditing across all UmerOS subsystems.
 
 Approved Licenses:
 ------------------
-
-- GPL-3.0 (Linux Kernel Interop & HAL Drivers per torvalds/linux rules, Primary UmerOS User-Space & Microkernel Framework, Permissive User Utilities, Documentation & Specifications.
+- GPL-3.0 (GNU General Public License Version 3) 
+  Exclusive License for all UmerOS source code.
 
 Author: UmerOS Project
 Licence: GPL-3.0 
@@ -36,7 +36,7 @@ class LicenseScanResult:
 
     def summary(self) -> str:
         return (
-            f"License Scan Report:\n"
+            f"License Scan Report (GPL-3.0 Exclusive):\n"
             f"  - Total Scanned:      {self.total_files_scanned}\n"
             f"  - Compliant Files:    {self.compliant_files}\n"
             f"  - Missing License:    {len(self.missing_license_files)}\n"
@@ -46,34 +46,41 @@ class LicenseScanResult:
 
 
 class LicenseManager:
-    """Manages license texts and verifies compliance."""
+    """Manages GPL-3.0 license text and verifies compliance."""
 
-    _LICENSE_TEXTS: Dict[str, str] = {
-        "Apache-2.0": (
-            "Licensed under the Apache License, Version 2.0 (the 'License');\n"
-            "you may not use this file except in compliance with the License.\n"
-            "You may obtain a copy of the License at\n\n"
-            "    http://www.apache.org/licenses/LICENSE-2.0\n"
-        ),
-        "GPL-2.0": (
-            "This program is free software; you can redistribute it and/or modify\n"
-            "it under the terms of the GNU General Public License as published by\n"
-            "the Free Software Foundation; version 2 of the License.\n"
-        ),
-        "MIT": (
-            "Permission is hereby granted, free of charge, to any person obtaining a copy\n"
-            "of this software and associated documentation files, to deal in the Software.\n"
-        ),
-    }
+    GPL_HEADER_TEMPLATE = (
+        "# This program is free software: you can redistribute it and/or modify\n"
+        "# it under the terms of the GNU General Public License as published by\n"
+        "# the Free Software Foundation, either version 3 of the License, or\n"
+        "# (at your option) any later version.\n"
+        "#\n"
+        "# This program is distributed in the hope that it will be useful,\n"
+        "# but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+        "# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+        "# GNU General Public License for more details.\n"
+        "#\n"
+        "# You should have received a copy of the GNU General Public License\n"
+        "# along with this program.  If not, see <https://www.gnu.org/licenses/>.\n"
+    )
 
     @classmethod
-    def get_license_text(cls, license_name: str = "Apache-2.0") -> str:
-        return cls._LICENSE_TEXTS.get(license_name, cls._LICENSE_TEXTS["Apache-2.0"])
+    def get_full_license_text(cls) -> str:
+        """Reads the full GPL-3.0 text from the local file."""
+        gpl_path = Path(__file__).parent / "GPL-3.0.txt"
+        if gpl_path.exists():
+            return gpl_path.read_text(encoding="utf-8")
+        return "GPL-3.0 text not found locally. Please fetch from gnu.org."
+
+    @classmethod
+    def get_license_text(cls, license_name: str = "GPL-3.0") -> str:
+        if license_name != "GPL-3.0":
+            raise ValueError(f"UmerOS strictly uses GPL-3.0. Requested: {license_name}")
+        return cls.GPL_HEADER_TEMPLATE
 
     @classmethod
     def scan_directory(cls, root_dir: Path | str) -> LicenseScanResult:
         """
-        Scans Python source files in a directory to ensure license headers exist.
+        Scans Python source files in a directory to ensure GPL-3.0 headers exist.
         """
         root_path = Path(root_dir).resolve()
         result = LicenseScanResult()
@@ -82,8 +89,11 @@ class LicenseManager:
             return result
 
         for root, dirs, files in os.walk(root_path):
-            # Skip hidden, build, and test caches
-            if any(part.startswith((".", "__")) for part in Path(root).parts):
+            # Skip hidden, build, and test caches, as well as 3rd party components
+            parts = Path(root).parts
+            if any(part.startswith((".", "__")) for part in parts):
+                continue
+            if any(part in {"liboqs", "node_modules", "build", "dist", "packages"} for part in parts):
                 continue
 
             for f in files:
@@ -94,27 +104,11 @@ class LicenseManager:
                         with open(fp, "r", encoding="utf-8", errors="ignore") as fo:
                             content = fo.read(2048)  # Read top 2KB
                             
-                            # [FIX H129] Fail-closed license audit.
-                            # A file is only compliant if it carries an explicit
-                            # license *declaration* (an SPDX identifier or a clear
-                            # grant phrase).  Merely mentioning the words
-                            # "License"/"Copyright" — which any source docstring
-                            # that references licenses contains — is NOT
-                            # sufficient; such files are reported as missing so the
-                            # compliance gap is surfaced instead of hidden.
-                            # Previously every file matched the generic
-                            # "License"/"Copyright" branch and was counted
-                            # compliant, hiding unsigned files (fail-open).
                             found_lic = None
                             for _marker, _name in (
-                                ("SPDX-License-Identifier:", "<declared>"),
-                                ("GNU General Public License", "GPL-2.0"),
-                                ("Licensed under the Apache License", "Apache-2.0"),
-                                ("Apache License, Version 2.0", "Apache-2.0"),
-                                ("Licence: Apache 2.0", "Apache-2.0"),
+                                ("GNU General Public License as published by\n# the Free Software Foundation, either version 3", "GPL-3.0"),
                                 ("License: GPL-3.0", "GPL-3.0"),
                                 ("GPL-3.0", "GPL-3.0"),
-                                ("MIT License", "MIT"),
                             ):
                                 if _marker in content:
                                     found_lic = _name
@@ -132,3 +126,26 @@ class LicenseManager:
 
         result.is_fully_compliant = len(result.missing_license_files) == 0
         return result
+
+    @classmethod
+    def apply_headers_to_missing(cls, root_dir: Path | str) -> int:
+        """
+        Automatically prepends the GPL-3.0 header to Python files missing it.
+        """
+        scan = cls.scan_directory(root_dir)
+        applied_count = 0
+        for fp in scan.missing_license_files:
+            try:
+                with open(fp, "r", encoding="utf-8") as fo:
+                    content = fo.read()
+                
+                # Prepend the header
+                new_content = cls.GPL_HEADER_TEMPLATE + "\n" + content
+                
+                with open(fp, "w", encoding="utf-8") as fw:
+                    fw.write(new_content)
+                applied_count += 1
+            except Exception as e:
+                log.error(f"Failed to apply header to {fp}: {e}")
+
+        return applied_count

@@ -26,6 +26,20 @@ from typing import Dict, List, Optional
 # [FIX H303] Guard against directory-traversal / arbitrary-append (CWE-22).
 from ._path_guard import safe_child, PathTraversalError
 
+# [FIX H304] Gate privileged /var/log filesystem mutation behind the zero-trust
+# capability bridge. Writing log entries, rotating, and compressing old logs are
+# privileged operations that must require the `fs.admin` capability when a
+# CapabilityManager is wired (fail-closed); when no manager is wired the gate
+# stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 log = logging.getLogger("UmerOS.Var.LogManager")
 
 
@@ -65,6 +79,8 @@ class LogManager:
         ``write_log("../../etc/cron.d/x", payload)`` allowed arbitrary file
         append outside the log directory. The guard refuses such attempts.
         """
+        # [FIX H304] privileged FHS append -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied filename inside /var/log.
             log_file = safe_child(self.log_path, filename)
@@ -145,6 +161,8 @@ class LogManager:
 
     def rotate_log(self, filename: str, max_size: int = 10 * 1024 * 1024) -> bool:
         """Rotate a log file if it exceeds max_size."""
+        # [FIX H304] privileged FHS rename -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied filename inside /var/log.
             log_file = safe_child(self.log_path, filename)
@@ -167,6 +185,8 @@ class LogManager:
 
     def compress_old_logs(self) -> List[str]:
         """Compress old rotated log files."""
+        # [FIX H304] privileged FHS delete -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         compressed = []
         for log_file in self.log_path.glob("*.log"):
             if log_file.name == "syslog" or log_file.name == "auth.log":

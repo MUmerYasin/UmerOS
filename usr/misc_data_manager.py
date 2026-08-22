@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 Misc Data Manager — Miscellaneous Architecture-Independent Data (/usr/share/misc)
 
@@ -15,6 +28,20 @@ from enum import Enum, IntEnum
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
+
+# [FIX H296] Gate privileged /usr/share/misc filesystem mutation behind the
+# zero-trust capability bridge. Writing system data files and creating the magic
+# symlink are privileged operations that must require the `fs.admin` capability
+# when a CapabilityManager is wired (fail-closed); when no manager is wired the
+# gate stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
 
 
 class MiscFileType(Enum):
@@ -659,6 +686,8 @@ class MiscDataManager:
         Returns:
             MiscDataEntry if created, None on failure
         """
+        # [FIX H296] privileged write into /usr/share/misc -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         if file_type is None:
             file_type = self.FILE_TYPE_MAP.get(name, MiscFileType.CUSTOM)
 
@@ -682,6 +711,8 @@ class MiscDataManager:
         Per FHS 3.0, the magic(5) file may live in /usr/share/file/magic
         with a compatibility symlink at /usr/share/misc/magic.
         """
+        # [FIX H296] privileged symlink + file writes -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             self.MAGIC_REAL.parent.mkdir(parents=True, exist_ok=True)
 
@@ -775,6 +806,8 @@ class MiscDataManager:
         Returns:
             True if deleted successfully
         """
+        # [FIX H296] privileged unlink -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             entry = self.get_entry(name)
             if entry is None:
@@ -792,6 +825,8 @@ class MiscDataManager:
 
         For files with spec-defined content, use create_misc_file() instead.
         """
+        # [FIX H296] privileged write into /usr/share/misc -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             path = self.BASE_DIR / name
             with open(path, 'w', encoding='utf-8') as f:

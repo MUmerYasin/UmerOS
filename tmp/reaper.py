@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 UmerOS /tmp — Automated Garbage Collection & Reaper Engine
 ==========================================================
@@ -13,7 +26,7 @@ Capabilities:
 * Dry-run simulation mode.
 
 Author: UmerOS Project
-Licence: Apache 2.0
+Licence: GNU General Public License (GPL) version 3.0
 """
 
 from __future__ import annotations
@@ -28,6 +41,19 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 from .fhs import DEFAULT_TMP_ROOT, PROTECTED_SOCKET_DIRS
+
+# [FIX H281] Gate the destructive reaper operations behind the zero-trust
+# capability bridge. `clean_by_age` / `clean_on_boot` / `clean_by_quota` delete
+# files and directories, so they must require the `tmp.reap` capability when a
+# CapabilityManager is wired (fail-closed).
+try:
+    from core.capability_gate import gate, CAP_REAPER
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_REAPER
 
 log = logging.getLogger("UmerOS.Tmp.Reaper")
 
@@ -91,6 +117,8 @@ class TmpReaper:
         """
         Removes files in /tmp that have not been accessed/modified within max_age_seconds.
         """
+        # [FIX H281] Require the reaper capability before deleting anything.
+        gate.require(CAP_REAPER)
         max_age = max_age_seconds if max_age_seconds is not None else self.default_max_age_sec
         now = time.time()
         report = ReapReport(dry_run=dry_run)
@@ -143,6 +171,8 @@ class TmpReaper:
         Emulates boot-time cleanup of /tmp: wipes all transient files while
         preserving protected sockets (.X11-unix, etc.).
         """
+        # [FIX H281] Require the reaper capability before deleting anything.
+        gate.require(CAP_REAPER)
         return self.clean_by_age(max_age_seconds=0.0, dry_run=dry_run)
 
     def clean_by_quota(
@@ -154,6 +184,8 @@ class TmpReaper:
         High-water mark cleaner: if total /tmp size exceeds max_total_bytes,
         reaps oldest files first until size is under threshold.
         """
+        # [FIX H281] Require the reaper capability before deleting anything.
+        gate.require(CAP_REAPER)
         report = ReapReport(dry_run=dry_run)
         if not self.tmp_root.exists():
             return report

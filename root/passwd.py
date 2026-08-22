@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 Umer OS /root - /etc/passwd integration
 ======================================
@@ -11,12 +24,13 @@ a tiny adapter so the rest of the runtime can:
   filesystem (e.g. inside an installer).
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3) 
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -32,6 +46,19 @@ else:
         pwd = None  # type: ignore[assignment]
 from pathlib import Path
 from typing import Iterable, List, Optional
+
+# [FIX H227] Gate privileged /etc/passwd writes behind the zero-trust capability
+# bridge. `PasswdManager.write` (and `CanonicalRootBuilder.upsert`, which calls
+# it) rewrites the system passwd file, so they must require the `sys.admin`
+# capability when a CapabilityManager is wired (fail-closed).
+try:
+    from core.capability_gate import gate, CAP_SYS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_SYS_ADMIN
 
 log = logging.getLogger("UmerOS.Root.Passwd")
 
@@ -131,6 +158,10 @@ class PasswdManager:
     def write(self, entries: Iterable[PasswdEntry], *,
               backup: bool = True) -> None:
         """Replace the file with ``entries``.  Optional backup."""
+        # [FIX H227] Require the system-admin capability before rewriting the
+        # privileged passwd file.  Enforced fail-closed when a CapabilityManager
+        # is wired; permissive (warning) when running standalone.
+        gate.require(CAP_SYS_ADMIN)
         if backup and self.path.is_file():
             bak = self.path.with_suffix(self.path.suffix + ".bak")
             bak.write_bytes(self.path.read_bytes())
@@ -173,6 +204,9 @@ class CanonicalRootBuilder:
         )
 
     def upsert(self, manager: PasswdManager) -> PasswdEntry:
+        # [FIX H227] Require the system-admin capability before upserting the
+        # root entry (which rewrites /etc/passwd via PasswdManager.write).
+        gate.require(CAP_SYS_ADMIN)
         canonical = self.build()
         existing = manager.find_root()
         if existing is None:

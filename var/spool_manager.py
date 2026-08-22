@@ -10,7 +10,7 @@ FHS 3.0:
   /var/spool/cups/ — CUPS print spool
 
 Author:  Umer OS Project
-License: GPL-3.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations
@@ -24,6 +24,21 @@ from typing import Dict, List, Optional
 
 # [FIX H303] Guard against directory-traversal (cron-RCE, CWE-22).
 from ._path_guard import safe_child, PathTraversalError
+
+# [FIX H304] Gate privileged /var/spool filesystem mutation behind the zero-trust
+# capability bridge. Writing/clearing mailboxes, planting cron jobs (a
+# privilege-escalation vector, see H303), and reaping old spool items are
+# privileged operations that must require the `fs.admin` capability when a
+# CapabilityManager is wired (fail-closed); when no manager is wired the gate
+# stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
 
 log = logging.getLogger("UmerOS.Var.SpoolManager")
 
@@ -103,6 +118,8 @@ class SpoolManager:
 
     def write_mailbox(self, username: str, message: str) -> bool:
         """Write to a user's mailbox."""
+        # [FIX H304] privileged FHS mutation -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied username inside /var/spool/mail.
             mailbox = safe_child(self.mail_path, username)
@@ -120,6 +137,8 @@ class SpoolManager:
 
     def clear_mailbox(self, username: str) -> bool:
         """Clear a user's mailbox."""
+        # [FIX H304] privileged FHS mutation -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied username inside /var/spool/mail.
             mailbox = safe_child(self.mail_path, username)
@@ -161,6 +180,8 @@ class SpoolManager:
         caller plant a root-executed cron job — a direct privilege-escalation
         (cron RCE). The guard makes that attempt raise and be refused.
         """
+        # [FIX H304] cron write is a privileged FHS mutation -> fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied username inside /var/spool/cron.
             cron_file = safe_child(self.cron_path, username)
@@ -187,6 +208,8 @@ class SpoolManager:
 
     def cleanup_old_items(self, directory: str, max_age_days: int = 30) -> int:
         """Remove items older than max_age_days from a spool directory."""
+        # [FIX H304] privileged FHS delete -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied directory inside /var/spool.
             spool_dir = safe_child(self.spool_path, directory)

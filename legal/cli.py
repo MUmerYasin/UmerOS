@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 UmerOS /legal — Command Line Interface (legal_ctl)
 ==================================================
@@ -61,8 +74,10 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("maintainers", help="View verified maintainer profiles & PQC keys")
 
     # licenses
-    lic_p = subparsers.add_parser("licenses", help="Scan directory for license header compliance")
+    lic_p = subparsers.add_parser("licenses", help="Manage GPL-3.0 license and scan repository compliance")
     lic_p.add_argument("dir", nargs="?", default=".", help="Directory to scan")
+    lic_p.add_argument("--apply", action="store_true", help="Apply GPL-3.0 header to all missing Python files")
+    lic_p.add_argument("--show", action="store_true", help="Print the full GPL-3.0 License text")
 
     # safety-check
     safe_p = subparsers.add_parser("safety-check", help="Run pre-execution safety and backup check")
@@ -137,6 +152,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     elif args.command == "licenses":
+        if getattr(args, "show", False):
+            print(mgr.licenses.get_full_license_text())
+            return 0
+        if getattr(args, "apply", False):
+            count = mgr.licenses.apply_headers_to_missing(args.dir)
+            print(f"[OK] Applied GPL-3.0 header to {count} files.")
+            return 0
+        
         res = mgr.licenses.scan_directory(args.dir)
         print(res.summary())
         return 0

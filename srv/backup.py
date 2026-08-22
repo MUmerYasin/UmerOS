@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 UmerOS /srv — Backup, Archive, and Restore Subsystem
 ====================================================
@@ -13,7 +26,7 @@ Features:
 * Safety checks to prevent accidental clobbering without explicit flags.
 
 Author: UmerOS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations
@@ -41,6 +54,17 @@ except Exception:  # pragma: no cover - standalone fallback
     if _proj not in sys.path:
         sys.path.insert(0, _proj)
     from core.path_guard import safe_join, PathTraversalError
+
+# [FIX H267] Gate the destructive restore path behind the zero-trust capability
+# bridge. `restore_backup` overwrites/rmtrees a service tree, so it must require
+# the `srv.backup` capability when a CapabilityManager is wired (fail-closed).
+try:
+    from core.capability_gate import gate, CAP_BACKUP
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_BACKUP
 
 # [FIX H265/H266] Python < 3.12 lacks the fail-closed `filter=` argument on
 # extractall(); fall back to no filter there (matching the >=3.12 target).
@@ -154,6 +178,11 @@ class SrvBackupManager:
         """
         Restores a service tree from a backup archive.
         """
+        # [FIX H267] Require the backup/restore capability before any
+        # overwrite/rmtree.  When a CapabilityManager is wired this enforces
+        # zero-trust; standalone it is permissive (warning) so existing tooling
+        # keeps working.
+        gate.require(CAP_BACKUP)
         archive_path = Path(archive_path).resolve()
         target_root = Path(target_root or self.srv_root).resolve()
 

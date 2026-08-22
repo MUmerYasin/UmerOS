@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 Games Data Manager — Static Game Data (/usr/share/games)
 
@@ -15,6 +28,20 @@ from enum import Enum, IntEnum
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
+
+# [FIX H296] Gate privileged /usr/share/games filesystem mutation behind the
+# zero-trust capability bridge. Adding game-data files and removing trees are
+# privileged operations that must require the `fs.admin` capability when a
+# CapabilityManager is wired (fail-closed); when no manager is wired the gate
+# stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
 
 
 class GameDataType(Enum):
@@ -218,6 +245,9 @@ class GamesDataManager:
     def add_game_data(self, game_name: str, filename: str,
                       content: bytes = b"") -> bool:
         """Add a new game data file."""
+        # [FIX H296] privileged /usr/share/games mutation -> requires fs.admin
+        # when a CapabilityManager is wired (fail-closed); permissive otherwise.
+        gate.require(CAP_FS_ADMIN)
         try:
             game_dir = self.BASE_DIR / game_name
             game_dir.mkdir(parents=True, exist_ok=True)
@@ -231,6 +261,8 @@ class GamesDataManager:
 
     def remove_game_data(self, name: str) -> bool:
         """Remove a game data entry."""
+        # [FIX H296] privileged unlink/rmtree -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             entry = self.get_entry(name)
             if entry and entry.path.exists():

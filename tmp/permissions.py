@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 UmerOS /tmp — Permissions, Sticky Bit & Security Audit
 ======================================================
@@ -6,7 +19,7 @@ Ensures world-writable directories in /tmp have the Sticky Bit (+t) set
 and verifies that transient files maintain strict least-privilege modes (0600/0700).
 
 Author: UmerOS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations
@@ -19,6 +32,19 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .fhs import DEFAULT_TMP_ROOT, PROTECTED_SOCKET_DIRS
+
+# [FIX H283] Gate privileged permission changes behind the zero-trust capability
+# bridge. `enforce_permissions` performs real `os.chmod` (1777) on /tmp and
+# socket dirs, so it must require the `fs.perms` capability when a
+# CapabilityManager is wired.
+try:
+    from core.capability_gate import gate, CAP_FS_PERMS
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_PERMS
 
 log = logging.getLogger("UmerOS.Tmp.Permissions")
 
@@ -117,6 +143,8 @@ class TmpPermissionManager:
         """
         Enforces 1777 on /tmp root and socket dirs on POSIX systems.
         """
+        # [FIX H283] Require the permission-change capability before any chmod.
+        gate.require(CAP_FS_PERMS)
         tmp_root = Path(tmp_root).resolve()
         ops = []
 

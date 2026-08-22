@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 XML Manager — XML Data (/usr/share/xml)
 
@@ -15,6 +28,20 @@ from enum import Enum, IntEnum
 from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
+
+# [FIX H296] Gate privileged /usr/share/xml filesystem mutation behind the
+# zero-trust capability bridge. Adding XML directories/files and removing trees
+# are privileged operations that must require the `fs.admin` capability when a
+# CapabilityManager is wired (fail-closed); when no manager is wired the gate
+# stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
 
 
 class XMLCategory(Enum):
@@ -193,6 +220,8 @@ class XMLManager:
 
     def add_directory(self, name: str) -> bool:
         """Add a new XML directory."""
+        # [FIX H296] privileged XML dir creation -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             dir_path = self.BASE_DIR / name
             dir_path.mkdir(parents=True, exist_ok=True)
@@ -203,6 +232,8 @@ class XMLManager:
 
     def add_file(self, name: str, content: str = "") -> bool:
         """Add a new XML file."""
+        # [FIX H296] privileged XML file write -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             path = self.BASE_DIR / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -215,6 +246,8 @@ class XMLManager:
 
     def remove_entry(self, name: str) -> bool:
         """Remove an XML entry."""
+        # [FIX H296] privileged unlink/rmtree -> requires fs.admin.
+        gate.require(CAP_FS_ADMIN)
         try:
             entry = self.get_entry(name)
             if entry and entry.path.exists():

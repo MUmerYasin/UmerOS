@@ -29,6 +29,20 @@ from typing import Dict, List, Optional
 # manager-owned root (defeats directory-traversal / cron-RCE, CWE-22).
 from ._path_guard import safe_child, PathTraversalError
 
+# [FIX H304] Gate privileged /var FHS filesystem mutation behind the zero-trust
+# capability bridge. Creating/removing directories, lock/PID files, and reaping
+# /var/tmp are privileged operations that must require the `fs.admin`
+# capability when a CapabilityManager is wired (fail-closed); when no manager is
+# wired the gate stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 log = logging.getLogger("UmerOS.Var.DirectoryManager")
 
 
@@ -77,6 +91,8 @@ class VarDirectoryManager:
 
     def create_local_directory(self, name: str) -> bool:
         """Create a subdirectory in /var/local."""
+        # [FIX H304] privileged FHS mutation -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied name inside /var/local.
             target = safe_child(self.local_path, name)
@@ -93,6 +109,8 @@ class VarDirectoryManager:
 
     def remove_local_item(self, name: str) -> bool:
         """Remove an item from /var/local."""
+        # [FIX H304] privileged FHS delete -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied name inside /var/local.
             target = safe_child(self.local_path, name)
@@ -117,6 +135,8 @@ class VarDirectoryManager:
     def acquire_lock(self, name: str, pid: Optional[int] = None,
                      description: str = "") -> bool:
         """Create a lock file in /var/lock."""
+        # [FIX H304] privileged FHS mutation -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied name inside /var/lock.
             lock_file = safe_child(self.lock_path, name)
@@ -139,6 +159,8 @@ class VarDirectoryManager:
 
     def release_lock(self, name: str) -> bool:
         """Release a lock file."""
+        # [FIX H304] privileged FHS delete -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied name inside /var/lock.
             lock_file = safe_child(self.lock_path, name)
@@ -212,6 +234,8 @@ class VarDirectoryManager:
 
     def create_opt_directory(self, name: str) -> bool:
         """Create a subdirectory in /var/opt."""
+        # [FIX H304] privileged FHS mutation -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied name inside /var/opt.
             target = safe_child(self.opt_path, name)
@@ -245,6 +269,8 @@ class VarDirectoryManager:
 
     def create_pid_file(self, name: str, pid: Optional[int] = None) -> bool:
         """Create a PID file in /var/run."""
+        # [FIX H304] privileged FHS mutation -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied name inside /var/run.
             pid_file = safe_child(self.run_path, name)
@@ -276,6 +302,8 @@ class VarDirectoryManager:
 
     def remove_pid_file(self, name: str) -> bool:
         """Remove a PID file."""
+        # [FIX H304] privileged FHS delete -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             # [FIX H303] contain the caller-supplied name inside /var/run.
             pid_file = safe_child(self.run_path, name)
@@ -296,6 +324,8 @@ class VarDirectoryManager:
     def create_tmp_file(self, prefix: str = "tmp",
                         suffix: str = "") -> Optional[str]:
         """Create a temporary file in /var/tmp."""
+        # [FIX H304] privileged FHS mutation -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             self.tmp_path.mkdir(parents=True, exist_ok=True)
             fd, path = tempfile.mkstemp(
@@ -312,6 +342,8 @@ class VarDirectoryManager:
 
     def create_tmp_directory(self, prefix: str = "tmp") -> Optional[str]:
         """Create a temporary directory in /var/tmp."""
+        # [FIX H304] privileged FHS mutation -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         try:
             self.tmp_path.mkdir(parents=True, exist_ok=True)
             path = tempfile.mkdtemp(
@@ -326,6 +358,8 @@ class VarDirectoryManager:
 
     def cleanup_tmp(self, max_age_hours: int = 24) -> int:
         """Remove temporary files older than max_age_hours."""
+        # [FIX H304] privileged FHS delete -> requires fs.admin when wired.
+        gate.require(CAP_FS_ADMIN)
         if not self.tmp_path.exists():
             return 0
         cutoff = time.time() - (max_age_hours * 3600)
