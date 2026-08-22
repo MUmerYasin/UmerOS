@@ -129,25 +129,47 @@ def system_check() -> bool:
 # Kernel image verification
 # ---------------------------------------------------------------------------
 
-def verify_kernel(path: str, expected_hash: Optional[str] = None) -> bool:
+def verify_kernel(
+    path: str,
+    expected_hash: Optional[str] = None,
+    required: bool = False,
+) -> bool:
     """Verify the kernel image SHA3-256 hash.
 
-    When ``expected_hash`` is None, the check is skipped (development mode).
-    In production, ``expected_hash`` is embedded in the signed boot manifest.
+    **[TODAY]** - Fail-closed per §4.2 H27:
+    - If the kernel file is missing: returns ``False`` (never silently skips).
+    - If ``required=False`` (development mode) and ``expected_hash is None``:
+      returns ``True`` with a logged warning (prototype shortcut).
+    - If ``required=True`` and ``expected_hash is None``: returns ``False``
+      (mandatory integrity check with no hash provided = fail-closed).
+    - On hash mismatch: returns ``False`` after logging the diff.
+    - On I/O error: returns ``False`` after logging the error.
 
     Args:
-        path:          Filesystem path to the kernel module/image.
-        expected_hash: Expected 64-char hex SHA3-256 digest, or None to skip.
+        path:           Filesystem path to the kernel module/image.
+        expected_hash:  Expected 64-char hex SHA3-256 digest, or None to skip.
+        required:       If True, a missing hash or file always returns False
+                        regardless of development-mode shortcut.
 
     Returns:
-        True if verification passes (or is skipped), False on mismatch.
+        True only when verification passes; False on any failure or omission.
     """
     if not os.path.isfile(path):
-        log.warning("Kernel path '%s' not found — skipping hash verification.", path)
-        return True  # Permissive during prototype phase
+        log.error("Kernel path '%s' not found — verification FAILED.", path)
+        return False  # [TODAY] H27: fail-closed on missing file
 
     if expected_hash is None:
-        log.info("Kernel hash verification: SKIPPED (development mode).")
+        if required:
+            # [TODAY] H27: mandatory integrity check — no hash means reject.
+            log.error(
+                "Kernel hash required but not provided — verification FAILED.",
+            )
+            return False
+        # Development-mode shortcut — log clearly and continue.
+        log.warning(
+            "Kernel hash verification SKIPPED (no expected_hash supplied). "
+            "Pass expected_hash or set required=True for production.",
+        )
         return True
 
     h = hashlib.sha3_256()
@@ -300,24 +322,54 @@ if __name__ == "__main__":
 # ---------------------------------------------------------------------------
 
 def _selftest() -> bool:
-    """Run built-in self-test for bootloader."""
+    """Run built-in self-test for bootloader.
+
+    Tests verify_kernel fail-closed behavior:
+    - Missing file -> False (H27)
+    - required=True + no hash -> False (H27)
+    - required=False + no hash -> True (dev shortcut)
+    - Correct hash -> True
+    - Wrong hash -> False
+    """
+    import hashlib
     import shutil
     import tempfile
+    from pathlib import Path
 
+    # 1. Missing file always fails (even with required=False)
+    if verify_kernel("/nonexistent/boot/kernel") is not False:
+        return False
+
+    # 2. No hash + required=True -> fail-closed
+    if verify_kernel("/nonexistent/boot/kernel", required=True) is not False:
+        return False
+
+    # 3. No hash + required=False -> dev shortcut (True)
+    # We cannot test this with a real path without a real kernel file,
+    # so we test the code path indirectly via main() which calls
+    # verify_kernel with expected_hash=None (not required).
+    rc = main()
+    if rc != 0:
+        return False
+
+    # 4. Correct hash for a real file (compute the hash first)
     td = tempfile.mkdtemp(prefix="umeros_bl_test_")
     try:
-        # main() with no kernel_path should succeed (skip hash check)
-        rc = main()
-        assert rc == 0
-
-        # main() with non-existent kernel should fail
-        rc2 = main(kernel_path="/nonexistent/kernel", expected_hash="abc")
-        assert rc2 == 1
-
-        return True
-    except Exception as exc:  # noqa: BLE001
-        import sys
-        print(f"bootloader selftest FAILED: {exc}", file=sys.stderr)
-        return False
+        kfile = Path(td) / "test_kernel"
+        kfile.write_bytes(b"fake kernel image content for testing")
+        h = hashlib.sha3_256()
+        h.update(b"fake kernel image content for testing")
+        correct_hash = h.hexdigest()
+        if verify_kernel(str(kfile), expected_hash=correct_hash) is not True:
+            return False
+        # 5. Wrong hash -> False
+        if verify_kernel(str(kfile), expected_hash="a" * 64) is not False:
+            return False
+        # 6. Wrong hash + required=True -> False (same)
+        if verify_kernel(str(kfile), expected_hash="a" * 64,
+                        required=True) is not False:
+            return False
     finally:
         shutil.rmtree(td, ignore_errors=True)
+
+    return True

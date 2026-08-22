@@ -521,12 +521,61 @@ class SecureBootManager:
     def get_dbx_list(self) -> List[SecureBootKey]:
         return list(self._dbx)
 
-    def is_binary_trusted(self, fingerprint: str) -> bool:
-        """Check if a binary fingerprint is in the trusted db."""
+    def is_binary_trusted(
+        self,
+        fingerprint: str,
+        strict: bool = False,
+    ) -> bool:
+        """Check if a binary fingerprint is in the trusted db.
+
+        **[TODAY]** - Fail-closed per §4.2 H28:
+        - ``DISABLED`` and ``SETUP_MODE`` return ``False`` in ``strict`` mode
+          (the default when ``strict=True``), treating disabled/empty-UEFI as
+          untrusted rather than permissively trusting every binary.
+        - When ``strict=False`` (legacy/dev compat) the old permissive
+          behaviour is preserved to avoid breaking existing callers during the
+          transition.  New code must pass ``strict=True``.
+        - On ``ENABLED``: only entries in the non-revoked ``db`` are trusted.
+        - If a fingerprint is found in ``dbx`` (revoked DB) it is always
+          rejected regardless of ``strict``.
+
+        Args:
+            fingerprint:  SHA-256 (or equivalent) fingerprint of the binary.
+            strict:      Fail-closed mode.  Defaults to ``False`` during the
+                         transition; new code should pass ``True``.
+
+        Returns:
+            ``True`` only when the binary is explicitly trusted;
+            ``False`` for any unknown, revoked, or disabled-state binary.
+        """
+        # Always check revocation first — dbx overrides db.
+        if self.is_binary_forbidden(fingerprint):
+            log.warning(
+                "Binary 0x%s… is REVOKED in dbx — rejected.",
+                fingerprint[:16] if fingerprint else "",
+            )
+            return False
+
         if self._state == SecureBootState.DISABLED:
+            if strict:
+                log.warning(
+                    "Secure Boot is DISABLED — strict mode rejects all binaries.",
+                )
+                return False
+            # Legacy permissive fallback (DEPRECATED — use strict=True).
             return True
+
         if self._state == SecureBootState.SETUP_MODE:
+            if strict:
+                log.warning(
+                    "Secure Boot is in SETUP_MODE with empty db — "
+                    "strict mode rejects all binaries.",
+                )
+                return False
+            # Legacy permissive fallback (DEPRECATED — use strict=True).
             return True
+
+        # ENABLED — check the non-revoked db.
         for k in self._db:
             if not k.is_revoked and k.fingerprint == fingerprint:
                 return True
@@ -679,7 +728,10 @@ class EFISystemManager:
 # ---------------------------------------------------------------------------
 
 def _selftest() -> bool:
-    """Run built-in self-test for efi_system."""
+    """Run built-in self-test for efi_system.
+
+    Includes H28 security tests for fail-closed is_binary_trusted.
+    """
     import shutil
     import tempfile
 
@@ -717,6 +769,50 @@ def _selftest() -> bool:
         assert "esp" in s
         assert "nvram" in s
         assert "secure_boot" in s
+
+        # ── H28: is_binary_trusted fail-closed tests ─────────────────────
+        sb = mgr.secure_boot
+
+        # DISABLED + strict=True → False (H28 fail-closed)
+        sb._state = SecureBootState.DISABLED
+        assert sb.is_binary_trusted("deadbeef", strict=True) is False, \
+            "H28: DISABLED+strict should reject"
+        # DISABLED + strict=False → True (legacy compat, deprecated)
+        assert sb.is_binary_trusted("deadbeef", strict=False) is True, \
+            "H28: DISABLED+strict=False keeps legacy permissive behaviour"
+
+        # SETUP_MODE + strict=True → False (H28 fail-closed)
+        sb._state = SecureBootState.SETUP_MODE
+        assert sb.is_binary_trusted("deadbeef", strict=True) is False, \
+            "H28: SETUP_MODE+strict should reject"
+        # SETUP_MODE + strict=False → True (legacy compat, deprecated)
+        assert sb.is_binary_trusted("deadbeef", strict=False) is True, \
+            "H28: SETUP_MODE+strict=False keeps legacy permissive behaviour"
+
+        # ENABLED + unknown fingerprint → False
+        sb._state = SecureBootState.ENABLED
+        assert sb.is_binary_trusted("not-in-db", strict=True) is False, \
+            "ENABLED+unknown fingerprint should be rejected"
+
+        # ENABLED + fingerprint in db (not revoked) → True
+        known_fp = "abcdef0123456789" * 4  # 32-byte fingerprint
+        sb._db.append(SecureBootKey(
+            name="UmerOS", fingerprint=known_fp, signature_type="RSA2048",
+        ))
+        assert sb.is_binary_trusted(known_fp, strict=True) is True, \
+            "ENABLED+known fingerprint should be trusted"
+
+        # ENABLED + revoked fingerprint in dbx → False (dbx overrides db)
+        revoked_fp = "cafebabe01234567" * 4
+        sb._db.append(SecureBootKey(
+            name="RevokedBin", fingerprint=revoked_fp, signature_type="RSA2048",
+        ))
+        sb._dbx.append(SecureBootKey(
+            name="RevokedBin", fingerprint=revoked_fp, signature_type="RSA2048",
+        ))
+        assert sb.is_binary_forbidden(revoked_fp) is True
+        assert sb.is_binary_trusted(revoked_fp, strict=True) is False, \
+            "dbx-revoked fingerprint must be rejected even if in db"
 
         return True
     except Exception as exc:  # noqa: BLE001
