@@ -9,6 +9,8 @@
  *           if/elif/else, while, for, def, class, imports, try/except.
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include "../Include/umeros_python.h"
 #include "../Include/pyast.h"
 #include "../Include/pytoken.h"

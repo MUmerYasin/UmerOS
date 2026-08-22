@@ -5,10 +5,13 @@
  * bool is a subclass of int in CPython.
  */
 
-#include "umeros_python.h"
+#include "../Include/umeros_python.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Forward declaration */
+extern PyTypeObject PyBool_Type;
 
 /* ==================== GLOBAL SINGLETONS ==================== */
 
@@ -143,6 +146,7 @@ PyTypeObject PyBool_Type = {
     NULL,                       /* tp_getattro */
     NULL,                       /* tp_setattro */
     NULL,                       /* tp_call */
+    NULL,                       /* tp_base */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_BOOL_SUBCLASS |
         Py_TPFLAGS_LONG_SUBCLASS,
 };

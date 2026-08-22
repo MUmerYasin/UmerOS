@@ -48,8 +48,7 @@ PyTypeObject PyNone_Type = {
     .tp_str = none_str,
     .tp_bool = none_bool,
     .tp_hash = none_hash,
-    .tp_flags = TPFLAGS_DEFAULT,
-    .tp_doc = "None type (singleton)"
+    .tp_flags = Py_TPFLAGS_DEFAULT
 };
 
 void PyNone_Init(void) {

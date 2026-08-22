@@ -129,12 +129,21 @@ static PyObject* long_power(PyObject *left, PyObject *right) {
     return PyLong_FromLong(result);
 }
 
-static int long_compare(PyObject *left, PyObject *right) {
+static PyObject* long_richcompare(PyObject *left, PyObject *right, int op) {
     PyLongObject *l = (PyLongObject *)left;
     PyLongObject *r = (PyLongObject *)right;
-    if (l->value < r->value) return -1;
-    if (l->value > r->value) return 1;
-    return 0;
+    int result = 0;
+    switch (op) {
+        case Py_LT: result = l->value < r->value; break;
+        case Py_LE: result = l->value <= r->value; break;
+        case Py_EQ: result = l->value == r->value; break;
+        case Py_NE: result = l->value != r->value; break;
+        case Py_GT: result = l->value > r->value; break;
+        case Py_GE: result = l->value >= r->value; break;
+    }
+    PyObject *ret = result ? Py_True : Py_False;
+    Py_INCREF(ret);
+    return ret;
 }
 
 /* Type object definition */
@@ -156,11 +165,11 @@ PyTypeObject PyLong_Type = {
     .tp_multiply = long_multiply,
     .tp_true_divide = long_true_divide,
     .tp_floor_divide = long_floor_divide,
-    .tp_modulo = long_modulo,
+    .tp_remainder = long_modulo,
     .tp_power = long_power,
-    .tp_compare = long_compare,
-    .tp_flags = TPFLAGS_DEFAULT | TPFLAGS_HAVE_NUM | TPFLAGS_HAVE_SEQ,
-    .tp_doc = "integer objects"
+    .tp_richcompare = long_richcompare,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_NUMBER | Py_TPFLAGS_SEQUENCE,
+    .tp_base = NULL
 };
 
 /*

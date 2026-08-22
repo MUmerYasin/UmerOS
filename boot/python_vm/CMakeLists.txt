@@ -17,22 +17,24 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Version
 set(UMEROS_PYTHON_VERSION_MAJOR 3)
-set(UMEROS_PYTHON_VERSION_MINOR 0)
+set(UMEROS_PYTHON_VERSION_MINOR 14)
 set(UMEROS_PYTHON_VERSION_PATCH 0)
 set(UMEROS_PYTHON_BUILD "UmerOS")
 
 # Compiler flags
 if(MSVC)
-    add_compile_options(/W4 /O2)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_compile_options(/W4 /Od /Zi /MDd /DDEBUG)
+    else()
+        add_compile_options(/W4 /O2 /DNDEBUG)
+    endif()
 else()
-    add_compile_options(-Wall -Wextra -Wpedantic -O2)
-endif()
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_compile_options(-g -O0 -DDEBUG)
-else()
-    add_compile_definitions(NDEBUG)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_compile_options(-Wall -Wextra -Wpedantic -g -O0 -DDEBUG)
+    else()
+        add_compile_options(-Wall -Wextra -Wpedantic -O2 -DNDEBUG)
+    endif()
 endif()
 
 # Source files

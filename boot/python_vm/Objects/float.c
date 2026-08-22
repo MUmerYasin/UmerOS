@@ -4,7 +4,7 @@
  * Implements the float type with IEEE 754 double precision.
  */
 
-#include "umeros_python.h"
+#include "../Include/umeros_python.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,9 +27,9 @@ static PyObject* float_str(PyObject *self) {
     return float_repr(self);
 }
 
-static long float_hash(PyObject *self) {
+static PyObjectHash float_hash(PyObject *self) {
     double val = PyFloat_AsDouble(self);
-    return (long)val;
+    return (PyObjectHash)((long)val);
 }
 
 static PyObject* float_add(PyObject *left, PyObject *right) {
@@ -230,6 +230,7 @@ PyTypeObject PyFloat_Type = {
     NULL,                       /* tp_getattro */
     NULL,                       /* tp_setattro */
     NULL,                       /* tp_call */
+    NULL,                       /* tp_base */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_FLOAT_SUBCLASS,
 };
 

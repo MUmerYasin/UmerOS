@@ -31,18 +31,9 @@ int Py_IsInitialized(void);
 /* Main execution */
 int PyRun_SimpleString(const char *command);
 
-/* Reference counting helpers */
-static inline void Py_XDECREF(PyObject *op) {
-    if (op != NULL) {
-        Py_DECREF(op);
-    }
-}
-
-static inline void Py_XINCREF(PyObject *op) {
-    if (op != NULL) {
-        Py_INCREF(op);
-    }
-}
+/* Build info for version printing */
+#define UMEROS_PYTHON_BUILD  "UmerOS"
+#define UMEROS_PYTHON_COMPILER "MSVC/GCC"
 
 #ifdef __cplusplus
 }

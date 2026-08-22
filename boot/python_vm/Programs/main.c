@@ -214,8 +214,8 @@ static int RunString(const char *code_str) {
 /* Print version info */
 static void PrintVersion(void) {
     printf("UmerOS Python interpreter\n");
-    printf("Version: %d.%d.%d\n", UMEROS_PYTHON_VERSION_MAJOR,
-           UMEROS_PYTHON_VERSION_MINOR, UMEROS_PYTHON_VERSION_PATCH);
+    printf("Version: %d.%d.%d\n", UMEROS_PYTHON_MAJOR,
+           UMEROS_PYTHON_MINOR, UMEROS_PYTHON_PATCH);
     printf("Build:   %s\n", UMEROS_PYTHON_BUILD);
     printf("Compiler: %s\n", UMEROS_PYTHON_COMPILER);
 }
