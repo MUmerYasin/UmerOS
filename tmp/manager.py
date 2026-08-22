@@ -18,18 +18,18 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from fhs import (
+from .fhs import (
     DEFAULT_TMP_ROOT,
     PROTECTED_SOCKET_DIRS,
     FHSValidationResult,
     FHSValidator,
 )
-from hierarchy import TmpHierarchy
-from lockfile import ProcessLock
-from permissions import TmpPermissionManager, TmpSecurityAuditResult
-from reaper import ReapReport, TmpReaper
-from secure_io import SecureIO, SecureTempDir, SecureTempFile
-from tmpfs import TmpFS
+from .hierarchy import TmpHierarchy
+from .lockfile import ProcessLock
+from .permissions import TmpPermissionManager, TmpSecurityAuditResult
+from .reaper import ReapReport, TmpReaper
+from .secure_io import SecureIO, SecureTempDir, SecureTempFile
+from .tmpfs import TmpFS
 
 log = logging.getLogger("UmerOS.Tmp.Manager")
 

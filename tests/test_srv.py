@@ -125,3 +125,27 @@ def test_srv_manager(temp_srv):
 
     audit = mgr.audit_all()
     assert audit["total_services"] >= 1
+
+
+def test_restore_refuses_traversal_archive(temp_srv):
+    """H265/H266: a backup archive whose member escapes via '../' must not
+    write outside the restore target (filter='data' refuses the slip)."""
+    import tarfile
+
+    bm = SrvBackupManager(backup_dir=temp_srv / ".backups", srv_root=temp_srv)
+    evil_archive = temp_srv / "evil.tar.gz"
+    outside = temp_srv.parent / "EVIL_ESCAPE.txt"
+    with tarfile.open(evil_archive, "w:gz") as tar:
+        mf = tarfile.TarInfo("manifest.json")
+        mf.size = 0
+        tar.addfile(mf)
+        # A member that tries to walk above the extraction directory.
+        bad = tarfile.TarInfo("../EVIL_ESCAPE.txt")
+        bad.size = 0
+        tar.addfile(bad)
+
+    # filter="data" refuses the '../' member -> restore fails closed.
+    with pytest.raises(Exception):
+        bm.restore_backup(evil_archive, target_root=temp_srv / "restored")
+
+    assert not outside.exists(), "CRITICAL: backup restore path-traversal succeeded!"

@@ -1,2 +1,2 @@
-from .umer_pkg import PackageManager
+from .umer_pkg import UmerPackageManager
 from .repository import PackageRepository, PackageInfo

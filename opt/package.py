@@ -6,17 +6,27 @@ as per Filesystem Hierarchy standards.
 """
 
 import os
+import sys
 import shutil
 from pathlib import Path
 from typing import Dict, Optional, Any, List
 from datetime import datetime
+
+# [FIX H186] Guard against path traversal (CWE-22) when building /opt package
+# paths from caller-supplied name/provider.
+try:
+    from core.path_guard import safe_child, PathTraversalError
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.path_guard import safe_child, PathTraversalError
 
 
 class OptPackage:
     """
     Represents an /opt package and manages its installation.
     
-    According to FHS:
     - Packages are normally installed in /opt/'package' or /opt/'provider'/'package'
     - All static files must be in a separate directory tree
     - Programs to be invoked by users are in /opt/'package'/bin
@@ -44,11 +54,15 @@ class OptPackage:
     
     def _setup_paths(self) -> None:
         """Set up standard directory structure."""
+        # [FIX H186] Contain provider/name inside opt_root (CWE-22). A malicious
+        # name like "../../etc" raises PathTraversalError so the constructor
+        # fails closed instead of creating / removing anything outside /opt.
         if self.provider:
-            self.base_path = self.opt_root / self.provider / self.name
+            scoped = safe_child(self.opt_root, self.provider)
         else:
-            self.base_path = self.opt_root / self.name
-        
+            scoped = self.opt_root
+        self.base_path = safe_child(scoped, self.name)
+
         self.bin_path = self.base_path / "bin"
         self.lib_path = self.base_path / "lib"
         self.include_path = self.base_path / "include"
@@ -56,9 +70,16 @@ class OptPackage:
         self.info_path = self.base_path / "info"
         self.man_path = self.base_path / "man"
         self.src_path = self.base_path / "src"
-        self.etc_path = Path("/etc/opt") / (self.provider + "/" + self.name if self.provider else self.name)
-        self.var_path = Path("/var/opt") / (self.provider + "/" + self.name if self.provider else self.name)
-        
+        # [FIX H186] etc/var roots are also contained against provider/name.
+        if self.provider:
+            etc_root = safe_child(Path("/etc/opt"), self.provider)
+            var_root = safe_child(Path("/var/opt"), self.provider)
+        else:
+            etc_root = Path("/etc/opt")
+            var_root = Path("/var/opt")
+        self.etc_path = safe_child(etc_root, self.name)
+        self.var_path = safe_child(var_root, self.name)
+
         # Create all directories
         for path in [self.base_path, self.bin_path, self.lib_path, self.include_path,
                      self.doc_path, self.info_path, self.man_path, self.src_path]:
@@ -337,11 +358,15 @@ class OptManager:
         Returns:
             True if removal was successful
         """
-        if provider:
-            package_path = self.opt_root / provider / name
-        else:
-            package_path = self.opt_root / name
-        
+        # [FIX H186] Contain the package path; refuse traversal names.
+        try:
+            if provider:
+                package_path = safe_child(safe_child(self.opt_root, provider), name)
+            else:
+                package_path = safe_child(self.opt_root, name)
+        except PathTraversalError:
+            return False
+
         if package_path.exists():
             shutil.rmtree(package_path)
             return True

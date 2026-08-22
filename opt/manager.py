@@ -2,10 +2,10 @@
 UmerOS /opt Package Manager - Main Interface
 
 This module provides a high-level interface for managing /opt packages
-in compliance with Linux Filesystem Hierarchy standards.
 """
 
 import os
+import sys
 import json
 import shutil
 from pathlib import Path
@@ -14,6 +14,15 @@ from datetime import datetime
 
 from .config import OptConfig, OptIntegration
 from .package import OptPackage, OptManager as PackageOptManager
+
+# [FIX H186] Guard against path traversal (CWE-22) in privileged rmtree paths.
+try:
+    from core.path_guard import safe_child, PathTraversalError
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.path_guard import safe_child, PathTraversalError
 
 
 class OptManager:
@@ -174,6 +183,15 @@ class OptManager:
         
         return result
     
+    def _scoped_path(self, root: Path, name: str, provider: str = "") -> Path:
+        """[FIX H186] Build a path under ``root`` containing name/provider.
+
+        Replaces the previous ``root / (provider + "/" + name)`` string join,
+        which let a traversal name (``"../../etc"``) escape the managed root.
+        """
+        p = safe_child(root, provider) if provider else Path(root)
+        return safe_child(p, name)
+
     def remove(self, name: str, provider: str = "") -> Dict[str, Any]:
         """
         Remove a package from /opt.
@@ -197,28 +215,31 @@ class OptManager:
         try:
             # Remove from /opt
             package_key = self._get_package_db_key(name, provider)
-            
-            # Remove package directory
-            if provider:
-                package_path = self.opt_root / provider / name
-            else:
-                package_path = self.opt_root / name
-            
-            if package_path.exists():
-                shutil.rmtree(package_path)
-                result["paths_removed"].append(str(package_path))
-            
-            # Remove from /etc/opt
-            etc_path = self.etc_opt_root / (provider + "/" + name if provider else name)
-            if etc_path.exists():
-                shutil.rmtree(etc_path)
-                result["paths_removed"].append(str(etc_path))
-            
-            # Remove from /var/opt
-            var_path = self.var_opt_root / (provider + "/" + name if provider else name)
-            if var_path.exists():
-                shutil.rmtree(var_path)
-                result["paths_removed"].append(str(var_path))
+
+            # [FIX H186] Contain every target inside its managed root. A
+            # traversal name ("../../etc") is refused and never rmtree'd.
+            try:
+                package_path = self._scoped_path(self.opt_root, name, provider)
+            except PathTraversalError as exc:
+                result["errors"].append(f"Refusing unsafe /opt path: {exc}")
+                package_path = None
+            try:
+                etc_path = self._scoped_path(self.etc_opt_root, name, provider)
+            except PathTraversalError as exc:
+                result["errors"].append(f"Refusing unsafe /etc/opt path: {exc}")
+                etc_path = None
+            try:
+                var_path = self._scoped_path(self.var_opt_root, name, provider)
+            except PathTraversalError as exc:
+                result["errors"].append(f"Refusing unsafe /var/opt path: {exc}")
+                var_path = None
+
+            for path in (package_path, etc_path, var_path):
+                if path is None:
+                    continue
+                if path.exists():
+                    shutil.rmtree(path)
+                    result["paths_removed"].append(str(path))
             
             # Remove from database
             db = self._read_database()

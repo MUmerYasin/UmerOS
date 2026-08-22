@@ -21,9 +21,27 @@ Totals: 66 RED blockers - 152 YELLOW suggestions - 89 BLUE nits = 307 hotspots
 3. BLUE nits - tests, docstrings, lazy-import hoist
 
 ## NEXT (where to pick up)
-Continue RED blockers. Recommended next cluster: **path-traversal** (apply the same `safe_child`
-guard pattern proven in H303) across H185 (opt/var.py, opt/config.py), H186 (opt/manager.py,
-opt/package.py), H195 (packages/umer_pkg.py), H265/H266 (srv/backup.py), H282.
+**path-traversal cluster CLOSED (2026-08-22):** H185,H186,H194,H195,H265,H266,H282 fixed via the
+shared `core/path_guard.py` guard (`safe_child`/`safe_join`/`PathTraversalError`) + `filter="data"`
+on `extractall`; 33 new tests green; harness unblocked by repairing `packages/__init__.py`,
+`tmp/__init__.py` + 7 `tmp/*.py` relative imports. (H303 done earlier, Session 1.)
+
+**fail-open + dummy-crypto cluster CLOSED (2026-08-22, session 3):** H129 (legal audit fail-closed),
+H146 (lib ssl CA-trust fail-closed — X.509 DER fingerprint compare), H111 (kernel CryptoEngine real
+AES-GCM + HMAC sign/verify, no dummy `True`), H152 (quantum PQC honest `is_post_quantum` + assert),
+H154 (OTA fail-closed sig verify, no hardcoded fake sig), H196/H197 (packages full-payload
+SHA3-256 integrity hash, fail-closed; POSIX arcnames so build/verify match cross-platform).
+Source fixes across `kernel/umer_kernel.py`, `lib/ssl_libs.py`, `quantum/crypto_pqc.py`,
+`cloud/ota_updater/update_system.py`, `packages/umer_pkg.py`, `legal/licenses.py`. New/extended
+tests: `test_packages.py`, `test_ssl.py`, `test_legal_scan.py`, `test_crypto_engine.py`,
+`test_pqc.py`. `srv/*` sibling imports converted to relative (H271 smell) to unblock `test_srv.py`.
+`cryptography`+`numpy` installed into the test venv. Full set: **59 passed**.
+
+Next RED cluster: **cap-gate (wire `CapabilityManager`)** — H227 (root passwd write ungated),
+H233 (sbin `execute()` no cap gate / no audit), H267/H273/H281/H283/H296 (per-folder privileged
+ops with no capability check: opt, media, mnt, proc, etc.), H304 (var deferred). Wire a single
+shared `core/capability.py` (or reuse existing `CapabilityManager`) and gate the no-op/ungated
+privileged entry points; add `# [FIX Hxxx]` comments + regression tests in `tests/`.
 
 ## Checklist
 
@@ -52,17 +70,17 @@ opt/package.py), H195 (packages/umer_pkg.py), H265/H266 (srv/backup.py), H282.
 - [ ] H99 | RED | `installer/install.py:45-52` (`display_waiver`) | **Fail-open legal-consent gate.** `display_waiver` returns `True` in `dry_run` mode (the *default* `dry_run=Tr
 - [ ] H101 | RED | `installer/installer.py:350-381` (`rollback`), auto-called at L430/L43 | **Unguarded `shutil.rmtree` rollback (data-loss risk).** `rollback()` does `shutil.rmtree(self._install_root)`
 - [ ] H110 | RED | `kernel/umer_kernel.py:674-676` | **Live kernel wires no-op placeholder stubs for `MemoryManager`, `IPCBus`, `CapabilityManager`** (`type('X', (
-- [ ] H111 | RED | `kernel/umer_kernel.py:429-434` (`CryptoEngine`) | **Dummy crypto — `verify` returns `True` unconditionally, `sign` returns `b"dummy_signature"`** (`encrypt` onl
+- [x] H111 | RED | `kernel/umer_kernel.py:429-434` (`CryptoEngine`) | **Dummy crypto — `verify` returns `True` unconditionally, `sign` returns `b"dummy_signature"`** (`encrypt` onl
 - [ ] H112 | RED | `kernel/umer_kernel.py:436-441` (`SecuritySandbox.register_process`) | **`register_process` only stores `{name, fs_root}` and `print`s; performs no sandboxing / fs_root enforcement*
 - [ ] H128 | RED | `legal/licenses.py:8-13,72-73` + `README.md:40` | **License framework contradicts the adopted H7 → GPL-3.0 canonical decision** — `licenses.py` docstring + `get
-- [ ] H129 | RED | `legal/licenses.py:100-119` | **Fail-open license compliance audit** — `scan_directory` counts any file containing "Licence"/"License"/"Copy
+- [x] H129 | RED | `legal/licenses.py:100-119` | **Fail-open license compliance audit** — `scan_directory` counts any file containing "Licence"/"License"/"Copy
 - [ ] H130 | RED | `legal/licenses.py:72-73` | **`get_license_text(name)` silently returns Apache-2.0 text for any unknown name, incl. "GPL-3.0"** — there is
 - [ ] H131 | RED | `legal/consent.py:173-189` | **`require_consent_interactive` fails OPEN** — auto-grants in `dry_run` (L173-175) and, in any non-interactive
 - [ ] H135 | RED | `legal/cli.py:101-105` + `test_legal.py:229` | **`consent` CLI subcommand hardcodes `user_response="I AGREE"`** → `python -m legal.cli consent` auto-grants c
-- [ ] H146 | RED | `lib/ssl_libs.py:414-427,225-245` | **CA trust verification is fail-open** — `_check_is_trusted` returns `True` whenever ANY `ca-certificates.crt`
+- [x] H146 | RED | `lib/ssl_libs.py:414-427,225-245` | **CA trust verification is fail-open** — `_check_is_trusted` returns `True` whenever ANY `ca-certificates.crt`
 - [ ] H147 | RED | `lib/ssl_libs.py:82-92` | **Certificate expiry is never enforced** — `CertInfo.is_expired` unconditionally returns `False` (L83-87) and 
-- [ ] H152 | RED | `quantum/crypto_pqc.py:36-46` | **Silent classical-crypto fallback** - when `liboqs-python` is missing, PQC sign/verify silently falls back to
-- [ ] H154 | RED | `cloud/ota_updater/update_system.py:33` | **Hardcoded fake PQC signature** - `simulated_dilithium_sig_abc123` is used in a "verify signature" step, rein
+- [x] H152 | RED | `quantum/crypto_pqc.py:36-46` | **Silent classical-crypto fallback** - when `liboqs-python` is missing, PQC sign/verify silently falls back to
+- [x] H154 | RED | `cloud/ota_updater/update_system.py:33` | **Hardcoded fake PQC signature** - `simulated_dilithium_sig_abc123` is used in a "verify signature" step, rein
 - [ ] H156 | RED | `media/mount_ops.py`, `media/auto_mount.py`, `media/udisks2.py` | **No `CapabilityManager` gate on the privileged mount path** - `mount_ops.mount`, `auto_mount._handle_hotplug`
 - [ ] H157 | RED | `media/auto_mount.py:_do_mount` (L282-284) | **Removable media auto-mounted `rw` without `noexec,nodev,nosuid`** - builds options from empty `policy.defaul
 - [ ] H166 | RED | `mnt/mount_ops.py`, `mnt/mount_point.py`, `mnt/fstab.py` | **No `CapabilityManager` gate on privileged mount ops** - `MountManager.mount`/`umount`/`remount`, `MountPoint
@@ -71,13 +89,13 @@ opt/package.py), H195 (packages/umer_pkg.py), H265/H266 (srv/backup.py), H282.
 - [ ] H177 | RED | `network/` (all egress) | **No `CapabilityManager` gate on ANY network egress** - `DNSResolver.resolve*`/`resolve_all`/`reverse_lookup`,
 - [ ] H178 | RED | `network/http_client.py:227` `_validate_url` | **SSRF - egress client omits internal-range blocking** - only scheme in {http,https} + netloc presence are val
 - [ ] H184 | RED | `opt/` (all privileged ops) | **No `CapabilityManager` gate on ANY privileged `/opt` op** - `OptManager.install/remove/update`, `OptPackage.
-- [ ] H185 | RED | `opt/var.py:189` `write_file` / `opt/config.py:73` `install_config` | **Path traversal via unvalidated `filename`/`config_file`/`package_name` in file writes** - `VarOptManager.wri
-- [ ] H186 | RED | `opt/manager.py:208` `remove` / `opt/package.py:346` `remove_package`  | **Path traversal via unvalidated `name`/`provider` in `shutil.rmtree`** - `rmtree(self.opt_root / provider / n
+- [x] H185 | RED | `opt/var.py:189` `write_file` / `opt/config.py:73` `install_config` | **Path traversal via unvalidated `filename`/`config_file`/`package_name` in file writes** - `VarOptManager.wri
+- [x] H186 | RED | `opt/manager.py:208` `remove` / `opt/package.py:346` `remove_package`  | **Path traversal via unvalidated `name`/`provider` in `shutil.rmtree`** - `rmtree(self.opt_root / provider / n
 - [ ] H187 | RED | `opt/package.py:161,185` `create_launcher_script`/`create_wrapper_scri | **Command injection in generated launcher/wrapper scripts** - writes `exec {command} {' '.join(args)} "$@"` an
-- [ ] H194 | RED | `packages/umer_pkg.py:357,363` `_install_single`/`tarfile.extractall` | **Tar-slip path traversal on install** - members filtered only by naive string-prefix `m.name.startswith("file
-- [ ] H195 | RED | `packages/umer_pkg.py:347,510` `_install_single`/`build` | **Untrusted manifest `name`/`version` → attacker-controlled paths** - `dest = os.path.join(install_dir, manife
-- [ ] H196 | RED | `packages/umer_pkg.py:250,268` `_verify_hash` | **"Signed" archives overstated; verification fails OPEN** - docstring advertises "Signed .umerpkg archives" bu
-- [ ] H197 | RED | `packages/umer_pkg.py:250,277` `_verify_hash` | **Integrity check ignores the `files/` payload** - `_verify_hash` hashes only `manifest.json` bytes, contradic
+- [x] H194 | RED | `packages/umer_pkg.py:357,363` `_install_single`/`tarfile.extractall` | **Tar-slip path traversal on install** - members filtered only by naive string-prefix `m.name.startswith("file
+- [x] H195 | RED | `packages/umer_pkg.py:347,510` `_install_single`/`build` | **Untrusted manifest `name`/`version` → attacker-controlled paths** - `dest = os.path.join(install_dir, manife
+- [x] H196 | RED | `packages/umer_pkg.py:250,268` `_verify_hash` | **"Signed" archives overstated; verification fails OPEN** - docstring advertises "Signed .umerpkg archives" bu
+- [x] H197 | RED | `packages/umer_pkg.py:250,277` `_verify_hash` | **Integrity check ignores the `files/` payload** - `_verify_hash` hashes only `manifest.json` bytes, contradic
 - [ ] H198 | RED | `packages/umer_pkg.py:285,390,414` `install`/`remove`/`update` | **No `CapabilityManager` gate on privileged ops** - docstring claims "system-wide requires admin grant" but th
 - [ ] H205 | RED | `proc/procfs.py:177` + `proc/nodes.py:95` `ProcFileSystem.write`/`Proc | **Write path has no authorization — only per-file read-only `mode`** - `procfs.write` delegates straight to `n
 - [ ] H206 | RED | `proc/sysctl_fs.py:26-225` `register_sysctl_entries` | **`/proc/sys/*` mutation gated by nothing** - ~60 writable sysctl params (kernel.hostname/panic_timeout/hung_t
@@ -90,8 +108,8 @@ opt/package.py), H195 (packages/umer_pkg.py), H265/H266 (srv/backup.py), H282.
 - [ ] H244 | RED | `security/security.py:45,83-93,111-117` `SecureBoot` | **Fail-open secure boot (allow-unknown default)** - `strict_mode=False` by default, so `verify_image`/`verify_
 - [ ] H245 | RED | `security/antivirus/api_server.py:6,113-137` `create_app`/`web.run_app | **Unauthenticated AV API with destructive endpoints** - aiohttp server on `127.0.0.1:9095` has NO authn/authz;
 - [ ] H246 | RED | `security/sandbox.py:35-104` `SecuritySandbox` | **SecuritySandbox provides no real isolation (masquerades as zero-trust)** - processes/permissions live in an 
-- [ ] H265 | RED | `srv/backup.py:153-154` `restore_backup`/`_extract_archive` | **Tar extraction without `filter=` (CVE-2007-4559 path traversal)** - `tarfile.open(archive_path, "r:*")` then
-- [ ] H266 | RED | `srv/backup.py:157` `restore_backup` | **Zip extraction without `filter=` (zip-slip)** - `zipf.extractall(temp_dir)` with no `filter=`; `zipfile` doe
+- [x] H265 | RED | `srv/backup.py:153-154` `restore_backup`/`_extract_archive` | **Tar extraction without `filter=` (CVE-2007-4559 path traversal)** - `tarfile.open(archive_path, "r:*")` then
+- [x] H266 | RED | `srv/backup.py:157` `restore_backup` | **Zip extraction without `filter=` (zip-slip)** - `zipf.extractall(temp_dir)` with no `filter=`; `zipfile` doe
 - [ ] H267 | RED | `srv/backup.py:181` `restore_backup` | **Destructive `shutil.rmtree` with no capability gate** - when `overwrite=True`, the destination folder is `sh
 - [ ] H268 | RED | `srv/hierarchy.py:275-290` `delete_service_tree` | **Destructive `shutil.rmtree` gated only by `force=True`, no capability check** - `if not force: raise Permiss
 - [x] H303 | RED | `var/directory_manager.py:77,87,94,184,106,212`, `var/spool_manager.py | **Path-traversal → arbitrary FS delete/write/RCE (CWE-22)** - `name`/`username`/`directory`/`filename` are joi
@@ -234,7 +252,7 @@ opt/package.py), H195 (packages/umer_pkg.py), H265/H266 (srv/backup.py), H282.
 - [ ] H279 | YELLOW | `tmp/fhs.py:50`, `tmp/hierarchy.py:47-58,80-96`, `tmp/manager.py:42-51 | **Hardcoded Windows dev path + `__init__`-time mkdir side effects** - `DEFAULT_TMP_ROOT = Path("F:/Pension Per
 - [ ] H280 | YELLOW | `tmp/*.py` (all modules) + `__init__.py:34-35`, `test_tmp.py:19-22` | **Fragile absolute intra-package imports via sys.path hack** - modules import siblings by bare absolute name (
 - [ ] H281 | YELLOW | `tmp/reaper.py:86-202` `clean_by_age`/`clean_on_boot`/`clean_by_quota` | **Destructive reaper with no capability gate and no `tmp_root` containment** - the reaper `unlink()`s/`rmdir()
-- [ ] H282 | YELLOW | `tmp/tmpfs.py:129-138` `sync_to_disk` | **Path traversal on virtual-file name (arbitrary write)** - `sync_to_disk` writes `dest = target_path / name` 
+- [x] H282 | YELLOW | `tmp/tmpfs.py:129-138` `sync_to_disk` | **Path traversal on virtual-file name (arbitrary write)** - `sync_to_disk` writes `dest = target_path / name` 
 - [ ] H283 | YELLOW | `tmp/permissions.py:116-142` `enforce_permissions` | **Privileged `os.chmod` with no capability gate** - sets `os.chmod(tmp_root, 0o1777)` + socket dirs to `0o1777
 - [ ] H288 | YELLOW | `tools/installer.py:21` | **Destructive `shutil.rmtree` with no capability gate** - `install_umer_os` does `shutil.rmtree(dst)` (where `
 - [ ] H289 | YELLOW | `tools/installer.py:13` | **Hardcoded default install root `/umer_os`** - `install_umer_os(target_dir="/umer_os")` bakes a Unix absolute

@@ -33,7 +33,7 @@ import string
 from pathlib import Path
 from typing import Any, Callable, Generator, Optional, Tuple
 
-from fhs import DEFAULT_TMP_ROOT
+from .fhs import DEFAULT_TMP_ROOT
 
 log = logging.getLogger("UmerOS.Tmp.SecureIO")
 

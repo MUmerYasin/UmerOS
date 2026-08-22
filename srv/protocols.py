@@ -20,8 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fhs import StandardProtocol
-from service import ServiceConfig, ServiceRecord
+from .fhs import StandardProtocol
+from .service import ServiceConfig, ServiceRecord
 
 log = logging.getLogger("UmerOS.Srv.Protocols")
 

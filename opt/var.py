@@ -3,9 +3,6 @@ UmerOS /var/opt — Variable Data for /opt Packages
 ===================================================
 
 Manages per-package variable/state data stored under ``/var/opt``
-per the FHS 3.0 / TLDP specification.
-
-FHS 3.0 §3.11.3::
 
     /var/opt/<provider>/<pkg>/   — variable data for /opt packages
 
@@ -28,6 +25,18 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Opt.Var")
+
+# [FIX H185] Guard against path traversal (CWE-22) when building /var/opt
+# package paths from caller-supplied package/provider/filename names.
+try:
+    from core.path_guard import safe_child, safe_join, PathTraversalError
+except Exception:  # pragma: no cover - standalone fallback
+    import os
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.path_guard import safe_child, safe_join, PathTraversalError
 
 # ── Constants ──────────────────────────────────────────────────────────
 
@@ -73,9 +82,13 @@ class VarOptManager:
         self.root = Path(var_opt_root)
 
     def _pkg_dir(self, package: str, provider: str = "") -> Path:
+        # [FIX H185] Contain the provider/package segments inside the /var/opt
+        # root. A name like "../../etc" is refused (fail-closed) instead of
+        # letting the caller walk outside the managed tree.
+        root = self.root
         if provider:
-            return self.root / provider / package
-        return self.root / package
+            root = safe_child(root, provider)
+        return safe_child(root, package)
 
     # ── CRUD ───────────────────────────────────────────────────────────
 
@@ -87,7 +100,11 @@ class VarOptManager:
 
     def remove_package_dir(self, package: str, provider: str = "") -> bool:
         """Remove the variable data directory for a package."""
-        d = self._pkg_dir(package, provider)
+        try:
+            d = self._pkg_dir(package, provider)
+        except PathTraversalError:
+            log.error("Refusing unsafe /var/opt path for %r/%r", provider, package)
+            return False
         if not d.exists():
             return False
         try:
@@ -95,7 +112,10 @@ class VarOptManager:
             log.info("Removed /var/opt data: %s", d)
             # Clean empty provider dir
             if provider:
-                parent = self.root / provider
+                try:
+                    parent = safe_child(self.root, provider)
+                except PathTraversalError:
+                    return True
                 if parent.exists() and not any(parent.iterdir()):
                     parent.rmdir()
             return True
@@ -159,14 +179,20 @@ class VarOptManager:
 
     def get_package(self, package: str, provider: str = "") -> Optional[VarDataEntry]:
         """Get data entry for a specific package."""
-        d = self._pkg_dir(package, provider)
+        try:
+            d = self._pkg_dir(package, provider)
+        except PathTraversalError:
+            return None
         if not d.exists():
             return None
         return self._scan_dir(d, package=package, provider=provider)
 
     def list_files(self, package: str, provider: str = "") -> List[Dict[str, Any]]:
         """List all files in a package's /var/opt directory."""
-        pkg_dir = self._pkg_dir(package, provider)
+        try:
+            pkg_dir = self._pkg_dir(package, provider)
+        except PathTraversalError:
+            return []
         if not pkg_dir.exists():
             return []
 
@@ -189,8 +215,16 @@ class VarOptManager:
     def write_file(self, package: str, provider: str = "",
                    filename: str = "data.bin", content: bytes = b"") -> bool:
         """Write a file to /var/opt/<provider>/<pkg>/."""
-        pkg_dir = self.ensure_package_dir(package, provider)
-        target = pkg_dir / filename
+        try:
+            pkg_dir = self.ensure_package_dir(package, provider)
+            # [FIX H185] `filename` may be nested ("sub/file.txt"); safe_join
+            # still proves the final path stays inside the package dir, so a
+            # name like "../etc/passwd" is refused (fail-closed).
+            target = safe_join(pkg_dir, filename)
+        except PathTraversalError:
+            log.error("Refusing unsafe /var/opt write for %r/%r/%r",
+                      provider, package, filename)
+            return False
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             if isinstance(content, str):
@@ -205,8 +239,13 @@ class VarOptManager:
     def read_file(self, package: str, provider: str = "",
                   filename: str = "data.bin") -> Optional[bytes]:
         """Read a file from /var/opt/<provider>/<pkg>/."""
-        pkg_dir = self._pkg_dir(package, provider)
-        target = pkg_dir / filename
+        try:
+            pkg_dir = self._pkg_dir(package, provider)
+            target = safe_join(pkg_dir, filename)
+        except PathTraversalError:
+            log.error("Refusing unsafe /var/opt read for %r/%r/%r",
+                      provider, package, filename)
+            return None
         if not target.exists():
             return None
         return target.read_bytes()

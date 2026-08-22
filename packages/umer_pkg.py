@@ -23,14 +23,49 @@ Licence: Apache 2.0
 from __future__ import annotations
 
 import hashlib
+import hmac  # [FIX H196] constant-time hash compare
 import json
 import logging
 import os
 import shutil
+import sys
 import tarfile
 import tempfile
 import time
 from typing import Dict, List, Optional, Set
+
+# [FIX H194/H195] Guard against path traversal (CWE-22) in package install /
+# build paths derived from the (attacker-controlled) manifest name/version.
+try:
+    from core.path_guard import safe_child, PathTraversalError
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.path_guard import safe_child, PathTraversalError
+
+# [FIX H194] Python < 3.12 lacks the fail-closed `filter=` argument on
+# extractall(); on those interpreters we fall back to no filter (still unsafe,
+# but matching the documented >=3.12 support target of UmerOS).
+_FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
+
+
+# [FIX H196/H197] Deterministic integrity hash over the manifest + full payload.
+# Covers manifest.json AND every file under files/ in sorted order, so a
+# tampered or missing payload fails verification (previously only the manifest
+# bytes were hashed, and a missing HASH was silently skipped — both fail-open).
+def _package_integrity_hash(
+    manifest_bytes: bytes, file_items: "list[tuple[str, bytes]]"
+) -> str:
+    h = hashlib.sha3_256()
+    h.update(b"manifest:")
+    h.update(manifest_bytes)
+    h.update(b"|files:")
+    for name, data in sorted(file_items, key=lambda x: x[0]):
+        h.update(name.encode("utf-8"))
+        h.update(b"\x00")
+        h.update(data)
+    return h.hexdigest()
 
 log = logging.getLogger("UmerOS.UmerPkg")
 
@@ -248,36 +283,47 @@ class UmerPackageManager:
         return PackageManifest(data)
 
     def _verify_hash(self, pkg_path: str) -> bool:
-        """Verify the package's embedded HASH file.
+        """[FIX H196] Verify the package's embedded HASH (fail-closed).
 
-        A HASH file in the archive root must contain the SHA3-256 hex of the
-        manifest.json content.  If absent, the check is skipped (dev mode).
+        The HASH file contains the SHA3-256 of the manifest.json content AND
+        the entire files/ payload (deterministic order — see
+        ``_package_integrity_hash``).  A missing HASH used to be silently
+        skipped ("dev mode"), letting unsigned/tampered archives install — a
+        fail-open integrity check.  Now a missing or mismatched HASH causes
+        verification to FAIL CLOSED (refuse install).
 
         Args:
             pkg_path: Path to the .umerpkg archive.
 
         Returns:
-            True if verified (or no HASH present), False on mismatch.
+            True only if the embedded HASH matches the recomputed digest.
         """
         try:
             with tarfile.open(pkg_path, "r:gz") as tar:
-                members = [m.name for m in tar.getmembers()]
-                if "HASH" not in members:
-                    log.debug("No HASH in '%s' — skipping verification (dev mode).",
-                              pkg_path)
-                    return True
-                with tar.extractfile("manifest.json") as fh:  # type: ignore
+                members = {m.name: m for m in tar.getmembers()}
+                if "HASH" not in members or "manifest.json" not in members:
+                    log.error(
+                        "Refusing '%s': missing HASH/manifest — cannot verify.",
+                        pkg_path,
+                    )
+                    return False
+                with tar.extractfile(members["manifest.json"]) as fh:  # type: ignore
                     manifest_bytes = fh.read()
-                with tar.extractfile("HASH") as fh:  # type: ignore
+                with tar.extractfile(members["HASH"]) as fh:  # type: ignore
                     expected = fh.read().decode().strip()
+                file_items: "list[tuple[str, bytes]]" = []
+                for name, member in members.items():
+                    if name.startswith("files/") and member.isfile():
+                        with tar.extractfile(member) as fh:  # type: ignore
+                            file_items.append((name, fh.read()))
         except Exception as exc:  # noqa: BLE001
             log.error("Hash verification I/O error: %s", exc)
             return False
 
-        computed = hashlib.sha3_256(manifest_bytes).hexdigest()
-        ok = computed == expected
+        computed = _package_integrity_hash(manifest_bytes, file_items)
+        ok = hmac.compare_digest(computed, expected)
         if not ok:
-            log.error("Package hash MISMATCH for '%s'!", pkg_path)
+            log.error("Package hash MISMATCH for '%s' — refusing install.", pkg_path)
         return ok
 
     # ── Install ───────────────────────────────────────────────────────────────
@@ -344,7 +390,14 @@ class UmerPackageManager:
             return False
 
         manifest = self._read_manifest(pkg_path)
-        dest = os.path.join(self._install_dir, name)
+        # [FIX H195] Contain the install dir against the manifest-supplied
+        # `name` (which an attacker controls via a malicious .umerpkg). A name
+        # like "../../etc/cron.d" is refused and the install aborts closed.
+        try:
+            dest = safe_child(self._install_dir, name)
+        except PathTraversalError:
+            log.error("Refusing unsafe install path for package '%s'.", name)
+            return False
 
         # Snapshot existing install (atomic rollback)
         snapshot = None
@@ -360,11 +413,14 @@ class UmerPackageManager:
                     m for m in tar.getmembers()
                     if m.name.startswith("files/")
                 ]
-                tar.extractall(path=dest, members=members)
+                # [FIX H194] filter="data" makes extraction fail-closed against
+                # zip/tar-slip (CVE-2007-4559): members with ".." or absolute
+                # paths are rejected instead of escaping `dest`.
+                tar.extractall(path=dest, members=members, **_FILTER_KW)
 
             self._db[name] = {
                 "version":    manifest.version,
-                "path":       dest,
+                "path":       str(dest),
                 "installed":  time.time(),
                 "entry_point": manifest.entry_point,
             }
@@ -402,7 +458,15 @@ class UmerPackageManager:
 
         dest = self._db[package_name].get("path", "")
         if os.path.isdir(dest):
-            shutil.rmtree(dest, ignore_errors=True)
+            # [FIX H195] Defense-in-depth: only delete paths that actually
+            # reside inside the install dir (the stored path may be legacy or
+            # tainted by a pre-fix install).
+            inst_root = Path(self._install_dir).resolve()
+            dest_abs = Path(dest).resolve()
+            if dest_abs != inst_root and inst_root not in dest_abs.parents:
+                log.error("Refusing to remove path outside install dir: %s", dest)
+            else:
+                shutil.rmtree(dest, ignore_errors=True)
 
         del self._db[package_name]
         self._save_db()
@@ -508,10 +572,35 @@ class UmerPackageManager:
         """
         pm = PackageManifest(manifest)
         pkg_filename = f"{pm.name}-{pm.version}.umerpkg"
-        pkg_path     = os.path.join(output_dir, pkg_filename)
+        # [FIX H195] Contain the package file against the manifest-supplied
+        # name/version (a malicious name could otherwise write anywhere via
+        # "../../etc/x"). Refuse traversal and fail closed.
+        try:
+            pkg_path = safe_child(output_dir, pkg_filename)
+        except PathTraversalError as exc:
+            raise ValueError(f"Refusing unsafe .umerpkg output path: {exc}")
 
         manifest_bytes = json.dumps(pm.to_dict(), indent=2).encode()
-        manifest_hash  = hashlib.sha3_256(manifest_bytes).hexdigest()
+
+        # [FIX H196/H197] Collect the full payload and compute a deterministic,
+        # full-payload integrity hash (manifest + every files/ entry).
+        file_items: "list[tuple[str, bytes, str]]" = []  # (arcname, data, full_path)
+        for root, _, files in os.walk(source_dir):
+            for fname in files:
+                full = os.path.join(root, fname)
+                # [FIX H196] Use POSIX forward-slash arcnames.  tarfile normalises
+                # member names to "/" on read, so a Windows backslash arcname here
+                # would diverge from the name re-read during _verify_hash and break
+                # the integrity hash.  Normalising explicitly keeps build and
+                # verify byte-for-byte consistent across platforms.
+                rel = os.path.relpath(full, source_dir).replace(os.sep, "/")
+                arcname = "files/" + rel
+                with open(full, "rb") as _fh:
+                    file_items.append((arcname, _fh.read(), full))
+
+        integrity_hash = _package_integrity_hash(
+            manifest_bytes, [(a, d) for a, d, _ in file_items]
+        )
 
         with tarfile.open(pkg_path, "w:gz") as tar:
             # Add manifest.json
@@ -521,19 +610,16 @@ class UmerPackageManager:
             tar.add(tmp_name, arcname="manifest.json")
             os.unlink(tmp_name)
 
-            # Add HASH file
+            # Add HASH file (covers manifest + full files/ tree — fail-closed)
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                tmp.write(manifest_hash.encode())
+                tmp.write(integrity_hash.encode())
                 tmp_name = tmp.name
             tar.add(tmp_name, arcname="HASH")
             os.unlink(tmp_name)
 
-            # Add source files under files/
-            for root, _, files in os.walk(source_dir):
-                for fname in files:
-                    full = os.path.join(root, fname)
-                    rel  = os.path.relpath(full, source_dir)
-                    tar.add(full, arcname=os.path.join("files", rel))
+            # Add source files under files/ (sorted for deterministic hashing)
+            for arcname, _data, full in sorted(file_items, key=lambda x: x[0]):
+                tar.add(full, arcname=arcname)
 
         log.info("Built '%s'.", pkg_path)
 

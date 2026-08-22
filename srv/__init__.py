@@ -31,7 +31,7 @@ _this_dir = _p.dirname(_p.abspath(__file__))
 if _this_dir not in _sys.path:
     _sys.path.insert(0, _this_dir)
 
-from fhs import (
+from .fhs import (
     DEFAULT_SRV_ROOT,
     PROHIBITED_IN_SRV,
     STANDARD_PROTOCOL_DIRS,
@@ -40,22 +40,22 @@ from fhs import (
     OrganizationScheme,
     StandardProtocol,
 )
-from hierarchy import (
+from .hierarchy import (
     ServiceTreeLayout,
     SrvHierarchy,
 )
-from service import (
+from .service import (
     ServiceAccessMode,
     ServiceConfig,
     ServiceRecord,
     ServiceStatus,
 )
-from permissions import (
+from .permissions import (
     PermissionAuditResult,
     SecurityProfile,
     SrvPermissionManager,
 )
-from protocols import (
+from .protocols import (
     FTPServiceHandler,
     GitServiceHandler,
     RsyncServiceHandler,
@@ -63,11 +63,11 @@ from protocols import (
     TFTPServiceHandler,
     WWWServiceHandler,
 )
-from backup import (
+from .backup import (
     BackupManifest,
     SrvBackupManager,
 )
-from manager import (
+from .manager import (
     SrvManager,
     get_default_manager,
     get_service_path,

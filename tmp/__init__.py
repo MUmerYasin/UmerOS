@@ -2,7 +2,7 @@
 UmerOS /tmp — Temporary Filesystem Hierarchy
 ============================================
 
-FHS 2.3/3.0 and TLDP-compliant implementation of the ``/tmp`` filesystem
+Implementation of the ``/tmp`` filesystem
 hierarchy, managing transient files, UNIX socket directories, process locks,
 tmpwatch/systemd-tmpfiles reaper policies, and high-performance TmpFS.
 
@@ -11,7 +11,7 @@ https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/tmp.html
 
 Modules:
 --------
-fhs         - FHS & TLDP specifications, protected socket dirs, FHSValidator
+fhs         - Specifications, protected socket dirs, FHSValidator
 hierarchy   - TmpHierarchy, socket directory provisioning, per-user runtimes
 secure_io   - SecureIO, race-free mktemp, SecureTempFile, SecureTempDir
 lockfile    - ProcessLock, LockMetadata, stale lock detector
@@ -34,43 +34,43 @@ _this_dir = _p.dirname(_p.abspath(__file__))
 if _this_dir not in _sys.path:
     _sys.path.insert(0, _this_dir)
 
-from fhs import (
+from .fhs import (
     DEFAULT_TMP_ROOT,
     PROTECTED_SOCKET_DIRS,
     RECOMMENDED_PREFIXES,
     FHSValidationResult,
     FHSValidator,
 )
-from hierarchy import (
+from .hierarchy import (
     TmpHierarchy,
 )
-from secure_io import (
+from .secure_io import (
     SecureIO,
     SecureTempDir,
     SecureTempFile,
 )
-from lockfile import (
+from .lockfile import (
     LockAcquisitionError,
     LockMetadata,
     ProcessLock,
     is_pid_alive,
 )
-from reaper import (
+from .reaper import (
     DEFAULT_MAX_AGE_SEC,
     ReapReport,
     TmpReaper,
 )
-from permissions import (
+from .permissions import (
     TmpPermissionManager,
     TmpSecurityAuditResult,
 )
-from tmpfs import (
+from .tmpfs import (
     DEFAULT_TMPFS_MAX_BYTES,
     TmpFS,
     TmpFSNode,
     TmpFSQuotaExceededError,
 )
-from manager import (
+from .manager import (
     TmpManager,
     clean_temp,
     get_default_tmp_manager,

@@ -2,21 +2,29 @@
 UmerOS /opt Configuration Management
 
 This module handles configuration files for /opt packages in /etc/opt
-as per Filesystem Hierarchy standards.
 """
 
 import os
+import sys
 import json
 from pathlib import Path
 from typing import Dict, Optional, Any
 from datetime import datetime
+
+# [FIX H185] Guard against path traversal (CWE-22) in config file paths.
+try:
+    from core.path_guard import safe_child, safe_join, PathTraversalError
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.path_guard import safe_child, safe_join, PathTraversalError
 
 
 class OptConfig:
     """
     Manages configuration files for /opt packages in /etc/opt.
     
-    According to FHS:
     - Host-specific configuration files for add-on packages must be in /etc/opt/<subdir>
     - No structure is imposed on internal arrangement
     - Configuration files must be static and cannot be executable binaries
@@ -49,10 +57,17 @@ class OptConfig:
             
         Returns:
             Path to the configuration file
+            
+        Raises:
+            PathTraversalError: if package_name/config_file would escape the
+                /etc/opt root (fail-closed; callers catch and refuse).
         """
+        # [FIX H185] Contain the package dir and (optional) nested config file
+        # inside /etc/opt. A name like "../../etc/passwd" is refused.
+        base = safe_child(self.etc_opt_root, package_name)
         if config_file:
-            return self.etc_opt_root / package_name / config_file
-        return self.etc_opt_root / package_name
+            return safe_join(base, config_file)
+        return base
     
     def install_config(self, package_name: str, config_data: Dict[str, Any], 
                        config_file: str = "config.json") -> Path:
@@ -66,8 +81,16 @@ class OptConfig:
             
         Returns:
             Path to the installed configuration file
+            
+        Raises:
+            ValueError: if the resolved config path would escape /etc/opt
+                (path-traversal refusal).
         """
-        config_path = self.get_config_path(package_name, config_file)
+        try:
+            config_path = self.get_config_path(package_name, config_file)
+        except PathTraversalError as exc:
+            # [FIX H185] Fail closed: never write outside /etc/opt.
+            raise ValueError(f"Refusing unsafe /etc/opt config path: {exc}")
         config_path.parent.mkdir(parents=True, exist_ok=True)
         
         with open(config_path, 'w') as f:
@@ -90,7 +113,10 @@ class OptConfig:
         Returns:
             Configuration dictionary or None if not found
         """
-        config_path = self.get_config_path(package_name, config_file)
+        try:
+            config_path = self.get_config_path(package_name, config_file)
+        except PathTraversalError:
+            return None
         if config_path.exists():
             with open(config_path, 'r') as f:
                 data = json.load(f)
@@ -107,7 +133,11 @@ class OptConfig:
         Returns:
             True if removal was successful
         """
-        config_path = self.etc_opt_root / package_name
+        try:
+            config_path = safe_child(self.etc_opt_root, package_name)
+        except PathTraversalError:
+            # [FIX H185] Refuse to delete anything outside /etc/opt.
+            return False
         if config_path.exists():
             if config_path.is_dir():
                 import shutil

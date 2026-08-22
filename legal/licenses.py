@@ -7,13 +7,11 @@ and compatibility auditing across all UmerOS subsystems.
 
 Approved Licenses:
 ------------------
-- Apache-2.0 (Primary UmerOS User-Space & Microkernel Framework)
-- GPL-2.0-only (Linux Kernel Interop & HAL Drivers per torvalds/linux rules)
-- MIT & BSD-3-Clause (Permissive User Utilities)
-- CC-BY-SA-4.0 (Documentation & Specifications)
+
+- GPL-3.0 (Linux Kernel Interop & HAL Drivers per torvalds/linux rules, Primary UmerOS User-Space & Microkernel Framework, Permissive User Utilities, Documentation & Specifications.
 
 Author: UmerOS Project
-Licence: Apache 2.0
+Licence: GPL-3.0 
 """
 
 from __future__ import annotations
@@ -96,15 +94,31 @@ class LicenseManager:
                         with open(fp, "r", encoding="utf-8", errors="ignore") as fo:
                             content = fo.read(2048)  # Read top 2KB
                             
+                            # [FIX H129] Fail-closed license audit.
+                            # A file is only compliant if it carries an explicit
+                            # license *declaration* (an SPDX identifier or a clear
+                            # grant phrase).  Merely mentioning the words
+                            # "License"/"Copyright" — which any source docstring
+                            # that references licenses contains — is NOT
+                            # sufficient; such files are reported as missing so the
+                            # compliance gap is surfaced instead of hidden.
+                            # Previously every file matched the generic
+                            # "License"/"Copyright" branch and was counted
+                            # compliant, hiding unsigned files (fail-open).
                             found_lic = None
-                            if "Apache" in content or "apache" in content:
-                                found_lic = "Apache-2.0"
-                            elif "GPL" in content or "General Public License" in content:
-                                found_lic = "GPL-2.0"
-                            elif "MIT" in content:
-                                found_lic = "MIT"
-                            elif "Licence" in content or "License" in content or "Copyright" in content:
-                                found_lic = "Custom/Proprietary"
+                            for _marker, _name in (
+                                ("SPDX-License-Identifier:", "<declared>"),
+                                ("GNU General Public License", "GPL-2.0"),
+                                ("Licensed under the Apache License", "Apache-2.0"),
+                                ("Apache License, Version 2.0", "Apache-2.0"),
+                                ("Licence: Apache 2.0", "Apache-2.0"),
+                                ("License: GPL-3.0", "GPL-3.0"),
+                                ("GPL-3.0", "GPL-3.0"),
+                                ("MIT License", "MIT"),
+                            ):
+                                if _marker in content:
+                                    found_lic = _name
+                                    break
 
                             if found_lic:
                                 result.compliant_files += 1

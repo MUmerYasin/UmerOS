@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fhs import OrganizationScheme, StandardProtocol
+from .fhs import OrganizationScheme, StandardProtocol
 
 
 class ServiceStatus(str, enum.Enum):

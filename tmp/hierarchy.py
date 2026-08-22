@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from fhs import (
+from .fhs import (
     DEFAULT_TMP_ROOT,
     PROTECTED_SOCKET_DIRS,
     FHSValidator,

@@ -25,7 +25,7 @@ import json
 import sys
 from pathlib import Path
 
-from manager import TmpManager
+from .manager import TmpManager
 
 
 def create_parser() -> argparse.ArgumentParser:

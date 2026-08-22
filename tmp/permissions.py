@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fhs import DEFAULT_TMP_ROOT, PROTECTED_SOCKET_DIRS
+from .fhs import DEFAULT_TMP_ROOT, PROTECTED_SOCKET_DIRS
 
 log = logging.getLogger("UmerOS.Tmp.Permissions")
 

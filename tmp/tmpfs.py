@@ -20,10 +20,22 @@ from __future__ import annotations
 
 import io
 import logging
+import os
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# [FIX H282] Guard against path traversal (CWE-22) when syncing virtual files
+# to disk — a node name like "../../etc/passwd" could otherwise write anywhere.
+try:
+    from core.path_guard import safe_join, PathTraversalError
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.path_guard import safe_join, PathTraversalError
 
 log = logging.getLogger("UmerOS.Tmp.TmpFS")
 
@@ -132,7 +144,14 @@ class TmpFS:
         target_path.mkdir(parents=True, exist_ok=True)
         count = 0
         for name, node in self._nodes.items():
-            dest = target_path / name
+            # [FIX H282] Contain each virtual-file name inside target_path. A
+            # name like "../../etc/passwd" would otherwise let a stored buffer
+            # be written anywhere on disk; we refuse it (fail-closed).
+            try:
+                dest = safe_join(target_path, name)
+            except PathTraversalError:
+                log.error("Refusing unsafe tmpfs node name on sync: %r", name)
+                continue
             dest.write_bytes(bytes(node.data))
             count += 1
         return count

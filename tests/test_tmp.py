@@ -109,3 +109,25 @@ def test_tmp_manager(temp_tmp):
 
     audit = mgr.audit_all()
     assert audit["fhs_compliant"]
+
+
+def test_tmpfs_sync_refuses_traversal(temp_tmp):
+    """H282: a virtual-file name like '../../escape.txt' must NOT be written
+    outside the sync target dir."""
+    from tmp.tmpfs import TmpFSNode
+
+    tfs = TmpFS(max_bytes=1_000_000)
+    tfs.write_file("normal.txt", b"data")
+    # Simulate a malicious stored node name (the key is unsanitized in memory).
+    tfs._nodes["../../escape.txt"] = TmpFSNode(
+        name="../../escape.txt", data=bytearray(b"pwn")
+    )
+
+    target = temp_tmp / "synced"
+    count = tfs.sync_to_disk(target)
+
+    # Only the legitimate node is written; the traversal one is refused.
+    assert count == 1
+    assert (target / "normal.txt").exists()
+    assert not (temp_tmp.parent / "escape.txt").exists(), \
+        "CRITICAL: tmpfs sync path-traversal succeeded!"

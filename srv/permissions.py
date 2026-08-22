@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from fhs import StandardProtocol
+from .fhs import StandardProtocol
 
 log = logging.getLogger("UmerOS.Srv.Permissions")
 

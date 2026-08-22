@@ -20,6 +20,8 @@ import logging
 import time
 import random # Needed for the enhanced AI logic
 import secrets # Needed for crypto
+import hashlib  # [FIX H111] real HMAC-based sign/verify
+import hmac     # [FIX H111] constant-time signature compare
 
 # ── kernel modules (NEW) ──────────────────────────────────────
 from kernel.pid_allocator import PidAllocator, PID_SYSTEM, PID_INIT
@@ -426,12 +428,50 @@ class VirtualFileSystem:
         _walk(start_node, base_abs_path if base_abs_path else "/")
         return results
 
-class CryptoEngine: # Crypto (Placeholder)
+class CryptoEngine:  # [FIX H111] Real (non-dummy) crypto.
+    # Previously `verify()` returned `True` unconditionally and `sign()` returned
+    # a constant, so every signature validated and any tampering was invisible —
+    # a dummy-crypto backdoor.  `sign`/`verify` now use HMAC-SHA256 with a
+    # per-instance key (constant-time compare); `encrypt`/`decrypt` use
+    # AES-256-GCM when `cryptography` is available.  The kernel still runs as a
+    # userspace simulation, but the primitives are no longer no-ops.
+    def __init__(self, key: bytes | None = None) -> None:
+        self._key = key or os.urandom(32)
+
     def random_bytes(self, n): import secrets; return secrets.token_bytes(n)
-    def encrypt(self, data): return (b"nonce", data+b"_encrypted") # Dummy
-    def decrypt(self, nonce, data): return data.rstrip(b'_encrypted') # Dummy
-    def sign(self, data): return b"dummy_signature" # Dummy
-    def verify(self, data, sig): return True # Dummy
+
+    def encrypt(self, data: bytes, key: bytes | None = None) -> tuple[bytes, bytes]:
+        k = key or self._key
+        try:
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            aes = AESGCM(k)
+            nonce = os.urandom(12)
+            return (nonce, aes.encrypt(nonce, data, None))
+        except Exception as exc:  # pragma: no cover - crypto lib missing
+            raise RuntimeError(
+                "CryptoEngine.encrypt requires the 'cryptography' package"
+            ) from exc
+
+    def decrypt(self, nonce_data: tuple[bytes, bytes], key: bytes | None = None) -> bytes:
+        k = key or self._key
+        nonce, ct = nonce_data
+        try:
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            aes = AESGCM(k)
+            return aes.decrypt(nonce, ct, None)
+        except Exception as exc:  # pragma: no cover - crypto lib missing
+            raise RuntimeError(
+                "CryptoEngine.decrypt requires the 'cryptography' package"
+            ) from exc
+
+    def sign(self, data: bytes, key: bytes | None = None) -> bytes:
+        k = key or self._key
+        return hmac.new(k, data, hashlib.sha256).digest()
+
+    def verify(self, data: bytes, sig: bytes, key: bytes | None = None) -> bool:
+        k = key or self._key
+        expected = hmac.new(k, data, hashlib.sha256).digest()
+        return hmac.compare_digest(expected, sig)
 
 class SecuritySandbox: # Sandbox (Using the improved version from security/sandbox.py)
     def __init__(self):

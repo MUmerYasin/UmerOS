@@ -29,8 +29,25 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fhs import DEFAULT_SRV_ROOT
-from service import ServiceRecord
+# [FIX H265/H266] Guard against path traversal (CWE-22) when restoring service
+# trees and when building the destination from the (attacker-controlled)
+# manifest `service_name`.
+import sys
+
+try:
+    from core.path_guard import safe_join, PathTraversalError
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.path_guard import safe_join, PathTraversalError
+
+# [FIX H265/H266] Python < 3.12 lacks the fail-closed `filter=` argument on
+# extractall(); fall back to no filter there (matching the >=3.12 target).
+_FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
+
+from .fhs import DEFAULT_SRV_ROOT
+from .service import ServiceRecord
 
 log = logging.getLogger("UmerOS.Srv.Backup")
 
@@ -151,10 +168,15 @@ class SrvBackupManager:
         try:
             if tarfile.is_tarfile(archive_path):
                 with tarfile.open(archive_path, "r:*") as tar:
-                    tar.extractall(temp_dir)
+                    # [FIX H265] filter="data" makes tar extraction
+                    # fail-closed against zip/tar-slip (CVE-2007-4559): members
+                    # with ".." or absolute paths are rejected instead of
+                    # escaping temp_dir.
+                    tar.extractall(temp_dir, **_FILTER_KW)
             elif zipfile.is_zipfile(archive_path):
                 with zipfile.ZipFile(archive_path, "r") as zipf:
-                    zipf.extractall(temp_dir)
+                    # [FIX H266] same fail-closed extraction for zip archives.
+                    zipf.extractall(temp_dir, **_FILTER_KW)
             else:
                 raise ValueError("Unknown archive format.")
 
@@ -171,7 +193,18 @@ class SrvBackupManager:
                 raise RuntimeError("No service directory found in archive.")
 
             src_folder = extracted_items[0]
-            dest_folder = target_root / (service_name or src_folder.name)
+            # [FIX H195] Contain the destination against the manifest-supplied
+            # `service_name` (attacker-controlled). A name like "../../etc" is
+            # refused instead of writing the restored tree outside target_root.
+            if service_name:
+                try:
+                    dest_folder = safe_join(target_root, service_name)
+                except PathTraversalError:
+                    raise ValueError(
+                        f"Refusing unsafe service_name in backup: {service_name!r}"
+                    )
+            else:
+                dest_folder = safe_join(target_root, src_folder.name)
 
             if dest_folder.exists():
                 if not overwrite:

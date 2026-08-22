@@ -27,7 +27,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fhs import DEFAULT_TMP_ROOT
+from .fhs import DEFAULT_TMP_ROOT
 
 log = logging.getLogger("UmerOS.Tmp.Lockfile")
 

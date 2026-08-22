@@ -4,7 +4,7 @@ SSL/TLS Certificate and Key Management for UmerOS /lib/ssl
 Manages the /lib/ssl and /usr/lib/ssl certificate stores, CA bundles,
 private keys, and certificate chains.
 
-Covers the FHS requirement that /lib/ssl contains SSL/TLS support files
+/lib/ssl contains SSL/TLS support files
 (CA certificates, root certificates, intermediate bundles) used by
 the dynamic linker and system-wide crypto libraries.
 
@@ -319,7 +319,12 @@ class SslManager:
             serial=self._extract_field(path, "serial"),
             not_before="",
             not_after="",
-            fingerprint_sha256=self.compute_fingerprint(path),
+            # [FIX H146] Use the canonical X.509 DER fingerprint (or a
+            # whitespace-normalised PEM-block hash) so it compares directly with
+            # the bundle fingerprints computed in _bundle_fingerprints.
+            fingerprint_sha256=self._fingerprint_pem_cert(
+                (Path(path).read_bytes() if Path(path).exists() else b"")
+            ),
             is_ca=self._check_is_ca(path),
             is_trusted=False,
             key_size=2048,
@@ -412,19 +417,88 @@ class SslManager:
             return False
 
     def _check_is_trusted(self, cert: CertInfo) -> bool:
-        """Check if a certificate is in the trusted store."""
+        """[FIX H146] Fail-closed CA-trust verification.
+
+        A certificate is trusted only if its SHA-256 fingerprint actually
+        appears among the certificates contained in a CA bundle in a configured
+        store.  The previous implementation returned ``True`` whenever *any*
+        ``ca-certificates.crt`` file existed anywhere — an attacker-presented
+        certificate was trusted as long as a bundle was present on the system, a
+        fail-open trust decision.  Now we compare real fingerprints and default
+        to NOT trusted.
+        """
+        if not cert or not cert.fingerprint_sha256:
+            return False
+        target = cert.fingerprint_sha256
         for store_path in self._store_paths:
-            # Check if cert is in the CA bundle
             bundle = os.path.join(store_path, _DEFAULT_CA_BUNDLE)
-            if os.path.isfile(bundle):
-                try:
-                    with open(bundle, "r") as f:
-                        if cert.fingerprint_sha256:
-                            # Simplified: in production compare actual cert data
-                            return True  # If store exists, assume basic trust
-                except OSError:
-                    pass
+            if not os.path.isfile(bundle):
+                continue
+            for fp in self._bundle_fingerprints(bundle):
+                if fp == target:  # fingerprints are not secret — direct compare OK
+                    return True
         return False
+
+    @staticmethod
+    def _fingerprint_pem_cert(raw: bytes) -> str:
+        """Canonical SHA-256 fingerprint of a single PEM certificate.
+
+        Uses the X.509 DER fingerprint (cryptography) when available — the
+        standard, byte-order-independent cert identity.  Falls back to a
+        whitespace-normalised PEM-block hash so candidate certs and bundle
+        entries are always compared on identical bytes (the previous code
+        hashed the whole file for the candidate but only the BEGIN→END block
+        for the bundle, so a single trailing newline made them diverge).
+        """
+        try:
+            from cryptography import x509
+            from cryptography.hazmat.primitives import hashes
+
+            return x509.load_pem_x509_certificate(raw).fingerprint(
+                hashes.SHA256()
+            ).hex()
+        except Exception:
+            pass
+        text = raw.decode("utf-8", errors="ignore")
+        marker = "-----BEGIN CERTIFICATE-----"
+        end = "-----END CERTIFICATE-----"
+        i = text.find(marker)
+        j = text.find(end, i) if i != -1 else -1
+        if i != -1 and j != -1:
+            block = text[i:j + len(end)].strip()
+        else:
+            block = text.strip()
+        return hashlib.sha256(block.encode("utf-8")).hexdigest()
+
+    def _bundle_fingerprints(self, bundle_path: str) -> list[str]:
+        """Return SHA-256 fingerprints of each cert block in a CA bundle.
+
+        Used by :meth:`_check_is_trusted` to compare a candidate cert against
+        the real contents of the trust store (fail-closed).  Each entry is
+        fingerprinted with :meth:`_fingerprint_pem_cert` so it is directly
+        comparable to a candidate's ``fingerprint_sha256``.
+        """
+        try:
+            with open(bundle_path, "rb") as fh:
+                raw = fh.read()
+        except OSError:
+            return []
+        text = raw.decode("utf-8", errors="ignore")
+        fps: list[str] = []
+        marker = "-----BEGIN CERTIFICATE-----"
+        end = "-----END CERTIFICATE-----"
+        start = 0
+        while True:
+            i = text.find(marker, start)
+            if i == -1:
+                break
+            j = text.find(end, i)
+            if j == -1:
+                break
+            block = text[i:j + len(end)].encode("utf-8")
+            fps.append(self._fingerprint_pem_cert(block))
+            start = j + 1
+        return fps
 
 
 # ---------------------------------------------------------------------------

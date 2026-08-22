@@ -17,8 +17,9 @@ class UpdateManager:
 
     CURRENT_VERSION = "2.0.0"
 
-    def __init__(self, crypto_engine=None):
+    def __init__(self, crypto_engine=None, trusted_public_key=None):
         self.crypto = crypto_engine
+        self.trusted_public_key = trusted_public_key
         self.update_url = "https://updates.umeros.dev/latest"
         print("[OTA] Update Manager initialized.")
 
@@ -30,7 +31,6 @@ class UpdateManager:
             "current_version": self.CURRENT_VERSION,
             "delta_size_mb": 42,
             "changelog": "Quantum scheduler improvements, VPN hardening",
-            "signature": "simulated_dilithium_sig_abc123",
         }
         if simulated_manifest["latest_version"] != self.CURRENT_VERSION:
             print(f"[OTA] Update available: v{self.CURRENT_VERSION} -> v{simulated_manifest['latest_version']}")
@@ -46,16 +46,29 @@ class UpdateManager:
         return b"UMER_OS_DELTA_PAYLOAD_v2.1.0"
 
     def verify_and_apply(self, payload: bytes, manifest: dict) -> bool:
-        """Verify the update signature and apply it."""
-        if self.crypto:
-            # Sign the payload ourselves and compare (simulation)
-            sig = self.crypto.sign(payload)
-            print(f"[OTA] Payload signature: {sig[:24]}…")
-            print("[OTA] Signature verification: PASS (simulated)")
-        else:
-            print("[OTA] WARNING: No crypto engine — skipping signature check.")
+        """[FIX H154] Verify the update signature and apply it (fail-closed).
 
-        print(f"[OTA] Applying update to v{manifest['latest_version']}...")
+        Previously this signed the payload *with its own engine* and declared
+        success, or skipped the check entirely when no engine was configured —
+        both are fail-open (any payload is accepted), and the manifest shipped a
+        hardcoded fake "simulated_dilithium_sig_abc123".  Now an update is
+        applied only when a real ``signature`` in the manifest verifies against
+        ``trusted_public_key`` via the configured crypto engine.  Anything else
+        is refused.
+        """
+        signature = manifest.get("signature")
+        if self.crypto is None or self.trusted_public_key is None or not signature:
+            print("[OTA] Refusing update: no crypto engine / trusted key / signature.")
+            return False
+        try:
+            ok = self.crypto.verify(payload, signature, self.trusted_public_key)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[OTA] Signature verification error: {exc}")
+            return False
+        if not ok:
+            print("[OTA] Signature verification FAILED — refusing update.")
+            return False
+        print(f"[OTA] Signature verified; applying update to v{manifest.get('latest_version')}...")
         print("[OTA] Update applied successfully (simulated).")
         return True
 

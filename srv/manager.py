@@ -26,8 +26,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from backup import SrvBackupManager
-from fhs import (
+from .backup import SrvBackupManager
+from .fhs import (
     DEFAULT_SRV_ROOT,
     STANDARD_PROTOCOL_DIRS,
     FHSValidationResult,
@@ -35,9 +35,9 @@ from fhs import (
     OrganizationScheme,
     StandardProtocol,
 )
-from hierarchy import ServiceTreeLayout, SrvHierarchy
-from permissions import PermissionAuditResult, SrvPermissionManager
-from service import (
+from .hierarchy import ServiceTreeLayout, SrvHierarchy
+from .permissions import PermissionAuditResult, SrvPermissionManager
+from .service import (
     ServiceAccessMode,
     ServiceConfig,
     ServiceRecord,

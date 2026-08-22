@@ -25,8 +25,8 @@ import json
 import sys
 from pathlib import Path
 
-from fhs import OrganizationScheme, StandardProtocol
-from manager import SrvManager
+from .fhs import OrganizationScheme, StandardProtocol
+from .manager import SrvManager
 
 
 def create_parser() -> argparse.ArgumentParser:

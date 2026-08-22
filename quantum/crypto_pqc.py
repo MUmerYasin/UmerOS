@@ -213,14 +213,21 @@ class _FallbackBackend:
 # ---------------------------------------------------------------------------
 
 class PostQuantumCrypto:
-    """Unified post-quantum cryptography facade.
+    """Unified cryptography facade with optional post-quantum backend.
 
-    Automatically selects the liboqs backend when available, otherwise falls
-    back to the classical Ed25519/AES-256-GCM implementation.
+    [FIX H152] Selects the liboqs backend when available; otherwise it falls
+    BACK to a *classical* Ed25519/AES-256-GCM implementation.  This downgrade
+    was previously silent, so callers believing they had quantum-safe crypto
+    got classical crypto without notice.  The facade now exposes
+    `is_post_quantum` (False under the classical fallback) and an
+    `assert_post_quantum()` guard that security-critical callers can use to
+    refuse operating without real PQC.
 
     Usage::
 
         pqc = PostQuantumCrypto()
+        if not pqc.is_post_quantum:
+            pqc.assert_post_quantum()  # raises if quantum-safe crypto required
         pk, sk = pqc.generate_keypair()
         ct = pqc.encrypt(b"secret data", pk)
         pt = pqc.decrypt(ct, sk)  # == b"secret data"
@@ -231,7 +238,29 @@ class PostQuantumCrypto:
 
     def __init__(self) -> None:
         self._impl = _LiboqsBackend() if _LIBOQS_AVAILABLE else _FallbackBackend()
-        log.info("PostQuantumCrypto using '%s' backend.", self._impl.backend)
+        self.is_post_quantum: bool = _LIBOQS_AVAILABLE
+        if _LIBOQS_AVAILABLE:
+            log.info("PostQuantumCrypto using liboqs (post-quantum) backend.")
+        else:
+            # [FIX H152] Explicit, not silent: log that classical crypto is in
+            # use in place of the advertised post-quantum backend.
+            log.warning(
+                "PostQuantumCrypto using CLASSICAL fallback (Ed25519/AES-256-GCM) "
+                "— NOT quantum-safe. Install liboqs-python for real PQC, or call "
+                "assert_post_quantum() to refuse non-PQC operation."
+            )
+
+    def assert_post_quantum(self) -> None:
+        """[FIX H152] Raise if the active backend is not post-quantum.
+
+        Security-critical callers (e.g. firmware signing) should call this to
+        avoid silently downgrading to classical crypto.
+        """
+        if not self.is_post_quantum:
+            raise RuntimeError(
+                "PostQuantumCrypto is operating with the classical fallback "
+                "backend; post-quantum crypto is required but liboqs is unavailable."
+            )
 
     @property
     def backend(self) -> str:

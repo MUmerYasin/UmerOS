@@ -37,7 +37,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from fhs import (
+from .fhs import (
     DEFAULT_SRV_ROOT,
     STANDARD_PROTOCOL_DIRS,
     FHSValidator,
