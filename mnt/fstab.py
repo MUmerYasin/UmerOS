@@ -54,6 +54,20 @@ from typing import Dict, List, Optional, Sequence
 
 log = logging.getLogger("UmerOS.Mnt.Fstab")
 
+# [FIX H166] Gate the privileged write of /etc/fstab behind the zero-trust
+# capability bridge (core/capability_gate). fstab is boot-critical static
+# filesystem config; rewriting it must require the `fs.admin` capability when a
+# CapabilityManager is wired (fail-closed). When no manager is wired the gate
+# stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 
 # ---------------------------------------------------------------------------
 # fstab field constants
@@ -350,6 +364,10 @@ class Fstab:
         If *backup* is True, the existing file is renamed to
         ``<path>.bak`` before writing.
         """
+        # [FIX H166] Writing /etc/fstab is a privileged, boot-critical operation;
+        # require the fs.admin capability (fail-closed when a manager is wired).
+        gate.require(CAP_FS_ADMIN)
+
         path = str(path)
         if backup and os.path.exists(path):
             bak = path + ".bak"

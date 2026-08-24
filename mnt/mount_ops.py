@@ -57,6 +57,20 @@ from typing import Dict, FrozenSet, List, Optional, Sequence, Set
 
 log = logging.getLogger("UmerOS.Mnt.MountOps")
 
+# [FIX H166] Gate privileged /mnt mount/unmount/remount behind the zero-trust
+# capability bridge (core/capability_gate). Mounting a filesystem, changing the
+# system mount table, and remounting are privileged operations that must require
+# the `fs.admin` capability when a CapabilityManager is wired (fail-closed); when
+# no manager is wired the gate stays permissive (warning) so existing flows work.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 
 # ---------------------------------------------------------------------------
 # Mount flags
@@ -346,6 +360,10 @@ class MountManager:
         Raises:
             MountError: If validation fails or mount is denied.
         """
+        # [FIX H166] Require the fs.admin capability before mutating the mount
+        # table (fail-closed when a CapabilityManager is wired).
+        gate.require(CAP_FS_ADMIN)
+
         errors: List[str] = []
 
         # Validate mount point
@@ -408,6 +426,9 @@ class MountManager:
         Raises:
             MountError: If the mount point is not currently mounted.
         """
+        # [FIX H166] Require the fs.admin capability before unmounting.
+        gate.require(CAP_FS_ADMIN)
+
         record = None
         for i, m in enumerate(self._mounts):
             if m.mount_point == mount_point:
@@ -443,6 +464,9 @@ class MountManager:
         options: str,
     ) -> MountRecord:
         """Remount with new options (e.g., read-only to read-write)."""
+        # [FIX H166] Require the fs.admin capability before remounting.
+        gate.require(CAP_FS_ADMIN)
+
         record = None
         for m in self._mounts:
             if m.mount_point == mount_point:

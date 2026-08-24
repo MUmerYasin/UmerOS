@@ -56,6 +56,20 @@ from typing import Dict, List, Optional, Sequence
 
 log = logging.getLogger("UmerOS.Mnt.MountPoint")
 
+# [FIX H166] Gate privileged /mnt mount-point lifecycle (create/remove) behind the
+# zero-trust capability bridge (core/capability_gate). Creating and removing
+# directories under /mnt are admin actions that must require the `fs.admin`
+# capability when a CapabilityManager is wired (fail-closed); when no manager is
+# wired the gate stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 # Base directory for temporary admin mounts
 MNT_ROOT = "/mnt"
 
@@ -215,6 +229,10 @@ class MountPointManager:
         Raises:
             MountPointError: If the path already exists or is invalid.
         """
+        # [FIX H166] Creating a mount-point directory under /mnt is a privileged
+        # admin action; require the fs.admin capability (fail-closed when wired).
+        gate.require(CAP_FS_ADMIN)
+
         if name is None:
             name = self._auto_name(device)
 
@@ -296,6 +314,9 @@ class MountPointManager:
 
         Returns True if removed, False otherwise.
         """
+        # [FIX H166] Removing a mount-point directory is a privileged admin action.
+        gate.require(CAP_FS_ADMIN)
+
         mp = self._find_by_path(path)
         if mp is None:
             log.warning("Mount point not tracked: %s", path)

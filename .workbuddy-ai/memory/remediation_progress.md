@@ -118,6 +118,20 @@ tag to opt/config.py + opt/package.py (GPL boilerplate present, short tag missin
 comment. The broader H7 *folder* strays (other opt/srv/tmp/packages modules — items H183/H200/H269/H278 partial) stay open
 and are folded into the **full YELLOW/BLUE sweep** below.
 
+## NEXT (where to pick up)
+**✅ MOUNT-PATH CAP-GATE CLUSTER CLOSED (2026-08-24, session 10).** The un-gated privileged mount paths
+(H156 media + H166 mnt) are now wired to the shared zero-trust bridge `core/capability_gate.py`
+(`gate.require(CAP_FS_ADMIN)`), mirroring the already-closed cap-gate cluster (H227/H233/H267/H273/H281/H283/H296/H304).
+Both gated entry points use the permissive-when-unwired / fail-closed-when-wired pattern so CLI/tests do not regress.
+  * **H166** (`mnt/`): `MountManager.mount`/`umount`/`remount` (`mnt/mount_ops.py`), `MountPointManager.create`/`remove`
+    (`mnt/mount_point.py`), and `Fstab.write_file` (`mnt/fstab.py` — writes `/etc/fstab`) now require `CAP_FS_ADMIN`.
+  * **H156** (`media/`): gated at the single chokepoint `media/mount_ops.py` `mount`/`unmount`/`remount`, which
+    transitively protects `auto_mount._handle_hotplug` and `udisks2.UDisks2Client.mount` (both funnel through it).
+    Traceability `# [FIX H156]` comments added at those two callers; `# [FIX H166]`/`# [FIX H156]` comments at each gate.
+  * Tests: extended `tests/test_cap_gate.py` with 9 new integration tests (deny-when-unprivileged + allow-when-held)
+    for all gated entry points + `mnt`/`media` callers. `tests/test_cap_gate.py` + `tests/test_media.py` = 133 passed.
+Every edit carries a `# [FIX Hxxx]` comment. Full `pytest tests/` run confirms **0 regressions** (1688 passed / 54 skipped).
+
 ## Checklist
 
 ### RED
@@ -156,9 +170,9 @@ and are folded into the **full YELLOW/BLUE sweep** below.
 - [ ] H147 | RED | `lib/ssl_libs.py:82-92` | **Certificate expiry is never enforced** — `CertInfo.is_expired` unconditionally returns `False` (L83-87) and 
 - [x] H152 | RED | `quantum/crypto_pqc.py:36-46` | **Silent classical-crypto fallback** - when `liboqs-python` is missing, PQC sign/verify silently falls back to
 - [x] H154 | RED | `cloud/ota_updater/update_system.py:33` | **Hardcoded fake PQC signature** - `simulated_dilithium_sig_abc123` is used in a "verify signature" step, rein
-- [ ] H156 | RED | `media/mount_ops.py`, `media/auto_mount.py`, `media/udisks2.py` | **No `CapabilityManager` gate on the privileged mount path** - `mount_ops.mount`, `auto_mount._handle_hotplug`
+- [x] H156 | RED | `media/mount_ops.py`, `media/auto_mount.py`, `media/udisks2.py` | **No `CapabilityManager` gate on the privileged mount path** - `mount_ops.mount`, `auto_mount._handle_hotplug`
 - [ ] H157 | RED | `media/auto_mount.py:_do_mount` (L282-284) | **Removable media auto-mounted `rw` without `noexec,nodev,nosuid`** - builds options from empty `policy.defaul
-- [ ] H166 | RED | `mnt/mount_ops.py`, `mnt/mount_point.py`, `mnt/fstab.py` | **No `CapabilityManager` gate on privileged mount ops** - `MountManager.mount`/`umount`/`remount`, `MountPoint
+- [x] H166 | RED | `mnt/mount_ops.py`, `mnt/mount_point.py`, `mnt/fstab.py` | **No `CapabilityManager` gate on privileged mount ops** - `MountManager.mount`/`umount`/`remount`, `MountPoint
 - [ ] H167 | RED | `mnt/mount_point.py:remove(force=True)` (L279-315) | **`shutil.rmtree` on a non-symlink-checked path -> TOCTOU arbitrary delete** - `remove(force=True)` rmtrees a 
 - [ ] H168 | RED | `mnt/fstab.py:write_file` (L334) | **Un-gated privileged `/etc/fstab` write + drops comments/header** - `write_file` writes `/etc/fstab` with no 
 - [ ] H177 | RED | `network/` (all egress) | **No `CapabilityManager` gate on ANY network egress** - `DNSResolver.resolve*`/`resolve_all`/`reverse_lookup`,

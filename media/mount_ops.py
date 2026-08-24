@@ -57,6 +57,22 @@ from .media_types import MediaType
 
 log = logging.getLogger("UmerOS.Media.MountOps")
 
+# [FIX H156] Gate privileged /media mount/unmount/remount behind the zero-trust
+# capability bridge (core/capability_gate). Mounting a filesystem is privileged
+# and must require the `fs.admin` capability when a CapabilityManager is wired
+# (fail-closed). This single chokepoint closes H156 for all callers: both
+# media/auto_mount.py (_handle_hotplug -> _do_mount) and media/udisks2.py
+# (UDisks2Client.mount) funnel through these functions. When no manager is wired
+# the gate stays permissive (warning) so existing flows keep working.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 
 # ---------------------------------------------------------------------------
 #  Result types
@@ -474,6 +490,11 @@ def mount(
     Returns:
         ``MountResult`` with success status and details.
     """
+    # [FIX H156] Mounting a filesystem is a privileged operation. Require the
+    # `fs.admin` capability (fail-closed when a CapabilityManager is wired).
+    # media/auto_mount.py and media/udisks2.py both route here (see module note).
+    gate.require(CAP_FS_ADMIN)
+
     mp = os.path.normpath(mount_point)
 
     if create_dir and not os.path.exists(mp):
@@ -514,6 +535,9 @@ def unmount(
     Returns:
         ``MountResult`` with success status.
     """
+    # [FIX H156] Unmounting is privileged; require fs.admin (fail-closed when wired).
+    gate.require(CAP_FS_ADMIN)
+
     mp = os.path.normpath(mount_point)
 
     if _use_simulation:
@@ -562,6 +586,9 @@ def remount(
 
     Useful for switching between read-only and read-write modes.
     """
+    # [FIX H156] Remounting is privileged; require fs.admin (fail-closed when wired).
+    gate.require(CAP_FS_ADMIN)
+
     mp = os.path.normpath(mount_point)
 
     if _use_simulation:

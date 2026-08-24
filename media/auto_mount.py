@@ -233,6 +233,9 @@ class AutoMountDaemon:
         """Handle a hotplug event from the bus."""
         if not self._running:
             return
+        # [FIX H156] The privileged mount/umount runs through media.mount_ops
+        # (mount/unmount/remount), which enforces the fs.admin capability at the
+        # single integration seam — so this hotplug handler is covered transitively.
         if event.action == HotplugAction.ADD:
             self._do_mount(event.device_path, event.media_type)
         elif event.action == HotplugAction.REMOVE:

@@ -212,3 +212,181 @@ def test_var_spool_allows_when_fs_admin_held(tmp_path):
         assert (tmp_path / "spool" / "mail" / "alice").read_text(encoding="utf-8").startswith("hello")
     finally:
         mod.gate = prev
+
+
+# ── H166 (/mnt privileged mount paths) ────────────────────────────────────────
+
+def test_mnt_mount_manager_denies_without_fs_admin():
+    """MountManager.mount/umount/remount must raise when the caller lacks
+    CAP_FS_ADMIN under a wired CapabilityManager (H166)."""
+    from mnt.mount_ops import MountManager
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import mnt.mount_ops as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        mgr = MountManager(proc_mounts="/nonexistent", enforce_noauto=False)
+        with pytest.raises(PermissionError):
+            mgr.mount("/dev/sdb1", "/mnt/usb", "vfat")
+        # Populate an in-memory mount so umount/remount have something to act on.
+        from mnt.mount_ops import MountRecord
+        mgr._mounts.append(MountRecord(
+            device="/dev/sdb1", mount_point="/mnt/usb", fstype="vfat", options="defaults"))
+        with pytest.raises(PermissionError):
+            mgr.umount("/mnt/usb")
+        with pytest.raises(PermissionError):
+            mgr.remount("/mnt/usb", "ro")
+    finally:
+        mod.gate = prev
+
+
+def test_mnt_mount_point_manager_denies_without_fs_admin():
+    """MountPointManager.create/remove must raise without CAP_FS_ADMIN (H166)."""
+    from mnt.mount_point import MountPointManager
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import mnt.mount_point as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        mgr = MountPointManager("/mnt", enforce_prefix=False)
+        with pytest.raises(PermissionError):
+            mgr.create("usb")
+        with pytest.raises(PermissionError):
+            mgr.remove("/mnt/usb")
+    finally:
+        mod.gate = prev
+
+
+def test_mnt_fstab_write_denies_without_fs_admin(tmp_path):
+    """Fstab.write_file (/etc/fstab) must raise without CAP_FS_ADMIN (H166)."""
+    from mnt.fstab import Fstab
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import mnt.fstab as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        fstab = Fstab()
+        with pytest.raises(PermissionError):
+            fstab.write_file(str(tmp_path / "fstab"))
+    finally:
+        mod.gate = prev
+
+
+def test_mnt_mount_manager_allows_with_fs_admin(tmp_path):
+    """Positive path: with CAP_FS_ADMIN held, MountManager.mount proceeds (H166)."""
+    from mnt.mount_ops import MountManager
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[CAP_FS_ADMIN])
+    import mnt.mount_ops as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        mgr = MountManager(proc_mounts="/nonexistent", enforce_noauto=False)
+        mp = os.path.join(str(tmp_path), "usb")
+        os.makedirs(mp)
+        rec = mgr.mount("/dev/sdb1", mp, "vfat")
+        assert rec.mount_point == mp
+    finally:
+        mod.gate = prev
+
+
+# ── H156 (/media privileged mount paths) ──────────────────────────────────────
+
+def test_media_mount_ops_denies_without_fs_admin():
+    """media.mount_ops.mount/unmount/remount must raise without CAP_FS_ADMIN (H156)."""
+    from media.mount_ops import mount, unmount, remount, set_simulation, clear_sim_mounts
+
+    set_simulation(True)
+    clear_sim_mounts()
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import media.mount_ops as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        with pytest.raises(PermissionError):
+            mount("/dev/sdb1", "/media/test")
+        with pytest.raises(PermissionError):
+            unmount("/media/test")
+        with pytest.raises(PermissionError):
+            remount("/media/test", ["ro"])
+    finally:
+        mod.gate = prev
+        clear_sim_mounts()
+
+
+def test_media_udisks2_mount_denies_without_fs_admin():
+    """UDisks2Client.mount funnels through the gated seam, so it raises (H156)."""
+    from media.udisks2 import UDisks2Client, UDisks2Block, UDisks2Drive
+    from media.mount_ops import set_simulation, clear_sim_mounts
+
+    set_simulation(True)
+    clear_sim_mounts()
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import media.mount_ops as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        client = UDisks2Client(simulate=True)
+        drive = UDisks2Drive(
+            object_path="/org/freedesktop/UDisks2/drives/usb_sdb",
+            model="USB", size=32_000_000_000, removable=True, media="usb")
+        block = UDisks2Block(
+            object_path="/org/freedesktop/UDisks2/block_devices/sdb1",
+            device="/dev/sdb1", id_type="vfat", id_usage="filesystem",
+            id_label="MYUSB", drive_object_path="/org/freedesktop/UDisks2/drives/usb_sdb")
+        client.register_drive(drive)
+        client.register_block(block)
+        with pytest.raises(PermissionError):
+            client.mount(block.object_path)
+    finally:
+        mod.gate = prev
+        clear_sim_mounts()
+
+
+def test_media_auto_mount_hotplug_denies_without_fs_admin():
+    """auto_mount._handle_hotplug on ADD funnels through the gated seam (H156)."""
+    from media.auto_mount import AutoMountDaemon, AutoMountPolicy
+    from media.hotplug import HotplugBus, HotplugEvent, HotplugAction
+    from media.media_types import MediaType
+    from media.mount_ops import set_simulation, clear_sim_mounts
+
+    set_simulation(True)
+    clear_sim_mounts()
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import media.mount_ops as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        bus = HotplugBus()
+        daemon = AutoMountDaemon(bus=bus, policy=AutoMountPolicy(), base_path="/media")
+        daemon.start()
+        with pytest.raises(PermissionError):
+            daemon._handle_hotplug(HotplugEvent(
+                device_path="/dev/sdb1", action=HotplugAction.ADD,
+                media_type=MediaType.USB))
+    finally:
+        mod.gate = prev
+        clear_sim_mounts()
+
+
+def test_media_mount_ops_allows_with_fs_admin(tmp_path):
+    """Positive path: with CAP_FS_ADMIN held, media.mount_ops.mount proceeds (H156)."""
+    from media.mount_ops import mount, is_mounted, set_simulation, clear_sim_mounts
+
+    set_simulation(True)
+    clear_sim_mounts()
+    g = _make_wired_gate(pid=os.getpid(), caps=[CAP_FS_ADMIN])
+    import media.mount_ops as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        mp = str(tmp_path / "media" / "test")
+        r = mount("/dev/sdb1", mp)
+        assert r.success
+        assert is_mounted(mp)
+    finally:
+        mod.gate = prev
+        clear_sim_mounts()
