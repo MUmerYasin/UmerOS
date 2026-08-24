@@ -27,6 +27,9 @@ from typing import TYPE_CHECKING
 
 from proc.nodes import ProcDir, ProcFile, ProcSymlink
 
+# [FIX H208] Zero-trust capability gate for privileged /proc/irq writes.
+from core.capability_gate import CAP_SYS_ADMIN, gate
+
 if TYPE_CHECKING:  # pragma: no cover
     from proc.procfs import ProcFileSystem
 
@@ -534,8 +537,10 @@ def register_system_entries(fs: "ProcFileSystem") -> None:
         node.add(ProcFile(
             "smp_affinity",
             lambda i=irq: adapter.irq_affinity.get(i, "3\n"),
-            write=lambda text, i=irq: adapter.irq_affinity.__setitem__(
-                i, text.strip() + "\n"),
+            write=lambda text, i=irq: (
+                gate.require(CAP_SYS_ADMIN),  # [FIX H208] privileged IRQ affinity write
+                adapter.irq_affinity.__setitem__(
+                    i, text.strip() + "\n"))[-1],
             mode="rw-r--r--"))
         node.add(ProcFile("spurious", lambda: "0 0 0 0 0 0 0 0\n"))
         node.add(ProcFile("stat", lambda: f"total 0 detected 0\n"))

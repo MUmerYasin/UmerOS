@@ -35,6 +35,9 @@ from proc.nodes import ProcDir, ProcFile
 if TYPE_CHECKING:
     from proc.procfs import ProcFileSystem
 
+# [FIX H206] Zero-trust capability gate for privileged /proc/sys tunables.
+from core.capability_gate import CAP_SYS_ADMIN, gate
+
 
 def register_sysctl_entries(fs: "ProcFileSystem") -> None:
     adapter = fs.adapter
@@ -49,6 +52,11 @@ def register_sysctl_entries(fs: "ProcFileSystem") -> None:
         readable = lambda: f"{registry.get(sysctl_path, 0)}\n"
 
         def writable_func(text):
+            # [FIX H206] sysctl writes are privileged kernel tunables (hostname,
+            # panic_timeout, ip_forward, overcommit_memory...). Gate every one
+            # behind CAP_SYS_ADMIN (defense-in-depth alongside the ProcFileSystem
+            # write chokepoint, H205).
+            gate.require(CAP_SYS_ADMIN)
             val_str = text.strip()
             meta = registry.meta(sysctl_path)
             if meta and meta.get("type") == "int":

@@ -105,8 +105,22 @@ PyCodeObject* PyCode_New(uint8_t *code, Py_ssize_t code_size,
     PyCodeObject *co = (PyCodeObject *)calloc(1, sizeof(PyCodeObject));
     if (!co) { PyErr_SetString(PyExc_MemoryError, "out of memory"); return NULL; }
     co->ob_base.ob_refcnt = 1;
-    co->code = code; co->code_size = code_size;
-    co->consts = consts; co->n_consts = n_consts;
+
+    /* Copy bytecode so the code object owns its own memory */
+    co->code = (uint8_t *)malloc(code_size);
+    if (!co->code && code_size > 0) { free(co); return NULL; }
+    memcpy(co->code, code, code_size);
+    co->code_size = code_size;
+
+    /* Copy constants so the code object owns its own references */
+    co->n_consts = n_consts;
+    co->consts = (PyObject **)calloc(n_consts, sizeof(PyObject *));
+    if (!co->consts && n_consts > 0) { free(co->code); free(co); return NULL; }
+    for (Py_ssize_t i = 0; i < n_consts; i++) {
+        Py_INCREF(consts[i]);
+        co->consts[i] = consts[i];
+    }
+
     co->names = NULL; co->n_names = 0;
     co->filename = "<unknown>"; co->name = "<module>";
     co->argcount = 0; co->flags = 0;

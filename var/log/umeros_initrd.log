@@ -10,7 +10,7 @@
       "file_count": 2,
       "dir_count": 2,
       "symlink_count": 1,
-      "uptime_seconds": 0.012527
+      "uptime_seconds": 0.005293
     }
   },
   "machine": {
@@ -23,9 +23,9 @@
     {
       "phase": "phase_1_load",
       "outcome": "succeeded",
-      "started_at": 1787558700.211379,
-      "finished_at": 1787558700.2115717,
-      "duration": 0.0001926422119140625,
+      "started_at": 1787561677.9992855,
+      "finished_at": 1787561677.999338,
+      "duration": 5.245208740234375e-05,
       "error": null,
       "notes": [
         "kernel + cpio handed to userspace"
@@ -34,9 +34,9 @@
     {
       "phase": "phase_2_convert",
       "outcome": "succeeded",
-      "started_at": 1787558700.211603,
-      "finished_at": 1787558700.212107,
-      "duration": 0.0005040168762207031,
+      "started_at": 1787561677.999344,
+      "finished_at": 1787561677.9994168,
+      "duration": 7.271766662597656e-05,
       "error": null,
       "notes": [
         "extracted 2 files"
@@ -45,9 +45,9 @@
     {
       "phase": "phase_3_mount_root",
       "outcome": "succeeded",
-      "started_at": 1787558700.212122,
-      "finished_at": 1787558700.2125235,
-      "duration": 0.00040149688720703125,
+      "started_at": 1787561677.9994202,
+      "finished_at": 1787561677.9995022,
+      "duration": 8.20159912109375e-05,
       "error": null,
       "notes": [
         "initrd mounted rw at /, /dev, /proc, /sys live"
@@ -56,9 +56,9 @@
     {
       "phase": "phase_4_linuxrc",
       "outcome": "succeeded",
-      "started_at": 1787558700.2125342,
-      "finished_at": 1787558700.2134993,
-      "duration": 0.000965118408203125,
+      "started_at": 1787561677.9995055,
+      "finished_at": 1787561677.9998372,
+      "duration": 0.00033164024353027344,
       "error": null,
       "notes": [
         "resolved 2 modules"
@@ -67,9 +67,9 @@
     {
       "phase": "phase_5_mount_real",
       "outcome": "succeeded",
-      "started_at": 1787558700.2135084,
-      "finished_at": 1787558700.213586,
-      "duration": 7.772445678710938e-05,
+      "started_at": 1787561677.9998424,
+      "finished_at": 1787561677.9998775,
+      "duration": 3.504753112792969e-05,
       "error": null,
       "notes": [
         "real root FS mounted at /newroot"
@@ -78,20 +78,20 @@
     {
       "phase": "phase_6_pivot_root",
       "outcome": "succeeded",
-      "started_at": 1787558700.2135952,
-      "finished_at": 1787558700.2137136,
-      "duration": 0.00011849403381347656,
+      "started_at": 1787561677.9998808,
+      "finished_at": 1787561677.9999177,
+      "duration": 3.695487976074219e-05,
       "error": null,
       "notes": [
-        "pivot took 0.0001s"
+        "pivot took 0.0000s"
       ]
     },
     {
       "phase": "phase_7_exec_init",
       "outcome": "succeeded",
-      "started_at": 1787558700.2137194,
-      "finished_at": 1787558700.213726,
-      "duration": 6.67572021484375e-06,
+      "started_at": 1787561677.9999204,
+      "finished_at": 1787561677.999923,
+      "duration": 2.6226043701171875e-06,
       "error": null,
       "notes": [
         "transferred control to /sbin/init"
@@ -100,9 +100,9 @@
     {
       "phase": "phase_8_teardown",
       "outcome": "succeeded",
-      "started_at": 1787558700.2138479,
-      "finished_at": 1787558700.2138655,
-      "duration": 1.7642974853515625e-05,
+      "started_at": 1787561677.9999247,
+      "finished_at": 1787561677.9999297,
+      "duration": 5.0067901611328125e-06,
       "error": null,
       "notes": [
         "initrd memory released"
@@ -132,7 +132,7 @@
       "mount_point": "/dev",
       "options": "nosuid",
       "description": "simulated devtmpfs",
-      "mounted_at": 1787558700.2123253
+      "mounted_at": 1787561677.999471
     },
     {
       "device": "proc",
@@ -140,7 +140,7 @@
       "mount_point": "/proc",
       "options": "nosuid,nodev,noexec",
       "description": "simulated procfs",
-      "mounted_at": 1787558700.212465
+      "mounted_at": 1787561677.9994876
     },
     {
       "device": "sysfs",
@@ -148,7 +148,7 @@
       "mount_point": "/sys",
       "options": "nosuid,nodev,noexec",
       "description": "simulated sysfs",
-      "mounted_at": 1787558700.212515
+      "mounted_at": 1787561677.9995
     },
     {
       "device": "/dev/sda2",
@@ -156,7 +156,7 @@
       "mount_point": "/newroot",
       "options": "rw",
       "description": "real root from /dev/sda2 (ext4, rw)",
-      "mounted_at": 1787558700.2135782
+      "mounted_at": 1787561677.999873
     }
   ],
   "signal_history": [],

@@ -537,17 +537,17 @@ class SecureBootManager:
     def is_binary_trusted(
         self,
         fingerprint: str,
-        strict: bool = False,
+        strict: bool = True,  # [FIX H28] fail-closed by default
     ) -> bool:
         """Check if a binary fingerprint is in the trusted db.
 
         **[TODAY]** - Fail-closed per §4.2 H28:
-        - ``DISABLED`` and ``SETUP_MODE`` return ``False`` in ``strict`` mode
-          (the default when ``strict=True``), treating disabled/empty-UEFI as
-          untrusted rather than permissively trusting every binary.
-        - When ``strict=False`` (legacy/dev compat) the old permissive
-          behaviour is preserved to avoid breaking existing callers during the
-          transition.  New code must pass ``strict=True``.
+        - ``DISABLED`` and ``SETUP_MODE`` return ``False`` in ``strict`` mode,
+          which is now the **default** (``strict=True``). Disabled/empty-UEFI
+          is treated as untrusted rather than permissively trusting every binary.
+        - When ``strict=False`` (legacy/dev compat, opt-in) the old permissive
+          behaviour is preserved so existing callers that explicitly request it
+          are not broken.  New code should rely on the default (``strict=True``).
         - On ``ENABLED``: only entries in the non-revoked ``db`` are trusted.
         - If a fingerprint is found in ``dbx`` (revoked DB) it is always
           rejected regardless of ``strict``.

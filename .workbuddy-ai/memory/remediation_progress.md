@@ -132,6 +132,25 @@ Both gated entry points use the permissive-when-unwired / fail-closed-when-wired
     for all gated entry points + `mnt`/`media` callers. `tests/test_cap_gate.py` + `tests/test_media.py` = 133 passed.
 Every edit carries a `# [FIX Hxxx]` comment. Full `pytest tests/` run confirms **0 regressions** (1688 passed / 54 skipped).
 
+## NEXT (where to pick up)
+**✅ PROC + SRV PRIVILEGED-WRITE CAP-GATE CLUSTER CLOSED (2026-08-24, session 12).** The un-gated
+privileged mutation paths in `proc/` and the destructive `/srv` tree removal are now wired to the
+shared zero-trust bridge `core/capability_gate.py`, mirroring the already-closed cap-gate clusters
+(H227/H233/H267/H273/H281/H283/H296/H304/H156/H166):
+  * **H205** `proc/procfs.py` `ProcFileSystem.write` — the single `/proc` write chokepoint now requires
+    `CAP_SYS_ADMIN`; transitively covers H206/H207/H208.
+  * **H206** `proc/sysctl_fs.py` `register_sysctl_entries` `_rfile` `writable_func` — every `/proc/sys/*`
+    tunable write requires `CAP_SYS_ADMIN` (defense-in-depth).
+  * **H207** `proc/pid_entries.py` `oom_score_adj` write lambda — `CAP_SYS_ADMIN`.
+  * **H208** `proc/system_files.py` `/proc/irq/<n>/smp_affinity` write lambda — `CAP_SYS_ADMIN`.
+  * **H268** `srv/hierarchy.py` `SrvHierarchy.delete_service_tree` — `CAP_FS_ADMIN` (the `force=True`
+    flag is no longer a privilege grant on its own).
+All gated entry points use the permissive-when-unwired / fail-closed-when-wired pattern. Every edit
+carries a `# [FIX Hxxx]` comment. Tests: new `tests/test_proc_cap_gate.py` (11 tests — deny-when-
+unprivileged + allow-when-held for H205/H206/H207/H208/H268, plus a read-not-gated check).
+Full `pytest tests/` = **1714 passed / 54 skipped, 0 failures, 0 errors (EXIT=0)** — +11 over the
+prior 1703 (exactly the new tests), 0 regressions.
+
 ## Checklist
 
 ### RED
@@ -186,10 +205,10 @@ Every edit carries a `# [FIX Hxxx]` comment. Full `pytest tests/` run confirms *
 - [x] H196 | RED | `packages/umer_pkg.py:250,268` `_verify_hash` | **"Signed" archives overstated; verification fails OPEN** - docstring advertises "Signed .umerpkg archives" bu
 - [x] H197 | RED | `packages/umer_pkg.py:250,277` `_verify_hash` | **Integrity check ignores the `files/` payload** - `_verify_hash` hashes only `manifest.json` bytes, contradic
 - [ ] H198 | RED | `packages/umer_pkg.py:285,390,414` `install`/`remove`/`update` | **No `CapabilityManager` gate on privileged ops** - docstring claims "system-wide requires admin grant" but th
-- [ ] H205 | RED | `proc/procfs.py:177` + `proc/nodes.py:95` `ProcFileSystem.write`/`Proc | **Write path has no authorization — only per-file read-only `mode`** - `procfs.write` delegates straight to `n
-- [ ] H206 | RED | `proc/sysctl_fs.py:26-225` `register_sysctl_entries` | **`/proc/sys/*` mutation gated by nothing** - ~60 writable sysctl params (kernel.hostname/panic_timeout/hung_t
-- [ ] H207 | RED | `proc/pid_entries.py:258` `oom_score_adj` | **Per-PID `oom_score_adj` writable with no cap gate** - `write=lambda text, p=pid: adapter.oom_adj.__setitem__
-- [ ] H208 | RED | `proc/system_files.py:524` `smp_affinity` | **`/proc/irq/<n>/smp_affinity` writable with no cap gate** - `write=lambda text, i=irq: adapter.irq_affinity._
+- [x] H205 | RED | `proc/procfs.py:177` + `proc/nodes.py:95` `ProcFileSystem.write`/`Proc | **Write path has no authorization — only per-file read-only `mode`** - `procfs.write` delegates straight to `n
+- [x] H206 | RED | `proc/sysctl_fs.py:26-225` `register_sysctl_entries` | **`/proc/sys/*` mutation gated by nothing** - ~60 writable sysctl params (kernel.hostname/panic_timeout/hung_t
+- [x] H207 | RED | `proc/pid_entries.py:258` `oom_score_adj` | **Per-PID `oom_score_adj` writable with no cap gate** - `write=lambda text, p=pid: adapter.oom_adj.__setitem__
+- [x] H208 | RED | `proc/system_files.py:524` `smp_affinity` | **`/proc/irq/<n>/smp_affinity` writable with no cap gate** - `write=lambda text, i=irq: adapter.irq_affinity._
 - [ ] H215 | RED | `quantum/crypto_pqc.py:22` | **H7 Apache-2.0 header stray** - docstring line `GPL-3.0 (GNU General Public License Version 3)` (British spelling) in a UmerOS file that
 - [ ] H216 | RED | `quantum/crypto_pqc.py` `PostQuantumCrypto` | **Silent classical-crypto downgrade advertised as Post-Quantum** - when `import oqs` fails, the facade silentl
 - [ ] H217 | RED | `quantum/cloud/auth.py:278-288` `AuthManager.save_to_file` | **Provider credentials persisted as plaintext JSON** - `path.write_text(json.dumps(creds.to_dict()…))` writes 
@@ -200,7 +219,7 @@ Every edit carries a `# [FIX Hxxx]` comment. Full `pytest tests/` run confirms *
 - [x] H265 | RED | `srv/backup.py:153-154` `restore_backup`/`_extract_archive` | **Tar extraction without `filter=` (CVE-2007-4559 path traversal)** - `tarfile.open(archive_path, "r:*")` then
 - [x] H266 | RED | `srv/backup.py:157` `restore_backup` | **Zip extraction without `filter=` (zip-slip)** - `zipf.extractall(temp_dir)` with no `filter=`; `zipfile` doe
 - [x] H267 | RED | `srv/backup.py:181` `restore_backup` | **Destructive `shutil.rmtree` with no capability gate** - when `overwrite=True`, the destination folder is `sh
-- [ ] H268 | RED | `srv/hierarchy.py:275-290` `delete_service_tree` | **Destructive `shutil.rmtree` gated only by `force=True`, no capability check** - `if not force: raise Permiss
+- [x] H268 | RED | `srv/hierarchy.py:275-290` `delete_service_tree` | **Destructive `shutil.rmtree` gated only by `force=True`, no capability check** - `if not force: raise Permiss
 - [x] H303 | RED | `var/directory_manager.py:77,87,94,184,106,212`, `var/spool_manager.py | **Path-traversal → arbitrary FS delete/write/RCE (CWE-22)** - `name`/`username`/`directory`/`filename` are joi
 ### YELLOW
 

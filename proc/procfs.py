@@ -46,6 +46,9 @@ from typing import Any, Dict, List, Optional
 
 from proc.nodes import ProcDir, ProcFile, ProcSymlink
 
+# [FIX H205] Zero-trust capability gate for privileged /proc mutations.
+from core.capability_gate import CAP_SYS_ADMIN, gate
+
 log = logging.getLogger("UmerOS.ProcFS")
 
 
@@ -197,7 +200,15 @@ class ProcFileSystem:
         return node.read()
 
     def write(self, path: str, data: Any) -> None:
-        """Write to a /proc file (typically /proc/sys/*)."""
+        """Write to a /proc file (typically /proc/sys/*).
+
+        [FIX H205] Every /proc write is a privileged kernel mutation
+        (sysctl tunables, per-PID ``oom_score_adj``, IRQ ``smp_affinity``...).
+        Require ``CAP_SYS_ADMIN``. This single chokepoint transitively
+        covers H206/H207/H208; the per-handler gates add defense-in-depth.
+        """
+        # [FIX H205] privileged /proc mutation -> zero-trust capability gate
+        gate.require(CAP_SYS_ADMIN)
         self._refresh_pid_dirs()
         node, _ = self._resolve(path)
         if node is None:

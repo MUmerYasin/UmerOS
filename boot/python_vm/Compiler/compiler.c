@@ -257,7 +257,90 @@ typedef struct {
     PyObject *current_token;    /* Current lookahead token */
     PyObject *next_token;       /* Next token */
     int token_type;             /* Current token type */
-} Parser;
+ } Parser;
+
+/* ==================== COMPILER (forward declarations) ==================== */
+
+/* Compiler state */
+typedef struct {
+    PyCodeObject *code;
+    uint8_t *bytecode;
+    Py_ssize_t bytecode_size;
+    Py_ssize_t bytecode_pos;
+    int *arg_stack;
+    int arg_top;
+    /* Constants pool */
+    PyObject **consts;
+    Py_ssize_t n_consts;
+    Py_ssize_t consts_size;
+} Compiler;
+
+static Compiler* Compiler_New(void) {
+    Compiler *compiler = (Compiler *)calloc(1, sizeof(Compiler));
+    if (compiler) {
+        compiler->bytecode_size = 1024;
+        compiler->bytecode = (uint8_t *)malloc(compiler->bytecode_size);
+        compiler->bytecode_pos = 0;
+        compiler->arg_stack = (int *)calloc(256, sizeof(int));
+        compiler->arg_top = 0;
+        compiler->consts_size = 256;
+        compiler->consts = (PyObject **)calloc(compiler->consts_size, sizeof(PyObject *));
+        compiler->n_consts = 0;
+    }
+    return compiler;
+}
+
+static void Compiler_Free(Compiler *compiler) {
+    if (compiler) {
+        free(compiler->bytecode);
+        free(compiler->arg_stack);
+        for (Py_ssize_t i = 0; i < compiler->n_consts; i++) {
+            Py_DECREF(compiler->consts[i]);
+        }
+        free(compiler->consts);
+        free(compiler);
+    }
+}
+
+/* Emit a single opcode */
+static void Compiler_Emit(Compiler *compiler, Opcode op, int arg) {
+    if (compiler->bytecode_pos + 3 >= compiler->bytecode_size) {
+        compiler->bytecode_size *= 2;
+        compiler->bytecode = (uint8_t *)realloc(compiler->bytecode, compiler->bytecode_size);
+    }
+
+    compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)op;
+
+    /* Emit argument byte (always 2 bytes per instruction) */
+    if (arg >= 0 && arg <= 255) {
+        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)arg;
+    } else {
+        /* Extended args */
+        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg >> 8);
+        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg & 0xFF);
+    }
+}
+
+/* Emit opcode with argument from constant pool */
+static int Compiler_AddConstant(Compiler *compiler, PyObject *value) {
+    /* Check if constant already exists */
+    for (Py_ssize_t i = 0; i < compiler->n_consts; i++) {
+        if (PyObject_Compare(compiler->consts[i], value) == 0) {
+            return (int)i;
+        }
+    }
+
+    /* Add new constant */
+    if (compiler->n_consts >= compiler->consts_size) {
+        compiler->consts_size *= 2;
+        compiler->consts = (PyObject **)realloc(compiler->consts,
+                                                 compiler->consts_size * sizeof(PyObject *));
+    }
+
+    Py_INCREF(value);
+    compiler->consts[compiler->n_consts] = value;
+    return (int)(compiler->n_consts++);
+}
 
 static Parser* Parser_New(Lexer *lexer) {
     Parser *parser = (Parser *)calloc(1, sizeof(Parser));
@@ -370,130 +453,116 @@ static int Parser_NextToken(Parser *parser) {
     }
 }
 
-/* Parse an expression */
-static PyObject* Parser_Expr(Parser *parser) {
-    /* Simplified expression parser */
-    int token = Parser_NextToken(parser);
+/* Parse and compile an expression, emitting bytecode */
+static void Compile_Expr(Compiler *compiler, Parser *parser) {
+    /* Parse primary expression */
+    int token = parser->token_type;
 
-    if (token == TOKEN_NUMBER || token == TOKEN_STRING) {
+    if (token == TOKEN_NUMBER) {
         Py_INCREF(parser->current_token);
-        return parser->current_token;
+        int idx = Compiler_AddConstant(compiler, parser->current_token);
+        Compiler_Emit(compiler, OP_LOAD_CONST, idx);
+        Py_DECREF(parser->current_token);
+        parser->current_token = NULL;
+        Parser_NextToken(parser);  /* consume the token we just read */
+        goto parse_binop;
+    }
+
+    if (token == TOKEN_STRING) {
+        Py_INCREF(parser->current_token);
+        int idx = Compiler_AddConstant(compiler, parser->current_token);
+        Compiler_Emit(compiler, OP_LOAD_CONST, idx);
+        Py_DECREF(parser->current_token);
+        parser->current_token = NULL;
+        Parser_NextToken(parser);  /* consume the token we just read */
+        goto parse_binop;
     }
 
     if (token == TOKEN_LPAREN) {
-        /* Parenthesized expression */
-        PyObject *expr = Parser_Expr(parser);
-        Parser_NextToken(parser); /* consume ')' */
-        return expr;
+        Parser_NextToken(parser);  /* consume '(' */
+        Compile_Expr(compiler, parser);  /* parse inner expression */
+        if (parser->token_type == TOKEN_RPAREN) {
+            Parser_NextToken(parser);  /* consume ')' */
+        }
+        goto parse_binop;
     }
 
     if (token == TOKEN_MINUS) {
-        /* Unary minus */
-        PyObject *operand = Parser_Expr(parser);
-        /* TODO: return unary op node */
-        return operand;
+        /* Unary minus: emit 0 then subtract */
+        Compiler_Emit(compiler, OP_LOAD_CONST,
+            Compiler_AddConstant(compiler, PyLong_FromLong(0)));
+        Parser_NextToken(parser);  /* consume '-' */
+        Compile_Expr(compiler, parser);  /* parse operand */
+        Compiler_Emit(compiler, OP_BINARY_SUBTRACT, 0);
+        goto parse_binop;
     }
 
     if (token == TOKEN_NAME) {
         Py_INCREF(parser->current_token);
-        return parser->current_token;
+        int idx = Compiler_AddConstant(compiler, parser->current_token);
+        Compiler_Emit(compiler, OP_LOAD_NAME, idx);
+        Py_DECREF(parser->current_token);
+        parser->current_token = NULL;
+        Parser_NextToken(parser);  /* consume the name */
+        goto parse_binop;
     }
 
     if (token == TOKEN_KEYWORD_TRUE) {
-        return PyBool_FromLong(1);
+        Parser_NextToken(parser);  /* consume keyword */
+        int idx = Compiler_AddConstant(compiler, PyBool_FromLong(1));
+        Compiler_Emit(compiler, OP_LOAD_CONST, idx);
+        goto parse_binop;
     }
     if (token == TOKEN_KEYWORD_FALSE) {
-        return PyBool_FromLong(0);
+        Parser_NextToken(parser);
+        int idx = Compiler_AddConstant(compiler, PyBool_FromLong(0));
+        Compiler_Emit(compiler, OP_LOAD_CONST, idx);
+        goto parse_binop;
     }
     if (token == TOKEN_KEYWORD_NONE) {
-        Py_INCREF(Py_None);
-        return Py_None;
+        Parser_NextToken(parser);
+        int idx = Compiler_AddConstant(compiler, Py_None);
+        Compiler_Emit(compiler, OP_LOAD_CONST, idx);
+        goto parse_binop;
     }
 
-    return NULL;
-}
+    /* Fallback: push None */
+    Compiler_Emit(compiler, OP_LOAD_CONST,
+        Compiler_AddConstant(compiler, Py_None));
+    return;
 
-/* ==================== COMPILER ==================== */
-
-/* Compiler state */
-typedef struct {
-    PyCodeObject *code;
-    uint8_t *bytecode;
-    Py_ssize_t bytecode_size;
-    Py_ssize_t bytecode_pos;
-    int *arg_stack;
-    int arg_top;
-    /* Constants pool */
-    PyObject **consts;
-    Py_ssize_t n_consts;
-    Py_ssize_t consts_size;
-} Compiler;
-
-static Compiler* Compiler_New(void) {
-    Compiler *compiler = (Compiler *)calloc(1, sizeof(Compiler));
-    if (compiler) {
-        compiler->bytecode_size = 1024;
-        compiler->bytecode = (uint8_t *)malloc(compiler->bytecode_size);
-        compiler->bytecode_pos = 0;
-        compiler->arg_stack = (int *)calloc(256, sizeof(int));
-        compiler->arg_top = 0;
-        compiler->consts_size = 256;
-        compiler->consts = (PyObject **)calloc(compiler->consts_size, sizeof(PyObject *));
-        compiler->n_consts = 0;
+parse_binop:
+    /* Check for binary operators */
+    token = parser->token_type;
+    if (token == TOKEN_PLUS) {
+        Parser_NextToken(parser);  /* consume '+' */
+        Compile_Expr(compiler, parser);  /* parse right operand */
+        Compiler_Emit(compiler, OP_BINARY_ADD, 0);
+    } else if (token == TOKEN_MINUS) {
+        Parser_NextToken(parser);  /* consume '-' */
+        Compile_Expr(compiler, parser);
+        Compiler_Emit(compiler, OP_BINARY_SUBTRACT, 0);
+    } else if (token == TOKEN_STAR) {
+        Parser_NextToken(parser);  /* consume '*' */
+        Compile_Expr(compiler, parser);
+        Compiler_Emit(compiler, OP_BINARY_MULTIPLY, 0);
+    } else if (token == TOKEN_SLASH) {
+        Parser_NextToken(parser);  /* consume '/' */
+        Compile_Expr(compiler, parser);
+        Compiler_Emit(compiler, OP_BINARY_TRUE_DIVIDE, 0);
+    } else if (token == TOKEN_PERCENT) {
+        Parser_NextToken(parser);  /* consume '%' */
+        Compile_Expr(compiler, parser);
+        Compiler_Emit(compiler, OP_BINARY_MODULO, 0);
+    } else if (token == TOKEN_DOUBLESTAR) {
+        Parser_NextToken(parser);  /* consume '**' */
+        Compile_Expr(compiler, parser);
+        Compiler_Emit(compiler, OP_BINARY_POWER, 0);
+    } else if (token == TOKEN_DOUBLESLASH) {
+        Parser_NextToken(parser);  /* consume '//' */
+        Compile_Expr(compiler, parser);
+        Compiler_Emit(compiler, OP_BINARY_FLOOR_DIVIDE, 0);
     }
-    return compiler;
-}
-
-static void Compiler_Free(Compiler *compiler) {
-    if (compiler) {
-        free(compiler->bytecode);
-        free(compiler->arg_stack);
-        for (Py_ssize_t i = 0; i < compiler->n_consts; i++) {
-            Py_DECREF(compiler->consts[i]);
-        }
-        free(compiler->consts);
-        free(compiler);
-    }
-}
-
-/* Emit a single opcode */
-static void Compiler_Emit(Compiler *compiler, Opcode op, int arg) {
-    if (compiler->bytecode_pos + 3 >= compiler->bytecode_size) {
-        compiler->bytecode_size *= 2;
-        compiler->bytecode = (uint8_t *)realloc(compiler->bytecode, compiler->bytecode_size);
-    }
-
-    compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)op;
-
-    /* Emit argument byte (always 2 bytes per instruction) */
-    if (arg >= 0 && arg <= 255) {
-        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)arg;
-    } else {
-        /* Extended args */
-        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg >> 8);
-        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg & 0xFF);
-    }
-}
-
-/* Emit opcode with argument from constant pool */
-static int Compiler_AddConstant(Compiler *compiler, PyObject *value) {
-    /* Check if constant already exists */
-    for (Py_ssize_t i = 0; i < compiler->n_consts; i++) {
-        if (PyObject_Compare(compiler->consts[i], value) == 0) {
-            return (int)i;
-        }
-    }
-
-    /* Add new constant */
-    if (compiler->n_consts >= compiler->consts_size) {
-        compiler->consts_size *= 2;
-        compiler->consts = (PyObject **)realloc(compiler->consts,
-                                                 compiler->consts_size * sizeof(PyObject *));
-    }
-
-    Py_INCREF(value);
-    compiler->consts[compiler->n_consts] = value;
-    return (int)(compiler->n_consts++);
 }
 
 /* Build the final code object */
@@ -531,20 +600,14 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
                 Parser_NextToken(parser);  /* skip '(' */
 
                 /* Compile the argument expression */
-                PyObject *arg = Parser_Expr(parser);
-                if (arg) {
-                    int const_idx = Compiler_AddConstant(compiler, arg);
+                Compile_Expr(compiler, parser);
 
-                    /* Emit: LOAD_CONST <arg>, LOAD_GLOBAL <print>, CALL_FUNCTION 1, POP_TOP */
-                    Compiler_Emit(compiler, OP_LOAD_CONST, const_idx);
-                    int print_idx = Compiler_AddConstant(compiler,
-                        PyUnicode_FromString("print"));
-                    Compiler_Emit(compiler, OP_LOAD_GLOBAL, print_idx);
-                    Compiler_Emit(compiler, OP_CALL_FUNCTION, 1);
-                    Compiler_Emit(compiler, OP_POP_TOP, 0);
-
-                    Py_DECREF(arg);
-                }
+                /* Emit: LOAD_GLOBAL <print>, CALL_FUNCTION 1, POP_TOP */
+                int print_idx = Compiler_AddConstant(compiler,
+                    PyUnicode_FromString("print"));
+                Compiler_Emit(compiler, OP_LOAD_GLOBAL, print_idx);
+                Compiler_Emit(compiler, OP_CALL_FUNCTION, 1);
+                Compiler_Emit(compiler, OP_POP_TOP, 0);
 
                 /* Consume closing paren */
                 while (parser->token_type != TOKEN_RPAREN &&
@@ -562,14 +625,9 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
         Parser_NextToken(parser);
         if (parser->token_type == TOKEN_EQUAL) {
             Parser_NextToken(parser);  /* skip '=' */
-            PyObject *value = Parser_Expr(parser);
-            if (value) {
-                int const_idx = Compiler_AddConstant(compiler, value);
-                Compiler_Emit(compiler, OP_LOAD_CONST, const_idx);
-                int name_idx = Compiler_AddConstant(compiler, PyUnicode_FromString(name));
-                Compiler_Emit(compiler, OP_STORE_NAME, name_idx);
-                Py_DECREF(value);
-            }
+            Compile_Expr(compiler, parser);
+            int name_idx = Compiler_AddConstant(compiler, PyUnicode_FromString(name));
+            Compiler_Emit(compiler, OP_STORE_NAME, name_idx);
             return 1;
         }
     }

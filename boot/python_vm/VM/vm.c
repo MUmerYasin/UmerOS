@@ -10,6 +10,7 @@
  */
 
 #include "../Include/umeros_python.h"
+#include <stdio.h>
 
 /* ==================== VM INTERNAL STACK ==================== */
 
@@ -64,6 +65,19 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
     PyObject ***stack = &frame->f_stacktop;
 
     frame->f_lasti = 0;
+
+    /* DEBUG: dump bytecode */
+    fprintf(stderr, "BYTECODE DUMP [%d bytes, %d consts]:", (int)code_len, (int)n_consts);
+    for (Py_ssize_t i = 0; i < code_len; i++) fprintf(stderr, " %02x", bytecode[i]);
+    fprintf(stderr, "\n");
+    for (Py_ssize_t i = 0; i < n_consts; i++) {
+        fprintf(stderr, "  const[%d]: ", (int)i);
+        if (consts[i] == Py_None) fprintf(stderr, "None");
+        else if (PyLong_Check(consts[i])) fprintf(stderr, "%ld", PyLong_AsLong(consts[i]));
+        else if (PyUnicode_Check(consts[i])) fprintf(stderr, "\"%s\"", PyUnicode_AsString(consts[i]));
+        else fprintf(stderr, "<object>");
+        fprintf(stderr, "\n");
+    }
 
     while (frame->f_lasti < code_len) {
         Opcode op = (Opcode)bytecode[frame->f_lasti++];
