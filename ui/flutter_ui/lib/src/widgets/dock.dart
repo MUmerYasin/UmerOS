@@ -2,38 +2,14 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:provider/provider.dart';
 import '../core/app_state.dart';
+import '../core/app_registry.dart';
 import '../core/theme_provider.dart';
 import '../animations/animations.dart';
-import '../apps/terminal_app.dart';
-import '../apps/file_manager_app.dart';
-import '../apps/system_monitor_app.dart';
-import '../apps/settings_app.dart';
-import '../apps/text_editor_app.dart';
-import '../apps/package_manager_app.dart';
-import '../apps/network_manager_app.dart';
-import '../apps/calendar_app.dart';
-import '../apps/calculator_app.dart';
-import '../apps/quantum_app.dart';
-import '../apps/security_app.dart';
-import '../apps/boot_manager_app.dart';
-import '../apps/games_app.dart';
-import '../apps/docs_app.dart';
-import '../apps/browser_app.dart';
-import '../apps/antivirus_app.dart';
-import '../apps/power_governor_app.dart';
-
-class _AppMeta {
-  final String id;
-  final String label;
-  final IconData icon;
-  final Color color;
-  final Widget child;
-
-  const _AppMeta(this.id, this.label, this.icon, this.color, this.child);
-}
 
 class Dock extends StatefulWidget {
-  final Function(String id, String title, IconData icon, Widget child) onOpenApp;
+  /// Launch callback supplied by the shell; routes through the central
+  /// [AppRegistry] so there is exactly one place that knows app metadata.
+  final OpenAppFn onOpenApp;
 
   const Dock({super.key, required this.onOpenApp});
 
@@ -43,26 +19,6 @@ class Dock extends StatefulWidget {
 
 class _DockState extends State<Dock> {
   int _hoveredIndex = -1;
-
-  final Map<String, _AppMeta> _registry = {
-    'browser': const _AppMeta('browser', 'Browser', Icons.language, Colors.blue, BrowserApp()),
-    'terminal': const _AppMeta('terminal', 'Terminal', Icons.terminal, Colors.teal, TerminalApp()),
-    'files': const _AppMeta('files', 'File Manager', Icons.folder, Colors.amber, FileManagerApp()),
-    'monitor': const _AppMeta('monitor', 'System Monitor', Icons.monitor_heart, Colors.green, SystemMonitorApp()),
-    'power': const _AppMeta('power', 'Power & Governor', Icons.bolt, Colors.amber, PowerGovernorApp()),
-    'settings': const _AppMeta('settings', 'Settings', Icons.tune, Colors.blueGrey, SettingsApp()),
-    'editor': const _AppMeta('editor', 'Text Editor', Icons.edit_note, Colors.orange, TextEditorApp()),
-    'packages': const _AppMeta('packages', 'Package Manager', Icons.inventory_2, Colors.purple, PackageManagerApp()),
-    'network': const _AppMeta('network', 'Network Manager', Icons.wifi, Colors.cyan, NetworkManagerApp()),
-    'calendar': const _AppMeta('calendar', 'Calendar', Icons.calendar_month, Colors.indigo, CalendarApp()),
-    'calculator': const _AppMeta('calculator', 'Calculator', Icons.calculate, Colors.blueGrey, CalculatorApp()),
-    'quantum': const _AppMeta('quantum', 'Quantum Sim', Icons.blur_circular, Colors.deepPurple, QuantumSimApp()),
-    'security': const _AppMeta('security', 'Security', Icons.shield, Colors.redAccent, SecurityApp()),
-    'antivirus': const _AppMeta('antivirus', 'Antivirus', Icons.health_and_safety, Colors.lightGreen, AntivirusApp()),
-    'boot': const _AppMeta('boot', 'Boot Manager', Icons.power_settings_new, Colors.amber, BootManagerApp()),
-    'games': const _AppMeta('games', 'Games', Icons.sports_esports, Colors.pink, GamesApp()),
-    'docs': const _AppMeta('docs', 'Documentation', Icons.menu_book, Colors.deepOrange, DocsApp()),
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -89,16 +45,26 @@ class _DockState extends State<Dock> {
           child: Center(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 color: isHoveringDrag
-                    ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.95)
-                    : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.88),
+                    ? Theme.of(context)
+                        .colorScheme
+                        .primaryContainer
+                        .withValues(alpha: 0.95)
+                    : Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.88),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(
                   color: isHoveringDrag
                       ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      : Theme.of(context)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: 0.3),
                   width: isHoveringDrag ? 2 : 1,
                 ),
                 boxShadow: [
@@ -116,7 +82,9 @@ class _DockState extends State<Dock> {
                   mainAxisSize: MainAxisSize.min,
                   children: List.generate(itemsList.length, (index) {
                     final appId = itemsList[index];
-                    final meta = _registry[appId] ?? _AppMeta(appId, appId, Icons.apps, Colors.grey, const SizedBox());
+                    // Unknown ids (e.g. stale persisted pins) fall back to a
+                    // neutral placeholder instead of crashing the dock.
+                    final meta = AppRegistry.byId(appId);
 
                     final isHovered = _hoveredIndex == index;
                     final isNeighbor = (_hoveredIndex - index).abs() == 1;
@@ -128,11 +96,17 @@ class _DockState extends State<Dock> {
                       scale = 1.15;
                     }
 
-                    final window = appState.windows.where((w) => w.id == appId).firstOrNull;
+                    final window =
+                        appState.windows.where((w) => w.id == appId).firstOrNull;
                     final isOpen = window != null;
                     final isMinimized = window?.isMinimized ?? false;
-                    final isActive = appState.activeWindowId == appId && isOpen && !isMinimized;
+                    final isActive =
+                        appState.activeWindowId == appId && isOpen && !isMinimized;
                     final isPinned = appState.pinnedDockIds.contains(appId);
+
+                    final label = meta?.title ?? appId;
+                    final icon = meta?.icon ?? Icons.apps;
+                    final color = meta?.color ?? Colors.grey;
 
                     return Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -140,49 +114,70 @@ class _DockState extends State<Dock> {
                         onEnter: (_) => setState(() => _hoveredIndex = index),
                         onExit: (_) => setState(() => _hoveredIndex = -1),
                         child: PopupMenuButton<String>(
-                          tooltip: meta.label,
+                          tooltip: label,
                           offset: const Offset(0, -90),
                           onSelected: (value) {
-                            if (value == 'launch') {
-                              _handleTap(appState, meta, window);
-                            } else if (value == 'minimize') {
-                              appState.minimizeWindow(appId);
-                            } else if (value == 'close') {
-                              appState.closeWindow(appId);
-                            } else if (value == 'pin') {
-                              appState.pinDockItem(appId);
-                            } else if (value == 'unpin') {
-                              appState.unpinDockItem(appId);
+                            switch (value) {
+                              case 'launch':
+                                _handleTap(appState, appId, window);
+                              case 'minimize':
+                                appState.minimizeWindow(appId);
+                              case 'close':
+                                appState.closeWindow(appId);
+                              case 'pin':
+                                appState.pinDockItem(appId);
+                              case 'unpin':
+                                appState.unpinDockItem(appId);
                             }
                           },
                           itemBuilder: (context) => [
                             PopupMenuItem(
                               value: 'launch',
-                              child: Row(children: [Icon(meta.icon, size: 18), const SizedBox(width: 8), Text('Open ${meta.label}')]),
+                              child: Row(children: [
+                                Icon(icon, size: 18),
+                                const SizedBox(width: 8),
+                                Text('Open $label'),
+                              ]),
                             ),
                             if (isOpen && !isMinimized)
                               const PopupMenuItem(
                                 value: 'minimize',
-                                child: Row(children: [Icon(Icons.minimize, size: 18), SizedBox(width: 8), Text('Minimize Window')]),
+                                child: Row(children: [
+                                  Icon(Icons.minimize, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Minimize Window'),
+                                ]),
                               ),
                             if (isOpen)
                               const PopupMenuItem(
                                 value: 'close',
-                                child: Row(children: [Icon(Icons.close, size: 18), SizedBox(width: 8), Text('Close Window')]),
+                                child: Row(children: [
+                                  Icon(Icons.close, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Close Window'),
+                                ]),
                               ),
                             if (isPinned)
                               const PopupMenuItem(
                                 value: 'unpin',
-                                child: Row(children: [Icon(Icons.push_pin_outlined, size: 18), SizedBox(width: 8), Text('Unpin from Dock')]),
+                                child: Row(children: [
+                                  Icon(Icons.push_pin_outlined, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Unpin from Dock'),
+                                ]),
                               )
                             else
                               const PopupMenuItem(
                                 value: 'pin',
-                                child: Row(children: [Icon(Icons.push_pin, size: 18), SizedBox(width: 8), Text('Pin to Dock')]),
+                                child: Row(children: [
+                                  Icon(Icons.push_pin, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Pin to Dock'),
+                                ]),
                               ),
                           ],
                           child: GestureDetector(
-                            onTap: () => _handleTap(appState, meta, window),
+                            onTap: () => _handleTap(appState, appId, window),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
                               curve: UmerCurves.spring,
@@ -196,7 +191,7 @@ class _DockState extends State<Dock> {
                                   if (isActive)
                                     Positioned.fill(
                                       child: HoverGlow(
-                                        glowColor: meta.color,
+                                        glowColor: color,
                                         maxGlow: 0.45,
                                         child: const SizedBox.shrink(),
                                       ),
@@ -206,15 +201,16 @@ class _DockState extends State<Dock> {
                                     height: 46 * scale,
                                     decoration: BoxDecoration(
                                       color: isActive
-                                          ? meta.color.withValues(alpha: 0.28)
+                                          ? color.withValues(alpha: 0.28)
                                           : (isHovered
-                                              ? meta.color.withValues(alpha: 0.18)
+                                              ? color.withValues(alpha: 0.18)
                                               : Colors.transparent),
-                                      borderRadius: BorderRadius.circular(14 * scale),
+                                      borderRadius:
+                                          BorderRadius.circular(14 * scale),
                                     ),
                                     child: Icon(
-                                      meta.icon,
-                                      color: meta.color,
+                                      icon,
+                                      color: color,
                                       size: 26 * scale,
                                     ),
                                   ),
@@ -229,11 +225,12 @@ class _DockState extends State<Dock> {
                                       child: isActive
                                           ? PulsingDot(
                                               size: 4,
-                                              color: meta.color,
+                                              color: color,
                                               maxOpacity: 0.9,
                                             )
                                           : AnimatedContainer(
-                                              duration: const Duration(milliseconds: 200),
+                                              duration: const Duration(
+                                                  milliseconds: 200),
                                               width: isMinimized ? 8 : 6,
                                               height: 4,
                                               decoration: BoxDecoration(
@@ -243,7 +240,8 @@ class _DockState extends State<Dock> {
                                                         .colorScheme
                                                         .onSurface
                                                         .withValues(alpha: 0.6),
-                                                borderRadius: BorderRadius.circular(2),
+                                                borderRadius:
+                                                    BorderRadius.circular(2),
                                               ),
                                             ),
                                     ),
@@ -264,9 +262,11 @@ class _DockState extends State<Dock> {
     );
   }
 
-  void _handleTap(AppState appState, _AppMeta meta, WindowData? window) {
+  void _handleTap(AppState appState, String appId, WindowData? window) {
+    final meta = AppRegistry.byId(appId);
     if (window == null) {
-      widget.onOpenApp(meta.id, meta.label, meta.icon, meta.child);
+      if (meta == null) return; // unknown app id — nothing to launch
+      widget.onOpenApp(meta);
     } else if (window.isMinimized) {
       appState.restoreWindow(window.id);
     } else if (appState.activeWindowId == window.id) {
@@ -325,7 +325,9 @@ class WindowTitleBar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                color: isActive ? colorScheme.onSurface : colorScheme.onSurfaceVariant,
+                color: isActive
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurfaceVariant,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -391,7 +393,12 @@ class _SnapWindowButtonState extends State<_SnapWindowButton> {
           child: Icon(
             widget.isMaximized ? Icons.crop_square : Icons.crop_din,
             size: 13,
-            color: _isHovered ? Colors.white : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: _isHovered
+                ? Colors.white
+                : Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.7),
           ),
         ),
         onSelected: (mode) {
@@ -401,34 +408,62 @@ class _SnapWindowButtonState extends State<_SnapWindowButton> {
             appState.snapWindow(widget.windowId, mode, screenSize);
           }
         },
-        itemBuilder: (context) => [
-          const PopupMenuItem(
+        itemBuilder: (context) => const [
+          PopupMenuItem(
             value: WindowSnapMode.maximized,
-            child: Row(children: [Icon(Icons.fullscreen, size: 18), SizedBox(width: 8), Text('Maximize / Fullscreen')]),
+            child: Row(children: [
+              Icon(Icons.fullscreen, size: 18),
+              SizedBox(width: 8),
+              Text('Maximize / Fullscreen'),
+            ]),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: WindowSnapMode.leftHalf,
-            child: Row(children: [Icon(Icons.align_horizontal_left, size: 18), SizedBox(width: 8), Text('Snap Left 50%')]),
+            child: Row(children: [
+              Icon(Icons.align_horizontal_left, size: 18),
+              SizedBox(width: 8),
+              Text('Snap Left 50%'),
+            ]),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: WindowSnapMode.rightHalf,
-            child: Row(children: [Icon(Icons.align_horizontal_right, size: 18), SizedBox(width: 8), Text('Snap Right 50%')]),
+            child: Row(children: [
+              Icon(Icons.align_horizontal_right, size: 18),
+              SizedBox(width: 8),
+              Text('Snap Right 50%'),
+            ]),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: WindowSnapMode.topLeft,
-            child: Row(children: [Icon(Icons.north_west, size: 18), SizedBox(width: 8), Text('Snap Top-Left 25%')]),
+            child: Row(children: [
+              Icon(Icons.north_west, size: 18),
+              SizedBox(width: 8),
+              Text('Snap Top-Left 25%'),
+            ]),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: WindowSnapMode.topRight,
-            child: Row(children: [Icon(Icons.north_east, size: 18), SizedBox(width: 8), Text('Snap Top-Right 25%')]),
+            child: Row(children: [
+              Icon(Icons.north_east, size: 18),
+              SizedBox(width: 8),
+              Text('Snap Top-Right 25%'),
+            ]),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: WindowSnapMode.centered,
-            child: Row(children: [Icon(Icons.filter_center_focus, size: 18), SizedBox(width: 8), Text('Center 80%')]),
+            child: Row(children: [
+              Icon(Icons.filter_center_focus, size: 18),
+              SizedBox(width: 8),
+              Text('Center 80%'),
+            ]),
           ),
-          const PopupMenuItem(
+          PopupMenuItem(
             value: WindowSnapMode.normal,
-            child: Row(children: [Icon(Icons.refresh, size: 18), SizedBox(width: 8), Text('Restore Normal')]),
+            child: Row(children: [
+              Icon(Icons.refresh, size: 18),
+              SizedBox(width: 8),
+              Text('Restore Normal'),
+            ]),
           ),
         ],
       ),
@@ -474,7 +509,12 @@ class _WindowButtonState extends State<_WindowButton> {
           child: Icon(
             widget.icon,
             size: 12,
-            color: _isHovered ? Colors.white : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: _isHovered
+                ? Colors.white
+                : Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.7),
           ),
         ),
       ),
@@ -497,7 +537,8 @@ class DesktopBackground extends StatelessWidget {
     final themeProvider = context.watch<ThemeProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    if (themeProvider.wallpaper == WallpaperPreset.customImage && themeProvider.customImagePath != null) {
+    if (themeProvider.wallpaper == WallpaperPreset.customImage &&
+        themeProvider.customImagePath != null) {
       return Container(
         decoration: BoxDecoration(
           image: DecorationImage(
@@ -513,27 +554,48 @@ class DesktopBackground extends StatelessWidget {
     switch (themeProvider.wallpaper) {
       case WallpaperPreset.quantumGradient:
         colors = isDark
-            ? [const Color(0xFF0D0221), const Color(0xFF0A1628), const Color(0xFF1A0A2E)]
-            : [const Color(0xFFE8EAF6), const Color(0xFFF3E5F5), const Color(0xFFE1F5FE)];
-        break;
+            ? [
+                const Color(0xFF0D0221),
+                const Color(0xFF0A1628),
+                const Color(0xFF1A0A2E),
+              ]
+            : [
+                const Color(0xFFE8EAF6),
+                const Color(0xFFF3E5F5),
+                const Color(0xFFE1F5FE),
+              ];
       case WallpaperPreset.deepSpace:
-        colors = [const Color(0xFF03071E), const Color(0xFF0F172A), const Color(0xFF1E1035)];
-        break;
+        colors = const [
+          Color(0xFF03071E),
+          Color(0xFF0F172A),
+          Color(0xFF1E1035),
+        ];
       case WallpaperPreset.auroraBoreal:
-        colors = [const Color(0xFF0F2027), const Color(0xFF203A43), const Color(0xFF2C5364)];
-        break;
+        colors = const [
+          Color(0xFF0F2027),
+          Color(0xFF203A43),
+          Color(0xFF2C5364),
+        ];
       case WallpaperPreset.cyberpunkNeon:
-        colors = [const Color(0xFF1A002C), const Color(0xFF001220), const Color(0xFF2D0036)];
-        break;
+        colors = const [
+          Color(0xFF1A002C),
+          Color(0xFF001220),
+          Color(0xFF2D0036),
+        ];
       case WallpaperPreset.minimalMesh:
-        colors = [const Color(0xFF121212), const Color(0xFF1E1E1E), const Color(0xFF2A2A2A)];
-        break;
+        colors = const [
+          Color(0xFF121212),
+          Color(0xFF1E1E1E),
+          Color(0xFF2A2A2A),
+        ];
       case WallpaperPreset.midnightSlate:
-        colors = [const Color(0xFF1A202C), const Color(0xFF2D3748), const Color(0xFF4A5568)];
-        break;
+        colors = const [
+          Color(0xFF1A202C),
+          Color(0xFF2D3748),
+          Color(0xFF4A5568),
+        ];
       case WallpaperPreset.customImage:
-        colors = [const Color(0xFF0D0221), const Color(0xFF0A1628)];
-        break;
+        colors = const [Color(0xFF0D0221), Color(0xFF0A1628)];
     }
 
     return Container(

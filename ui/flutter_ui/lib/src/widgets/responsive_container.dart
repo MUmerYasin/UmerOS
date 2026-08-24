@@ -11,7 +11,7 @@ class ResponsiveContainer extends StatelessWidget {
   final ResponsiveZone zone;
   final Widget child;
 
-  const ResponsiveContainer({Key? key, required this.zone, required this.child}) : super(key: key);
+  const ResponsiveContainer({super.key, required this.zone, required this.child});
 
   @override
   Widget build(BuildContext context) {

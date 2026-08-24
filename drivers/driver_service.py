@@ -71,11 +71,37 @@ OIDC_JWKS_URL = os.getenv("OIDC_JWKS_URL")
 OIDC_ISSUER = os.getenv("OIDC_ISSUER")
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE")
 
-USE_TEST_JWT = False
-if not OIDC_JWKS_URL or not OIDC_ISSUER:
-    # Fallback to test JWT mode for local development
-    USE_TEST_JWT = True
-    logger.warning("OIDC configuration missing; using test JWT secret for authentication.")
+# [FIX H64] Fail-closed authentication posture (zero-trust).
+# We NEVER ship a static HS256 secret. Exactly two valid modes exist:
+#   - "oidc": production  -> verify JWTs against the OIDC provider JWKS (RS256).
+#   - "dev" : explicit local mode (UMEROS_DEV_AUTH=1) using a real, non-default
+#             secret provided via UMEROS_DEV_JWT_SECRET.
+# If neither is satisfiable the mode is "denied" and the API refuses to start
+# (see the startup guard _fail_closed_auth_guard below). An empty dev secret is
+# also treated as denied.
+DEV_AUTH_ENABLED = os.getenv("UMEROS_DEV_AUTH") == "1"
+DEV_JWT_SECRET = os.getenv("UMEROS_DEV_JWT_SECRET")
+
+if OIDC_JWKS_URL and OIDC_ISSUER:
+    _AUTH_MODE = "oidc"
+elif DEV_AUTH_ENABLED:
+    if not DEV_JWT_SECRET:
+        # [FIX H64] Even in dev mode an empty/missing secret is still a
+        # "trust path satisfiable by an attacker-controlled value"; refuse it.
+        raise RuntimeError(
+            "UMEROS_DEV_AUTH=1 set but UMEROS_DEV_JWT_SECRET is empty. "
+            "Refusing to start: dev auth requires an explicit non-default secret."
+        )
+    _AUTH_MODE = "dev"
+else:
+    # [FIX H64] Fail-closed: no OIDC config and no explicit dev opt-in. The API
+    # must not serve any authenticated endpoint. verify_oauth_token rejects ALL
+    # tokens and the app startup guard refuses to boot (see _fail_closed_auth_guard).
+    _AUTH_MODE = "denied"
+    logger.error(
+        "OIDC_JWKS_URL/OIDC_ISSUER unset and UMEROS_DEV_AUTH != 1 — "
+        "driver_service will REFUSE to start (fail-closed auth, H64)."
+    )
 
 _jwks_cache: dict = {}
 
@@ -92,12 +118,27 @@ async def fetch_jwks() -> dict:
 async def verify_oauth_token(token: str = Depends(oauth_scheme)):
     """Validate a JWT.
 
-    In production, validates against JWKS. In local test mode, validates a HS256 token using a static secret.
+    # [FIX H64] Fail-closed authentication:
+      - "denied" mode: NO token is ever accepted (the service should not be running).
+      - "dev"    mode: HS256 with the explicit UMEROS_DEV_JWT_SECRET (never a
+                      hardcoded literal such as the old "test-secret").
+      - "oidc"   mode: RS256 against the provider JWKS (production).
+    The legacy hardcoded HS256 "test-secret" fallback has been removed entirely.
     """
-    if USE_TEST_JWT:
-        # Simple test mode using HS256 and a static secret
+    # [FIX H64] Fail-closed: authentication is not configured — reject every token.
+    if _AUTH_MODE == "denied":
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication disabled server-side; service not started.",
+        )
+
+    if _AUTH_MODE == "dev":
         try:
-            payload = jwt.decode(token, "test-secret", algorithms=["HS256"], issuer=OIDC_ISSUER or "test-issuer", audience=OIDC_AUDIENCE or "test-audience")
+            payload = jwt.decode(
+                token, DEV_JWT_SECRET, algorithms=["HS256"],
+                issuer=OIDC_ISSUER or "test-issuer",
+                audience=OIDC_AUDIENCE or "test-audience",
+            )
         except ExpiredSignatureError:
             raise HTTPException(status_code=401, detail="Token expired")
         except JWTClaimsError as e:
@@ -105,17 +146,33 @@ async def verify_oauth_token(token: str = Depends(oauth_scheme)):
         except JWTError as e:
             raise HTTPException(status_code=401, detail="Invalid token")
         return payload
-    else:
-        jwks = await fetch_jwks()
-        try:
-            payload = jwt.decode(token, jwks, algorithms=["RS256"], issuer=OIDC_ISSUER, audience=OIDC_AUDIENCE)
-        except ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail="Token expired")
-        except JWTClaimsError as e:
-            raise HTTPException(status_code=401, detail=str(e))
-        except JWTError as e:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        return payload
+
+    # [FIX H64] Production: verify against provider JWKS (RS256). The static
+    # HS256 secret path no longer exists, so a token signed with any client-known
+    # secret is rejected by algorithm mismatch.
+    jwks = await fetch_jwks()
+    try:
+        payload = jwt.decode(token, jwks, algorithms=["RS256"], issuer=OIDC_ISSUER, audience=OIDC_AUDIENCE)
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except JWTClaimsError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    except JWTError as e:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return payload
+
+
+# [FIX H64] Fail-closed startup guard: refuse to boot the API when auth is
+# unconfigured (mode "denied"). Production must set OIDC_*; local dev must set
+# UMEROS_DEV_AUTH=1 with a real UMEROS_DEV_JWT_SECRET.
+@app.on_event("startup")
+async def _fail_closed_auth_guard():
+    if _AUTH_MODE == "denied":
+        raise RuntimeError(
+            "driver_service: authentication is not configured (OIDC_JWKS_URL/"
+            "OIDC_ISSUER unset and UMEROS_DEV_AUTH != 1). Refusing to start the "
+            "/proc API (fail-closed auth, H64)."
+        )
 
 
 # Simple in‑memory rate limiter (max 20 requests per minute per IP). This is not
@@ -141,6 +198,27 @@ def rate_limiter(request: Request):
 
 # Dependency that enforces both authentication and rate limiting
 def secure_endpoint(request: Request, authorized: bool = Depends(verify_oauth_token), _: bool = Depends(rate_limiter)):
+    return True
+
+# [FIX H64] Owner/ptrace-style authorization proxy for process-environment reads.
+# Reading another process's environment exposes secrets, so beyond mere
+# authentication we require an explicit 'proc:environ:read' scope on the token.
+def _require_environ_scope(payload: dict) -> bool:
+    scopes = payload.get("scope", "")
+    scope_set = set(str(scopes).split()) if scopes else set()
+    if "proc:environ:read" not in scope_set:
+        raise HTTPException(
+            status_code=403,
+            detail="Insufficient scope for process environment read (requires 'proc:environ:read').",
+        )
+    return True
+
+def secure_environ_endpoint(
+    payload: dict = Depends(verify_oauth_token),
+    _: bool = Depends(rate_limiter),
+) -> bool:
+    """Authentication + rate limit + environ-scope authorization for /environ."""
+    _require_environ_scope(payload)
     return True
 
 # --- Response models --------------------------------------------------------
@@ -270,7 +348,9 @@ def endpoint_pid_cmdline(pid: int, _: bool = Depends(secure_endpoint)):
     return get_pid_cmdline(pid)
 
 @app.get("/pid/{pid}/environ", response_model=Dict[str, str])
-def endpoint_pid_environ(pid: int, _: bool = Depends(secure_endpoint)):
+def endpoint_pid_environ(pid: int, _: bool = Depends(secure_environ_endpoint)):
+    # [FIX H64] Process environment exposes secrets; gated behind
+    # secure_environ_endpoint (auth + rate limit + 'proc:environ:read' scope).
     return get_pid_environ(pid)
 
 @app.get("/pid/{pid}/fd", response_model=List[int])
@@ -334,7 +414,10 @@ async def metrics_middleware(request: Request, call_next):
     return response
 
 @app.get("/metrics", include_in_schema=False)
-def metrics():
+def metrics(_: bool = Depends(secure_endpoint)):
+    # [FIX H64] /metrics previously had NO authentication (reachable
+    # unauthenticated). Prometheus metrics can leak internal topology, so gate
+    # it behind the same authenticated+rate-limited dependency as /proc.
     data = generate_latest()
     return Response(content=data, media_type=CONTENT_TYPE_LATEST)
 

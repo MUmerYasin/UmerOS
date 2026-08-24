@@ -6,31 +6,48 @@ import 'src/core/desktop_shell.dart';
 import 'src/core/app_state.dart';
 import 'src/core/theme_provider.dart';
 import 'src/animations/animations.dart';
+import 'src/services/prefs_service.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const UmerOSApp());
+
+  // Restore persisted user preferences before the first frame so the
+  // desktop appears exactly as the user left it (theme, wallpaper,
+  // volume, pinned dock items, ...). Storage failures degrade to
+  // defaults instead of blocking boot.
+  await PrefsService.instance.init();
+  final themeProvider = ThemeProvider()..restore();
+  final appState = AppState()..restore();
+
+  runApp(UmerOSApp(themeProvider: themeProvider, appState: appState));
 }
 
 class UmerOSApp extends StatelessWidget {
-  const UmerOSApp({super.key});
+  final ThemeProvider themeProvider;
+  final AppState appState;
+
+  const UmerOSApp({
+    super.key,
+    required this.themeProvider,
+    required this.appState,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        ChangeNotifierProvider(create: (_) => AppState()),
+        ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: appState),
       ],
       child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, _) {
+        builder: (context, theme, _) {
           final fontBase = GoogleFonts.interTextTheme();
 
           return MaterialApp(
             title: 'UmerOS',
             debugShowCheckedModeBanner: false,
             theme: FlexThemeData.light(
-              scheme: themeProvider.flexScheme,
+              scheme: theme.flexScheme,
               surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
               blendLevel: 7,
               subThemesData: const FlexSubThemesData(
@@ -53,7 +70,7 @@ class UmerOSApp extends StatelessWidget {
               textTheme: fontBase,
             ),
             darkTheme: FlexThemeData.dark(
-              scheme: themeProvider.flexScheme,
+              scheme: theme.flexScheme,
               surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
               blendLevel: 14,
               subThemesData: const FlexSubThemesData(
@@ -74,21 +91,15 @@ class UmerOSApp extends StatelessWidget {
               fontFamily: GoogleFonts.inter().fontFamily,
               textTheme: fontBase,
             ),
-            themeMode: themeProvider.themeMode,
+            themeMode: theme.themeMode,
             // Wrap the desktop shell in a fade-in so the first paint
-            // doesn't pop in jarringly.  This is a soft entrance
+            // doesn't pop in jarringly. This is a soft entrance
             // (300 ms) that respects the user's "I want my desktop
             // NOW" expectation while still feeling animated.
-            home: const FadeInOnMount(
+            home: FadeInOnMount(
               duration: UmerDurations.medium2,
               child: DesktopShell(),
             ),
-            // Use the emphasised / 350 ms page transitions everywhere
-            // by default — `Navigator.push(...)` calls without an
-            // explicit `Route` argument will pick this up.
-            // (Builder routes still use the explicit route builders
-            // for the heavy ones — see the Umer*Route classes.)
-            // ignore: prefer_const_constructors
           );
         },
       ),

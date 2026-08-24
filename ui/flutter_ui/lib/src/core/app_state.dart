@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+import '../services/prefs_service.dart';
+
 enum WindowSnapMode {
   normal,
   leftHalf,
@@ -93,24 +95,21 @@ class SystemNotification {
 }
 
 class AppState extends ChangeNotifier {
+  static const _kVolume = 'umeros.state.volume';
+  static const _kBrightness = 'umeros.state.brightness';
+  static const _kWifi = 'umeros.state.wifi';
+  static const _kBluetooth = 'umeros.state.bluetooth';
+  static const _kNightShift = 'umeros.state.nightShift';
+  static const _kDnd = 'umeros.state.dnd';
+  static const _kPerformance = 'umeros.state.performance';
+  static const _kDockPins = 'umeros.state.dockPins';
+
   final List<WindowData> _windows = [];
   int _topZIndex = 0;
   String? _activeWindowId;
 
-  // Pinned Dock items list
-  final List<String> _pinnedDockIds = [
-    'browser',
-    'terminal',
-    'files',
-    'monitor',
-    'settings',
-    'editor',
-    'packages',
-    'quantum',
-    'security',
-    'games',
-    'docs',
-  ];
+  // Pinned Dock items list (defaults; may be replaced by persisted pins)
+  final List<String> _pinnedDockIds = List.from(_defaultPinnedIds);
 
   // Overlays state
   bool _isSearchOpen = false;
@@ -168,9 +167,51 @@ class AppState extends ChangeNotifier {
   List<SystemNotification> get notifications => _notifications;
   int get unreadNotificationCount => _notifications.where((n) => !n.isRead).length;
 
+  /// Restore persisted system state. Call once at startup after
+  /// [PrefsService.init]. Unknown dock pins are dropped via the
+  /// registry so a renamed app can never wedge the dock.
+  void restore() {
+    final prefs = PrefsService.instance;
+
+    _volume = prefs.getDouble(_kVolume)?.clamp(0.0, 1.0) ?? _volume;
+    _brightness = prefs.getDouble(_kBrightness)?.clamp(0.0, 1.0) ?? _brightness;
+    _wifiEnabled = prefs.getBool(_kWifi) ?? _wifiEnabled;
+    _bluetoothEnabled = prefs.getBool(_kBluetooth) ?? _bluetoothEnabled;
+    _nightShift = prefs.getBool(_kNightShift) ?? _nightShift;
+    _dnd = prefs.getBool(_kDnd) ?? _dnd;
+    _performanceMode = prefs.getBool(_kPerformance) ?? _performanceMode;
+
+    final pins = prefs.getStringList(_kDockPins);
+    if (pins != null && pins.isNotEmpty) {
+      final known = pins.toSet();
+      // Keep defaults first (stable order), then any extra persisted pins.
+      _pinnedDockIds
+        ..clear()
+        ..addAll([
+          ..._defaultPinnedIds.where(known.contains),
+          ...known.where((id) => !_defaultPinnedIds.contains(id)),
+        ]);
+    }
+  }
+
+  static const List<String> _defaultPinnedIds = [
+    'browser',
+    'terminal',
+    'files',
+    'monitor',
+    'settings',
+    'editor',
+    'packages',
+    'quantum',
+    'security',
+    'games',
+    'docs',
+  ];
+
   void pinDockItem(String id) {
     if (!_pinnedDockIds.contains(id)) {
       _pinnedDockIds.add(id);
+      PrefsService.instance.setStringList(_kDockPins, _pinnedDockIds);
       addNotification('Dock', 'App added to Dock', Icons.push_pin);
       notifyListeners();
     }
@@ -178,6 +219,7 @@ class AppState extends ChangeNotifier {
 
   void unpinDockItem(String id) {
     _pinnedDockIds.remove(id);
+    PrefsService.instance.setStringList(_kDockPins, _pinnedDockIds);
     notifyListeners();
   }
 
@@ -433,39 +475,46 @@ class AppState extends ChangeNotifier {
   void setVolume(double val) {
     _volume = val.clamp(0.0, 1.0);
     _volumeToastMessage = 'Volume: ${(_volume * 100).round()}%';
+    PrefsService.instance.setDouble(_kVolume, _volume);
     notifyListeners();
   }
 
   void setBrightness(double val) {
     _brightness = val.clamp(0.0, 1.0);
+    PrefsService.instance.setDouble(_kBrightness, _brightness);
     notifyListeners();
   }
 
   void toggleWifi() {
     _wifiEnabled = !_wifiEnabled;
+    PrefsService.instance.setBool(_kWifi, _wifiEnabled);
     addNotification('Network', _wifiEnabled ? 'Wi-Fi turned ON' : 'Wi-Fi turned OFF', Icons.wifi);
     notifyListeners();
   }
 
   void toggleBluetooth() {
     _bluetoothEnabled = !_bluetoothEnabled;
+    PrefsService.instance.setBool(_kBluetooth, _bluetoothEnabled);
     addNotification('Bluetooth', _bluetoothEnabled ? 'Bluetooth turned ON' : 'Bluetooth turned OFF', Icons.bluetooth);
     notifyListeners();
   }
 
   void toggleNightShift() {
     _nightShift = !_nightShift;
+    PrefsService.instance.setBool(_kNightShift, _nightShift);
     notifyListeners();
   }
 
   void toggleDnd() {
     _dnd = !_dnd;
+    PrefsService.instance.setBool(_kDnd, _dnd);
     addNotification('Do Not Disturb', _dnd ? 'DND Mode Activated' : 'DND Mode Deactivated', Icons.do_not_disturb_on);
     notifyListeners();
   }
 
   void togglePerformanceMode() {
     _performanceMode = !_performanceMode;
+    PrefsService.instance.setBool(_kPerformance, _performanceMode);
     addNotification('Performance', _performanceMode ? 'High Performance Mode Active' : 'Balanced Power Mode Active', Icons.speed);
     notifyListeners();
   }

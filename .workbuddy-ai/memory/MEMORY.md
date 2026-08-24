@@ -26,7 +26,7 @@
 - compatibility/ 🟡 H50/H52–H54  (H51 FIXED — zero-trust exec capability-gated)
 - core/ 🟡 H55/H56/H57
 - dev/ 🟡 H59/H60/H61
-- drivers/ 🔴 H64; 🟡 H62/H63/H66/H69
+- drivers/ 🟢 H64 (FIXED — static-secret auth removed; fail-closed startup, /metrics gated, /environ scope-gated); 🟡 H62/H63/H66/H69; 💭 H65
 - etc/ 🔴 H73; 🟡 H70/H71/H72
 - examples/ 💭 H74/H75
 - feedback/ 🟡 H76–H79 (broken pkg)

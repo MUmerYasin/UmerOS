@@ -29,9 +29,8 @@ class _QuantumSimAppState extends State<QuantumSimApp>
   ];
   final List<_QuantumJob> _jobs = [];
   final List<_AlgorithmPreset> _algorithmPresets = _defaultAlgorithms();
-  String _transpilerBackend = 'ionq_hardware';
-  String _transpilerOptLevel = 'optimized';
-  bool _transpileRunning = false;
+  final String _transpilerBackend = 'ionq_hardware';
+  final String _transpilerOptLevel = 'optimized';  bool _transpileRunning = false;
   bool _backendOk = false;
 
   @override
@@ -120,8 +119,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
         Row(children: [
           _pillButton('Add Qubit', Icons.add, cs, () {
             setState(() {
-              final n = _qubitLines.length;
-              _qubitLines.add(_QubitLine(label: 'q$superScript(n)'));
+              _qubitLines.add(_QubitLine(label: 'q${superScript(_qubitLines.length)}'));
             });
           }),
           const SizedBox(width: 8),
@@ -868,7 +866,11 @@ class _PulseWaveformPainter extends CustomPainter {
     final path = Path();
     for (double x = 0; x <= size.width; x++) {
       final y = size.height / 2 - sin(x / size.width * 4 * pi) * size.height / 2 * amplitude;
-      if (x == 0) path.moveTo(x, y); else path.lineTo(x, y);
+      if (x == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
     canvas.drawPath(path, paint);
   }
