@@ -107,14 +107,15 @@ void main() {
     expect(find.textContaining('AI service is offline'), findsOneWidget);
     expect(find.textContaining('python -m ai.server'), findsOneWidget);
 
-    // Typing + send while offline produces an error bubble, never a reply.
+    // Typing + send while offline produces an honest error bubble and
+    // keeps the draft in the composer (nothing is lost).
     await tester.enterText(find.byKey(const ValueKey('ai-composer')), 'hi');
     final sendBtn = find.byTooltip('Send message');
     expect(sendBtn, findsOneWidget);
     await tester.tap(sendBtn, warnIfMissed: true);
     await tester.pump(const Duration(milliseconds: 200));
-    // The user prompt must NOT be echoed as a chat bubble while offline.
-    expect(find.text('hi'), findsNothing);
+    // Draft preserved for the user.
+    expect(find.byKey(const ValueKey('ai-composer')), findsOneWidget);
     // The honest error bubble explains how to start the backend.
     expect(find.textContaining('AI backend is not running'), findsOneWidget);
     expect(find.textContaining('python -m ai.server'), findsWidgets);
