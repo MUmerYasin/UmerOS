@@ -51,7 +51,7 @@ This module is *not* a copy of the kernel_state; it is the on-disk
 companion to /etc configuration.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

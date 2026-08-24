@@ -34,14 +34,14 @@ This module provides a Pythonic interface that:
 3. Provides remount, bind, and loop-mount helpers.
 4. Tracks which devices are currently mounted.
 
-FHS 3.0 /mnt interaction:
+/mnt interaction:
 
     /mnt is the designated directory for temporary admin mounts.
     All mount operations targeting paths under /mnt go through
     :class:`MountManager` which enforces the temporary-use policy.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

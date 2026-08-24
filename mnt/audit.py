@@ -28,13 +28,13 @@ The TLDP spec doesn't define a formal audit format, but
 for mount-related state.  This module uses a structured JSON
 audit log for machine readability.
 
-FHS 3.0 /mnt interaction:
+ /mnt interaction:
 
     The content of /mnt is a local issue.  Auditing ensures
     that temporary admin mounts are tracked and cleaned up.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

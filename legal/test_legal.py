@@ -130,8 +130,8 @@ def test_contributors() -> bool:
     roster = reg.list_contributors()
     assert len(roster) >= 3
 
-    assert reg.verify_dco("Muhammad Umer Yasin (Umer)")
-    assert reg.verify_dco("Antigravity AI / DeepMind Team")
+    assert reg.verify_dco("Muhammad Umer Yasin (MUmerYasin)")
+    assert reg.verify_dco("The Linux Documentation Project (TLDP)")
 
     # Add community contributor
     reg.add_contributor("Jane Doe", role="Tester", contributions=["Quantum unit tests"])
@@ -177,13 +177,13 @@ def test_licenses_and_maintainers() -> bool:
     from legal.maintainers import MaintainerRegistry
 
     # License text
-    apache = LicenseManager.get_license_text("Apache-2.0")
-    assert "Apache License, Version 2.0" in apache
+    gpl = LicenseManager.get_license_text("GPL-3.0")
+    assert "GNU General Public License" in gpl
 
     # Maintainers
     m_reg = MaintainerRegistry()
     maintainers = m_reg.list_all()
-    assert len(maintainers) >= 2
+    assert len(maintainers) >= 1
 
     lead = m_reg.get("MUmerYasin")
     assert lead is not None

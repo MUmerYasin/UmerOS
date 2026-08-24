@@ -21,7 +21,7 @@ Covers /etc/tmpfiles.d, /usr/lib/tmpfiles.d, and /run/tmpfiles.d
 per the systemd-tmpfiles specification.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

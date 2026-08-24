@@ -16,7 +16,7 @@ Umer OS /root - shell environment
 ==================================
 The environment that ``/root``-related processes expect to see.
 
-The TLDP /root reference is short on the *contents* of root's
+The /root reference is short on the *contents* of root's
 environment - it focuses on the directory layout - but the
 "principle of least privilege" implies a few invariants we model
 here:
@@ -36,7 +36,7 @@ here:
   directory.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

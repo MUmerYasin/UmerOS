@@ -44,7 +44,7 @@ The machine itself knows nothing about *how* each phase is performed
 ordering and emits audit events.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

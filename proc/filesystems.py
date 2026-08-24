@@ -18,4 +18,9 @@ def get() -> list:
     raw = _read_file("/proc/filesystems")
     if raw:
         return [line.split()[-1] for line in raw.splitlines() if line.strip()]
-    return ["nodev/proc", "nodev/sysfs", "nodev/tmpfs", "qfs", "ext4"]
+    # [RECONCILE] The fallback list previously kept the "nodev/" prefix
+    # ("nodev/proc", ...) while the parse branch above strips it via
+    # `line.split()[-1]` (real /proc/filesystems lines are "nodev proc").
+    # TestProcFileSystemStandalone::test_filesystems expects the bare name
+    # "proc" to be present, so the fallback must match the parsed format.
+    return ["proc", "sysfs", "tmpfs", "qfs", "ext4"]

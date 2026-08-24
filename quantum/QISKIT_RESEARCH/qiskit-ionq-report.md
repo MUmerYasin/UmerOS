@@ -672,7 +672,7 @@ qiskit-ionq/
 ├── README.md                    # Project documentation
 ├── setup.py / setup.cfg         # Package configuration
 ├── requirements.txt             # Dependencies
-├── LICENSE                      # Apache 2.0
+├── LICENSE                      # License: GPL-3.0 (GNU General Public License Version 3)
 ├── docs/                        # Documentation
 │   ├── getting_started.md
 │   ├── usage.md

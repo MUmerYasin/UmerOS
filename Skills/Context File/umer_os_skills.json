@@ -5,13 +5,12 @@
   "primary_language": "Python 3.12+",
   "system_architecture": "Hybrid Microkernel + Quantum Simulation Layer + AI Orchestration",
   "description": "A Python-first, hybrid classical-quantum, AI-native, cross-device operating system designed to replace existing OSes on all device classes.",
-
+  "license": "GPL-3.0 (GNU General Public License Version 3)",
   "feature_tiers": {
     "TODAY": "Implementable now on classical hardware using simulation and existing libraries",
     "EXPERIMENTAL": "Near-term; requires careful engineering; known instability possible",
     "FUTURE": "Requires hardware (QPU, NPU) not yet mainstream on consumer devices"
   },
-
   "required_agent_skills": [
     "Python 3.12+ asyncio and concurrent programming (asyncio.Lock, create_task, gather)",
     "Python C-extension writing via ctypes and Cython for hardware-critical paths",
@@ -35,7 +34,6 @@
     "Docker containerisation and GitHub Actions CI/CD pipeline configuration",
     "QEMU virtual machine management for OS development and testing"
   ],
-
   "development_rules": [
     "NEVER generate impossible hardware claims. Always use 'quantum-inspired', 'simulated', or 'classical approximation' language when true quantum hardware is unavailable.",
     "ALWAYS label every feature with its tier: TODAY / EXPERIMENTAL / FUTURE. Unlabelled features are invalid output.",
@@ -46,14 +44,13 @@
     "NEVER claim Python can replace C/ASM for bare-metal boot or context-switch code. Document C stubs as pseudocode; expose them via ctypes bindings.",
     "ALWAYS enforce that AI training data stays on-device by default. Any cloud sync of AI data requires opt-in consent code.",
     "NEVER allow the compatibility layer to claim full iOS/Apple support. Mark iPhone as BLOCKED due to Apple's Secure Enclave.",
-    "ALWAYS produce modular code — one class per responsibility, one file per subsystem, following clean architecture principles.",
+    "ALWAYS produce modular code \u2014 one class per responsibility, one file per subsystem, following clean architecture principles.",
     "ALWAYS prioritise algorithmic efficiency over brute-force processing. Never claim to magically increase physical hardware speed.",
     "ALWAYS include '# TODO' comments on all interfaces designed for future QPU hardware integration.",
     "ALWAYS ensure HMAC-SHA256 signing is applied to all IPC messages in IPCBus.",
     "NEVER include hard-coded credentials, API keys, or secrets in any generated file.",
     "ALWAYS generate a rollback function alongside every installer action that modifies system state."
   ],
-
   "target_files": {
     "stage1": [
       "README.md",
@@ -143,7 +140,6 @@
       "sdk/ui_toolkit.py"
     ]
   },
-
   "antigravity_commands": {
     "stage1": "ag run stage1",
     "stage2": "ag run stage2",
@@ -157,39 +153,68 @@
     "package": "ag run package",
     "generate_docs": "ag run docs"
   },
-
   "key_dependencies": {
-    "quantum": ["qiskit>=1.0.0", "qiskit-aer>=0.14.0", "cirq>=1.3.0", "pennylane>=0.35.0", "numpy>=1.26.0"],
-    "ai_ml": ["onnxruntime>=1.17.0", "transformers>=4.40.0", "sentence-transformers>=2.7.0", "llama-cpp-python>=0.2.0", "scikit-learn>=1.4.0", "torch>=2.2.0"],
-    "security_crypto": ["cryptography>=42.0.0", "liboqs-python>=0.9.0", "xxhash>=3.4.0"],
-    "ui": ["kivy>=2.3.0", "Pillow>=10.2.0"],
-    "networking": ["aiohttp>=3.9.0", "dnspython>=2.6.0", "zeroconf>=0.131.0"],
-    "build_tooling": ["cython>=3.0.0", "numba>=0.59.0", "pytest>=8.0.0", "sphinx>=7.2.0"],
-    "system_compat": ["wine (system package, LGPL)", "qemu-system-x86_64 (system package, GPL)"]
+    "quantum": [
+      "qiskit>=1.0.0",
+      "qiskit-aer>=0.14.0",
+      "cirq>=1.3.0",
+      "pennylane>=0.35.0",
+      "numpy>=1.26.0"
+    ],
+    "ai_ml": [
+      "onnxruntime>=1.17.0",
+      "transformers>=4.40.0",
+      "sentence-transformers>=2.7.0",
+      "llama-cpp-python>=0.2.0",
+      "scikit-learn>=1.4.0",
+      "torch>=2.2.0"
+    ],
+    "security_crypto": [
+      "cryptography>=42.0.0",
+      "liboqs-python>=0.9.0",
+      "xxhash>=3.4.0"
+    ],
+    "ui": [
+      "kivy>=2.3.0",
+      "Pillow>=10.2.0"
+    ],
+    "networking": [
+      "aiohttp>=3.9.0",
+      "dnspython>=2.6.0",
+      "zeroconf>=0.131.0"
+    ],
+    "build_tooling": [
+      "cython>=3.0.0",
+      "numba>=0.59.0",
+      "pytest>=8.0.0",
+      "sphinx>=7.2.0"
+    ],
+    "system_compat": [
+      "wine (system package, LGPL)",
+      "qemu-system-x86_64 (system package, GPL)"
+    ]
   },
-
   "licence_map": {
-    "qiskit": "Apache 2.0",
-    "cirq": "Apache 2.0",
-    "pennylane": "Apache 2.0",
-    "numpy": "BSD",
-    "onnxruntime": "MIT",
-    "transformers": "Apache 2.0",
-    "llama-cpp-python": "MIT",
-    "scikit-learn": "BSD",
-    "torch": "BSD",
-    "cryptography": "Apache/BSD",
-    "liboqs-python": "MIT",
-    "kivy": "MIT",
-    "aiohttp": "Apache 2.0",
-    "cython": "Apache 2.0",
-    "numba": "BSD",
-    "pytest": "MIT",
-    "sphinx": "BSD",
-    "wine": "LGPL",
-    "qemu": "GPL"
+    "qiskit": "GPL-3.0 (GNU General Public License Version 3)",
+    "cirq": "GPL-3.0 (GNU General Public License Version 3)",
+    "pennylane": "GPL-3.0 (GNU General Public License Version 3)",
+    "numpy": "GPL-3.0 (GNU General Public License Version 3)",
+    "onnxruntime": "GPL-3.0 (GNU General Public License Version 3)",
+    "transformers": "GPL-3.0 (GNU General Public License Version 3)",
+    "llama-cpp-python": "GPL-3.0 (GNU General Public License Version 3)",
+    "scikit-learn": "GPL-3.0 (GNU General Public License Version 3)",
+    "torch": "GPL-3.0 (GNU General Public License Version 3)",
+    "cryptography": "GPL-3.0 (GNU General Public License Version 3)",
+    "liboqs-python": "GPL-3.0 (GNU General Public License Version 3)",
+    "kivy": "GPL-3.0 (GNU General Public License Version 3)",
+    "aiohttp": "GPL-3.0 (GNU General Public License Version 3)",
+    "cython": "GPL-3.0 (GNU General Public License Version 3)",
+    "numba": "GPL-3.0 (GNU General Public License Version 3)",
+    "pytest": "GPL-3.0 (GNU General Public License Version 3)",
+    "sphinx": "GPL-3.0 (GNU General Public License Version 3)",
+    "wine": "GPL-3.0 (GNU General Public License Version 3)",
+    "qemu": "GPL-3.0 (GNU General Public License Version 3)"
   },
-
   "code_style_requirements": {
     "docstring_format": "Google",
     "type_hints": "required on all function signatures",
@@ -202,17 +227,25 @@
     "max_function_length": "50 lines (extract helpers if exceeded)",
     "naming_convention": "snake_case for functions/variables; PascalCase for classes; UPPER_SNAKE for constants"
   },
-
   "quantum_constraints": {
     "simulation_only_today": true,
     "qpu_interface": "QuantumDevice abstract class in quantum/quantum_api.py",
-    "supported_backends_today": ["qiskit_aer_simulator", "cirq_simulator", "pennylane_default_qubit"],
-    "future_hardware_backends": ["ibm_quantum", "aws_braket", "azure_quantum", "ionq", "rigetti"],
+    "supported_backends_today": [
+      "qiskit_aer_simulator",
+      "cirq_simulator",
+      "pennylane_default_qubit"
+    ],
+    "future_hardware_backends": [
+      "ibm_quantum",
+      "aws_braket",
+      "azure_quantum",
+      "ionq",
+      "rigetti"
+    ],
     "error_mitigation_required": true,
     "zero_error_claim_forbidden": true,
     "quantum_inspired_scheduling": "SuperpositionSchedulerAdapter in quantum/quantum_sim.py"
   },
-
   "security_constraints": {
     "installer_eula_mandatory": true,
     "eula_consent_string": "I AGREE",
@@ -223,9 +256,8 @@
     "symmetric_encryption": "AES-256-GCM",
     "tls_version": "1.3 with post-quantum cipher suites",
     "default_privilege_level": "least privilege (no root by default)",
-    "ios_support_status": "BLOCKED — Apple Secure Enclave prevents installation"
+    "ios_support_status": "BLOCKED \u2014 Apple Secure Enclave prevents installation"
   },
-
   "ai_governance": {
     "training_consent_required": true,
     "data_stays_local_by_default": true,
@@ -233,9 +265,12 @@
     "ai_action_log_path": "/var/log/umer_ai.log",
     "privacy_db_path": "/etc/umer/privacy.db",
     "erasure_command": "umer-privacy clear-all",
-    "compliance_standards": ["IEEE P7010", "FTC AI Principles", "GDPR Article 22"]
+    "compliance_standards": [
+      "IEEE P7010",
+      "FTC AI Principles",
+      "GDPR Article 22"
+    ]
   },
-
   "performance_targets": {
     "storage_reduction_today": "20-50% via QFS 3-stage compression",
     "storage_reduction_future": "up to 90% (requires ML lossy compression for cold data)",

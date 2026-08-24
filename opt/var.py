@@ -23,7 +23,7 @@ No structure is imposed on the internal arrangement.  Packages may use
 this space for caches, databases, spools, logs, or any other mutable state.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

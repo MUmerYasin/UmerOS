@@ -18,11 +18,11 @@ UmerOS /opt — PATH and Environment Integration
 Manages ``$PATH``, ``$MANPATH``, and other environment variables to
 include ``/opt`` package binaries and documentation.
 
-Per TLDP §3.11, each ``/opt/<pkg>/bin`` directory should be included
+each ``/opt/<pkg>/bin`` directory should be included
 in ``$PATH`` so that installed programs are directly executable.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

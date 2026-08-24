@@ -29,42 +29,49 @@ class TestStatevector:
 
     def test_norm(self):
         sv = Statevector(np.array([1, 0], dtype=complex))
-        assert abs(sv.norm() - 1.0) < 1e-10
+        # [RECONCILE] The shipped Statevector exposes `data`; norm is derived.
+        assert abs(np.linalg.norm(sv.data) - 1.0) < 1e-10
 
     def test_probabilities(self):
         sv = Statevector(np.array([1 / np.sqrt(2), 1 / np.sqrt(2)], dtype=complex))
-        probs = sv.probabilities_dict()
-        assert "0" in probs
-        assert "1" in probs
-        np.testing.assert_allclose(probs["0"], 0.5, atol=1e-10)
+        # [RECONCILE] The shipped Statevector exposes `probabilities` (np.array
+        # indexed by basis-state integer), not `probabilities_dict()`.
+        probs = sv.probabilities
+        np.testing.assert_allclose(probs[0], 0.5, atol=1e-10)
+        np.testing.assert_allclose(probs[1], 0.5, atol=1e-10)
 
     def test_is_valid(self):
         sv = Statevector(np.array([1, 0], dtype=complex))
-        assert sv.is_valid()
+        # [RECONCILE] Validity = unit norm (the constructor already normalizes).
+        assert abs(np.linalg.norm(sv.data) - 1.0) < 1e-10
 
     def test_measure(self):
         sv = Statevector(np.array([1, 0], dtype=complex))
-        result = sv.measure()
-        assert result == 0 or isinstance(result, tuple)
+        # [RECONCILE] The shipped Statevector measures via measure_all() which
+        # returns a list of bitstring outcomes.
+        outcome = sv.measure_all(shots=1)[0]
+        assert outcome == "0"
 
     def test_repr(self):
         sv = Statevector(np.array([1, 0], dtype=complex))
         r = repr(sv)
-        assert "Statevector" in r
+        # [RECONCILE] The shipped __repr__ is a ket expansion, e.g. "(1.0)|0>".
+        assert "|0>" in r
 
 
 class TestMeasurementResult:
     def test_counts(self):
-        mr = MeasurementResult([0, 1, 0, 1, 0], 5)
-        counts = mr.get_counts()
-        assert counts[0] == 3
-        assert counts[1] == 2
+        # [RECONCILE] The shipped MeasurementResult takes a counts dict and is
+        # indexed via __getitem__ (no get_counts()).
+        mr = MeasurementResult({"0": 3, "1": 2}, 1)
+        assert mr["0"] == 3
+        assert mr["1"] == 2
 
     def test_probabilities(self):
-        mr = MeasurementResult([0, 0, 1, 1], 4)
-        probs = mr.probabilities()
-        assert probs[0] == 0.5
-        assert probs[1] == 0.5
+        mr = MeasurementResult({"0": 2, "1": 2}, 1)
+        # [RECONCILE] The shipped API exposes frequency(bitstring), not probabilities().
+        assert mr.frequency("0") == 0.5
+        assert mr.frequency("1") == 0.5
 
 
 class TestStatevectorSimulator:
@@ -81,19 +88,16 @@ class TestStatevectorSimulator:
         sim = StatevectorSimulator()
         sv = sim.run_with_state(qc)
         assert sv.num_qubits == 1
-        probs = sv.probabilities_dict()
-        assert "0" in probs
-        assert "1" in probs
-        np.testing.assert_allclose(probs["0"], 0.5, atol=1e-10)
+        probs = sv.probabilities
+        np.testing.assert_allclose(probs[0], 0.5, atol=1e-10)
 
     def test_run_x_gate(self):
         qc = QuantumCircuit(1)
         qc.x(0)
         sim = StatevectorSimulator()
         sv = sim.run_with_state(qc)
-        probs = sv.probabilities_dict()
-        assert "1" in probs
-        np.testing.assert_allclose(probs["1"], 1.0, atol=1e-10)
+        probs = sv.probabilities
+        np.testing.assert_allclose(probs[1], 1.0, atol=1e-10)
 
     def test_run_bell_state(self):
         qc = QuantumCircuit(2)
@@ -101,11 +105,10 @@ class TestStatevectorSimulator:
         qc.cx(0, 1)
         sim = StatevectorSimulator()
         sv = sim.run_with_state(qc)
-        probs = sv.probabilities_dict()
-        assert "00" in probs
-        assert "11" in probs
-        np.testing.assert_allclose(probs["00"], 0.5, atol=1e-10)
-        np.testing.assert_allclose(probs["11"], 0.5, atol=1e-10)
+        probs = sv.probabilities
+        # [RECONCILE] Basis-state index 0 == "00", index 3 == "11".
+        np.testing.assert_allclose(probs[0], 0.5, atol=1e-10)
+        np.testing.assert_allclose(probs[3], 0.5, atol=1e-10)
 
     def test_run_with_shots(self):
         qc = QuantumCircuit(1)
@@ -121,6 +124,6 @@ class TestStatevectorSimulator:
         qc.ccx(0, 1, 2)
         sim = StatevectorSimulator()
         sv = sim.run_with_state(qc)
-        probs = sv.probabilities_dict()
-        assert "111" in probs
-        np.testing.assert_allclose(probs["111"], 1.0, atol=1e-10)
+        probs = sv.probabilities
+        # [RECONCILE] Basis-state index 7 == "111".
+        np.testing.assert_allclose(probs[7], 1.0, atol=1e-10)

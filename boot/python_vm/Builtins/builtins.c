@@ -5,6 +5,8 @@
  */
 
 #include "../Include/umeros_python.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 /* print() implementation */
 static PyObject* builtin_print(PyObject *self, PyObject *args, PyObject *kwargs) {

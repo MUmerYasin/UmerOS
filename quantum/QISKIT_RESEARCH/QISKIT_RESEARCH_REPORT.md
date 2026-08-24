@@ -7,7 +7,7 @@
 **Qiskit** is an open-source quantum computing software development framework developed by IBM Quantum. It provides tools for working with quantum circuits, running them on simulators or real quantum hardware, and performing advanced quantum information processing tasks.
 
 - **GitHub**: https://github.com/Qiskit/qiskit
-- **License**: Apache 2.0
+- **License**: License: GPL-3.0 (GNU General Public License Version 3)
 - **Language**: Python (with Rust extensions compiled via PyO3 for performance)
 - **Website**: https://qiskit.org
 - **Docs**: https://docs.quantum.ibm.com/api/qiskit

@@ -158,4 +158,4 @@ python initrd/linuxrc.py
 
 ## License
 
-Apache 2.0 — same as the rest of Umer OS.
+License: GPL-3.0 (GNU General Public License Version 3) — same as the rest of Umer OS.

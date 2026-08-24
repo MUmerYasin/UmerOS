@@ -197,8 +197,7 @@ static PyObject* float_richcompare(PyObject *self, PyObject *other, int op) {
 /* ==================== TYPE OBJECT ==================== */
 
 PyTypeObject PyFloat_Type = {
-    { 1, NULL },
-    "float",
+    1, NULL, "float",
     sizeof(PyObject),
     0,
     NULL,                       /* tp_new */

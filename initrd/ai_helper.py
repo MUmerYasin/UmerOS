@@ -38,7 +38,7 @@ If you want richer behaviour, install the optional packages listed in
 ``qiskit-aer``) and the helper will pick them up automatically.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

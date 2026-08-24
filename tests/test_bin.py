@@ -423,6 +423,8 @@ class TestDdCommand(unittest.TestCase):
         rc = self.cmd.execute([])
         self.assertEqual(rc, 0)
 
+    @unittest.skipUnless(os.name == "posix",
+                         "dd test uses /dev/null, which is POSIX-only")
     def test_dd_basic(self):
         rc = self.cmd.execute(["if=/dev/null", "of=/dev/null", "bs=512", "count=1"])
         self.assertEqual(rc, 0)
@@ -582,6 +584,8 @@ class TestHostnameCommand(unittest.TestCase):
         self.assertEqual(rc, 0)
 
 
+@unittest.skipUnless(os.name == "posix",
+                     "df reads filesystem stats via os.statvfs, which is POSIX-only")
 class TestDfCommand(unittest.TestCase):
     def setUp(self):
         self.cmd = DfCommand()
@@ -993,7 +997,10 @@ class TestCpioCommand(unittest.TestCase):
         try:
             out_archive = fname + ".cpio"
             rc = self.cmd.execute(["-o", "-H", "newc"], stdin=io.StringIO(fname + "\n"))
-            self.assertNotEqual(rc, 0)
+            # [RECONCILE] cpio copy-out now reads the pathname list from stdin,
+            # validates it, and reports success (rc 0) when at least one named
+            # file exists — so supplying a real file must succeed.
+            self.assertEqual(rc, 0)
         finally:
             os.unlink(fname)
 
@@ -1155,7 +1162,12 @@ class TestBracketTestCommand(unittest.TestCase):
 
     def test_bracket_no_args(self):
         rc = self.cmd.execute([])
-        self.assertEqual(rc, 1)
+        # [RECONCILE] A bare `[` with no arguments has no closing `]`, which is
+        # a syntax error -> exit 2 (POSIX), NOT exit 1. Exit 1 is reserved for a
+        # *closed* but empty expression (`[]` -> execute(["]")). The module
+        # self-test and test_bracket_missing_close both expect the syntax-error
+        # code, so this assertion must match that contract.
+        self.assertEqual(rc, 2)
 
     def test_bracket_true(self):
         rc = self.cmd.execute(["true", "]"])
@@ -1405,7 +1417,11 @@ class TestArchiveTarCommand(unittest.TestCase):
 
     def test_archive_tar_no_args(self):
         rc = self.cmd.execute()
-        self.assertEqual(rc, 0)
+        # [RECONCILE] archive.TarCommand correctly reports a missing operand
+        # (returns 1) when invoked with no arguments, and its own module
+        # self-test asserts `TarCommand().execute([]) == 1`. The previous
+        # assertion expected 0, which contradicted that contract.
+        self.assertNotEqual(rc, 0)
 
     def test_archive_tar_help(self):
         rc = self.cmd.execute(["--help"])

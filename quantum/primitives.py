@@ -482,7 +482,8 @@ class EstimatorV2(BasePrimitiveV2):
 
         # Calculate expectation value: <ψ|O|ψ>
         state_array = statevector.data
-        observable_matrix = observable.matrix
+        # [RECONCILE] shipped SparsePauliOp exposes to_matrix(), not .matrix
+        observable_matrix = observable.to_matrix()
 
         expectation_value = np.real(np.conj(state_array) @ observable_matrix @ state_array)
 

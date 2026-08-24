@@ -31,8 +31,6 @@ The two flavours of EFI-bootable Linux kernel are:
   bundles the EFI stub, the kernel, an initrd, the kernel command line
   and a ``.osrel`` (os-release) text section.  UKIs are placed in
   ``/EFI/Linux/<name>.efi`` per the Boot Loader Specification
-  (`UAPI.1 <https://uapi-group.org/specifications/specs/boot_loader_specification/>`_,
-  `UAPI.5 <https://uapi-group.org/specifications/specs/unified_kernel_image/>`_)
   and are required to be **cryptographically signed as a single unit**
   for Secure Boot to accept them.
 
@@ -51,16 +49,9 @@ of sections).  Instead it:
   ``.sysext``),
 * returns a dataclass describing the image.
 
-References
-----------
-
-* https://uapi-group.org/specifications/specs/unified_kernel_image/
-* https://learn.microsoft.com/windows/win32/debug/pe-format
-* Linux/Documentation/x86/boot.txt  (boot protocol)
-* Linux/Documentation/admin-guide/efi-stub.rst
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

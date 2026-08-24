@@ -345,4 +345,33 @@ def get_gate(name: str, *params: float) -> Gate:
         return THREE_QUBIT_GATES[name]
     if name in PARAMETRIC_GATES:
         return PARAMETRIC_GATES[name](*params)
-    raise ValueError(f"Unknown gate: {name}")
+    # [FIX H261] Use KeyError to match the dict-style name lookup contract
+    # (tests/quantum/test_gates.py::test_get_unknown_raises expects KeyError).
+    raise KeyError(f"Unknown gate: {name}")
+
+
+# ---------------------------------------------------------------------------
+# [FIX H261] Backwards-compatible class-style gate aliases
+# ---------------------------------------------------------------------------
+# The quantum test-suite (tests/quantum/test_gates.py, test_circuit.py) imports
+# single-letter / class-style gate names (I, X, Y, Z, H, S, T, CX, CZ, CCX,
+# SWAP) and parametric factory names (RX, RY, RZ, PhaseGate). These mirror the
+# *_GATE constants and factory functions defined above so the public API matches
+# the tests that were written against a class-based gate interface.
+I = I_GATE
+X = X_GATE
+Y = Y_GATE
+Z = Z_GATE
+H = H_GATE
+S = S_GATE
+T = T_GATE
+CX = CX_GATE
+CZ = CZ_GATE
+CCX = CCX_GATE
+SWAP = SWAP_GATE
+
+# Parametric gates are exposed as callables: RX(theta) -> Gate
+RX = rx
+RY = ry
+RZ = rz
+PhaseGate = phase_gate

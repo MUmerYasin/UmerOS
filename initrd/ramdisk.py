@@ -26,8 +26,7 @@ equivalent we can offer:
   populated by a cpio archive (or built programmatically).
 * :meth:`RamDisk.materialize_from_initrd` simulates the kernel
   "convert initrd into a normal RAM disk and free initrd memory" step.
-* :meth:`RamDisk.teardown` simulates the final "initrd FS is removed"
-  step (TLDP phase 8).
+* :meth:`RamDisk.teardown` simulates the final "initrd FS is removed".
 
 Mount point awareness: when the host kernel mounts a real tmpfs at
 ``/initrd`` we discover the underlying path via :func:`detect_mount`,
@@ -35,7 +34,7 @@ so that code running inside the RAM disk can still reach back to the
 host when needed (e.g. writing the next-stage image back to ``/boot``).
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

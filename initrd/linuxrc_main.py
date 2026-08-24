@@ -39,7 +39,7 @@ Usage on the host for smoke tests::
     python initrd/linuxrc_main.py /path/to/initramfs.img.gz
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

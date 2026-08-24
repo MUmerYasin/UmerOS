@@ -24,7 +24,7 @@ FHS 3.0 /etc requirements:
 - System service configuration
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 # Original modules

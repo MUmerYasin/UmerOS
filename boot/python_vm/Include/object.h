@@ -351,6 +351,56 @@ extern PyTypeObject PyTuple_Type;
 extern PyTypeObject PyDict_Type;
 extern PyTypeObject PyNone_Type;
 extern PyTypeObject PyFunction_Type;
+extern PyTypeObject PyModule_Type;
+
+/* ==================== CONSTRUCTOR DECLARATIONS ==================== */
+
+PyObject* PyLong_FromLong(long ival);
+PyObject* PyFloat_FromDouble(double ival);
+PyObject* PyUnicode_FromStringAndSize(const char *u, Py_ssize_t size);
+PyObject* PyBool_FromLong(long ival);
+Py_ssize_t PyUnicode_GetLength(PyObject *op);
+
+/* ==================== DICT FUNCTIONS ==================== */
+
+PyObject*  PyDict_New(void);
+PyObject*  PyDict_GetItem(PyObject *dict, PyObject *key);
+int        PyDict_Contains(PyObject *dict, PyObject *key);
+PyObject*  PyDict_GetItemString(PyObject *dict, const char *key);
+
+/* ==================== LIST/TUPLE SETITEM ==================== */
+
+int PyList_SetItem(PyObject *list, Py_ssize_t i, PyObject *item);
+int PyTuple_SetItem(PyObject *tuple, Py_ssize_t i, PyObject *item);
+
+/* ==================== ITER PROTOCOL ==================== */
+
+#define PyIter_Check(op) ((op)->ob_type && (op)->ob_type->tp_iternext != NULL)
+PyObject* PyIter_Next(PyObject *iter);
+
+/* ==================== SEQUENCE SIZE/CONTAINS ==================== */
+
+Py_ssize_t PySequence_Size(PyObject *s);
+int        PySequence_Contains(PyObject *s, PyObject *o);
+
+/* ==================== IMPORT ==================== */
+
+PyObject* PyImport_ImportModule(const char *name);
+
+/* ==================== REPR/STR/TYPE/HASH ==================== */
+
+PyObject* PyObject_Str(PyObject *obj);
+PyObject* PyObject_Repr(PyObject *obj);
+PyObject* PyObject_Type(PyObject *obj);
+PyObjectHash PyObject_Hash(PyObject *obj);
+
+/* ==================== DELATTR ==================== */
+
+int PyObject_DelAttr(PyObject *obj, PyObject *name);
+
+/* ==================== DELITEM ==================== */
+
+int PyObject_DelItem(PyObject *obj, PyObject *key);
 
 #ifdef __cplusplus
 }

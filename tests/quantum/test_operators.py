@@ -11,72 +11,96 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Tests for quantum.operators — SparsePauliOp, PauliTerm, Hamiltonian."""
+"""Tests for quantum.operators — SparsePauliOp, PauliTerm, Hamiltonian.
 
-import math
+[RECONCILE] These tests were originally written against a Qiskit-shaped API
+(`SparsePauliOp.from_list(...)`, `.matrix`, `Hamiltonian(op).expectation(state)`).
+The shipped UmerOS quantum library uses a bespoke API, so the tests below were
+rewritten to exercise the SHIPPED surface rather than changing the library:
+  * `SparsePauliOp.from_list([("Z", 1.0)])`  ->  `pauli_string("Z", 1.0)`
+        (single Pauli string) or
+        `SparsePauliOp(labels=["Z", "X"], coeffs=[1.0, 0.5])` (multiple terms).
+  * `op.matrix`                              ->  `op.to_matrix()`
+  * `len(op)`                                ->  `len(op.terms)` (term list)
+  * `Hamiltonian(op)`                        ->  `Hamiltonian({"Z": 1.0})`
+        (the lib constructor takes a {label: coeff} dict)
+  * `ham.expectation(state)`                 ->  `ham.expectation_value(state)`
+"""
+
+import math  # noqa: F401  (kept for parity with other quantum test modules)
 import pytest
 import numpy as np
 
-from quantum.operators import SparsePauliOp, PauliTerm, Hamiltonian
+from quantum.operators import (
+    SparsePauliOp,
+    PauliTerm,
+    Hamiltonian,
+    pauli_string,
+)
 
 
 class TestSparsePauliOp:
     def test_from_single_string(self):
-        op = SparsePauliOp.from_list([("Z", 1.0)])
+        # [RECONCILE] shipped helper for a single Pauli string is pauli_string()
+        op = pauli_string("Z", 1.0)
         assert op.num_qubits == 1
-        assert len(op) == 1
+        # [RECONCILE] lib has no __len__; term count is len(op.terms)
+        assert len(op.terms) == 1
 
     def test_from_two_qubit(self):
-        op = SparsePauliOp.from_list([("ZZ", 1.0)])
+        # [RECONCILE] pauli_string handles multi-character labels too
+        op = pauli_string("ZZ", 1.0)
         assert op.num_qubits == 2
 
     def test_from_multiple_terms(self):
-        op = SparsePauliOp.from_list([("Z", 1.0), ("X", 0.5)])
-        assert len(op) == 2
+        # [RECONCILE] multi-term construction uses labels= / coeffs=
+        op = SparsePauliOp(labels=["Z", "X"], coeffs=[1.0, 0.5])
+        assert len(op.terms) == 2
 
     def test_matrix_z(self):
-        op = SparsePauliOp.from_list([("Z", 1.0)])
-        m = op.matrix
+        # [RECONCILE] matrix access is to_matrix(), not .matrix
+        op = pauli_string("Z", 1.0)
+        m = op.to_matrix()
         expected = np.array([[1, 0], [0, -1]], dtype=complex)
         np.testing.assert_allclose(m, expected, atol=1e-10)
 
     def test_matrix_x(self):
-        op = SparsePauliOp.from_list([("X", 1.0)])
-        m = op.matrix
+        op = pauli_string("X", 1.0)
+        m = op.to_matrix()
         expected = np.array([[0, 1], [1, 0]], dtype=complex)
         np.testing.assert_allclose(m, expected, atol=1e-10)
 
     def test_matrix_identity(self):
-        op = SparsePauliOp.from_list([("I", 1.0)])
-        m = op.matrix
+        op = pauli_string("I", 1.0)
+        m = op.to_matrix()
         np.testing.assert_allclose(m, np.eye(2), atol=1e-10)
 
     def test_zz_operator(self):
-        op = SparsePauliOp.from_list([("ZZ", 1.0)])
-        m = op.matrix
+        op = pauli_string("ZZ", 1.0)
+        m = op.to_matrix()
         assert m.shape == (4, 4)
         expected = np.diag([1, -1, -1, 1])
         np.testing.assert_allclose(m, expected, atol=1e-10)
 
     def test_addition(self):
-        op1 = SparsePauliOp.from_list([("Z", 1.0)])
-        op2 = SparsePauliOp.from_list([("X", 0.5)])
+        op1 = pauli_string("Z", 1.0)
+        op2 = pauli_string("X", 0.5)
         op3 = op1 + op2
-        assert len(op3) == 2
+        assert len(op3.terms) == 2
 
     def test_scalar_mul(self):
-        op = SparsePauliOp.from_list([("Z", 1.0)])
+        op = pauli_string("Z", 1.0)
         op2 = op * 2.0
-        assert len(op2) == 1
+        assert len(op2.terms) == 1
 
     def test_repr(self):
-        op = SparsePauliOp.from_list([("Z", 1.0)])
+        op = pauli_string("Z", 1.0)
         r = repr(op)
         assert "SparsePauliOp" in r or "Z" in r
 
     def test_hermitian(self):
-        op = SparsePauliOp.from_list([("Z", 1.0)])
-        m = op.matrix
+        op = pauli_string("Z", 1.0)
+        m = op.to_matrix()
         np.testing.assert_allclose(m, m.conj().T, atol=1e-10)
 
 
@@ -94,23 +118,24 @@ class TestPauliTerm:
 
 class TestHamiltonian:
     def test_from_operator(self):
-        op = SparsePauliOp.from_list([("Z", 1.0)])
-        ham = Hamiltonian(op)
+        # [RECONCILE] Hamiltonian takes a {label: coeff} dict, returns a
+        # SparsePauliOp (which exposes num_qubits)
+        ham = Hamiltonian({"Z": 1.0})
         assert ham.num_qubits == 1
 
     def test_expectation_value(self):
         """<0|Z|0> = 1"""
-        op = SparsePauliOp.from_list([("Z", 1.0)])
-        ham = Hamiltonian(op)
+        # [RECONCILE] Hamiltonian(dict) -> SparsePauliOp; expectation is
+        # expectation_value(state), not expectation(state)
+        ham = Hamiltonian({"Z": 1.0})
         # |0⟩ state
         state = np.array([1, 0], dtype=complex)
-        ev = ham.expectation(state)
+        ev = ham.expectation_value(state)
         np.testing.assert_allclose(ev, 1.0, atol=1e-10)
 
     def test_expectation_x(self):
         """<+|X|+> = 1, where |+> = (|0>+|1>)/sqrt(2)"""
-        op = SparsePauliOp.from_list([("X", 1.0)])
-        ham = Hamiltonian(op)
+        ham = Hamiltonian({"X": 1.0})
         state = np.array([1 / np.sqrt(2), 1 / np.sqrt(2)], dtype=complex)
-        ev = ham.expectation(state)
+        ev = ham.expectation_value(state)
         np.testing.assert_allclose(ev, 1.0, atol=1e-10)

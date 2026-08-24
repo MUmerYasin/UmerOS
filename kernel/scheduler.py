@@ -27,7 +27,7 @@ quantum/quantum_sim.py will replace the placeholder probability.
 TODO: QPU integration hook at _select_next()
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

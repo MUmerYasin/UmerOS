@@ -33,37 +33,35 @@ manager     - SbinManager, FHS compliance, command registry
 
 from __future__ import annotations
 
-from  os import path as _p
-import sys as _sys
-_this_dir = _p.dirname(_p.abspath(__file__))
-if _this_dir not in _sys.path:
-    _sys.path.insert(0, _this_dir)
-
-from boot import (
+# [FIX H261] Use relative imports for package-internal modules so the bare names
+# (boot, network, ...) no longer collide with the same-named top-level packages.
+# The previous sys.path self-injection is removed: it shadowed top-level packages
+# once this package was imported, breaking the rest of the test suite.
+from .boot import (
     HaltCommand, InitCommand, PoweroffCommand, RebootCommand,
     ShutdownCommand, GettyCommand, FastbootCommand, FasthaltCommand,
     UpdateCommand,
 )
-from filesystem import (
+from .filesystem import (
     FdiskCommand, FsckCommand, MkfsCommand, SwaponCommand,
     SwapoffCommand, MkswapCommand, ChrootCommand,
 )
-from modules import (
+from .modules import (
     InsmodCommand, LsmodCommand, ModprobeCommand, RmmodCommand,
     DepmodCommand,
 )
-from network import IfconfigCommand, IpCommand, RouteCommand
-from system import SysctlCommand, HwclockCommand, LdconfigCommand
-from mount import (
+from .network import IfconfigCommand, IpCommand, RouteCommand
+from .system import SysctlCommand, HwclockCommand, LdconfigCommand
+from .mount import (
     MountCommand, UmountCommand, MknodCommand, LosetupCommand,
     PivotRootCommand,
 )
-from maintenance import (
+from .maintenance import (
     Tune2fsCommand, E2fsckCommand, Mke2fsCommand, CtrlaltdelCommand,
     KbdrateCommand, LoadkeysCommand, DumpCommand, RestoreCommand,
     SlnCommand, MktempCommand, SetfdprmCommand, RdevCommand,
 )
-from sbin_manager import (
+from .sbin_manager import (
     SbinManager, FHS_REQUIRED_SBIN, FHS_OPTIONAL_SBIN,
     ALL_SBIN_ENTRIES, SBIN_COMMAND_REGISTRY,
 )

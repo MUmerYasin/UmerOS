@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS /boot - FHS / TLDP audit
+Umer OS /boot
 ================================
 
 Single entry point for "is ``/boot`` set up correctly?".  Wires
@@ -53,7 +53,7 @@ The audit produces :class:`FHSIssue` records of three severities:
 * ``INFO``    - advisory
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

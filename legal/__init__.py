@@ -33,7 +33,7 @@ manager      - LegalManager (master unified controller)
 cli          - legal_ctl command-line controller
 
 Author: UmerOS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

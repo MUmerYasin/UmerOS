@@ -20,14 +20,14 @@ filesystem information for the system.  Each line has six fields:
 
     <device>  <mount point>  <type>  <options>  <dump>  <pass>
 
-The TLDP spec defines this as the central configuration for:
+This is the central configuration for:
 
 * Automatic mounts at boot (``mount -a``)
 * User-mountable filesystems (``user`` option)
 * Filesystem check order (``pass`` field)
 * Backup frequency (``dump`` field)
 
-FHS 3.0 /mnt interaction:
+/mnt interaction:
 
     /mnt is provided so that the system administrator may temporarily
     mount a filesystem as needed.  The content of this directory is a
@@ -38,7 +38,7 @@ fstab entries with mount points under /mnt define what the admin
 can temporarily mount using ``mount /mnt/<name>``.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

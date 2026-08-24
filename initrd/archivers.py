@@ -40,7 +40,7 @@ where possible and fall back to optional ``lz4`` / ``zstandard`` wheels
 if they are installed.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

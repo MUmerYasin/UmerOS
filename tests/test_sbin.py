@@ -23,35 +23,32 @@ _this_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.dirname(_this_dir)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
-_sbin_dir = os.path.join(_project_root, "sbin")
-if _sbin_dir not in sys.path:
-    sys.path.insert(0, _sbin_dir)
 
-from boot import (
+from sbin.boot import (
     HaltCommand, InitCommand, PoweroffCommand, RebootCommand,
     ShutdownCommand, GettyCommand, FastbootCommand, FasthaltCommand,
     UpdateCommand,
 )
-from filesystem import (
+from sbin.filesystem import (
     FdiskCommand, FsckCommand, MkfsCommand, SwaponCommand,
     SwapoffCommand, MkswapCommand, ChrootCommand,
 )
-from modules import (
+from sbin.modules import (
     InsmodCommand, LsmodCommand, ModprobeCommand, RmmodCommand,
     DepmodCommand,
 )
-from network import IfconfigCommand, IpCommand, RouteCommand
-from system import SysctlCommand, HwclockCommand, LdconfigCommand
-from mount import (
+from sbin.network import IfconfigCommand, IpCommand, RouteCommand
+from sbin.system import SysctlCommand, HwclockCommand, LdconfigCommand
+from sbin.mount import (
     MountCommand, UmountCommand, MknodCommand, LosetupCommand,
     PivotRootCommand,
 )
-from maintenance import (
+from sbin.maintenance import (
     Tune2fsCommand, E2fsckCommand, Mke2fsCommand, CtrlaltdelCommand,
     KbdrateCommand, LoadkeysCommand, DumpCommand, RestoreCommand,
     SlnCommand, MktempCommand, SetfdprmCommand, RdevCommand,
 )
-from sbin_manager import (
+from sbin.sbin_manager import (
     SbinManager, FHS_REQUIRED_SBIN, FHS_OPTIONAL_SBIN,
     ALL_SBIN_ENTRIES, SBIN_COMMAND_REGISTRY,
 )
@@ -890,31 +887,31 @@ class TestSbinManager(unittest.TestCase):
 
 class TestSelftest(unittest.TestCase):
     def test_boot_selftest(self):
-        from boot import _selftest
+        from sbin.boot import _selftest
         self.assertTrue(_selftest())
 
     def test_filesystem_selftest(self):
-        from filesystem import _selftest
+        from sbin.filesystem import _selftest
         self.assertTrue(_selftest())
 
     def test_modules_selftest(self):
-        from modules import _selftest
+        from sbin.modules import _selftest
         self.assertTrue(_selftest())
 
     def test_network_selftest(self):
-        from network import _selftest
+        from sbin.network import _selftest
         self.assertTrue(_selftest())
 
     def test_system_selftest(self):
-        from system import _selftest
+        from sbin.system import _selftest
         self.assertTrue(_selftest())
 
     def test_mount_selftest(self):
-        from mount import _selftest
+        from sbin.mount import _selftest
         self.assertTrue(_selftest())
 
     def test_maintenance_selftest(self):
-        from maintenance import _selftest
+        from sbin.maintenance import _selftest
         self.assertTrue(_selftest())
 
 

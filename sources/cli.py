@@ -39,7 +39,7 @@ import json
 import sys
 from pathlib import Path
 
-from manager import SourcesManager
+from .manager import SourcesManager
 
 
 def create_parser() -> argparse.ArgumentParser:

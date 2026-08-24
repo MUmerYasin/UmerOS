@@ -129,7 +129,7 @@ typedef struct { PyObject *key; PyObject *value; } DictEntry;
 typedef struct { PyObject ob_base; DictEntry *entries; Py_ssize_t size; Py_ssize_t capacity; } PyDictObject;
 
 static PyTypeObject _PyDict_Type = {
-    { 1, NULL }, "dict", sizeof(PyDictObject), 0,
+    1, NULL, "dict", sizeof(PyDictObject), 0,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -190,7 +190,7 @@ PyObject* PyDict_GetItemString(PyObject *dict, const char *key) {
 typedef struct { PyObject ob_base; PyObject **items; Py_ssize_t size; Py_ssize_t allocated; } PyListObject;
 
 static PyTypeObject _PyList_Type = {
-    { 1, NULL }, "list", sizeof(PyListObject), 0,
+    1, NULL, "list", sizeof(PyListObject), 0,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -246,7 +246,7 @@ int PyList_Append(PyObject *list, PyObject *item) {
 typedef struct { PyObject ob_base; PyObject **items; Py_ssize_t size; } PyTupleObject;
 
 static PyTypeObject _PyTuple_Type = {
-    { 1, NULL }, "tuple", sizeof(PyTupleObject), 0,
+    1, NULL, "tuple", sizeof(PyTupleObject), 0,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -333,11 +333,6 @@ int PySequence_Contains(PyObject *seq, PyObject *item) {
 }
 
 /* ==================== Iterator ==================== */
-
-int PyIter_Check(PyObject *op) {
-    if (!op) return 0;
-    return (Py_TYPE(op) == &_PyList_Type || Py_TYPE(op) == &_PyTuple_Type);
-}
 
 PyObject* PyIter_Next(PyObject *iter) {
     (void)iter;
@@ -457,8 +452,6 @@ int PyObject_SetAttr(PyObject *op, PyObject *name, PyObject *value) {
 
 /* ==================== Callable ==================== */
 
-int PyCallable_Check(PyObject *op) { return op && Py_TYPE(op)->tp_call; }
-
 PyObject* PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs) {
     if (!callable) { PyErr_SetString(PyExc_TypeError, "object is not callable"); return NULL; }
     if (Py_TYPE(callable)->tp_call) return Py_TYPE(callable)->tp_call(callable, args, kwargs);
@@ -566,13 +559,7 @@ int PyType_Ready(PyTypeObject *type) {
     return 0;
 }
 
-int PyType_IsSubtype(PyTypeObject *a, PyTypeObject *b) {
-    while (a) {
-        if (a == b) return 1;
-        a = a->tp_base;
-    }
-    return 0;
-}
+/* PyType_IsSubtype is defined as inline in object.h */
 
 PyTypeObject* PyType_FromSpec(const char *name, PyTypeObject *base) {
     PyTypeObject *type = (PyTypeObject *)calloc(1, sizeof(PyTypeObject));
@@ -590,7 +577,7 @@ PyTypeObject* PyType_FromSpec(const char *name, PyTypeObject *base) {
 typedef struct { PyObject ob_base; PyMethodDef *m_ml; PyObject *m_self; PyObject *m_module; } PyCFunctionObject;
 
 static PyTypeObject _PyCFunction_Type = {
-    { 1, NULL }, "builtin_function_or_method", sizeof(PyCFunctionObject), 0,
+    1, NULL, "builtin_function_or_method", sizeof(PyCFunctionObject), 0,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,

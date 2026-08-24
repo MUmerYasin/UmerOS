@@ -19,7 +19,7 @@ Enforces the safety mandate from Appendix E:
 "Users are strongly recommended to perform system backups before proceeding."
 
 Author: UmerOS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

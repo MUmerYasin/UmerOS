@@ -12,11 +12,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /opt — TLDP Directory Hierarchy Manager
+UmerOS /opt — Directory Hierarchy Manager
 ================================================
 
-Manages the ``/opt`` directory tree per the Filesystem Hierarchy
-Standard (TLDP) and FHS 3.0.
+Manages the ``/opt`` directory tree per the Filesystem Hierarchy.
 
 Responsibilities
 ----------------
@@ -25,7 +24,7 @@ Responsibilities
 * Provide a ``bootstrap()`` that creates the full skeleton on first boot.
 * Maintain a lightweight registry of installed packages under ``/opt``.
 
-Reserved directories (TLDP §3.11)::
+Reserved directories
 
     /opt/bin   — local sysadmin binaries
     /opt/doc   — local documentation
@@ -38,7 +37,7 @@ These directories are created by ``bootstrap()`` and are protected from
 package installation by ``validate_package_path()``.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

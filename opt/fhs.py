@@ -12,11 +12,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /opt — FHS Compliance Validator
+UmerOS /opt 
 =======================================
 
-Audits the ``/opt`` hierarchy against the Filesystem Hierarchy
-Standard (TLDP) and FHS 3.0.
+Audits the ``/opt`` hierarchy against the Filesystem Hierarchy.
 
 Checks performed:
 
@@ -27,7 +26,7 @@ Checks performed:
 5. No world-writable files exist in package trees.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

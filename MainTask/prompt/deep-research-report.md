@@ -1,5 +1,8 @@
 # Umer OS Master Design Prompt
 
+> **License: GPL-3.0 (GNU General Public License Version 3)**  
+> *This document and the system it describes are distributed under the terms of the GNU General Public License Version 3. See the `LICENSE` file for more details.*
+
 ## Executive Summary  
 **Umer OS** is envisioned as a **Python-first hybrid classical+quantum, AI-native, cross-device operating system** to eventually replace existing desktop and mobile OSs (Linux, Windows, Android, macOS, etc.). It blends a modern **microkernel architecture** with built-in **quantum simulation** and **future QPU integration**, **local AI assistants**, and full backward compatibility. Key goals include **minimal storage/memory footprint**, **maximal efficiency** (through AI scheduling and quantum-inspired algorithms), and an **intuitive, adaptive UI/UX**. Umer OS will support a universal developer ecosystem (SDK, package manager, container system) and seamless cross-device/cloud sync. The system will be **modular**, **secure (zero-trust, quantum-safe)**, and **data-privacy-first**.  
 

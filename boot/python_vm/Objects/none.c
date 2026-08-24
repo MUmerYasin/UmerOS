@@ -40,15 +40,25 @@ static Py_ssize_t none_hash(PyObject *op) {
 }
 
 PyTypeObject PyNone_Type = {
-    PyObject_HEAD_INIT(NULL)
-    .tp_name = "NoneType",
-    .tp_basicsize = sizeof(PyNoneObject),
-    .tp_dealloc = none_dealloc,
-    .tp_repr = none_repr,
-    .tp_str = none_str,
-    .tp_bool = none_bool,
-    .tp_hash = none_hash,
-    .tp_flags = Py_TPFLAGS_DEFAULT
+    1, NULL,                       /* PyObject_HEAD */
+    "NoneType",                    /* tp_name */
+    sizeof(PyNoneObject),          /* tp_basicsize */
+    0,                             /* tp_itemsize */
+    NULL,                          /* tp_new */
+    none_dealloc,                  /* tp_dealloc */
+    none_repr,                     /* tp_repr */
+    none_str,                      /* tp_str */
+    NULL,                          /* tp_richcompare */
+    (PyObjectHash (*)(PyObject*))none_hash, /* tp_hash */
+    none_bool,                     /* tp_bool */
+    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,  /* number ops */
+    NULL, NULL, NULL, NULL, NULL,                            /* more number + sequence */
+    NULL,                          /* tp_length */
+    NULL, NULL, NULL,              /* tp_concat, tp_repeat, tp_item */
+    NULL, NULL,                    /* tp_getattro, tp_setattro */
+    NULL,                          /* tp_call */
+    NULL,                          /* tp_base */
+    Py_TPFLAGS_DEFAULT             /* tp_flags */
 };
 
 void PyNone_Init(void) {

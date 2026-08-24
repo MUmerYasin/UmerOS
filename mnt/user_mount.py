@@ -35,13 +35,13 @@ This module:
 4. Provides ``user-mount`` / ``user-umount`` CLI helpers.
 5. Checks UID/GID constraints for vfat/msdos mounts.
 
-FHS 3.0 /mnt interaction:
+ /mnt interaction:
 
     Temporary admin mounts under /mnt can be user-mountable if
     configured in ``/etc/fstab`` with the ``user`` option.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

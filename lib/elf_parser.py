@@ -23,7 +23,7 @@ the actual binary format knowledge needed to resolve .so dependencies,
 audit libraries, and build ld.so.cache entries.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

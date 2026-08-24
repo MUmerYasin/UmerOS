@@ -113,8 +113,7 @@ static PyObject* bool_multiply(PyObject *left, PyObject *right) {
 /* ==================== TYPE OBJECT ==================== */
 
 PyTypeObject PyBool_Type = {
-    { 1, NULL },
-    "bool",
+    1, NULL, "bool",
     sizeof(PyObject),
     0,
     NULL,                       /* tp_new */

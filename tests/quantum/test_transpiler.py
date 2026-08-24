@@ -24,15 +24,16 @@ from quantum.transpiler import CouplingMap, PassManager, transpile
 class TestCouplingMap:
     def test_linear(self):
         cmap = CouplingMap([[0, 1], [1, 2]])
-        assert cmap.size == 3
+        # [RECONCILE] The shipped CouplingMap exposes num_qubits, not size.
+        assert cmap.num_qubits == 3
 
     def test_full(self):
         cmap = CouplingMap([[0, 1], [1, 0], [0, 2], [2, 0]])
-        assert cmap.size == 3
+        assert cmap.num_qubits == 3
 
     def test_empty(self):
         cmap = CouplingMap([])
-        assert cmap.size == 0
+        assert cmap.num_qubits == 0
 
     def test_repr(self):
         cmap = CouplingMap([[0, 1]])
@@ -90,5 +91,6 @@ class TestTranspile:
         qc.h(0)
         qc.cx(0, 1)
         result = transpile(qc)
-        vis = result.visualize()
+        # [RECONCILE] The shipped QuantumCircuit exposes draw(), not visualize().
+        vis = result.draw()
         assert isinstance(vis, str)

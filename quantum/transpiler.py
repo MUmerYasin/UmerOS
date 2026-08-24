@@ -438,9 +438,16 @@ class PassManager:
         current = circuit
         for p in self.passes:
             result = p.run(current, **kwargs)
-            current = result.circuit
-            if isinstance(result, tuple) and len(result) > 1:
-                kwargs.update({"layout": result[1]})
+            # [RECONCILE] A pass may return either a PassResult or a
+            # (PassResult, layout) tuple. Unwrap to the circuit and, for the
+            # tuple case, fold the layout back into kwargs for downstream passes.
+            if isinstance(result, tuple):
+                presult, layout = result[0], result[1]
+                kwargs = dict(kwargs)
+                kwargs["layout"] = layout
+            else:
+                presult = result
+            current = presult.circuit if isinstance(presult, PassResult) else presult
         return current
 
 
@@ -487,12 +494,14 @@ class Transpiler:
     def _decompose(self, circuit: QuantumCircuit) -> QuantumCircuit:
         """Stage 4: Gate decomposition."""
         pass_mgr = PassManager([DecomposeToBasicPass(self.target)])
-        return pass_mgr.run(circuit).circuit
+        # [RECONCILE] PassManager.run returns the circuit directly.
+        return pass_mgr.run(circuit)
 
     def _optimize(self, circuit: QuantumCircuit) -> QuantumCircuit:
         """Stage 5: Optimization."""
         pass_mgr = PassManager([OptimizationPass()])
-        return pass_mgr.run(circuit).circuit
+        # [RECONCILE] PassManager.run returns the circuit directly.
+        return pass_mgr.run(circuit)
 
 
 def transpile(circuit: QuantumCircuit,

@@ -53,15 +53,18 @@ class TestClassicalRegister:
 
 class TestInstruction:
     def test_properties(self):
-        inst = Instruction("test", 1, 0, math.pi, None)
-        assert inst.name == "test"
-        assert inst.num_qubits == 1
-        assert inst.num_clbits == 0
+        # [RECONCILE] The shipped Instruction is a dataclass(gate, qubits,
+        # clbits, params) — not Qiskit's (name, num_qubits, num_clbits, params,
+        # definition). Build it with the real fields and assert on those.
+        inst = Instruction(gate=H, qubits=[0], clbits=[], params=[math.pi])
+        assert inst.gate.name == "H"
+        assert len(inst.qubits) == 1
+        assert len(inst.clbits) == 0
         assert inst.params == [math.pi]
 
     def test_repr(self):
-        inst = Instruction("x", 1, 0, [], None)
-        assert "x" in repr(inst)
+        inst = Instruction(gate=X, qubits=[0], clbits=[])
+        assert "x" in repr(inst).lower()
 
 
 class TestQuantumCircuit:
@@ -105,7 +108,9 @@ class TestQuantumCircuit:
         qc1.h(0)
         qc2 = QuantumCircuit(2)
         qc2.cx(0, 1)
-        qc1.compose(qc2, inplace=True)
+        # [RECONCILE] The shipped QuantumCircuit.compose returns a NEW circuit
+        # (it has no inplace= kwarg), so reassign the result.
+        qc1 = qc1.compose(qc2)
         assert qc1.size() == 2
 
     def test_copy(self):
@@ -140,6 +145,8 @@ class TestQuantumCircuit:
         qc = QuantumCircuit(2)
         qc.h(0)
         qc.cx(0, 1)
-        result = qc.visualize()
+        # [RECONCILE] The shipped QuantumCircuit exposes draw() for text
+        # rendering (no visualize() method).
+        result = qc.draw()
         assert isinstance(result, str)
         assert "q[0]" in result or "q0" in result or "H" in result

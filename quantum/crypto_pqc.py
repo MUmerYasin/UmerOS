@@ -32,7 +32,7 @@ Hash utilities:
   - sha3_512(data: bytes) → bytes
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

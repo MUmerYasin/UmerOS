@@ -5,6 +5,8 @@
  */
 
 #include "../Include/umeros_python.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 /* Integer representation */
 typedef struct {
@@ -148,28 +150,28 @@ static PyObject* long_richcompare(PyObject *left, PyObject *right, int op) {
 
 /* Type object definition */
 PyTypeObject PyLong_Type = {
-    PyObject_HEAD_INIT(NULL)
-    .tp_name = "int",
-    .tp_basicsize = sizeof(PyLongObject),
-    .tp_dealloc = long_dealloc,
-    .tp_repr = long_repr,
-    .tp_str = long_str,
-    .tp_bool = long_bool,
-    .tp_hash = long_hash,
-    .tp_length = long_length,
-    .tp_negative = long_negative,
-    .tp_positive = long_positive,
-    .tp_absolute = long_absolute,
-    .tp_add = long_add,
-    .tp_subtract = long_subtract,
-    .tp_multiply = long_multiply,
-    .tp_true_divide = long_true_divide,
-    .tp_floor_divide = long_floor_divide,
-    .tp_remainder = long_modulo,
-    .tp_power = long_power,
-    .tp_richcompare = long_richcompare,
-    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_NUMBER | Py_TPFLAGS_SEQUENCE,
-    .tp_base = NULL
+    1, NULL,                              /* PyObject_HEAD */
+    "int",                                /* tp_name */
+    sizeof(PyLongObject),                 /* tp_basicsize */
+    0,                                    /* tp_itemsize */
+    NULL,                                 /* tp_new */
+    long_dealloc,                         /* tp_dealloc */
+    long_repr,                            /* tp_repr */
+    long_str,                             /* tp_str */
+    long_richcompare,                     /* tp_richcompare */
+    (PyObjectHash (*)(PyObject*))long_hash, /* tp_hash */
+    long_bool,                            /* tp_bool */
+    long_add,                             /* tp_add */
+    long_subtract,                        /* tp_subtract */
+    long_multiply,                        /* tp_multiply */
+    NULL, NULL, NULL, NULL, NULL, NULL,   /* pow, neg, pos, abs, and, xor */
+    NULL, NULL, NULL, NULL,               /* or, lshift, rshift */
+    long_length,                          /* tp_length */
+    NULL, NULL, NULL,                     /* concat, repeat, item */
+    NULL, NULL,                           /* getattro, setattro */
+    NULL,                                 /* tp_call */
+    NULL,                                 /* tp_base */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_NUMBER | Py_TPFLAGS_SEQUENCE /* tp_flags */
 };
 
 /*

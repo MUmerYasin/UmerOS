@@ -396,7 +396,11 @@ class TestProcFileSystemStandalone(unittest.TestCase):
         data = self.fs.read("/proc/loadavg")
         parts = data.strip().split()
         self.assertGreaterEqual(len(parts), 5)
-        self.assertIn("/", parts[-1])
+        # [RECONCILE] The running/total field is the 4th column (e.g. "1/123")
+        # and contains the "/"; the final column is the last PID (no slash).
+        # The old assertion checked parts[-1] (the PID) and could never contain
+        # "/". Real /proc/loadavg layout: load1 load5 load15 runnable/total pid.
+        self.assertIn("/", parts[-2])
 
     def test_stat(self):
         data = self.fs.read("/proc/stat")

@@ -42,7 +42,7 @@ This module checks:
 8. User-mountable entries have ``user`` or ``users`` option.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

@@ -27,11 +27,11 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from bibliography import BibliographyRegistry, SourceCategory, SourceReference
-from glossary import GlossaryEntry, GlossaryRegistry
-from signals import SignalAction, SignalDispatcher, SignalSpec
-from specs_parser import KernelDocsRegistry
-from source_tree import SourceTreeManager
+from .bibliography import BibliographyRegistry, SourceCategory, SourceReference
+from .glossary import GlossaryEntry, GlossaryRegistry
+from .signals import SignalAction, SignalDispatcher, SignalSpec
+from .specs_parser import KernelDocsRegistry
+from .source_tree import SourceTreeManager
 
 log = logging.getLogger("UmerOS.Sources.Manager")
 

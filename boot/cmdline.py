@@ -44,13 +44,12 @@ Example
 References
 ----------
 
-* https://www.kernel.org/doc/html/latest/admin-guide/kernel-parameters.html
 * UAPI.1 Boot Loader Specification - ``options`` field
 * systemd-boot(7) - command line options
 * FHS 3.0 - ``/boot`` is where the boot loader picks up the cmdline
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

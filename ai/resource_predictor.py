@@ -19,7 +19,7 @@ Statistical resource prediction with EWMA, trend analysis, and spike detection.
 Replaces naive random-based prediction with proper time-series analysis.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

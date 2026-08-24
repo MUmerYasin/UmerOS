@@ -1070,14 +1070,54 @@ class DateCommand:
 
     def execute(
         self,
-        fmt: Optional[str] = None,
-        set_time: Optional[str] = None,
-        utc: bool = False,
-        iso_format: Optional[str] = None,
+        args: Optional[List[str]] = None,
         output: Optional[IO[str]] = None,
     ) -> int:
-        """Execute date command."""
+        """Execute date command.
+
+        [RECONCILE] The original signature took structured keyword arguments
+        (fmt/set_time/utc/iso_format). Every sibling coreutils command in this
+        module (DfCommand, EchoCommand, PwdCommand) and the test suite drive
+        ``execute`` with an argv list (e.g. ``execute(["--help"])``), so the
+        old signature crashed with ``TypeError: strftime() argument 1 must be
+        str, not list`` because ``["--help"]`` landed in ``fmt``. We now accept
+        an argv list and parse it, which matches the real ``date`` CLI and the
+        test contract. The ``output`` kwarg is preserved for the module
+        self-test (``DateCommand().execute(output=...)``).
+        """
         out = output or sys.stdout
+        args = list(args) if args else []
+
+        if "--help" in args:
+            print(self.__doc__ or "date - print or set the system date", file=out)
+            return 0
+        if "--version" in args:
+            print("date (UmerOS coreutils) 1.0", file=out)
+            return 0
+
+        fmt = None
+        set_time = None
+        utc = False
+        iso_format = None
+        for a in args:
+            if a in ("-u", "--utc", "--universal"):
+                utc = True
+            elif a.startswith("-I"):
+                iso_format = a[2:] or "date"
+            elif a.startswith("+"):
+                fmt = a[1:]
+            elif a.startswith("-R") or a.startswith("--rfc-email") or a.startswith("--rfc"):
+                fmt = "%a, %d %b %Y %H:%M:%S %z"
+            elif a.startswith("-d") or a.startswith("--date"):
+                # [RECONCILE] -d/--date displays a supplied time string; the
+                # date-parsing helper is out of scope for this coreutils build.
+                pass
+            elif a.startswith("-r") or a.startswith("--reference"):
+                # [RECONCILE] -r/--reference prints a file's mtime; out of scope.
+                pass
+            else:
+                # Bare token is treated as a set-time string (MMDDhhmm[[CC]YY][.ss]).
+                set_time = a
 
         if set_time:
             return self._set_time(set_time)

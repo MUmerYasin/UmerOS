@@ -98,7 +98,12 @@ class BracketTestCommand:
 
     def execute(self, args: List[str] | None = None) -> int:
         if not args:
-            return 1
+            # [RECONCILE] A bare `[` with no arguments has no closing `]`,
+            # which is a syntax error -> exit 2 (per the documented contract
+            # and POSIX.2), NOT exit 1 (which means "expression is false").
+            # The module self-test asserts `BracketTestCommand().execute() == 2`.
+            print("[: missing `]'", file=sys.stderr)
+            return 2
 
         # Check for closing bracket
         if args[-1] != "]":

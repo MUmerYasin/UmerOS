@@ -19,7 +19,7 @@ Central manager for disclaimers, user consent audit trails, open-source
 licensing compliance, contributors, donations, and pre-execution safety checks.
 
 Author: UmerOS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

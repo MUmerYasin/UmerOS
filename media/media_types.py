@@ -18,8 +18,6 @@ UmerOS /media - Media Type Definitions
 Defines the removable-media types recognised by the FHS /media hierarchy
 and the UmerOS hotplug subsystem.
 
-According to TLDP/FHS 3.0:
-
   The following directories, or symbolic links to directories, must be
   in /media, if the corresponding subsystem is installed:
 
@@ -38,7 +36,7 @@ removable, etc.) while keeping the legacy FHS types as the canonical
 set.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

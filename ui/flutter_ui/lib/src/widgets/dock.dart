@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import '../core/theme_provider.dart';
+import '../animations/animations.dart';
 import '../apps/terminal_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/system_monitor_app.dart';
@@ -184,12 +185,22 @@ class _DockState extends State<Dock> {
                             onTap: () => _handleTap(appState, meta, window),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
-                              curve: Curves.easeOutBack,
+                              curve: UmerCurves.spring,
                               width: 50 * scale,
                               height: 50 * scale,
                               child: Stack(
                                 alignment: Alignment.center,
                                 children: [
+                                  // Hover glow that pulses when the icon is
+                                  // the active focused window.
+                                  if (isActive)
+                                    Positioned.fill(
+                                      child: HoverGlow(
+                                        glowColor: meta.color,
+                                        maxGlow: 0.45,
+                                        child: const SizedBox.shrink(),
+                                      ),
+                                    ),
                                   Container(
                                     width: 46 * scale,
                                     height: 46 * scale,
@@ -208,23 +219,33 @@ class _DockState extends State<Dock> {
                                     ),
                                   ),
 
-                                  // Open / Minimized State Dot Indicator
+                                  // Open / Minimized State Dot Indicator.
+                                  // For the *active* (focused) icon we use a
+                                  // breathing PulsingDot so the user always
+                                  // knows which window is on top.
                                   if (isOpen)
                                     Positioned(
                                       bottom: 1,
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        width: isActive ? 16 : 6,
-                                        height: 4,
-                                        decoration: BoxDecoration(
-                                          color: isActive
-                                              ? Theme.of(context).colorScheme.primary
-                                              : (isMinimized
-                                                  ? Colors.amber
-                                                  : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
-                                          borderRadius: BorderRadius.circular(2),
-                                        ),
-                                      ),
+                                      child: isActive
+                                          ? PulsingDot(
+                                              size: 4,
+                                              color: meta.color,
+                                              maxOpacity: 0.9,
+                                            )
+                                          : AnimatedContainer(
+                                              duration: const Duration(milliseconds: 200),
+                                              width: isMinimized ? 8 : 6,
+                                              height: 4,
+                                              decoration: BoxDecoration(
+                                                color: isMinimized
+                                                    ? Colors.amber
+                                                    : Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurface
+                                                        .withValues(alpha: 0.6),
+                                                borderRadius: BorderRadius.circular(2),
+                                              ),
+                                            ),
                                     ),
                                 ],
                               ),

@@ -21,7 +21,7 @@ UmerOS models the catalogue so the hotplug subsystem can answer
 "is firmware X available for device Y?" without shipping the blobs.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

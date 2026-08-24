@@ -99,6 +99,7 @@ class LoadAvgTracker:
     def __init__(self) -> None:
         self._ema = [0.0, 0.0, 0.0]
         self._last = time.monotonic()
+        self._seeded = False
         self.last_pid = 0
         self.total_threads = 0
 
@@ -107,8 +108,17 @@ class LoadAvgTracker:
         dt = max(now - self._last, 1e-6)
         self._last = now
         for i, window in enumerate((60.0, 300.0, 900.0)):
-            alpha = dt / (dt + window / 8.0)
-            self._ema[i] += alpha * (runnable - self._ema[i])
+            # [RECONCILE] On the very first sample the time since construction is
+            # ~0, so the EMA smoothing factor `alpha = dt/(dt + window/8)` is
+            # ~0 and the estimate never moved off 0.0 — which failed
+            # TestLoadAvgTracker::test_update_increases (expected one > 0.0).
+            # Seed the estimate from the first sample instead of blending from 0.
+            if not self._seeded:
+                self._ema[i] = float(runnable)
+            else:
+                alpha = dt / (dt + window / 8.0)
+                self._ema[i] += alpha * (runnable - self._ema[i])
+        self._seeded = True
         self.total_threads = total
 
     def values(self) -> tuple:

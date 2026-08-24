@@ -143,8 +143,7 @@ static PyObject* unicode_getitem(PyObject *op, Py_ssize_t index) {
 }
 
 PyTypeObject PyUnicode_Type = {
-    { 1, NULL },
-    "str",
+    1, NULL, "str",
     sizeof(PyUnicodeObject),
     0,
     NULL,                       /* tp_new */

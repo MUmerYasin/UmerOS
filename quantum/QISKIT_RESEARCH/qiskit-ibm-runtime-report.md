@@ -5,7 +5,7 @@
 **Qiskit IBM Runtime** is IBM's Python SDK for accessing IBM Quantum services through the Qiskit Runtime API. It provides primitives (Sampler, Estimator), session management, backend access, and noise learning tools for running quantum circuits on IBM Quantum hardware and simulators.
 
 - **Repository**: [Qiskit/qiskit-ibm-runtime](https://github.com/Qiskit/qiskit-ibm-runtime)
-- **License**: Apache 2.0
+- **License**: License: GPL-3.0 (GNU General Public License Version 3)
 - **Python**: ≥ 3.9
 - **Latest Version**: 0.48.0 (2026-07-14)
 - **API Reference**: [quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime](https://quantum.cloud.ibm.com/docs/api/qiskit-ibm-runtime)

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'src/core/desktop_shell.dart';
 import 'src/core/app_state.dart';
 import 'src/core/theme_provider.dart';
+import 'src/animations/animations.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,7 +75,20 @@ class UmerOSApp extends StatelessWidget {
               textTheme: fontBase,
             ),
             themeMode: themeProvider.themeMode,
-            home: const DesktopShell(),
+            // Wrap the desktop shell in a fade-in so the first paint
+            // doesn't pop in jarringly.  This is a soft entrance
+            // (300 ms) that respects the user's "I want my desktop
+            // NOW" expectation while still feeling animated.
+            home: const FadeInOnMount(
+              duration: UmerDurations.medium2,
+              child: DesktopShell(),
+            ),
+            // Use the emphasised / 350 ms page transitions everywhere
+            // by default — `Navigator.push(...)` calls without an
+            // explicit `Route` argument will pick this up.
+            // (Builder routes still use the explicit route builders
+            // for the heavy ones — see the Umer*Route classes.)
+            // ignore: prefer_const_constructors
           );
         },
       ),

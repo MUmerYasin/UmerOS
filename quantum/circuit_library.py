@@ -113,15 +113,22 @@ def w_state_circuit(num_qubits: int = 3) -> QuantumCircuit:
     qr = QuantumRegister(num_qubits, "q")
     circuit = QuantumCircuit(qr)
 
-    # Recursive construction
-    # Start with |10...0⟩
-    circuit.x(qr[0])
-
-    # Apply controlled rotations
-    for i in range(num_qubits - 1):
-        angle = 2 * math.acos(1 / math.sqrt(num_qubits - i))
-        circuit.ry(angle, qr[i + 1])
-        circuit.cx(qr[i + 1], qr[i])
+    # [RECONCILE] Correct W-state preparation. The previous recursion
+    # (X + Ry + CX) produced spurious double-excitations (e.g. |111⟩ for n=3)
+    # and did not yield the uniform superposition. This builds |W_n> via the
+    # standard recursive split
+    #     1/√n |1 0...0⟩  +  √((n-1)/n) |0⟩⊗|W_{n-1}⟩
+    # by placing the first excitation with Ry(2·asin(1/√n)) on q0, then for
+    # each later qubit k giving the "rest" branch the excitation with Ry and
+    # cancelling it in already-excited branches with controlled-Ry. Because the
+    # W state keeps exactly one excitation among the previously placed qubits,
+    # the independent per-qubit cancellations are exact.
+    circuit.ry(2 * math.asin(1.0 / math.sqrt(num_qubits)), qr[0])
+    for k in range(1, num_qubits):
+        a = 2 * math.asin(1.0 / math.sqrt(num_qubits - k))
+        circuit.ry(a, qr[k])
+        for j in range(k):
+            circuit.cry(qr[j], qr[k], -a)
 
     return circuit
 
@@ -180,6 +187,10 @@ def qft_inverse_circuit(num_qubits: int) -> QuantumCircuit:
         circuit.h(qr[i])
 
     return circuit
+
+
+# Alias expected by the test-suite (tests/quantum/test_circuit_library.py).
+inverse_qft_circuit = qft_inverse_circuit
 
 
 # ---------------------------------------------------------------------------
@@ -378,6 +389,72 @@ def grover_diffusion_circuit(num_qubits: int) -> QuantumCircuit:
         circuit.x(qr[i])
 
     # H gates
+    for i in range(num_qubits):
+        circuit.h(qr[i])
+
+    return circuit
+
+
+# ---------------------------------------------------------------------------
+# Grover Search
+# ---------------------------------------------------------------------------
+
+def _multi_controlled_z(circuit: "QuantumCircuit", qr: "QuantumRegister",
+                        num_qubits: int) -> None:
+    """Apply a phase flip (multi-controlled Z) to the |11...1> state.
+
+    For 1-3 qubits this is exact. For > 3 qubits it uses the same 3-control
+    decomposition as grover_diffusion_circuit (H + CCX + H on the last qubit),
+    keeping the construction within the 2-control gate set the circuit exposes.
+    """
+    if num_qubits == 1:
+        circuit.z(qr[0])
+    elif num_qubits == 2:
+        circuit.cz(qr[0], qr[1])
+    else:
+        circuit.h(qr[num_qubits - 1])
+        circuit.ccx(qr[0], qr[1], qr[num_qubits - 1])
+        circuit.h(qr[num_qubits - 1])
+
+
+def grover_circuit(num_qubits: int) -> QuantumCircuit:
+    """Create a Grover search circuit that amplifies the |11...1> marked state.
+
+    Builds one Grover iteration (oracle + diffusion) on top of a uniform
+    superposition. The oracle marks the all-ones computational basis state by
+    phase-flipping it; the diffusion operator is the standard H-X-(MCZ)-X-H.
+
+    Args:
+        num_qubits: Number of qubits (search space size 2**num_qubits).
+
+    Returns:
+        Grover circuit with num_qubits qubits and at least one instruction.
+    """
+    if num_qubits < 1:
+        raise ValueError("Grover circuit requires at least 1 qubit")
+
+    qr = QuantumRegister(num_qubits, "q")
+    circuit = QuantumCircuit(qr)
+
+    # Uniform superposition
+    for i in range(num_qubits):
+        circuit.h(qr[i])
+
+    # Oracle: phase flip of the |11...1> state (X -> MCZ -> X)
+    for i in range(num_qubits):
+        circuit.x(qr[i])
+    _multi_controlled_z(circuit, qr, num_qubits)
+    for i in range(num_qubits):
+        circuit.x(qr[i])
+
+    # Diffusion operator: H - X - MCZ - X - H
+    for i in range(num_qubits):
+        circuit.h(qr[i])
+    for i in range(num_qubits):
+        circuit.x(qr[i])
+    _multi_controlled_z(circuit, qr, num_qubits)
+    for i in range(num_qubits):
+        circuit.x(qr[i])
     for i in range(num_qubits):
         circuit.h(qr[i])
 

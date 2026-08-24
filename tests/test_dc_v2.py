@@ -11,11 +11,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import sys, importlib.util
+import os
+import sys
+import importlib.util
 
+# [FIX H262] Resolve the target module relative to the project root instead of a
+# hardcoded "UmerOS\quantum\..." path, which doubled up when the cwd already was
+# the project root (FileNotFoundError: UmerOS\UmerOS\quantum\...).
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_TARGET = os.path.join(_PROJECT_ROOT, "quantum", "dynamic_circuits_v2.py")
 spec = importlib.util.spec_from_file_location(
     'umerOS.quantum.dynamic_circuits_v2',
-    r'UmerOS\quantum\dynamic_circuits_v2.py'
+    _TARGET
 )
 mod = importlib.util.module_from_spec(spec)
 sys.modules['umerOS.quantum.dynamic_circuits_v2'] = mod

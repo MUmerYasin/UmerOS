@@ -43,7 +43,7 @@ This module models all of these so the build and packaging tooling can
 discover them.
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

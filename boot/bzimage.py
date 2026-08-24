@@ -19,8 +19,6 @@ Parser for the Linux/x86 boot protocol ``bzImage`` (and legacy ``zImage``)
 header.  This is the *real-mode setup header* the bootloader hands to the
 kernel - the canonical reference is::
 
-    Documentation/x86/boot.txt  (kernel.org)
-    https://refspecs.linuxfoundation.org/elf/gabi64/  (PE/COFF for EFI stub)
 
 Header layout summary
 ---------------------
@@ -56,13 +54,11 @@ Linux.
 References
 ----------
 
-* https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s05.html
-* Linux/Documentation/x86/boot.txt  (boot protocol)
 * systemd-boot(7) - Boot Loader Specification
 * UAPI Unified Kernel Image specification (PE/COFF detection)
 
 Author:  Umer OS Project
-Licence: Apache 2.0
+License: GPL-3.0 (GNU General Public License Version 3)
 """
 
 from __future__ import annotations

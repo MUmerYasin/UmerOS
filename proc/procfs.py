@@ -148,6 +148,15 @@ class ProcFileSystem:
             path = path[6:]
         elif path.startswith("/proc"):
             path = path[5:].lstrip("/")
+        # [RECONCILE] Also accept a bare leading "proc" / "proc/...". The VFS
+        # bridge (_is_proc_path) already treats a leading "proc" segment as the
+        # proc root, but _resolve only stripped "/proc". Without this, calls
+        # like fs.list("proc") / fs.read("proc/cpuinfo") raised FileNotFoundError
+        # even though "proc" is a valid alias for the proc root in this tree.
+        elif path.startswith("proc/"):
+            path = path[5:]
+        elif path == "proc":
+            path = ""
 
         parts = [p for p in path.split("/") if p and p != "."]
         curr: Any = self.root
