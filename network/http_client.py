@@ -26,8 +26,10 @@ FUTURE:
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
+import socket
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -35,7 +37,54 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
+# [FIX H177] Zero-trust capability gate for network egress (HTTP client).
+from core.capability_gate import CAP_NET_SEND, gate
+
 log = logging.getLogger("UmerOS.Network.HTTP")
+
+# Address scopes that must never be reached by an untrusted egress client.
+# Reaching them from a metadada/SSRF perspective is a classic server-side
+# request forgery (SSRF) primitive (cloud metadata 169.254.169.254, localhost
+# admin panels, RFC1918 LAN hosts, link-local/multicast control planes...).
+_SSRF_BLOCKED_SCOPES = (
+    "is_private",
+    "is_loopback",
+    "is_link_local",
+    "is_reserved",
+    "is_multicast",
+)
+
+
+def _host_is_internal(host: str) -> bool:
+    """Return True when `host` resolves to a non-public address (SSRF-protected).
+
+    [FIX H178] Literal IPs are classified directly; hostnames are resolved and
+    every address is checked. Fail-closed: a hostname that cannot be resolved is
+    treated as blocked rather than allowed.
+    """
+    host = (host or "").strip().strip("[]")  # tolerate [IPv6] brackets
+    if not host:
+        return True
+    try:
+        addr = ipaddress.ip_address(host)
+    except ValueError:
+        pass  # not a literal — fall through to DNS resolution
+    else:
+        return any(getattr(addr, scope, False) for scope in _SSRF_BLOCKED_SCOPES) \
+            or addr == ipaddress.ip_address("0.0.0.0")
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except (socket.gaierror, OSError):
+        return True  # fail-closed: cannot resolve -> assume internal
+    for _family, _type, _proto, _canon, sockaddr in infos:
+        ip = sockaddr[0].split("%")[0]  # strip IPv6 zone id
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            continue
+        if any(getattr(addr, scope, False) for scope in _SSRF_BLOCKED_SCOPES):
+            return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -158,6 +207,10 @@ class HTTPClient:
         Returns:
             Normalized ``HTTPResponse``. Network failures return status ``0``.
         """
+        # [FIX H177] zero-trust gate: every network egress requires CAP_NET_SEND
+        # (this chokepoint transitively covers get/post_json/fetch_json/download
+        # and the NetworkStack/InternetFacade wrappers, which all call request()).
+        gate.require(CAP_NET_SEND)
         clean_url = self._validate_url(url)
         merged_headers = {**self.DEFAULT_HEADERS, **dict(headers or {})}
         method = method.upper().strip()
@@ -238,12 +291,30 @@ class HTTPClient:
 
     @staticmethod
     def _validate_url(url: str) -> str:
-        """Validate that a URL is suitable for network access."""
+        """Validate that a URL is suitable for network access.
+
+        [FIX H178] SSRF defense-in-depth: when the zero-trust posture is active
+        (a CapabilityManager is wired, or strict mode is on) the destination host
+        must not resolve to an internal / loopback / link-local / reserved /
+        multicast address. In a permissive standalone or dev build the check is
+        relaxed so legitimate localhost workflows (and the existing loopback
+        tests) keep working. This mirrors the project-wide "permissive when
+        unwired" convention used by the capability gate itself.
+        """
         parsed = urllib.parse.urlparse(url.strip())
         if parsed.scheme not in {"http", "https"}:
             raise ValueError("only http:// and https:// URLs are supported")
         if not parsed.netloc:
             raise ValueError("URL must include a host")
+        # parsed.hostname strips any userinfo (user:pass@) and port, and handles
+        # bracketed IPv6 literals (e.g. [::1]:8080 -> ::1).
+        host = parsed.hostname
+        if host is None:
+            raise ValueError("URL must include a host")
+        if gate.enforcing and _host_is_internal(host):
+            raise ValueError(
+                f"refusing to connect to internal address (possible SSRF): {host}"
+            )
         return urllib.parse.urlunparse(parsed)
 
     @staticmethod

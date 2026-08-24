@@ -85,6 +85,18 @@ class CapabilityGate:
         with self._lock:
             return self._strict
 
+    @property
+    def enforcing(self) -> bool:
+        """True when the zero-trust posture is active.
+
+        A posture is active when a real ``CapabilityManager`` is wired (fail-
+        closed enforcement) OR strict mode is enabled. Callers use this to scale
+        defense-in-depth controls (e.g. SSRF destination filtering) with the same
+        trust level the capability gate applies to privileged operations.
+        """
+        with self._lock:
+            return self._manager is not None or self._strict
+
     # ── Query / enforcement ──────────────────────────────────────────────────
 
     def query(self, cap: str, pid: Optional[int] = None) -> bool:

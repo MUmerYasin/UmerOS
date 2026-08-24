@@ -34,6 +34,9 @@ import time
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 
+# [FIX H177] Zero-trust capability gate for network egress (DNS resolution).
+from core.capability_gate import CAP_NET_SEND, gate
+
 log = logging.getLogger("UmerOS.Network.DNS")
 
 
@@ -89,6 +92,9 @@ class DNSResolver:
         Returns:
             Unique addresses in resolver order.
         """
+        # [FIX H177] zero-trust gate: DNS egress requires CAP_NET_SEND. This is
+        # the real getaddrinfo chokepoint, so it transitively covers resolve().
+        gate.require(CAP_NET_SEND)
         name = self._normalize_hostname(hostname)
         literal = self._literal_ip(name)
         if literal:
@@ -119,11 +125,15 @@ class DNSResolver:
 
     async def reverse_lookup(self, ip_address: str) -> str:
         """Resolve an IP address back to a hostname if available."""
+        # [FIX H177] reverse DNS egress (outbound resolver query) also requires
+        # CAP_NET_SEND, symmetric with resolve_all(). Input validation runs first
+        # so a malformed IP still raises ValueError independently of the gate.
         try:
             normalized = str(ipaddress.ip_address(ip_address.strip()))
         except ValueError:
             raise ValueError(f"Invalid IP address: {ip_address!r}") from None
 
+        gate.require(CAP_NET_SEND)
         loop = asyncio.get_running_loop()
         try:
             host, _aliases, _ips = await asyncio.wait_for(

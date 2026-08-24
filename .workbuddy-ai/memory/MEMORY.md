@@ -41,7 +41,7 @@
 - liboqs/ 🟡 H151; 💭 H155
 - media/ 🔴 H157; 🟡 H158–H160; 💭 H161–H165  (H156 FIXED — mount path capability-gated)
 - mnt/ 🔴 H167/H168; 🟡 H169–H171/H176; 💭 H172–H175  (H166 FIXED — mount ops capability-gated)
-- network/ 🔴 H177/H178; 🟡 H179/H180; 💭 H181/H182
+- network/ 🔴 (H177/H178 FIXED — egress `CAP_NET_SEND` + SSRF capability-gated); 🟡 H179/H180; 💭 H181/H182
 - opt/ 🔴 H184/H185/H186/H187 (H185/H186 FIXED); 🟡 H188–H193/H200; 💭 H183
 - packages/ 🔴 H194/H195/H196(FIXED)/H197(FIXED)/H198 (H194/H195 FIXED); 🟡 H199/H201/H204
 - proc/ 🔴 H205/H206/H207/H208 (H205/H206/H207/H208 FIXED — `/proc` writes capability-gated); 🟡 H209/H210/H211; 💭 H212/H213/H214

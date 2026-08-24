@@ -29,6 +29,9 @@ import time
 from collections import defaultdict
 from typing import Awaitable, Callable, DefaultDict, Optional
 
+# [FIX H177] Zero-trust capability gate for raw TCP egress.
+from core.capability_gate import CAP_NET_SEND, gate
+
 log = logging.getLogger("UmerOS.Network.TCP")
 
 TCPHandler = Callable[[bytes, tuple[str, int] | str], bytes | Awaitable[bytes]]
@@ -191,6 +194,9 @@ class TCPClient:
 
     async def connect(self, host: str, port: int, message: bytes = b"") -> bytes:
         """Open a connection, optionally send a message, and read a response."""
+        # [FIX H177] raw TCP egress requires CAP_NET_SEND (symmetric with the
+        # HTTP/DNS egress gates; fail-closed when a CapabilityManager is wired).
+        gate.require(CAP_NET_SEND)
         try:
             reader, writer = await asyncio.wait_for(
                 asyncio.open_connection(host, port),

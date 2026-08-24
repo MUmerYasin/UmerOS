@@ -194,8 +194,8 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H166 | RED | `mnt/mount_ops.py`, `mnt/mount_point.py`, `mnt/fstab.py` | **No `CapabilityManager` gate on privileged mount ops** - `MountManager.mount`/`umount`/`remount`, `MountPoint
 - [ ] H167 | RED | `mnt/mount_point.py:remove(force=True)` (L279-315) | **`shutil.rmtree` on a non-symlink-checked path -> TOCTOU arbitrary delete** - `remove(force=True)` rmtrees a 
 - [ ] H168 | RED | `mnt/fstab.py:write_file` (L334) | **Un-gated privileged `/etc/fstab` write + drops comments/header** - `write_file` writes `/etc/fstab` with no 
-- [ ] H177 | RED | `network/` (all egress) | **No `CapabilityManager` gate on ANY network egress** - `DNSResolver.resolve*`/`resolve_all`/`reverse_lookup`,
-- [ ] H178 | RED | `network/http_client.py:227` `_validate_url` | **SSRF - egress client omits internal-range blocking** - only scheme in {http,https} + netloc presence are val
+- [x] H177 | RED | `network/` (all egress) | **No `CapabilityManager` gate on ANY network egress** - `DNSResolver.resolve*`/`resolve_all`/`reverse_lookup`,
+- [x] H178 | RED | `network/http_client.py:227` `_validate_url` | **SSRF - egress client omits internal-range blocking** - only scheme in {http,https} + netloc presence are val
 - [ ] H184 | RED | `opt/` (all privileged ops) | **No `CapabilityManager` gate on ANY privileged `/opt` op** - `OptManager.install/remove/update`, `OptPackage.
 - [x] H185 | RED | `opt/var.py:189` `write_file` / `opt/config.py:73` `install_config` | **Path traversal via unvalidated `filename`/`config_file`/`package_name` in file writes** - `VarOptManager.wri
 - [x] H186 | RED | `opt/manager.py:208` `remove` / `opt/package.py:346` `remove_package`  | **Path traversal via unvalidated `name`/`provider` in `shutil.rmtree`** - `rmtree(self.opt_root / provider / n

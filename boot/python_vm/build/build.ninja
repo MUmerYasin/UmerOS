@@ -12,7 +12,7 @@
 
 # =============================================================================
 # Project: umeros_python
-# Configurations: Release
+# Configurations: Debug
 # =============================================================================
 
 #############################################
@@ -24,7 +24,7 @@ ninja_required_version = 1.5
 #############################################
 # Set configuration variable for custom commands.
 
-CONFIGURATION = Release
+CONFIGURATION = Debug
 # =============================================================================
 # Include auxiliary files.
 
@@ -49,10 +49,10 @@ cmake_ninja_workdir = F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\build\
 
 build cmake_object_order_depends_target_umeros_python: phony || .
 
-build CMakeFiles\umeros_python.dir\Objects\object.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\object.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Objects\object.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\object.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Objects
@@ -60,10 +60,10 @@ build CMakeFiles\umeros_python.dir\Objects\object.c.obj: C_COMPILER__umeros_pyth
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Objects\long.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\long.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Objects\long.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\long.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Objects
@@ -71,10 +71,10 @@ build CMakeFiles\umeros_python.dir\Objects\long.c.obj: C_COMPILER__umeros_python
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Objects\float.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\float.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Objects\float.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\float.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Objects
@@ -82,10 +82,10 @@ build CMakeFiles\umeros_python.dir\Objects\float.c.obj: C_COMPILER__umeros_pytho
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Objects\unicode.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\unicode.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Objects\unicode.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\unicode.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Objects
@@ -93,10 +93,10 @@ build CMakeFiles\umeros_python.dir\Objects\unicode.c.obj: C_COMPILER__umeros_pyt
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Objects\bool.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\bool.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Objects\bool.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\bool.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Objects
@@ -104,10 +104,10 @@ build CMakeFiles\umeros_python.dir\Objects\bool.c.obj: C_COMPILER__umeros_python
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Objects\none.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\none.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Objects\none.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\none.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Objects
@@ -115,10 +115,10 @@ build CMakeFiles\umeros_python.dir\Objects\none.c.obj: C_COMPILER__umeros_python
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Objects\errors.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\errors.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Objects\errors.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Objects\errors.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Objects
@@ -126,10 +126,10 @@ build CMakeFiles\umeros_python.dir\Objects\errors.c.obj: C_COMPILER__umeros_pyth
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Builtins\builtins.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Builtins\builtins.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Builtins
@@ -137,10 +137,10 @@ build CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj: C_COMPILER__umeros_p
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Compiler\compiler.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Compiler\compiler.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Compiler
@@ -148,10 +148,10 @@ build CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj: C_COMPILER__umeros_p
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\VM\vm.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\VM\vm.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\VM\vm.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\VM\vm.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\VM
@@ -159,10 +159,10 @@ build CMakeFiles\umeros_python.dir\VM\vm.c.obj: C_COMPILER__umeros_python_unscan
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
-build CMakeFiles\umeros_python.dir\Programs\main.c.obj: C_COMPILER__umeros_python_unscanned_Release F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Programs\main.c || cmake_object_order_depends_target_umeros_python
-  CONFIG = Release
+build CMakeFiles\umeros_python.dir\Programs\main.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Programs\main.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG -std:c11 /W4 /O2 /DNDEBUG
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1 -std:c11 /W4 /Od /Zi /MDd /DDEBUG
   INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Programs
@@ -178,10 +178,10 @@ build CMakeFiles\umeros_python.dir\Programs\main.c.obj: C_COMPILER__umeros_pytho
 #############################################
 # Link the executable umeros_python.exe
 
-build umeros_python.exe: C_EXECUTABLE_LINKER__umeros_python_Release CMakeFiles\umeros_python.dir\Objects\object.c.obj CMakeFiles\umeros_python.dir\Objects\long.c.obj CMakeFiles\umeros_python.dir\Objects\float.c.obj CMakeFiles\umeros_python.dir\Objects\unicode.c.obj CMakeFiles\umeros_python.dir\Objects\bool.c.obj CMakeFiles\umeros_python.dir\Objects\none.c.obj CMakeFiles\umeros_python.dir\Objects\errors.c.obj CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj CMakeFiles\umeros_python.dir\VM\vm.c.obj CMakeFiles\umeros_python.dir\Programs\main.c.obj
-  CONFIG = Release
-  FLAGS = /DWIN32 /D_WINDOWS /W3 /MD /O2 /Ob2 /DNDEBUG
-  LINK_FLAGS = /machine:x64 /INCREMENTAL:NO /subsystem:console
+build umeros_python.exe: C_EXECUTABLE_LINKER__umeros_python_Debug CMakeFiles\umeros_python.dir\Objects\object.c.obj CMakeFiles\umeros_python.dir\Objects\long.c.obj CMakeFiles\umeros_python.dir\Objects\float.c.obj CMakeFiles\umeros_python.dir\Objects\unicode.c.obj CMakeFiles\umeros_python.dir\Objects\bool.c.obj CMakeFiles\umeros_python.dir\Objects\none.c.obj CMakeFiles\umeros_python.dir\Objects\errors.c.obj CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj CMakeFiles\umeros_python.dir\VM\vm.c.obj CMakeFiles\umeros_python.dir\Programs\main.c.obj
+  CONFIG = Debug
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /MDd /Zi /Ob0 /Od /RTC1
+  LINK_FLAGS = /machine:x64 /debug /INCREMENTAL /subsystem:console
   LINK_LIBRARIES = kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib
   OBJECT_DIR = CMakeFiles\umeros_python.dir
   POST_BUILD = cd .
