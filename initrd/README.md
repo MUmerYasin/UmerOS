@@ -16,7 +16,7 @@ initrd/
 ├── vfs_ops.py         # in-memory VFS for the initrd
 ├── ramdisk.py         # RamDisk lifecycle (PROBED → … → RELEASED)
 ├── hooks.py           # initramfs-tools-style hook manager
-├── phase_machine.py   # the eight TLDP boot phases
+├── phase_machine.py   # the eight boot phases
 ├── pivot_root.py      # pivot_root semantics over the VFS
 ├── module_resolver.py # autoprobe / user / hybrid module selection
 ├── scenarios.py       # install / live / recovery / rescue / per_machine
@@ -29,7 +29,7 @@ initrd/
 
 ## Eight-phase boot
 
-The phase machine models the exact sequence from the TLDP reference:
+The phase machine models the exact sequence:
 
 1. **Load** — bootloader hands the kernel + initial RAM disk to userspace.
 2. **Convert** — kernel unpacks the cpio archive into a tmpfs and frees initrd memory.

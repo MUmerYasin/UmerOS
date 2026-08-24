@@ -18,7 +18,6 @@ UmerOS /media - Access Control (Permissions)
 Manages user/group-based mount permissions following Linux
 plugdev/storage group conventions and polkit-style authorization.
 
-FHS/TLDP reference:
     Mounting and unmounting requires super user privileges.  However
     it is often necessary to allow users to use removable media.
     Common approaches: /etc/fstab ``user`` option, sudo, or

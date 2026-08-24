@@ -14,7 +14,7 @@
 """
 UmerOS /usr/doc - Documentation Hierarchy
 ==========================================
-TLDP /usr: The central documentation directory.
+/usr: The central documentation directory.
 Now located at /usr/share/doc, symlinked from /usr/doc.
 """
 

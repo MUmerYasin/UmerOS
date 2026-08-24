@@ -107,7 +107,7 @@ class FHSReport:
 # ---------------------------------------------------------------------------
 
 class FHSRootAuditor:
-    """Single-call FHS / TLDP audit for ``/root``."""
+    """Single-call audit for ``/root``."""
 
     def __init__(self, home: str = DEFAULT_ROOT_HOME) -> None:
         self.home = home
@@ -141,7 +141,7 @@ class FHSRootAuditor:
                 code="FHS002",
                 severity=FHSIssueSeverity.ERROR,
                 title=f"/root is accessible to 'other' (mode {oct(info.mode)})",
-                detail="FHS / TLDP: only root may enter or read the directory",
+                detail="only root may enter or read the directory",
                 fix=f"chmod 0700 {info.path}",
             ))
         if info.uid != ROOT_UID:
@@ -157,7 +157,7 @@ class FHSRootAuditor:
                 severity=FHSIssueSeverity.WARN,
                 title="discouraged subdirs present in /root",
                 detail=", ".join(info.discouraged_subdirs),
-                fix="TLDP recommends moving mail and app data to /var",
+                fix="Recommends moving mail and app data to /var",
             ))
 
     def _check_dotfiles(self, report: FHSReport) -> None:
@@ -183,7 +183,7 @@ class FHSRootAuditor:
                 code="FHS020",
                 severity=FHSIssueSeverity.INFO,
                 title=".forward does not exist",
-                detail="TLDP /root: admin mail should be forwarded to a non-root user",
+                detail="/root: admin mail should be forwarded to a non-root user",
                 fix="create /root/.forward pointing to your admin user",
             ))
             return

@@ -12,14 +12,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /tmp — TLDP & FHS Compliance and Specification
+UmerOS /tmp Compliance and Specification
 ======================================================
 
-Implements the Linux Filesystem Hierarchy Standard (FHS 2.3 & 3.0) and TLDP
 specifications for the ``/tmp`` directory.
-
-TLDP Reference:
-https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/tmp.html
 
 FHS Specification Summary:
 --------------------------
@@ -104,7 +100,7 @@ class FHSValidationResult:
 
 
 class FHSValidator:
-    """Validates /tmp files and directories against FHS and TLDP standards."""
+    """Validates /tmp files and directories against standards."""
 
     @staticmethod
     def validate_tmp_root(tmp_root: Path | str = DEFAULT_TMP_ROOT) -> FHSValidationResult:

@@ -23,7 +23,7 @@ Sub-commands
 
 * ``selftest``           - run every module's self-test
 * ``info [path]``        - one-shot /root summary
-* ``audit [path]``       - run the FHS / TLDP audit
+* ``audit [path]``       - run the audit
 * ``safety [path]``      - run the safety auditor only
 * ``ensure [path]``      - create the home, set perms, drop dotfiles
 * ``forward <addr>``     - set /root/.forward
@@ -56,7 +56,7 @@ Usage:
 Commands:
     selftest                Run the self-test of every root module.
     info [path]             Print a one-shot /root summary.
-    audit [path]            Run the FHS / TLDP audit and report issues.
+    audit [path]            Run the audit and report issues.
     safety [path]           Run the safety auditor only.
     ensure [path]           Create the home, set perms, drop dotfiles.
     forward <addr>          Set /root/.forward to the given address.

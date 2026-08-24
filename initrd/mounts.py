@@ -42,7 +42,7 @@ correct tree even after pivot_root.
 The :func:`chroot_into` helper models the kernel ``chroot(2)`` syscall
 over the VFS so that an installer running in a subdirectory appears
 to see ``/`` as that directory.  This is *not* security isolation -
-it is the convenience operation the TLDP install scenario calls out.
+it is the convenience operation the install scenario calls out.
 
 Author:  Umer OS Project
 License: GPL-3.0 (GNU General Public License Version 3)
@@ -249,7 +249,7 @@ def chroot_into(root: VfsRoot, new_root_path: str,
     returns a :class:`ChrootContext` that ``chroot_undo`` can use to
     restore the original view.
 
-    This is the operation the TLDP install scenario calls out:
+    This is the operation the install scenario calls out:
 
         5) /linuxrc invokes pivot_root to change the root file
            system and execs - via chroot - a program that

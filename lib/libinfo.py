@@ -25,7 +25,7 @@ The summary aggregates information from the other modules in the
 * count of essential libraries (libc, ld, libm, libpthread, ...)
 * count of modules and which kernel versions are present
 * count of iptables / kbd / oss / security / firmware subsystems
-* state of ``/lib/cpp`` (TLDP: must be a symlink or a reference)
+* state of ``/lib/cpp`` ( must be a symlink or a reference)
 * ld.so.cache existence + age
 * presence of ``/lib<qual>`` (32/64/x32) variants
 * ``kernel/build`` symlink health

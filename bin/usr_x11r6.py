@@ -14,7 +14,7 @@
 """
 UmerOS /usr/X11R6 - X Window System Hierarchy
 ===============================================
-TLDP /usr: Contains X11R6 libraries, executables, docs, fonts.
+/usr: Contains X11R6 libraries, executables, docs, fonts.
 Symbolic links expected:
   /usr/bin/X11 -> /usr/X11R6/bin
   /usr/lib/X11 -> /usr/X11R6/lib/X11

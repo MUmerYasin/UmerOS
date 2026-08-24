@@ -70,7 +70,7 @@ log = logging.getLogger("UmerOS.Root.Home")
 
 
 # ---------------------------------------------------------------------------
-# Constants from the TLDP /root reference
+# Constants from the /root reference
 # ---------------------------------------------------------------------------
 
 #: Conventional location of root's home directory.  The FSSTND only
@@ -86,7 +86,7 @@ ROOT_UID: int = 0
 #: further to ``0500`` to disallow even ``ls``.
 ROOT_HOME_MODE: int = 0o700
 
-#: Subdirectories that the TLDP /root page warns against.  If any of
+#: Subdirectories that the /root page warns against.  If any of
 #: these exist inside root's home, the audit flags them so an
 #: operator can decide whether they are stale.
 DISCOURAGED_SUBDIRS: Tuple[str, ...] = (
@@ -209,7 +209,7 @@ def find_root_passwd_entry(passwd_path: str = "/etc/passwd") -> Optional[object]
 class RootHomeResolver:
     """Resolves the canonical path of root's home directory.
 
-    Resolution order (per FSSTND + the TLDP fallback rule):
+    Resolution order (per FSSTND + the fallback rule):
 
     1. ``/etc/passwd`` UID 0 row's ``pw_dir`` field, if it is set and
        not the empty string.
@@ -366,7 +366,7 @@ class RootHomeManager:
         if discouraged:
             info.issues.append(
                 f"contains discouraged subdir(s): {', '.join(discouraged)} "
-                "(TLDP /root recommends against mail/applications here)"
+                "(/root recommends against mail/applications here)"
             )
 
         # /etc/passwd entry.

@@ -45,7 +45,7 @@ from .manager import SrvManager
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="srv_ctl",
-        description="UmerOS /srv Filesystem Hierarchy & Service Controller (TLDP FHS)",
+        description="UmerOS /srv Filesystem Hierarchy & Service Controller",
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
@@ -77,7 +77,7 @@ def create_parser() -> argparse.ArgumentParser:
     rem_p.add_argument("--force", action="store_true", help="Force deletion without prompt")
 
     # bootstrap
-    subparsers.add_parser("bootstrap", help="Bootstrap standard TLDP /srv skeletons")
+    subparsers.add_parser("bootstrap", help="Bootstrap standard /srv skeletons")
 
     # audit
     subparsers.add_parser("audit", help="Run FHS compliance & security audit on /srv")

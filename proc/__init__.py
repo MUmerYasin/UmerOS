@@ -14,7 +14,7 @@
 """UmerOS /proc virtual filesystem (procfs).
 
 Provides a complete, Linux-compatible simulation of the ``/proc``
-pseudo-filesystem described in the TLDP Linux Filesystem Hierarchy
+pseudo-filesystem
 documentation:
 
 * **System files**: cpuinfo, meminfo, stat, interrupts, iomem, ioports,

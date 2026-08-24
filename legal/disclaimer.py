@@ -70,7 +70,7 @@ class DisclaimerNotice:
         return d
 
 
-# ── Canonical UmerOS & TLDP Disclaimer Text ───────────────────────────────
+# ── Canonical UmerOS Disclaimer Text ───────────────────────────────
 
 TLDP_DISCLAIMER_TEXT = """
 FILESYSTEM HIERARCHY — APPENDIX E. DISCLAIMER

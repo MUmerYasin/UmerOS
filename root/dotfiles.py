@@ -24,7 +24,7 @@ with the following:
 * ``.bash_profile``  - login shell init (often sources ``.bashrc``)
 * ``.profile``       - POSIX-compatible login shell init
 * ``.bash_logout``   - cleanup on login shell exit
-* ``.forward``       - mail forwarding (per the TLDP requirement)
+* ``.forward``       - mail forwarding
 * ``.bash_history``  - command history (root must not leak)
 * ``.vimrc``         - editor defaults
 

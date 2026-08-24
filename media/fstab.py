@@ -17,7 +17,6 @@ UmerOS /media - /etc/fstab Integration
 
 Parses, validates, and manipulates fstab entries for removable media.
 
-FHS/TLDP reference:
     Mounting and unmounting requires super user privileges.  The
     ``/etc/fstab`` file stores permanent mount configurations.  For
     removable media, the ``user`` and ``noauto`` options allow

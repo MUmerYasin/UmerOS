@@ -14,7 +14,7 @@
 """
 UmerOS /lib/modules — Loadable Kernel Module Management
 =========================================================
-Implements the FULL FHS/TLDP spec for /lib/modules/<kernel-version>/.
+Implements the FULL spec for /lib/modules/<kernel-version>/.
 
 The /lib/modules directory is the home of all loadable kernel modules.
 It is paired with several FHS-mandated files:
@@ -33,7 +33,7 @@ It is paired with several FHS-mandated files:
 
 Only shared libraries required to run /bin and /sbin may live directly
 under /lib.  Module organization under /lib/modules/<kernel-version> is
-"straightforward and needs no elaboration" per TLDP — but the helper
+"straightforward and needs no elaboration" per — but the helper
 files around the modules are not trivial, so we model them faithfully.
 
 Author:  Umer OS Project
@@ -491,7 +491,7 @@ class KernelModuleManager:
         """
         Create /lib/modules/<ver>/build → /usr/src/<ver> (kernel build dir).
 
-        Per TLDP: ``/lib/modules/<ver>/kernel/build`` should point to
+        ``/lib/modules/<ver>/kernel/build`` should point to
         ``/usr/src/<kernel-version>``.
         """
         ver = kernel_version or self.kernel_version

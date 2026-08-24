@@ -111,13 +111,20 @@ class LLMProvider:
     def list_models(self) -> List[str]:
         return []
 
+    def _safe_models(self) -> List[str]:
+        """list_models() that never raises (probe failures → empty)."""
+        try:
+            return self.list_models()
+        except Exception:  # noqa: BLE001
+            return []
+
     def describe(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "name": self.name,
             "kind": self.kind,
             "available": self.is_available,
-            "models": self.list_models(),
+            "models": self._safe_models(),
             "streaming": self.supports_stream,
         }
 

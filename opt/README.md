@@ -304,8 +304,3 @@ This implementation is provided as-is for use in UmerOS.
 ## Author
 
 UmerOS Development Team
-
-## References
-
-- [Linux Filesystem Hierarchy](https://tldp.org/LDP/Linux-Filesystem-Hierarchy/)
-- [Filesystem Hierarchy Standard (FHS)](https://refspecs.linuxfoundation.org/FHS_3.0/fhs/index.html)

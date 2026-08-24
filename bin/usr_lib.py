@@ -14,7 +14,7 @@
 """
 UmerOS /usr/lib - Shared Libraries & Modules
 =============================================
-TLDP /usr: Contains program libraries - collections of frequently
+/usr: Contains program libraries - collections of frequently
 used program routines. Also includes modules and architecture-specific libs.
 """
 

@@ -12,15 +12,15 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS TLDP/FHS /lib hierarchy manager
+UmerOS /lib hierarchy manager
 ======================================
 
-This module provides the top-level glue for the TLDP ``/lib`` rules:
+This module provides the top-level glue for the ``/lib`` rules:
 
 * essential boot shared libraries such as ``libc.so.*`` and ``ld*``
 * ``/lib/cpp`` as a reference to the C preprocessor
 * ``/lib/modules/<kernel-version>`` plus depmod map files
-* TLDP subsystem directories: ``iptables``, ``kbd``, ``oss``, ``security``
+* subsystem directories: ``iptables``, ``kbd``, ``oss``, ``security``
 * architecture-dependent directories under ``/lib/<machine-architecture>``
 * alternate-format directories such as ``/lib32`` and ``/lib64``
 
@@ -176,7 +176,7 @@ class LibAuditReport:
 
 class LibHierarchyManager:
     """
-    Audit and bootstrap a TLDP/FHS-style ``/lib`` hierarchy.
+    Audit and bootstrap a ``/lib`` hierarchy.
 
     ``root`` may point at a staging tree, making this safe to use from tests
     and installers before the real root filesystem exists.

@@ -14,7 +14,7 @@
 """
 Umer OS /root - mail forwarding
 ================================
-Implements the TLDP /root requirement that administrative mail should
+Implements the /root requirement that administrative mail should
 *not* be stored inside root's home directory and should instead be
 forwarded to a non-root user.
 
@@ -55,7 +55,7 @@ FORWARD_FILENAME: str = ".forward"
 _LOCAL_RE = re.compile(r"^[A-Za-z0-9._%+-]{1,64}$")
 _DOMAIN_RE = re.compile(r"^[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
-#: Administrative roles the TLDP /root page calls out specifically.
+#: Administrative roles the /root page calls out specifically.
 ADMIN_ROLES: tuple = (
     "root",
     "postmaster",

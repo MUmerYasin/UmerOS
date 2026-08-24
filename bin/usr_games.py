@@ -14,7 +14,7 @@
 """
 UmerOS /usr/games - Games Hierarchy
 ====================================
-TLDP /usr: Once contained network games files. Rarely used now.
+/usr: Once contained network games files. Rarely used now.
 """
 
 from __future__ import annotations

@@ -4,7 +4,7 @@ UmerOS /lib/firmware — Firmware Blob Manager
 Implements the FHS subdirectory ``/lib/firmware`` which holds the
 firmware blobs loaded by the kernel at runtime via ``request_firmware()``.
 
-Although TLDP's 1990s-era description of /lib does not mention firmware
+ /lib does not mention firmware
 explicitly, it is universally expected on modern systems
 (distributions split firmware out of /lib to allow /usr to be read-only).
 The directory typically contains tens of thousands of blobs grouped by

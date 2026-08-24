@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import shutil
 import time
 from dataclasses import dataclass, field
@@ -50,6 +51,36 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Etc.CriticalFiles")
+
+# [FIX H73] Zero-trust capability gate for privileged /etc writes. The critical
+# files manager writes many real FHS /etc files (sudoers, crontab, sysctl, ...)
+# so it requires `fs.admin` when a CapabilityManager is wired (fail-closed);
+# standalone it is permissive (warning).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
+
+def _is_host_etc(path) -> bool:
+    """[FIX H73] True if *path* resolves to a top-level /etc tree of a filesystem root.
+
+    On POSIX that is ``/etc/...``; on Windows the equivalent is ``C:\\etc\\...``.
+    A UmerOS-managed path such as ``/mnt/umos/etc`` is NOT a top-level ``etc``
+    and is therefore not treated as the host tree.
+    """
+    try:
+        resolved = os.path.realpath(str(path))
+    except Exception:
+        resolved = os.path.abspath(str(path))
+    norm = os.path.normpath(resolved)
+    parts = norm.split(os.path.sep)
+    if len(parts) >= 2 and parts[1] == "etc":
+        return True
+    return False
 
 
 @dataclass
@@ -81,8 +112,11 @@ class CriticalFilesManager:
     Handles init, cron, sudo, login banners, system config, and directories.
     """
 
-    def __init__(self, etc_path: str = "/etc") -> None:
+    def __init__(self, etc_path: str = "/etc", allow_host_etc: bool = False) -> None:
         self.etc_path = Path(etc_path)
+        # [FIX H73] Writes to the real host /etc are fail-closed unless the caller
+        # explicitly opts in.
+        self.allow_host_etc = allow_host_etc
         self.skel_path = self.etc_path / "skel"
         self.network_path = self.etc_path / "network"
         self.default_path = self.etc_path / "default"
@@ -91,6 +125,11 @@ class CriticalFilesManager:
 
     def initialize(self) -> bool:
         """Create all missing critical files and directories."""
+        # [FIX H73] privileged /etc writes: capability-gated + host-/etc guard.
+        if not self.allow_host_etc and _is_host_etc(self.etc_path):
+            log.error("Refusing to initialize host /etc without allow_host_etc=True")
+            return False
+        gate.require(CAP_FS_ADMIN)
         try:
             self._create_inittab()
             self._create_crontab()
@@ -225,8 +264,8 @@ root    ALL=(ALL:ALL) ALL
 # Read drop-in files from /etc/sudoers.d
 @includedir /etc/sudoers.d
 
-# UmerOS default user
-umer    ALL=(ALL) NOPASSWD: ALL
+# UmerOS default user (password required — never a blanket NOPASSWD grant)
+umer    ALL=(ALL:ALL) ALL
 """
         filepath.write_text(content, encoding="utf-8")
         try:

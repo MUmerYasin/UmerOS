@@ -30,12 +30,42 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Etc.PasswdGroup")
+
+# [FIX H73] Zero-trust capability gate for privileged /etc writes. This manager
+# writes /etc/passwd and /etc/group, so it requires `fs.admin` when a
+# CapabilityManager is wired (fail-closed); standalone it is permissive (warning).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
+
+def _is_host_etc(path) -> bool:
+    """[FIX H73] True if *path* resolves to a top-level /etc tree of a filesystem root.
+
+    On POSIX that is ``/etc/...``; on Windows the equivalent is ``C:\\etc\\...``.
+    A UmerOS-managed path such as ``/mnt/umos/etc`` is NOT a top-level ``etc``
+    and is therefore not treated as the host tree.
+    """
+    try:
+        resolved = os.path.realpath(str(path))
+    except Exception:
+        resolved = os.path.abspath(str(path))
+    norm = os.path.normpath(resolved)
+    parts = norm.split(os.path.sep)
+    if len(parts) >= 2 and parts[1] == "etc":
+        return True
+    return False
 
 
 @dataclass
@@ -65,8 +95,11 @@ class PasswdGroupManager:
     SYSTEM_UID_MAX = 999
     NOBODY_UID = 65534
 
-    def __init__(self, etc_path: str = "/etc"):
+    def __init__(self, etc_path: str = "/etc", allow_host_etc: bool = False):
         self.etc_path = Path(etc_path)
+        # [FIX H73] Writes to the real host /etc are fail-closed unless the caller
+        # explicitly opts in.
+        self.allow_host_etc = allow_host_etc
         self.passwd_path = self.etc_path / "passwd"
         self.group_path = self.etc_path / "group"
         self.shadow_path = self.etc_path / "shadow"
@@ -185,7 +218,12 @@ class PasswdGroupManager:
         return [u["username"] for u in self.parse_passwd()]
 
     def _write_passwd(self, users: List[Dict]) -> bool:
-        """Write user list back to /etc/passwd."""
+        """Write user list back to /etc/passwd (capability-gated; refuses host /etc)."""
+        # [FIX H73] privileged /etc write: capability gate + host-/etc guard.
+        if not self.allow_host_etc and _is_host_etc(self.passwd_path):
+            log.error("Refusing to write host /etc/passwd without allow_host_etc=True")
+            return False
+        gate.require(CAP_FS_ADMIN)
         lines = [
             "# /etc/passwd - User account information",
             "# Format: username:password:uid:gid:gecos:home_dir:shell",
@@ -292,7 +330,12 @@ class PasswdGroupManager:
         return groups
 
     def _write_group(self, groups: List[Dict]) -> bool:
-        """Write group list back to /etc/group."""
+        """Write group list back to /etc/group (capability-gated; refuses host /etc)."""
+        # [FIX H73] privileged /etc write: capability gate + host-/etc guard.
+        if not self.allow_host_etc and _is_host_etc(self.group_path):
+            log.error("Refusing to write host /etc/group without allow_host_etc=True")
+            return False
+        gate.require(CAP_FS_ADMIN)
         lines = [
             "# /etc/group - Group information",
             "# Format: group_name:password:gid:members",

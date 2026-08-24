@@ -24,7 +24,7 @@ Sub-commands
 
 * ``selftest``              - run every module's self-test
 * ``info [path]``           - one-shot /boot summary
-* ``audit [path]``          - FHS / TLDP audit
+* ``audit [path]``          - audit
 * ``bzimage <vmlinuz>``     - parse a bzImage header
 * ``efi <image>``           - parse a PE/COFF (UKI / EFI stub) image
 * ``cmdline <preset|str>``  - print a preset kernel command line, or
@@ -62,7 +62,7 @@ Usage:
 Commands:
     selftest                Run the self-test of every boot module.
     info [path]             Print a one-shot /boot summary.
-    audit [path]            Run the FHS / TLDP audit and report issues.
+    audit [path]            Run the audit and report issues.
     bzimage <path>          Parse a bzImage header.
     efi <path>              Parse a PE/COFF (UKI / EFI stub) image.
     cmdline <preset|str>    Print a preset cmdline, or parse a supplied one.

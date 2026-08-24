@@ -18,7 +18,7 @@ with open('bin/bin_manager.py', 'r') as f:
     content = f.read()
 
 # New entries to add
-new_entries = '''    # usr_cmds.py — 115 new TLDP/usr utilities
+new_entries = '''    # usr_cmds.py — 115 new /usr utilities
     "addr2line": ("usr_cmds", "Addr2lineCommand"),
     "apropos": ("usr_cmds", "AproposCommand"),
     "aptget": ("usr_cmds", "AptGetCommand"),

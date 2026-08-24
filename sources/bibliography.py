@@ -75,7 +75,7 @@ class SourceReference:
         return "\n".join(lines)
 
 
-# ── Canonical TLDP Sources Database ───────────────────────────────────────
+# ── Canonical Sources Database ───────────────────────────────────────
 
 TLDP_SOURCES: List[SourceReference] = [
     SourceReference(

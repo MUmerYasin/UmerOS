@@ -67,7 +67,7 @@ log = logging.getLogger("UmerOS.Initrd.RamDisk")
 class RamDiskState(Enum):
     """Lifecycle of a single RAM disk.
 
-    Mirrors the high-level steps from the TLDP ``/initrd`` reference:
+    Mirrors the high-level steps from the ``/initrd`` reference:
 
     * ``PROBED``        - object exists but no payload yet
     * ``LOADED``        - raw initrd bytes are in memory
@@ -148,7 +148,7 @@ class RamDisk:
         self.metadata: Dict[str, str] = {}
         #: Track every mount the runtime performs inside the initrd.
         self.mount_table = MountTable()
-        #: Read/write flag for the root mount (TLDP phase 3).
+        #: Read/write flag for the root mount.
         self.read_only: bool = False
         log.debug("RamDisk(%s) created, max=%d bytes", name, max_bytes)
 
@@ -165,7 +165,7 @@ class RamDisk:
     # -- lifecycle ---------------------------------------------------------
 
     def load(self, blob: bytes) -> None:
-        """Stage 1: read the raw cpio archive into memory (TLDP step 1-2).
+        """Stage 1: read the raw cpio archive into memory.
 
         After this call the disk is :attr:`RamDiskState.LOADED`.
         """
@@ -184,7 +184,7 @@ class RamDisk:
         """Stage 2: unpack the cpio archive into the working FS.
 
         Equivalent to "the kernel converts initrd into a normal RAM
-        disk and frees initrd memory" (TLDP step 2-3).
+        disk and frees initrd memory".
 
         Returns the number of entries extracted.
 
@@ -210,11 +210,11 @@ class RamDisk:
 
     def mount(self, mount_point: str = "/", *,
              read_only: bool = False) -> None:
-        """Stage 3: bind the working FS to ``mount_point`` (TLDP step 3).
+        """Stage 3: bind the working FS to ``mount_point``.
 
         In a real kernel this is the ``mount -t tmpfs`` call. Here we
-        just record the state transition.  The TLDP reference is
-        explicit that the initrd is mounted **read-write** as root,
+        just record the state transition.  The explicit that the initrd
+        is mounted **read-write** as root,
         so :attr:`read_only` defaults to ``False`` and a warning is
         logged when the caller asks for RO mode.
         """
@@ -227,7 +227,7 @@ class RamDisk:
         self.stats.mounted_at = time.time()
         self.state = RamDiskState.MOUNTED
         if read_only:
-            log.warning("RamDisk(%s) MOUNTED READ-ONLY at %s (TLDP default is rw)",
+            log.warning("RamDisk(%s) MOUNTED READ-ONLY at %s (default is rw)",
                         self.name, mount_point)
         else:
             log.info("RamDisk(%s) MOUNTED (rw) at %s", self.name, mount_point)
@@ -243,7 +243,7 @@ class RamDisk:
         log.info("RamDisk(%s) PIVOTED", self.name)
 
     def release(self) -> None:
-        """Stage 8: drop everything (TLDP step 8)."""
+        """Stage 8: drop everything."""
         self.root = VfsRoot(name="/")
         self.stats.released_at = time.time()
         self.state = RamDiskState.RELEASED
@@ -254,7 +254,7 @@ class RamDisk:
     def snapshot_to_image(self) -> bytes:
         """Serialize the current RamDisk back to a cpio archive.
 
-        This is the operation the TLDP install scenario calls out:
+        This is the operation the install scenario calls out:
 
             7) ... the image is written from /dev/ram0 or
                /dev/rd/0 to a file

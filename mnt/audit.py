@@ -20,10 +20,10 @@ performed under ``/mnt/``.  Used for:
 
 * Security auditing (who mounted what, when).
 * Debugging stale mount issues.
-* Compliance with TLDP mount logging conventions.
+* Compliance with mount logging conventions.
 * Tracking mount point lifecycle for cleanup.
 
-The TLDP spec doesn't define a formal audit format, but
+The spec doesn't define a formal audit format, but
 ``/var/log/`` and ``/var/run/`` are the standard locations
 for mount-related state.  This module uses a structured JSON
 audit log for machine readability.

@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Tests for the UmerOS TLDP/FHS /lib hierarchy implementation.
+Tests for the UmerOS /lib hierarchy implementation.
 """
 
 from __future__ import annotations

@@ -33,7 +33,7 @@ recommendation:
   has decided to use ssh from root at all (which is itself
   questionable).
 * root must not have a web browser cache, a mail client mailbox,
-  or any other user-state directory (TLDP: "we recommend that
+  or any other user-state directory ("we recommend that
   subdirectories for mail and other applications not appear in
   the root account's home directory").
 
@@ -301,7 +301,7 @@ class RootSafetyAuditor:
                     title=f"user-state directory {entry.name!r} present in /root",
                     severity=sev,
                     location=str(entry),
-                    detail=("TLDP /root: subdirectories for mail and other "
+                    detail=("/root: subdirectories for mail and other "
                             "applications should not appear in /root"),
                     fix=f"move {entry} to /var/mail/root or remove",
                 ))

@@ -117,7 +117,7 @@ class FeedbackEntry:
             submitter_name=submitter_name,
             submitter_contact=submitter_contact,
             channel=channel,
-            subject_tag="LHFS",   # TLDP standard identifier tag
+            subject_tag="LHFS",   # standard identifier tag
             component=component,
             priority=priority,
             tags=tags or [],

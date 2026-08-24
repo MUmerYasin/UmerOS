@@ -49,7 +49,7 @@ UmerOS `/srv` supports multiple organization schemes per FHS:
 
 | Module | Description |
 |---|---|
-| `fhs.py` | FHS 2.3/3.0 & TLDP rules, protocol directories, prohibited path validation, path classification. |
+| `fhs.py` | protocol directories, prohibited path validation, path classification. |
 | `hierarchy.py` | Physical directory provisioning, single-tree service layouts, skeleton bootstrapping, space stats. |
 | `service.py` | Dataclasses for `ServiceRecord`, `ServiceConfig`, `ServiceStatus`, `ServiceAccessMode`. |
 | `permissions.py` | Security profiles (WWW, FTP, Git, Rsync, TFTP), sticky-bit verification, permission auditing. |

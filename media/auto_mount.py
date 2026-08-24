@@ -18,7 +18,6 @@ UmerOS /media - Auto-Mount Daemon
 Listens for hotplug events and automatically mounts/unmounts
 removable media following FHS conventions.
 
-FHS/TLDP reference:
     /media contains mount points for removable media.  When multiple
     devices are used, mount directories can be created by appending
     a digit (e.g. /media/cdrom0, /media/cdrom1), with the

@@ -14,7 +14,7 @@
 """
 Umer OS Initrd Phase Machine
 ============================
-State machine that drives the eight boot phases from the TLDP
+State machine that drives the eight boot phases
 ``/initrd`` reference.
 
 The eight phases, as quoted from the reference::
@@ -63,7 +63,7 @@ log = logging.getLogger("UmerOS.Initrd.PhaseMachine")
 # ---------------------------------------------------------------------------
 
 class BootPhase(str, Enum):
-    """The eight phases from the TLDP /initrd reference, plus start/end."""
+    """The eight phases from the /initrd reference, plus start/end."""
 
     START                = "start"
     PHASE_1_LOAD         = "phase_1_load"
@@ -160,7 +160,7 @@ class PhaseRecord:
 # ---------------------------------------------------------------------------
 
 class PhaseMachine:
-    """Drives the boot through the eight TLDP phases in order."""
+    """Drives the boot through the eight phases in order."""
 
     def __init__(self) -> None:
         self.phase: BootPhase = BootPhase.START

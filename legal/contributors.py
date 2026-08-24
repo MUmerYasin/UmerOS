@@ -16,7 +16,7 @@ UmerOS Legal & Compliance — Contributors & Attribution Subsystem
 ===================================================================================
 
 Tracks, verifies, and credits contributors, open-source maintainers, and
-AI engineering intelligence pairing in accordance with TLDP Appendix D and DCO.
+AI engineering intelligence pairing.
 
 
 Author: UmerOS Project

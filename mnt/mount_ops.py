@@ -18,7 +18,7 @@ UmerOS /mnt - Mount/Unmount Operations
 Wraps mount(2) and umount(2) semantics with safety checks, flag
 management, and filesystem type detection.
 
-The TLDP spec describes the ``mount`` command and syscall:
+The spec describes the ``mount`` command and syscall:
 
     mount [-t type] [-o options] device dir
 

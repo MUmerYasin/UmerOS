@@ -66,7 +66,7 @@ def test_imports() -> bool:
 
 def test_fhs_validation() -> bool:
     print("\n" + "=" * 60)
-    print("Test 2: FHS & TLDP Validation Rules")
+    print("Test 2: Validation Rules")
     print("=" * 60)
     with tempfile.TemporaryDirectory() as tmpdir:
         srv_root = Path(tmpdir) / "srv"
@@ -103,7 +103,7 @@ def test_fhs_validation() -> bool:
         assert scheme_d == OrganizationScheme.BY_DOMAIN
         assert dom == "example.com"
 
-        print("✓ FHS and TLDP compliance validation checks passed.")
+        print("✓ Compliance validation checks passed.")
         return True
 
 

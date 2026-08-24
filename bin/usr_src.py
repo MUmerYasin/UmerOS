@@ -14,7 +14,7 @@
 """
 UmerOS /usr/src - Source Code Hierarchy
 ========================================
-TLDP /usr: Contains kernel sources, header files, and documentation.
+/usr: Contains kernel sources, header files, and documentation.
 """
 
 from __future__ import annotations

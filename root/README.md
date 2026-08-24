@@ -1,10 +1,6 @@
 # Umer OS /root
 
-A pure-Python implementation of the
-[TLDP /root reference](https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/root.html),
-tailored to UmerOS.
-
-## What the TLDP says
+## What the /root says
 
 The `/root` page focuses on three rules:
 
@@ -27,7 +23,7 @@ The `/root` page focuses on three rules:
 | `mail.py` | Manage `~/.forward`, classify entries (local, remote, pipe, file), detect loops, expose the admin role table. |
 | `safety.py` | Auditor that flags unsafe `PATH`, `LD_*` injections, permissive `.bash_history`, loose `.ssh` keys, and discouraged user-state subdirs. |
 | `passwd.py` | `/etc/passwd` adapter + `CanonicalRootBuilder` so installers and audits all agree on what the root row looks like. |
-| `fhs.py` | The single-call FHS / TLDP audit that wires the rest together. |
+| `fhs.py` | The single-call audit that wires the rest together. |
 | `__main__.py` | `python -m root` CLI. |
 | `__init__.py` | Public API re-exports. |
 

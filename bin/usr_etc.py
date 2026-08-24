@@ -14,7 +14,7 @@
 """
 UmerOS /usr/etc - System Configuration Hierarchy
 =================================================
-TLDP /usr: Another directory for configuration files. Virtually unused now.
+/usr: Another directory for configuration files. Virtually unused now.
 """
 
 from __future__ import annotations

@@ -15,10 +15,10 @@
 UmerOS /mnt - User-Mountable Filesystem Support
 ================================================
 
-Implements the TLDP-defined user-mount mechanism that allows
+Implements the defined user-mount mechanism that allows
 non-root users to mount and unmount removable media.
 
-From the TLDP ``mount`` man page:
+From the ``mount`` man page:
 
     user    Allow an ordinary user to mount the filesystem.  The
     name of the mounting user is written to /etc/mtab so that he

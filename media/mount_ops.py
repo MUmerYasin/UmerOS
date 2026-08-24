@@ -524,7 +524,7 @@ def unmount(
 ) -> MountResult:
     """Unmount a mounted filesystem.
 
-    Follows TLDP guidance: always unmount before removing media.
+    Follows guidance: always unmount before removing media.
 
     Args:
         mount_point: Directory to unmount.

@@ -15,7 +15,7 @@
 UmerOS /media - Removable Media Subsystem
 ==========================================
 
-FHS/TLDP-compliant mount-point management for removable devices.
+Compliant mount-point management for removable devices.
 
 Modules
 -------

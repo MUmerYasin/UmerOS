@@ -16,7 +16,6 @@ UmerOS Essential Shared Library Stubs
 ======================================
 Provides stub representations for essential shared libraries required by FHS 3.0.
 
-According to TLDP/FHS:
   /lib must contain:
     - libc.so.*  — The C library (most important shared library)
     - ld*        — The dynamic linker/loader

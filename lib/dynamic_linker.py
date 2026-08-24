@@ -429,7 +429,7 @@ class LibQualifierManager:
         """
         Ensure ``cpp`` references the C preprocessor.
 
-        TLDP/FHS says ``/lib/cpp`` must be a reference to the installed C
+        says ``/lib/cpp`` must be a reference to the installed C
         preprocessor, traditionally ``/usr/bin/cpp``.  On platforms where
         Python cannot create symlinks (for example some Windows developer
         shells), UmerOS writes a tiny reference file containing the target so

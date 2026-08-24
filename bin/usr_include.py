@@ -14,7 +14,7 @@
 """
 UmerOS /usr/include - C/C++ Header Files
 =========================================
-TLDP /usr: The directory for header files, needed for compiling
+/usr: The directory for header files, needed for compiling
 user space source code. Package-specific headers go in /usr/include/<pkg>.
 """
 

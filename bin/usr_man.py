@@ -14,7 +14,7 @@
 """
 UmerOS /usr/man - Manual Pages Hierarchy
 =========================================
-TLDP /usr/man: Manual pages organized in 8 sections.
+/usr/man: Manual pages organized in 8 sections.
 Now located at /usr/share/man, symlinked from /usr/man.
 """
 

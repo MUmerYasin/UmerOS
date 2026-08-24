@@ -14,7 +14,7 @@
 """
 UmerOS /usr/sbin Hierarchy Commands
 ====================================
-TLDP /usr/sbin: Non-essential system administration binaries.
+/usr/sbin: Non-essential system administration binaries.
 
 These include:
   - Cron daemons and schedulers

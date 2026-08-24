@@ -43,7 +43,7 @@ class GlossaryEntry:
         return asdict(self)
 
 
-# ── Canonical TLDP Glossary Entries ────────────────────────────────────────
+# ── Canonical Glossary Entries ────────────────────────────────────────
 
 GLOSSARY_DATA: List[GlossaryEntry] = [
 

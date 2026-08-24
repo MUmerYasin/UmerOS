@@ -950,7 +950,7 @@ class TestBuildPidDir(unittest.TestCase):
             build_pid_dir(self.adapter, 99999)
 
 
-# ── New /proc entries (TLDP gap fill) ──────────────────────────
+# ── New /proc entries ──────────────────────────
 
 class TestSoftirqs(unittest.TestCase):
     def setUp(self):

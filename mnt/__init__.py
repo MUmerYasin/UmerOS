@@ -15,7 +15,7 @@
 UmerOS /mnt - Temporary Mount Subsystem
 ========================================
 
-FHS/TLDP-compliant temporary mount-point management for sysadmin use.
+Compliant temporary mount-point management for sysadmin use.
 
 The ``/mnt`` directory is reserved for temporary mount points that sysadmins
 may need to mount by hand. Unlike ``/media``, it is not managed by the system

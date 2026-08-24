@@ -19,7 +19,7 @@ for /proc:
 * Entries are *virtual*: content is generated on the fly by a read
   handler, never stored on disk.
 * Nearly all files report size 0 in stat() — they are "a window into
-  the kernel" (TLDP).  The exceptions (``kcore``, ``mtrr``, symlinks)
+  the kernel".  The exceptions (``kcore``, ``mtrr``, symlinks)
   override the reported size.
 * Most entries are read-only (``r--r--r--``); writable entries live
   under /proc/sys and are root-owned ``rw-r--r--``.

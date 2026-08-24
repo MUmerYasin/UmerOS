@@ -14,7 +14,7 @@
 """
 UmerOS /usr/local Hierarchy Commands
 ======================================
-TLDP /usr/local: Locally installed software.
+/usr/local: Locally installed software.
 
 This includes:
   - Local binaries not part of the distribution

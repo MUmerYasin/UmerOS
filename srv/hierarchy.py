@@ -180,7 +180,7 @@ class SrvHierarchy:
         subdirs: Optional[List[str]] = None,
     ) -> ServiceTreeLayout:
         """
-        Creates a single-tree service directory structure per TLDP.
+        Creates a single-tree service directory structure.
         """
         if scheme == OrganizationScheme.BY_DOMAIN and domain_or_dept:
             base_dir = self.root / domain_or_dept / service_name
@@ -303,7 +303,7 @@ class SrvHierarchy:
 
         if not force:
             raise PermissionError(
-                f"TLDP / FHS Safety: Removing '{target}' without explicit force/confirmation is forbidden. "
+                f"Safety: Removing '{target}' without explicit force/confirmation is forbidden. "
                 "Distributions and utilities must not remove files in /srv without administrator permission."
             )
 

@@ -236,7 +236,7 @@ def _base_entries(kernel_version: str, scenario: InitrdScenario) -> List[CpioEnt
         newc_dir("var/log"),
         # Init entry point
         newc_file("init", init_script, mode=0o755),
-        # The /linuxrc compatibility symlink (TLDP still mentions it).
+        # The /linuxrc compatibility symlink.
         newc_symlink("linuxrc", "init"),
         # The actual linuxrc_main.py runtime
         newc_file(

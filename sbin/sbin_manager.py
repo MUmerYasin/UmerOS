@@ -62,7 +62,7 @@ from .maintenance import (
 )
 
 
-# ─── TLDP FHS Required /sbin entries ────────────────────────────────────────
+# ─── Required /sbin entries ────────────────────────────────────────
 FHS_REQUIRED_SBIN = [
     "fdisk",        # Manipulate disk partition table
     "fsck",         # Check and repair filesystem
@@ -85,7 +85,7 @@ FHS_REQUIRED_SBIN = [
     "sysctl",       # Administer kernel parameters
 ]
 
-# ─── TLDP FHS Optional /sbin entries ────────────────────────────────────────
+# ───  Optional /sbin entries ────────────────────────────────────────
 FHS_OPTIONAL_SBIN = [
     "fastboot",     # Quick reboot skipping filesystem checks
     "fasthalt",     # Quick halt

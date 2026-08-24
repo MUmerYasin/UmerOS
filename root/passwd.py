@@ -19,7 +19,7 @@ to find root's home directory.  This module wraps that lookup with
 a tiny adapter so the rest of the runtime can:
 
 * parse any passwd-style file (UID lookup, GECOS, shell),
-* validate the root entry against FHS / TLDP expectations,
+* validate the root entry against expectations,
 * build a *proposed* root entry when bootstrapping a fresh
   filesystem (e.g. inside an installer).
 

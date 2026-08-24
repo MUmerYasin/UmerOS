@@ -16,7 +16,7 @@ UmerOS /mnt - Temporary Mount Point Management
 ===============================================
 
 Provides lifecycle management for temporary mount points under
-``/mnt/``.  The TLDP spec says:
+``/mnt/``.  The spec says:
 
     /mnt is the system administrator's temporary mount point.
 

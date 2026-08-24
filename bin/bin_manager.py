@@ -194,7 +194,7 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "chroot": ("usr_commands", "ChrootCommand"),
     "renice": ("usr_commands", "ReniceCommand"),
     "timeout": ("usr_commands", "TimeoutCommand"),
-    # usr_commands.py — new TLDP 30 utilities
+    # usr_commands.py — new  30 utilities
     "grep": ("usr_commands", "GrepCommand"),
     "less": ("usr_commands", "LessCommand"),
     "find": ("usr_commands", "FindCommand"),
@@ -225,7 +225,7 @@ COMMAND_REGISTRY: Dict[str, Tuple[str, str]] = {
     "patch": ("usr_commands", "PatchCommand"),
     "locate": ("usr_commands", "LocateCommand"),
     "updatedb": ("usr_commands", "UpdatedbCommand"),
-    # usr_cmds.py - 115 new TLDP/usr utilities
+    # usr_cmds.py - 115 new /usr utilities
     "addr2line": ("usr_cmds", "Addr2lineCommand"),
     "apropos": ("usr_cmds", "AproposCommand"),
     "aptget": ("usr_cmds", "AptGetCommand"),

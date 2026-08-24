@@ -21,6 +21,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../apps/ai_assistant_app.dart';
 import '../apps/antivirus_app.dart';
 import '../apps/boot_manager_app.dart';
 import '../apps/browser_app.dart';
@@ -142,6 +143,16 @@ abstract final class AppRegistry {
     ),
 
     // ── Tools ─────────────────────────────────────────────────────
+    AppDefinition(
+      id: 'ai',
+      title: 'AI Assistant',
+      description:
+          'Chat with local or cloud AI models — your keys, your consent.',
+      icon: Icons.auto_awesome,
+      color: Color(0xFF7C4DFF),
+      category: AppCategory.tools,
+      builder: (_) => const AiAssistantApp(),
+    ),
     AppDefinition(
       id: 'browser',
       title: 'Browser',

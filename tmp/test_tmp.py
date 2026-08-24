@@ -15,7 +15,7 @@
 Comprehensive Test Suite for UmerOS /tmp Filesystem Hierarchy System
 =====================================================================
 
-Verifies all components of the /tmp subsystem per TLDP and FHS 2.3/3.0.
+Verifies all components of the /tmp subsystem
 """
 
 import json

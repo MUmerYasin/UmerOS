@@ -154,7 +154,7 @@ SENSITIVE_PATTERNS = (
 # ---------------------------------------------------------------------------
 
 class FHSBootAuditor:
-    """Single-call FHS / TLDP audit for ``/boot``."""
+    """Single-call audit for ``/boot``."""
 
     def __init__(self, boot_dir: str = "/boot",
                  efi_dir: str = "/boot/efi") -> None:

@@ -19,7 +19,7 @@ the UmerOS initrd runtime.
 
 Why does ``/linuxrc`` (now ``/init``) need to call ``pivot_root``?
 
-The TLDP reference (section 1.8) spells it out: after the initrd has
+The spells it out: after the initrd has
 been mounted as the temporary root and the real root FS has been
 mounted somewhere inside it (typically ``/newroot`` or ``/sysroot``),
 the kernel needs to *switch* its view of "/" so that init runs on the
@@ -42,7 +42,7 @@ The two key properties that distinguish ``pivot_root`` from
 
 In a real kernel this is a single syscall.  In UmerOS we implement
 the same idea over :mod:`initrd.vfs_ops` and :mod:`initrd.ramdisk` so
-that the initrd runtime can complete the eight TLDP phases without
+that the initrd runtime can complete the eight phases without
 spawning a real kernel.
 
 Author:  Umer OS Project

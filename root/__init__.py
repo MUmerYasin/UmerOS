@@ -28,7 +28,7 @@ Umer OS /root
   should be forwarded to an appropriate user.
 
 This package covers those rules, plus a small set of operational
-best practices the TLDP page only hints at.
+best practices the page only hints at.
 
 Sub-modules
 -----------
@@ -39,7 +39,7 @@ Sub-modules
 * :mod:`root.mail`     - ``~/.forward`` management and admin role table
 * :mod:`root.safety`   - safety auditor (PATH, LD_*, .ssh, history, user-state)
 * :mod:`root.passwd`   - /etc/passwd integration + canonical root row
-* :mod:`root.fhs`      - FHS / TLDP audit + bootstrap
+* :mod:`root.fhs`      - audit + bootstrap
 
 Quick start
 -----------

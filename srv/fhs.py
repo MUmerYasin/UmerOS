@@ -73,7 +73,7 @@ class OrganizationScheme(str, enum.Enum):
 
 
 class StandardProtocol(str, enum.Enum):
-    """Standard protocols commonly hosted in /srv per TLDP."""
+    """Standard protocols commonly hosted in /srv."""
     WWW = "www"
     HTTP = "http"
     HTTPS = "https"
@@ -90,7 +90,7 @@ class StandardProtocol(str, enum.Enum):
     CUSTOM = "custom"
 
 
-# Canonical protocol subdirectories recognized by FHS / TLDP
+# Canonical protocol subdirectories recognized.
 STANDARD_PROTOCOL_DIRS: Set[str] = {
     "www", "http", "https", "ftp", "rsync", "git", "svn", "cvs",
     "tftp", "gopher", "nfs", "samba", "webdav"
@@ -129,7 +129,7 @@ class FHSValidationResult:
 
 
 class FHSValidator:
-    """Validates /srv paths and structures according to TLDP and FHS standards."""
+    """Validates /srv paths and structures."""
 
     @staticmethod
     def validate_service_path(path: Path | str, srv_root: Path | str = DEFAULT_SRV_ROOT) -> FHSValidationResult:
@@ -166,7 +166,7 @@ class FHSValidator:
         if top_dir in ("home", "users", "root"):
             result.is_compliant = False
             result.violations.append(
-                "Personal user data belongs in /home/<user>, not directly in /srv (TLDP §1.19)."
+                "Personal user data belongs in /home/<user>, not directly in /srv."
             )
 
         # Check 4: Check if protocol or domain based

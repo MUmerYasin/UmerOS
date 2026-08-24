@@ -15,16 +15,13 @@
 UmerOS /mnt - FHS /mnt Validation
 ===================================
 
-Validates that the ``/mnt`` directory structure complies with
-the Filesystem Hierarchy Standard (FHS 3.0) and TLDP guidelines.
-
-FHS 3.0 rules for ``/mnt``:
+Validates that the ``/mnt`` directory structure 
 
     /mnt is the system administrator's temporary mount point.
     Its content is a local issue.  Installation programs must
     not use this directory.
 
-TLDP additional guidance:
+additional guidance:
 
     /mnt is distinct from /media:
     - /media = auto-detected removable devices (managed by desktop)

@@ -14,7 +14,7 @@
 """
 UmerOS /usr/tmp - User Space Temporary Files
 =============================================
-TLDP /usr: User space temporary files. Not found on modern distributions.
+/usr: User space temporary files. Not found on modern distributions.
 Was created as a consequence of UNIX heritage.
 """
 

@@ -16,7 +16,7 @@ UmerOS /lib - Shared Libraries and Kernel Modules
 ===================================================
 Public API for everything related to the FHS /lib hierarchy in UmerOS.
 
-This package now covers the full TLDP/FHS spec for /lib and all of the
+This package now covers the full spec for /lib and all of the
 companion directories that show up in the same conversation:
 
   /lib                         Essential shared libraries + /lib/cpp
@@ -199,7 +199,7 @@ from .tmpfiles import (
 
 
 __all__ = [
-    # TLDP/FHS hierarchy
+    # hierarchy
     "LibHierarchyManager", "LibAuditReport", "LibAuditIssue",
     "LibIssueSeverity", "LibRequirement",
     # Library + essential

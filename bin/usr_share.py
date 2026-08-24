@@ -14,7 +14,7 @@
 """
 UmerOS /usr/share Hierarchy Commands
 ======================================
-TLDP /usr/share: Architecture-independent data.
+/usr/share: Architecture-independent data.
 
 This includes:
   - Man pages and documentation

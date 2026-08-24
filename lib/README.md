@@ -15,7 +15,7 @@ lib/
 ├── dynamic_linker.py      # ld.so.conf + ld.so.cache (binary format)
 ├── elf_parser.py          # real ELF parser (NEEDED + SONAME)
 ├── essential_libs.py      # libc / ld / libm / libpthread / ...
-├── fhs.py                 # TLDP/FHS audit + bootstrap
+├── fhs.py                 # Audit + bootstrap
 ├── firmware.py            # /lib/firmware blobs
 ├── iconv.py               # /usr/lib/gconv character set modules
 ├── iptables_libs.py       # /lib/iptables extensions
@@ -34,9 +34,9 @@ lib/
 └── README.md              # this file
 ```
 
-## TLDP coverage map
+## coverage map
 
-| TLDP requirement | Module | Class / function |
+|  requirement | Module | Class / function |
 |---|---|---|
 | Shared libraries needed by /bin and /sbin | `essential_libs.py` | `EssentialLibraryManager`, `ESSENTIAL_LIBRARIES` |
 | `libc.so.*` and `ld*` patterns (optional) | `essential_libs.py` | `EssentialLibraryManager.get_required_libs()` |

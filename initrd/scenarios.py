@@ -14,8 +14,8 @@
 """
 Umer OS Initrd Scenarios
 ========================
-The four "usage scenarios" from the TLDP ``/initrd`` reference, plus a
-fifth one (``per_machine``) that maps directly to the second TLDP
+The four "usage scenarios" from the ``/initrd`` reference, plus a
+fifth one (``per_machine``) that maps directly to the second
 motivation ("different hardware configurations in a single
 administrative domain").
 
@@ -172,7 +172,7 @@ SCENARIO_CATALOGUE: Dict[ScenarioId, InitrdScenario] = {
         keep_as_root=False,
         interactive=True,
         notes=[
-            "Matches TLDP phase 1 - 'system boots from floppy or "
+            "Matches phase 1 - 'system boots from floppy or "
             "other media with a minimal kernel'.",
         ],
     ),
@@ -184,7 +184,7 @@ SCENARIO_CATALOGUE: Dict[ScenarioId, InitrdScenario] = {
             "When the real root is unreadable / corrupted. /linuxrc "
             "drops to an interactive shell so the operator can run "
             "fsck, mount the root by hand, or restore from backup. "
-            "Matches the third TLDP motivation - 'more convenient "
+            "Matches the third motivation - 'more convenient "
             "recovery disks'."
         ),
         extra_modules=["ext4", "btrfs", "xfs", "vfat", "ahci", "nvme", "dm_mod"],
@@ -207,7 +207,7 @@ SCENARIO_CATALOGUE: Dict[ScenarioId, InitrdScenario] = {
         description=(
             "The initrd stays mounted as the final root for the "
             "whole session.  No pivot_root, no second-stage image. "
-            "Matches the fourth TLDP motivation - 'CD-ROM "
+            "Matches the fourth motivation - 'CD-ROM "
             "distributors may use it for better installation from CD'."
         ),
         extra_modules=["overlay", "squashfs", "loop"],
@@ -244,7 +244,7 @@ SCENARIO_CATALOGUE: Dict[ScenarioId, InitrdScenario] = {
         description=(
             "Layered on top of NORMAL.  Reads /etc/umeros/"
             "initrd.local.conf to add the modules and files this "
-            "particular machine needs.  Matches the second TLDP "
+            "particular machine needs.  Matches the second "
             "motivation - 'a single kernel + per-machine initrd'."
         ),
         extra_modules=[],

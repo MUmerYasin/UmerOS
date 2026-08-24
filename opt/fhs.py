@@ -80,7 +80,7 @@ class FHSFinding:
 
 class OptFHSValidator:
     """
-    Validates the ``/opt`` hierarchy against FHS/TLDP requirements.
+    Validates the ``/opt`` hierarchy against requirements.
 
     Parameters
     ----------

@@ -1,15 +1,12 @@
 # UmerOS `/tmp` — Temporary Filesystem Hierarchy
 
-**TLDP Linux Filesystem Hierarchy Reference:** [https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/tmp.html](https://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/tmp.html)  
-**Standard:** Filesystem Hierarchy Standard (FHS 2.3 & 3.0)
-
 ---
 
 ## 1. Overview & Purpose
 
 The `/tmp` directory contains **temporary files required by running programs**.
 
-### Key Principles from TLDP / FHS:
+### Key Principles from :
 1. **Transient Storage:** Programs must **not assume that files or directories in `/tmp` are preserved** between program invocations or system reboots.
 2. **Boot / Shutdown Cleanup:** Contents of `/tmp` are typically cleared during the boot or shutdown process, or by automated periodic reapers (`tmpwatch` / `systemd-tmpfiles`).
 3. **Difference from `/var/tmp`:**
@@ -32,7 +29,7 @@ The `/tmp` directory contains **temporary files required by running programs**.
 
 | Module | Description |
 |---|---|
-| `fhs.py` | FHS 2.3/3.0 & TLDP rules, protected socket directories, validation of `/tmp` root and permissions. |
+| `fhs.py` | protected socket directories, validation of `/tmp` root and permissions. |
 | `hierarchy.py` | Directory provisioning, standard socket skeleton bootstrap (`.X11-unix`, etc.), user runtime dirs (`/tmp/user/<uid>`). |
 | `secure_io.py` | Race-free atomic temporary file & directory creation (`O_CREAT | O_EXCL`, `0600`/`0700` modes), `mktemp` utility, context managers (`SecureTempFile`, `SecureTempDir`). |
 | `lockfile.py` | Transient process lockfile system (`.lock`), atomic PID metadata recording, stale lock detection. |
