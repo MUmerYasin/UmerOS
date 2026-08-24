@@ -55,7 +55,7 @@ log = logging.getLogger("UmerOS.Security")
 class SecureBoot:
     """Verifies kernel and service image integrity at boot time."""
     
-    def __init__(self, strict_mode: bool = False):
+    def __init__(self, strict_mode: bool = True):
         self._store: Dict[str, str] = {}
         self._strict_mode = strict_mode
         self._measurements: List[Dict] = []  # TPM-style measurement log
@@ -97,13 +97,15 @@ class SecureBoot:
         name = os.path.basename(path)
         stored = expected_hash or self._store.get(name)
 
-        # Permissive mode: unknown component -> allow
+        # [FIX H17] Zero-trust is FAIL-CLOSED. An unknown component (no
+        # trust-store entry AND no caller-supplied expected_hash) has no basis
+        # for trust and MUST be denied. The previous code returned True here
+        # (fail-open), letting arbitrary, unverified images boot/load.
         if stored is None:
             if self._strict_mode:
                 raise PermissionError(f"🚨 Zero-Trust Violation: Unknown component '{name}' blocked.")
-            else:
-                log.warning("Dev Mode: Allowing unknown component '%s'.", name)
-                return True
+            log.warning("Zero-Trust: denying unknown component '%s' (dev mode).", name)
+            return False
 
         try:
             computed = self._compute_file_hash(path)
@@ -124,10 +126,13 @@ class SecureBoot:
     def verify_bytes(self, data: bytes, name: str, expected_hash: Optional[str] = None) -> bool:
         """Verify in-memory *data* against an expected SHA-3-256 hash."""
         stored = expected_hash or self._store.get(name)
+        # [FIX H17] Unknown component (no trust entry, no expected hash) is
+        # denied in both strict and dev modes — fail-closed by default.
         if stored is None:
             if self._strict_mode:
                 raise PermissionError(f"Zero-Trust Violation: Unknown component '{name}' blocked.")
-            return True
+            log.warning("Zero-Trust: denying unknown component '%s' (dev mode).", name)
+            return False
 
         computed = hashlib.sha3_256(data).hexdigest()
         self.record_measurement(name, computed)

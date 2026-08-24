@@ -108,13 +108,33 @@ class TestSecureBoot(unittest.TestCase):
         self.sb.register("kernel", "a" * 64)
         self.assertIn("kernel", self.sb._store)
 
-    def test_verify_image_no_store_entry_permissive(self):
+    def test_default_is_strict_mode(self):
+        # [FIX H17] SecureBoot must default to fail-closed (strict) so unknown
+        # components are denied rather than silently allowed.
+        self.assertTrue(SecureBoot()._strict_mode)
+
+    def test_verify_image_unknown_component_denied(self):
+        # [FIX H17] Zero-trust is fail-closed: an unknown component (no trust
+        # entry) must be denied, not silently allowed.
         with tempfile.NamedTemporaryFile(delete=False) as f:
             f.write(b"test data")
             name = f.name
         try:
-            result = self.sb.verify_image(name)
-            self.assertTrue(result)  # permissive: no trust entry = pass
+            self.assertTrue(self.sb._strict_mode)  # default is now strict
+            with self.assertRaises(PermissionError):
+                self.sb.verify_image(name)
+        finally:
+            os.unlink(name)
+
+    def test_verify_image_unknown_component_denied_dev_mode(self):
+        # [FIX H17] Even with strict_mode disabled, an unknown component is
+        # still denied (returns False) — never allowed.
+        self.sb._strict_mode = False
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(b"test data")
+            name = f.name
+        try:
+            self.assertFalse(self.sb.verify_image(name))
         finally:
             os.unlink(name)
 
@@ -177,9 +197,11 @@ class TestSecureBoot(unittest.TestCase):
         result = self.sb.load_trust_store("/nonexistent/path.json")
         self.assertFalse(result)
 
-    def test_verify_nonexistent_file_returns_true_permissive(self):
-        result = self.sb.verify_image("/nonexistent/kernel.py")
-        self.assertTrue(result)  # permissive during development
+    def test_verify_nonexistent_unknown_component_denied(self):
+        # [FIX H17] A non-registered image with no trust entry is denied.
+        self.sb._strict_mode = True
+        with self.assertRaises(PermissionError):
+            self.sb.verify_image("/nonexistent/kernel.py")
 
 
 # ---------------------------------------------------------------------------

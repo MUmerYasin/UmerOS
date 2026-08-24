@@ -465,15 +465,13 @@ static void Compiler_Emit(Compiler *compiler, Opcode op, int arg) {
 
     compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)op;
 
-    /* Only emit argument for opcodes that take arguments (>= OP_HAVE_ARGUMENT) */
-    if (op >= OP_HAVE_ARGUMENT) {
-        if (arg >= 0 && arg <= 255) {
-            compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)arg;
-        } else {
-            /* Extended args */
-            compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg >> 8);
-            compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg & 0xFF);
-        }
+    /* Emit argument byte (always 2 bytes per instruction) */
+    if (arg >= 0 && arg <= 255) {
+        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)arg;
+    } else {
+        /* Extended args */
+        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg >> 8);
+        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg & 0xFF);
     }
 }
 

@@ -69,12 +69,11 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
         Opcode op = (Opcode)bytecode[frame->f_lasti++];
         int arg = -1;
 
-        if (op >= OP_HAVE_ARGUMENT) {
-            if (frame->f_lasti < code_len) {
-                arg = bytecode[frame->f_lasti++];
-                if (arg > 255 && frame->f_lasti + 1 < code_len) {
-                    arg = (arg << 8) | bytecode[frame->f_lasti++];
-                }
+        /* Always read argument byte — our compiler emits 2 bytes per instruction */
+        if (frame->f_lasti < code_len) {
+            arg = bytecode[frame->f_lasti++];
+            if (arg > 255 && frame->f_lasti < code_len) {
+                arg = (arg << 8) | bytecode[frame->f_lasti++];
             }
         }
 
