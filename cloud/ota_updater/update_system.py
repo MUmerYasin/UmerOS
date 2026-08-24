@@ -70,6 +70,11 @@ class UpdateManager:
         is refused.
         """
         signature = manifest.get("signature")
+        # [FIX H46] Fail-closed OTA posture: an update is applied ONLY after a
+        # verifiable signature. Missing crypto engine / trusted key / signature,
+        # a verify error, or a failed verification all REFUSE the update — it is
+        # never silently applied (same zero-trust family as H17/H27/H28/H37).
+        # Residual trust depends on wiring a REAL CryptoEngine.verify (H111).
         if self.crypto is None or self.trusted_public_key is None or not signature:
             print("[OTA] Refusing update: no crypto engine / trusted key / signature.")
             return False

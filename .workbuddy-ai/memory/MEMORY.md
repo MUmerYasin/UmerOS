@@ -22,7 +22,7 @@
 - boot/ 🟢 H27/H28/H29 (FIXED — verify_kernel fail-closed; is_binary_trusted default strict=True; display_waiver no silent auto-accept, explicit `--accept-eula` opt-in); 🟡 H30–H34
 - bin/ 🟢 H37 (FIXED — login -f/-F auth bypass removed, fail-closed deny); 🟡 H6/H35/H36/H38–H40
 - build/ 🔴 H42; 🟡 H41/H43–H45
-- cloud/ 🔴 H46/H154(FIXED); 🟡 H47–H49
+- cloud/ 🟢 H46/H154 (FIXED — OTA `verify_and_apply` fail-closed; H154 dummy-crypto removed); 🟡 H47–H49
 - compatibility/ 🟡 H50/H52–H54  (H51 FIXED — zero-trust exec capability-gated)
 - core/ 🟡 H55/H56/H57
 - dev/ 🟡 H59/H60/H61
