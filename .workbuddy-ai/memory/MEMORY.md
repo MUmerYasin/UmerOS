@@ -19,8 +19,8 @@
 - Project facts: ~735 Python modules; tests/ split unittest/pytest, NO CI; `security_scan.yml` only workflow; `Old Linux Code/` (~93k) reference-only (excluded from scope).
 
 ## Folder scope map — hotspots by folder (full detail in standard §9)
-- boot/ 🔴 H27/H28/H29; 🟡 H30–H34
-- bin/ 🔴 H37; 🟡 H6/H35/H36/H38–H40
+- boot/ 🟢 H27/H28/H29 (FIXED — verify_kernel fail-closed; is_binary_trusted default strict=True; display_waiver no silent auto-accept, explicit `--accept-eula` opt-in); 🟡 H30–H34
+- bin/ 🟢 H37 (FIXED — login -f/-F auth bypass removed, fail-closed deny); 🟡 H6/H35/H36/H38–H40
 - build/ 🔴 H42; 🟡 H41/H43–H45
 - cloud/ 🔴 H46/H154(FIXED); 🟡 H47–H49
 - compatibility/ 🟡 H50/H52–H54  (H51 FIXED — zero-trust exec capability-gated)

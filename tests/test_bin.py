@@ -1347,6 +1347,44 @@ class TestLoginCommand(unittest.TestCase):
         self.assertEqual(rc, 0)
 
 
+class TestLoginCommandH37(unittest.TestCase):
+    """H37 regression — login -f/-F must NOT bypass authentication (fail-closed).
+
+    Runs on every platform: where the Unix-only ``pwd``/``spwd`` modules are
+    missing (e.g. Windows CI) we inject minimal stubs so ``user_commands`` can
+    be imported. The denied-bypass path returns before any ``pwd``/``spwd`` use,
+    so the stubs are sufficient to load and exercise the logic.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        if not _HAS_USER_CMDS:
+            import types
+            for _mod in ("pwd", "spwd", "crypt"):
+                if _mod not in sys.modules:
+                    sys.modules[_mod] = types.ModuleType(_mod)
+            sys.modules.pop("user_commands", None)
+        from user_commands import LoginCommand
+        cls.LoginCommand = LoginCommand
+
+    def test_force_flag_denied(self):
+        rc = self.LoginCommand().execute(["-F"])
+        self.assertNotEqual(rc, 0, "login -F must NOT bypass authentication")
+
+    def test_f_user_flag_denied(self):
+        rc = self.LoginCommand().execute(["-f", "root"])
+        self.assertNotEqual(rc, 0, "login -f <user> must NOT bypass authentication")
+
+    def test_flag_parsed_but_no_bypass(self):
+        cmd = self.LoginCommand()
+        opts = cmd._parse_args(["-f", "root"])
+        self.assertTrue(opts.get("skip_auth"), "flag should still parse (CLI compat)")
+        self.assertNotEqual(
+            cmd.execute(["-f", "root"]), 0,
+            "parsed -f flag must still be denied (no silent login)",
+        )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  DEVICE / MKNOD
 # ═══════════════════════════════════════════════════════════════════════════════

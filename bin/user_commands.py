@@ -221,8 +221,8 @@ class LoginCommand:
     Usage: login [-p] [-h host] [-f user | -F] [-t timeout] [user]
       -p: Preserve environment
       -h: Remote host name
-      -f: Skip authentication for user
-      -F: Skip authentication (force)
+      -f: (removed) previously skipped authentication for user — now denied (H37)
+      -F: (removed) previously forced a skip-auth login — now denied (H37)
       -t: Login timeout in seconds
       user: Username to login as
 
@@ -243,8 +243,17 @@ class LoginCommand:
             return 1
 
         target_user = opts.get("user")
-        skip_auth = opts.get("skip_auth", False)
         timeout = opts.get("timeout", 60)
+
+        # [FIX H37] Zero-trust authentication bypass removed. The legacy "-f" /
+        # "-F" flags previously set skip_auth and skipped the password check
+        # entirely — a direct authentication bypass (section 4.2 zero-trust
+        # mandate). A pre-authenticated login is no longer permitted from the
+        # CLI; a session can only be established after a verified password. We
+        # fail-closed: any attempt to use the bypass is denied outright.
+        if opts.get("skip_auth", False):
+            print("Login incorrect", file=sys.stderr)
+            return 1
 
         if not target_user:
             target_user = self._prompt_user("login: ")
@@ -254,10 +263,9 @@ class LoginCommand:
             print("Login incorrect", file=sys.stderr)
             return 1
 
-        # Authenticate
-        if not skip_auth:
-            if not self._do_login(target_user, timeout):
-                return 1
+        # Authenticate (mandatory — never skipped)
+        if not self._do_login(target_user, timeout):
+            return 1
 
         # Set up session
         session = self._setup_session(target_user)
