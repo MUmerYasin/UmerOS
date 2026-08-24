@@ -82,7 +82,7 @@ FHS_REQUIRED_SBIN: List[str] = [
     "rmmod", "route", "shutdown", "swapon", "sysctl",
 ]
 
-# Binary categories per FHS/TLDP
+# Binary categories
 BIN_CATEGORIES = [
     "FILE_OPS",
     "TEXT",

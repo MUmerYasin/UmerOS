@@ -16,7 +16,7 @@ UmerOS /bin Shell and Stream Editor Commands
 =============================================
 Implements POSIX shell (sh) and stream editor (sed).
 
-FSSTND / TLDP Required:
+FSSTND:
   sh - POSIX-compatible command language interpreter
   sed - Stream editor for filtering/transforming text
 """

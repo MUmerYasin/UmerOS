@@ -36,6 +36,7 @@ from __future__ import annotations
 import os
 import sys
 import types
+import importlib
 from pathlib import Path
 
 import pytest
@@ -58,16 +59,34 @@ _AUD = "test-audience"
 # Module loading in a chosen auth mode
 # ---------------------------------------------------------------------------
 
+def _real_pid_entries_module():
+    """Force a fresh import of the REAL ``proc.pid_entries`` (it exposes
+    ``build_pid_dir``/``pid_dir_signature``). Popping any stub we injected earlier
+    guarantees we get the real module, not a delegating wrapper."""
+    sys.modules.pop("proc.pid_entries", None)
+    return importlib.import_module("proc.pid_entries")
+
+
 def _stub_proc_modules() -> None:
-    """Inject the four orphaned proc.pid_* modules the service imports."""
+    """Inject the orphaned ``proc.pid_*`` modules the service imports.
+
+    ``proc.pid_entries`` is made a DELEGATING wrapper around the real module: it
+    keeps every real name (so ``procfs``'s ``from proc.pid_entries import
+    build_pid_dir`` keeps working) and ONLY adds the ``list_all`` name
+    ``driver_service`` expects. This is harmless even if it lingers in
+    ``sys.modules`` for the rest of the suite.
+    """
+    real_pe = _real_pid_entries_module()
+    stub_pe = types.ModuleType("proc.pid_entries")
+    stub_pe.__dict__.update(real_pe.__dict__)
+    stub_pe.list_all = lambda *a, **k: [1]   # type: ignore[assignment]
+    sys.modules["proc.pid_entries"] = stub_pe
+
     for name in ("proc.pid_status", "proc.pid_cmdline", "proc.pid_environ", "proc.pid_fd"):
         mod = types.ModuleType(name)
-        mod.get = lambda *a, **k: {}          # type: ignore[assignment]
-        mod.list_fds = lambda *a, **k: [1]     # type: ignore[assignment]
+        mod.get = lambda *a, **k: {}         # type: ignore[assignment]
+        mod.list_fds = lambda *a, **k: [1]    # type: ignore[assignment]
         sys.modules[name] = mod
-    pe = types.ModuleType("proc.pid_entries")
-    pe.list_all = lambda *a, **k: [1]          # type: ignore[assignment]
-    sys.modules["proc.pid_entries"] = pe
 
 
 def _load_driver_service(env: dict):
@@ -75,9 +94,8 @@ def _load_driver_service(env: dict):
 
     Unregisters the module-level Prometheus ``Counter`` before re-import so a
     second import in the same process does not raise DuplicateTimeseries. The
-    orphaned ``proc.pid_*`` modules are stubbed ONLY for this import, then the
-    original ``sys.modules`` state is restored so other test modules that use
-    the real ``proc`` package are not polluted.
+    ``proc.pid_*`` stubs are injected (and the ``proc.pid_entries`` stub delegates
+    to the real module, so the rest of the suite is unaffected).
     """
     previous = sys.modules.get("drivers.driver_service")
     if previous is not None:
@@ -87,11 +105,8 @@ def _load_driver_service(env: dict):
         except Exception:  # noqa: BLE001 - best-effort cleanup
             pass
 
-    # Snapshot sys.modules so we can restore it afterwards (no global pollution).
-    saved = {k: sys.modules[k] for k in list(sys.modules) if k.startswith("proc.pid")}
-
     for key in list(sys.modules):
-        if key == "drivers" or key.startswith("drivers.") or key.startswith("proc.pid"):
+        if key == "drivers" or key.startswith("drivers."):
             del sys.modules[key]
 
     for var in [v for v in os.environ if v.startswith(("OIDC_", "UMEROS_"))]:
@@ -100,15 +115,6 @@ def _load_driver_service(env: dict):
 
     _stub_proc_modules()
     import drivers.driver_service as module  # imported fresh per mode
-
-    # Restore sys.modules: drop our injected stubs, bring back any real proc.pid_*
-    # modules that existed before this call. driver_service already bound the stub
-    # names it needs, so removing the stubs from sys.modules is safe.
-    for key in list(sys.modules):
-        if key.startswith("proc.pid") and key not in saved:
-            del sys.modules[key]
-    for key, mod in saved.items():
-        sys.modules[key] = mod
 
     return module
 

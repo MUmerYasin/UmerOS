@@ -545,7 +545,7 @@ Your role:
 """
 
 
-from ai.providers import AIConfigManager, OnlineProvider, OfflineProvider, MCPProvider
+from ai.assistant_service import chat_service as _chat_service
 
 class LocalAIAssistant:
     """Multi-tier generative AI assistant for Umer OS.
@@ -618,33 +618,22 @@ class LocalAIAssistant:
         self._error_log: List[Dict[str, Any]] = []  # error analysis history
         self._process_health: Dict[int, Dict[str, Any]] = {}  # pid → health data
 
-        # Load new configuration architecture
-        self.config_manager = AIConfigManager()
-        config = self.config_manager.config
+        # Provider transport now lives in ai.assistant_service.ChatService
+        # (consent-gated). Kept as an attribute for backward compatibility.
+        self.config_manager = None
+        self.providers = {}
 
-        self.providers: Dict[str, Any] = {}
-
-        # Instantiate configured providers
-        if "online" in config:
-            self.providers["online"] = OnlineProvider(config["online"])
-        if "offline" in config:
-            self.providers["offline"] = OfflineProvider(config["offline"])
-
-        # Wrap with MCP if data exists
-        mcp_path = config.get("mcp_data_path")
-        if mcp_path and os.path.exists(mcp_path):
-            for key in self.providers:
-                self.providers[key] = MCPProvider(self.providers[key], mcp_path)
-
-        log.info("LocalAIAssistant initialised (Providers: %s).", list(self.providers.keys()))
+        log.info("LocalAIAssistant initialised (via consent-gated ChatService).")
 
     # ── Public API ────────────────────────────────────────────────────────
 
     def query(self, prompt: str) -> str:
         """Send a prompt to the AI and return a response.
 
-        Attempts to use providers in the order specified by fallback_order in ai_config.json.
-        Falls back gracefully through semantic heuristics.
+        Routes through the consent-gated :class:`ChatService` (H18 fix):
+        online providers require an explicit, recorded grant before any
+        prompt leaves the device. Falls back gracefully to semantic
+        heuristics when every provider is unavailable or denied.
         """
         prompt = prompt.strip()
         if not prompt:
@@ -653,18 +642,27 @@ class LocalAIAssistant:
         self._context["last_query"] = prompt
         self._context["last_query_time"] = time.time()
 
-        fallback_order = self.config_manager.config.get("fallback_order", ["online", "offline"])
+        try:
+            result = _chat_service.chat(prompt, session_id="kernel")
+            reply = result.get("reply", "")
+            if reply:
+                log.info("Query served via %s provider.",
+                         result.get("provider"))
+                # Keep legacy in-object history for diagnostics callers.
+                self._history.append({"role": "user", "content": prompt})
+                self._history.append({"role": "assistant", "content": reply})
+                return reply
+        except PermissionError as exc:
+            log.warning("Online query blocked by consent gate: %s", exc)
+            return (
+                "[Consent required] Sending this prompt online needs your "
+                "permission. Open AI Assistant → Settings → Providers and "
+                "grant access, or pick a Local provider."
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ChatService failed (%s); using fallback.", exc)
 
-        for provider_key in fallback_order:
-            if provider_key in self.providers and self.providers[provider_key].is_available:
-                log.info("Attempting query via %s provider...", provider_key)
-                response = self.providers[provider_key].query(prompt, self._history)
-                if response:
-                    self._history.append({"role": "user", "content": prompt})
-                    self._history.append({"role": "assistant", "content": response})
-                    return response
-
-        # Tier 3 — semantic heuristics (always works)
+        # Tier 3 — semantic heuristics (always works, fully offline)
         log.warning("All dynamic providers failed or unavailable. Using semantic fallback.")
         return self._semantic_fallback(prompt)
 

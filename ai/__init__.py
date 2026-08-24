@@ -11,4 +11,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .assistant import AIAssistant
+from .assistant import AIAssistant, ChatService, get_chat_service
+from .consent import AIGovernance, governance
+from .model_manager import ModelManager
+from .providers import (
+    ProviderRegistry,
+    OpenAICompatProvider,
+    AnthropicProvider,
+    GeminiProvider,
+    OllamaProvider,
+    LlamaCppProvider,
+)
+

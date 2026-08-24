@@ -11,15 +11,38 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-class AIAssistant:
-    def __init__(self):
-        self.name = "Umer OS Assistant"
-        self.model_loaded = True
+"""
+Umer OS — Assistant module shim  [TODAY]
+=========================================
+Review Hotspot H19 consolidation: this file used to carry a duplicate,
+non-functional ``AIAssistant`` stub that drifted from the real engine.
 
-    def query(self, text):
-        print(f"[{self.name}] Processing query: '{text}'")
-        if "status" in text.lower():
-            return "System is running optimally. Kernel initialized."
-        elif "crash" in text.lower():
-            return "I can analyze crash dumps using the Self-Healing service."
-        return "I am monitoring the system environment."
+The canonical assistant now lives in ``ai.umer_ai.LocalAIAssistant``
+(diagnostics + fallback) on top of ``ai.assistant_service.ChatService``
+(consent-gated multi-provider chat). Import either path from here so
+older callers keep working:
+
+    from ai.assistant import AIAssistant          # -> LocalAIAssistant
+    from ai.assistant import get_chat_service     # -> shared ChatService
+
+Author:  Umer OS Project
+License: GPLv3
+"""
+
+from ai.umer_ai import LocalAIAssistant
+from ai.assistant_service import ChatService, chat_service
+
+
+class AIAssistant(LocalAIAssistant):
+    """Backwards-compatible alias for :class:`LocalAIAssistant`."""
+
+    def __init__(self) -> None:  # old stub took no args
+        super().__init__()
+
+
+def get_chat_service() -> ChatService:
+    """Return the process-wide consent-gated chat service."""
+    return chat_service
+
+
+__all__ = ["AIAssistant", "ChatService", "get_chat_service"]

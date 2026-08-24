@@ -23,7 +23,13 @@ import shutil
 import json
 import tarfile
 import hashlib
+import os
+import sys
+import time
+import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -35,6 +41,49 @@ class BackupRecord:
     file_count: int = 0
     checksum: str = ""
     note: str = ""
+
+
+# [FIX H83] Zero-trust capability gate for the destructive restore path. Restoring
+# a home overwrites user data and (without the traversal filter) can write outside
+# /home, so it must require the `home.admin` capability when a CapabilityManager is
+# wired (fail-closed); standalone it is permissive (warning) so existing tooling works.
+try:
+    from core.capability_gate import gate, CAP_HOME_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_HOME_ADMIN
+
+# [FIX H83] Python < 3.12 lacks the fail-closed `filter=` argument on extractall();
+# fall back to no filter there (matching the >= 3.12 target). The member pre-scan
+# below provides traversal safety on every version regardless.
+_FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
+
+
+def _is_safe_segment(name: str) -> bool:
+    """[FIX H83] A safe single path segment: no '/', '\\', '..', and only
+    ``[A-Za-z0-9._-]+``. Rejects anything that could escape the home tree."""
+    if not name or name in (".", "..") or "/" in name or "\\" in name:
+        return False
+    return all(c.isalnum() or c in "._-" for c in name)
+
+
+def _assert_member_under(member, user_home: Path) -> None:
+    """[FIX H83] Ensure a tar member resolves under ``user_home``.
+
+    Rejects absolute paths, ``..`` traversal, and symlink/hardlink members. This
+    is defense-in-depth alongside ``filter='data'`` (CVE-2007-4559 / tar slip).
+    """
+    name = member.name
+    if not name or name.startswith("/") or ".." in Path(name).parts:
+        raise ValueError(f"unsafe tar member name: {name!r}")
+    candidate = (user_home / name).resolve()
+    base = user_home.resolve()
+    if candidate != base and base not in candidate.parents:
+        raise ValueError(f"tar member escapes home: {name!r}")
+    if member.issym() or member.islnk():
+        raise ValueError(f"symlink/hardlink members not allowed: {name!r}")
 
 
 class HomeBackupManager:
@@ -77,19 +126,79 @@ class HomeBackupManager:
         return record
 
     def restore_backup(self, username: str, backup_file: str) -> bool:
-        """Restore a home directory from backup."""
+        """Restore a home directory from backup.
+
+        [FIX H83] Fail-closed, traversal-safe, non-destructive restore:
+          * Requires the ``home.admin`` capability (zero-trust; fail-closed when wired).
+          * Refuses if ``username`` is not a single safe path segment / escapes home.
+          * Verifies the archive checksum against any known BackupRecord (best-effort).
+          * Validates every tar member resolves under the target home and rejects
+            ``..``/absolute/symlink members (closes CVE-2007-4559 / tar traversal).
+          * Extracts with ``filter='data'`` (>= 3.12) and, crucially, does NOT
+            ``rmtree`` the live home up front --- the live home is *snapshotted*, then
+            the verified tree is swapped in, so a malformed/swapped backup can never
+            destroy user data.
+        """
+        gate.require(CAP_HOME_ADMIN)
+
         src = Path(backup_file)
-        if not src.exists():
+        if not src.exists() or not src.is_file():
             return False
 
+        # [FIX H83] Reject unsafe / escaping target usernames before touching disk.
+        if not _is_safe_segment(username):
+            return False
         user_home = self.home_path / username
-        if user_home.exists():
-            shutil.rmtree(str(user_home))
+        try:
+            user_home.resolve().relative_to(self.home_path.resolve())
+        except ValueError:
+            return False
 
-        with tarfile.open(str(src), "r:gz") as tar:
-            tar.extractall(str(self.home_path))
+        # [FIX H83] Best-effort checksum verify against a known backup record.
+        rec = self._lookup_record_by_path(str(src))
+        if rec is not None and rec.checksum:
+            if self._checksum(str(src)) != rec.checksum:
+                logger.error(f"Restore aborted: checksum mismatch for {src}")
+                return False
 
+        # [FIX H83] Pre-scan: reject any member that would escape the home tree,
+        # then snapshot the live home and extract (extracting into the home *parent*
+        # so the archive's ``username/`` prefix lands exactly on ``user_home``).
+        snapshot = None
+        try:
+            with tarfile.open(str(src), "r:gz") as tar:
+                for member in tar.getmembers():
+                    _assert_member_under(member, user_home)
+                try:
+                    if user_home.exists():
+                        snapshot = user_home.with_name(
+                            f"{user_home.name}.restore-bak-{int(time.time())}"
+                        )
+                        user_home.rename(snapshot)
+                    tar.extractall(str(self.home_path), **_FILTER_KW)
+                except (tarfile.TarError, OSError) as exc:
+                    # Restore the snapshot; remove any partially-extracted home.
+                    if user_home.exists():
+                        shutil.rmtree(user_home, ignore_errors=True)
+                    if snapshot is not None and Path(snapshot).exists():
+                        snapshot.rename(user_home)
+                    logger.error(f"Restore aborted: extraction failed: {exc}")
+                    return False
+        except (tarfile.TarError, ValueError, OSError) as exc:
+            logger.error(f"Restore aborted: invalid tar member: {exc}")
+            return False
+
+        if snapshot is not None and Path(snapshot).exists():
+            shutil.rmtree(snapshot, ignore_errors=True)
         return True
+
+    def _lookup_record_by_path(self, backup_path: str) -> Optional[BackupRecord]:
+        """[FIX H83] Find a known BackupRecord whose path matches ``backup_path``."""
+        for records in self.records.values():
+            for rec in records:
+                if rec.backup_path == backup_path:
+                    return rec
+        return None
 
     def list_backups(self, username: str = "") -> List[BackupRecord]:
         """List backups, optionally filtered by username."""

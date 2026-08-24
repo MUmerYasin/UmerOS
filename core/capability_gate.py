@@ -48,6 +48,7 @@ CAP_INSTALL = "install"
 CAP_BACKUP = "srv.backup"          # backup/restore destructive ops (H267)
 CAP_REAPER = "tmp.reap"            # tmp reaper destructive delete (H281)
 CAP_SYS_ADMIN = "sys.admin"        # generic privileged admin (H227, H233, H296, H304)
+CAP_HOME_ADMIN = "home.admin"      # privileged /home mutations: create/remove/restore (H83, H85)
 
 
 class CapabilityGate:

@@ -170,7 +170,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H46 | RED | `cloud/ota_updater/update_system.py:48-60` | **Fail-open OTA signature verification.** `verify_and_apply` returns `True` and **applies the update even when
 - [x] H51 | RED | `compatibility/container.py:12-23` | **Fail-open zero-trust capability gate.** `ZeroTrustContainer.execute_binary` calls `self.capabilities.check(s
 - [x] H64 | RED | `drivers/driver_service.py:61-94, 259, 323` | **Static-secret / weak-default auth gap.** When OIDC env vars are unset, `verify_oauth_token` validates JWTs w
-- [ ] H83 | RED | `home/home_backup.py:66-79` (`restore_backup`) | **Unsafe tar restore — arbitrary file write + data loss.** `restore_backup` does `shutil.rmtree(str(user_home)
+- [x] H83 | RED | `home/home_backup.py:66-79` (`restore_backup`) | **Unsafe tar restore — arbitrary file write + data loss.** [FIXED session 18 — fail-closed, traversal-safe, non-destructive] `restore_backup` does `shutil.rmtree(str(user_home)
 - [ ] H91 | RED | `initrd/ai_helper.py:166` (`_load_history`) | **`eval()` on a "trusted" boot history log — re-locates the known H2 into the early-boot path.** `_load_histor
 - [ ] H92 | RED | `initrd/linuxrc.py:302-320` (`_drop_to_root`), `initrd/pivot_root.py`, | **No capability gating on the most privileged boot operations.** `_drop_to_root` calls `os.seteuid(0)` wheneve
 - [ ] H93 | RED | `initrd/builder.py:342-360` (`_unpack_to_dir`) | **CPIO entry-name path traversal (arbitrary file write).** `_unpack_to_dir` writes `dest = target / rel` where

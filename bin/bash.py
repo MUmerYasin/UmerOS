@@ -14,7 +14,7 @@
 """
 UmerOS /bin/bash - The Bourne Again Shell
 ==========================================
-TLDP /bin: bash is the most important shell in /bin.
+/bin: bash is the most important shell in /bin.
 If /bin/sh is not a true Bourne shell, it must be a hard or symbolic
 link to the real shell command (bash).
 
