@@ -16,7 +16,11 @@ UmerOS /opt Package Management
 
 This module implements the core package management functionality for /opt
 as per Filesystem Hierarchy standards.
+
+License: GPL-3.0
 """
+
+# [FIX H7] Add canonical GPL-3.0 licence tag (repo is GPL-3.0 per LICENSE/setup.py/README).
 
 import os
 import sys

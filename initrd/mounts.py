@@ -19,8 +19,7 @@ the mounted tmpfs: ``mount``-like calls, ``chroot``, populating
 ``/dev`` and bringing up the pseudo filesystems ``/proc`` and ``/sys``.
 
 This module is the missing piece between the in-memory VFS
-(:mod:`initrd.vfs_ops`) and the boot-time contract from the TLDP
-reference.  The TLDP install scenario in particular relies on every
+(:mod:`initrd.vfs_ops`) and the boot-time contract. install scenario in particular relies on every
 one of these:
 
 * 5) linuxrc mounts the "real" root file system

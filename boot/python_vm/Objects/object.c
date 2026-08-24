@@ -547,7 +547,7 @@ PyObject* PyNumber_Float(PyObject *o) {
 PyObject* PyNumber_Index(PyObject *o) {
     if (!o) return NULL;
     if (Py_TYPE(o)->tp_flags & Py_TPFLAGS_LONG_SUBCLASS) { Py_INCREF(o); return o; }
-    PyErr_SetString(PyExc_TypeError, "'%s' object cannot be interpreted as an integer", Py_TYPE(o)->tp_name);
+    PyErr_Format(PyExc_TypeError, "'%s' object cannot be interpreted as an integer", Py_TYPE(o)->tp_name);
     return NULL;
 }
 
@@ -564,8 +564,8 @@ int PyType_Ready(PyTypeObject *type) {
 PyTypeObject* PyType_FromSpec(const char *name, PyTypeObject *base) {
     PyTypeObject *type = (PyTypeObject *)calloc(1, sizeof(PyTypeObject));
     if (!type) return NULL;
-    type->ob_base.ob_refcnt = 1;
-    type->ob_base.ob_type = NULL;
+    type->ob_refcnt = 1;
+    type->ob_type = NULL;
     type->tp_name = name;
     type->tp_basicsize = base ? base->tp_basicsize : sizeof(PyObject);
     type->tp_base = base;

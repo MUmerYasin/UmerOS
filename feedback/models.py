@@ -72,9 +72,9 @@ class FeedbackEntry:
     """
     A structured record of a single community feedback submission.
 
-    Mirrors the TLDP Appendix G specification:
+    Mirrors the Appendix G specification:
       - kind: type of feedback (bug / correction / suggestion / question)
-      - subject_tag: "LHFS" subject heading used by TLDP for email triage
+      - subject_tag: "LHFS" subject heading used for email triage
       - channel: how the feedback was received
     """
     feedback_id: str
@@ -84,7 +84,7 @@ class FeedbackEntry:
     submitter_name: str
     submitter_contact: str          # Email, GitHub handle, or anonymous
     channel: str                    # email, github, mailing_list, matrix
-    subject_tag: str                # e.g. "LHFS" per TLDP spec
+    subject_tag: str                # e.g. "LHFS" 
     component: str                  # Which UmerOS subsystem this relates to
     status: FeedbackStatus = FeedbackStatus.NEW
     priority: FeedbackPriority = FeedbackPriority.MEDIUM

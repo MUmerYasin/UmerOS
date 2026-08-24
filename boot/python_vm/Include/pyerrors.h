@@ -33,11 +33,14 @@ extern PyObject *PyExc_SyntaxError;
 extern PyObject *PyExc_ImportError;
 extern PyObject *PyExc_RecursionError;
 extern PyObject *PyExc_NotImplementedError;
+extern PyObject *PyExc_SystemError;
 
 /* ==================== ERROR INDICATOR ==================== */
 
 extern PyObject *PyErr_Occurred(void);
 extern void      PyErr_Clear(void);
+extern void      PyErr_Print(void);
+extern int       PyErr_ExceptionMatches(PyObject *exc);
 
 extern void PyErr_SetString(PyObject *type, const char *message);
 extern void PyErr_SetObject(PyObject *type, PyObject *value);

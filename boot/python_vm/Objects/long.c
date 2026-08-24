@@ -204,7 +204,3 @@ long PyLong_AsLong(PyObject *op) {
     PyErr_SetString_TypeError("expected int");
     return -1;
 }
-
-int PyLong_Check(PyObject *op) {
-    return (op != NULL && Py_TYPE(op) == &PyLong_Type);
-}

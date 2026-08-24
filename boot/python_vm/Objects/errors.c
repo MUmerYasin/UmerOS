@@ -11,6 +11,11 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+/* ==================== Py_NotImplemented ==================== */
+
+static PyObject _not_implemented_struct = { 1, NULL };
+PyObject *Py_NotImplemented = &_not_implemented_struct;
+
 /* ==================== GLOBAL EXCEPTIONS ==================== */
 
 static PyObject _exc_base_exception       = { 1, NULL };
@@ -31,6 +36,7 @@ static PyObject _exc_syntax_error         = { 1, NULL };
 static PyObject _exc_import_error         = { 1, NULL };
 static PyObject _exc_recursion_error      = { 1, NULL };
 static PyObject _exc_not_implemented_error = { 1, NULL };
+static PyObject _exc_system_error         = { 1, NULL };
 
 PyObject *PyExc_BaseException     = &_exc_base_exception;
 PyObject *PyExc_Exception         = &_exc_exception;
@@ -50,6 +56,7 @@ PyObject *PyExc_SyntaxError       = &_exc_syntax_error;
 PyObject *PyExc_ImportError       = &_exc_import_error;
 PyObject *PyExc_RecursionError    = &_exc_recursion_error;
 PyObject *PyExc_NotImplementedError = &_exc_not_implemented_error;
+PyObject *PyExc_SystemError        = &_exc_system_error;
 
 /* ==================== ERROR INDICATOR ==================== */
 
@@ -103,6 +110,24 @@ void PyErr_SetString_ImportError(const char *msg)  { PyErr_SetString(PyExc_Impor
 void PyErr_SetString_RecursionError(const char *msg) { PyErr_SetString(PyExc_RecursionError, msg); }
 void PyErr_SetString_NotImplementedError(const char *msg) { PyErr_SetString(PyExc_NotImplementedError, msg); }
 
+/* ==================== PRINT & MATCH ==================== */
+
+void PyErr_Print(void) {
+    if (cur_exc_type != NULL) {
+        if (cur_exc_msg[0] != '\0') {
+            const char *name = cur_exc_type->ob_type ? "exception" : "error";
+            fprintf(stderr, "%s: %s\n", name, cur_exc_msg);
+        } else {
+            fprintf(stderr, "SystemError: <exception>\n");
+        }
+        PyErr_Clear();
+    }
+}
+
+int PyErr_ExceptionMatches(PyObject *exc) {
+    return (cur_exc_type == exc);
+}
+
 /* ==================== EXCEPTION CREATION ==================== */
 
 PyObject* PyErr_NewException(const char *name, PyObject *base, PyObject *dict) {
@@ -112,4 +137,11 @@ PyObject* PyErr_NewException(const char *name, PyObject *base, PyObject *dict) {
         exc->ob_refcnt = 1;
     }
     return exc;
+}
+
+/* ==================== INITIALIZATION ==================== */
+
+void PyErrors_Init(void) {
+    /* Set type pointers for exception objects */
+    /* In a real interpreter, these would be type objects; here just NULL placeholder */
 }

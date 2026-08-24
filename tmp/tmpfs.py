@@ -26,9 +26,11 @@ Features:
 * Zero disk I/O overhead for ephemeral process buffers.
 
 Author: UmerOS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0
 """
 
+# [FIX H7] Normalize licence header to canonical "License: GPL-3.0" (drop redundant
+# "GNU General Public License Version 3" parenthetical; repo is GPL-3.0 per LICENSE/setup.py/README).
 from __future__ import annotations
 
 import io

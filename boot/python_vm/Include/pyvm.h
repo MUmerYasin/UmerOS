@@ -37,6 +37,18 @@ extern "C" {
 PyObject* PyEval_EvalFrame(PyFrameObject *frame);
 PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *locals);
 
+/* ==================== FRAME MANAGEMENT ==================== */
+
+PyThreadState* PyThreadState_Get(void);
+PyFrameObject*  PyFrame_New(PyCodeObject *code, PyObject *globals, PyObject *locals);
+void            PyFrame_Free(PyFrameObject *frame);
+void            PyThreadState_PushFrame(PyThreadState *ts, PyFrameObject *f);
+PyFrameObject*  PyThreadState_PopFrame(PyThreadState *ts);
+
+/* ==================== CALL PROTOCOL ==================== */
+
+PyObject* PyObject_Call(PyObject *callable, PyObject *args, PyObject *kwargs);
+
 /* ==================== VM HELPERS ==================== */
 
 static inline void PyErr_SetPending(void) {

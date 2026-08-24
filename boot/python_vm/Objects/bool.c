@@ -169,3 +169,7 @@ void bool_init(void) {
     Py_True->ob_refcnt  = 1000000;
     Py_False->ob_refcnt = 1000000;
 }
+
+void PyBool_Init(void) {
+    bool_init();
+}

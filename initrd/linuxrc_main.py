@@ -18,7 +18,7 @@ Umer OS Initrd /init entry point
 A thin wrapper that lets the initrd boot as a real ``/init`` binary
 inside the unpacked tmpfs.
 
-When the kernel finishes phase 1-3 of the TLDP boot it executes
+When the kernel finishes phase 1-3 of the boot it executes
 ``/init`` (PID 1) with the initrd as its root.  The cpio archive built
 by :mod:`initrd.builder` installs the file ``/usr/lib/umeros/initrd/
 linuxrc_main.py`` plus a symlink ``/linuxrc`` and a ``/init`` shell

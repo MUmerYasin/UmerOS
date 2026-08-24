@@ -15,7 +15,7 @@
 Umer OS Initrd /linuxrc (a.k.a. /init)
 ======================================
 The PID 1 program that runs *inside* the initrd.  Maps one-to-one to
-the eight phases of the TLDP ``/initrd`` reference.
+the eight phases of the ``/initrd`` reference.
 
 This module is the orchestrator: it owns the :class:`PhaseMachine`,
 the :class:`HookManager`, the active :class:`RamDisk`, the
@@ -181,7 +181,7 @@ async def _run_async(ctx: BootContext) -> None:
     log.info("kernel=%s scenario=%s",
              ctx.request.kernel_version, ctx.request.scenario.value)
     log.info("AI helper enabled: %s", ctx.ai.enabled)
-    # TLDP: /linuxrc is run with uid 0.  We try the real setuid
+    # : /linuxrc is run with uid 0.  We try the real setuid
     # first (no-op when already root, harmless when not) and fall
     # back to recording the intended uid for the report.
     ctx.effective_uid = _drop_to_root()
@@ -277,7 +277,7 @@ async def _run_async(ctx: BootContext) -> None:
         await ctx.hooks.run_async(HookPoint.PRE_PIVOT_ROOT, {"ctx": ctx})
         result = pivot_ramdisk_to(ctx.ramdisk, ctx.real_root)
         # "file systems mounted under initrd continue to be accessible"
-        # (TLDP note) - record the carry-over mounts for the report.
+        # (note) - record the carry-over mounts for the report.
         await ctx.hooks.run_async(HookPoint.POST_PIVOT_ROOT, {"ctx": ctx,
                                                               "result": result,
                                                               "carried_mounts":
@@ -295,7 +295,7 @@ async def _run_async(ctx: BootContext) -> None:
     rec = machine.begin_phase(BootPhase.PHASE_8_TEARDOWN)
     await ctx.hooks.run_async(HookPoint.CLEANUP, {"ctx": ctx})
     # Install scenarios may want to save the modified initrd back to
-    # disk ("the image is written from /dev/ram0 to a file" - TLDP).
+    # disk ("the image is written from /dev/ram0 to a file").
     if ctx.save_image_path and ctx.ramdisk.state != RamDiskState.PROBED:
         try:
             ctx.ramdisk.write_snapshot(ctx.save_image_path, archiver="gzip")
@@ -313,7 +313,7 @@ async def _run_async(ctx: BootContext) -> None:
 # ---------------------------------------------------------------------------
 
 def _drop_to_root() -> int:
-    """Try to set the effective uid to 0 (TLDP: ``/linuxrc`` runs as uid 0).
+    """Try to set the effective uid to 0 ( ``/linuxrc`` runs as uid 0).
 
     Returns the resulting effective uid.  In a real kernel this is a
     no-op when the process is already root, and the only way to call

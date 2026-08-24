@@ -16,7 +16,6 @@ static PyObject* builtin_print(PyObject *self, PyObject *args, PyObject *kwargs)
     Py_ssize_t nargs = args ? PyList_Size(args) : 0;
     const char *sep = " ";
     const char *end = "\n";
-    int file_is_stdout = 1;
 
     /* Parse keyword arguments */
     if (kwargs) {
@@ -297,7 +296,7 @@ void PyBuiltins_Init(void) {
     if (builtin_module == NULL) return;
 
     for (BuiltinDef *def = builtin_functions; def->name != NULL; def++) {
-        PyObject *func = PyCFunction_New(def->func, NULL, NULL);
+        PyObject *func = PyCFunction_New(def->func, NULL);
         if (func) {
             PyDict_SetItemString(builtin_module, def->name, func);
         }

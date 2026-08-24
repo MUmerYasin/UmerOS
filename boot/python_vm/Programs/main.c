@@ -18,6 +18,9 @@
 #include "../Include/pyvm.h"
 
 /* Forward declarations */
+extern void PyErrors_Init(void);
+extern void PyBool_Init(void);
+extern void PyNone_Init(void);
 extern void PyBuiltins_Init(void);
 extern PyObject* PyBuiltins_GetDict(void);
 extern PyObject* Py_CompileString(const char *source, const char *filename);
@@ -136,7 +139,7 @@ static void RunREPL(void) {
             } else {
                 PyErr_Print();
             }
-            Py_DECREF(code);
+            Py_DECREF((PyObject *)code);
         } else {
             PyErr_Print();
         }
@@ -173,7 +176,7 @@ static int RunScript(const char *filename) {
     }
 
     PyObject *result = PyEval_EvalCode(code, globals, globals);
-    Py_DECREF(code);
+    Py_DECREF((PyObject *)code);
     Py_DECREF(globals);
 
     if (result) {
@@ -199,7 +202,7 @@ static int RunString(const char *code_str) {
     }
 
     PyObject *result = PyEval_EvalCode(code, globals, globals);
-    Py_DECREF(code);
+    Py_DECREF((PyObject *)code);
     Py_DECREF(globals);
 
     if (result) {

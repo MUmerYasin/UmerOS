@@ -17,7 +17,7 @@ Umer OS Initrd Module Resolver
 Decides which kernel modules must be loaded into the initrd so the
 real root filesystem can be mounted.
 
-The TLDP reference describes three resolution strategies for
+The reference describes three resolution strategies for
 ``/linuxrc``::
 
     2) /linuxrc determines what is needed to (1) mount the "real" root
@@ -200,7 +200,7 @@ class ModuleResolver:
     def autoprobe(self, host_root: str = "/") -> List[ModuleSpec]:
         """Look at ``host_root``'s ``/proc`` and ``/sys`` to guess modules.
 
-        This is the "auto-probing" path from the TLDP reference.  In
+        This is the "auto-probing" path.  In
         UmerOS we can't actually read a real ``/proc`` so the function
         uses lightweight heuristics on file presence:
 

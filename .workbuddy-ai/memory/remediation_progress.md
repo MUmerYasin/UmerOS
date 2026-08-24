@@ -109,11 +109,14 @@ open decision** — confirm before sinking effort into 68 quantum tests.
   * `proc/kernel_adapter.py` `LoadAvgTracker.update` — **seeds `_ema` from the first sample** (the near-zero `dt` on first call made the EMA stay at 0.0, failing `test_update_increases`); `total_threads` still set correctly.
 Test-only drift fixed: `test_proc::test_loadavg` asserted `parts[-1]` (the last PID) contained `/` — the `/` is in `parts[-2]` (running/total); `test_bin::TestArchiveTarCommand.test_archive_tar_no_args` expected rc 0 but `archive.TarCommand` correctly returns 1 (missing operand, asserted by its own `_selftest`) → changed to `assertNotEqual(rc, 0)`. POSIX-only skips added: `TestDfCommand` (whole class — `os.statvfs`) and `TestDdCommand.test_dd_basic` (`/dev/null`).
 
-**ALL PRE-EXISTING FAILING TESTS ARE NOW GREEN.** Full `pytest tests/` = **1688 passed, 54 skipped, 0 failures, 0 errors** (was 80 failing: 68 quantum + ~17 bin/proc, both clusters now reconciled). Remaining work: the **H7 licence sweep** (below), then the **full YELLOW/BLUE sweep** (H1–H307 non-test gaps, zero-trust gating on un-gated privileged paths, etc.).
+**ALL PRE-EXISTING FAILING TESTS ARE NOW GREEN.** Full `pytest tests/` = **1688 passed, 54 skipped, 0 failures, 0 errors** (was 80 failing: 68 quantum + ~17 bin/proc, both clusters now reconciled). Remaining work: the **full YELLOW/BLUE sweep** (H1–H307 non-test gaps, zero-trust gating on un-gated privileged paths, remaining H7 folder strays H183/H200/H269/H278, baseline smells).
 
-Outstanding **H7 licence sweep** (`GPL-3.0 (GNU General Public License Version 3)`→`License: GPL-3.0`) in opt/config.py, opt/var.py,
-opt/package.py, srv/backup.py, packages/umer_pkg.py, tmp/tmpfs.py headers (note `srv/backup.py` still carries
-`Licence: GPL-3.0 (GNU General Public License Version 3)` at line 16 — not yet fixed). Then the **full YELLOW/BLUE sweep** begins.
+✅ **H7 licence sweep — DONE (2026-08-22, session 9).** Normalized the 6 directed files to canonical `License: GPL-3.0`
+(opt/config.py, opt/var.py, opt/package.py, srv/backup.py, packages/umer_pkg.py, tmp/tmpfs.py): dropped the redundant
+`(GNU General Public License Version 3)` parenthetical on the 4 files that carried it, and ADDED the `License: GPL-3.0`
+tag to opt/config.py + opt/package.py (GPL boilerplate present, short tag missing). Every edit carries a `# [FIX H7]`
+comment. The broader H7 *folder* strays (other opt/srv/tmp/packages modules — items H183/H200/H269/H278 partial) stay open
+and are folded into the **full YELLOW/BLUE sweep** below.
 
 ## Checklist
 

@@ -28,7 +28,7 @@ Two flavours of hook are supported:
   predictor.
 
 Hooks are registered against a *hook point* (a named moment during
-the boot process).  Built-in hook points match the TLDP phases::
+the boot process).  Built-in hook points match the phases::
 
     PRE_LOAD            -> before the cpio archive is loaded
     POST_LOAD           -> after the archive is in memory
