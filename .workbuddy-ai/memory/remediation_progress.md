@@ -174,9 +174,9 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [ ] H91 | RED | `initrd/ai_helper.py:166` (`_load_history`) | **`eval()` on a "trusted" boot history log — re-locates the known H2 into the early-boot path.** `_load_histor
 - [ ] H92 | RED | `initrd/linuxrc.py:302-320` (`_drop_to_root`), `initrd/pivot_root.py`, | **No capability gating on the most privileged boot operations.** `_drop_to_root` calls `os.seteuid(0)` wheneve
 - [ ] H93 | RED | `initrd/builder.py:342-360` (`_unpack_to_dir`) | **CPIO entry-name path traversal (arbitrary file write).** `_unpack_to_dir` writes `dest = target / rel` where
-- [ ] H98 | RED | `installer/__init__.py:1`, `installer/install.py`, `installer/installe | **Two divergent `UmerInstaller` classes + wrong package re-export.** `__init__.py` does `from .install import 
-- [ ] H99 | RED | `installer/install.py:45-52` (`display_waiver`) | **Fail-open legal-consent gate.** `display_waiver` returns `True` in `dry_run` mode (the *default* `dry_run=Tr
-- [ ] H101 | RED | `installer/installer.py:350-381` (`rollback`), auto-called at L430/L43 | **Unguarded `shutil.rmtree` rollback (data-loss risk).** `rollback()` does `shutil.rmtree(self._install_root)`
+- [x] H98 | RED | `installer/__init__.py:1`, `installer/install.py`, `installer/installe | **Two divergent `UmerInstaller` classes + wrong package re-export.** `__init__.py` does `from .install import 
+- [x] H99 | RED | `installer/install.py:45-52` (`display_waiver`) | **Fail-open legal-consent gate.** `display_waiver` returns `True` in `dry_run` mode (the *default* `dry_run=Tr
+- [x] H101 | RED | `installer/installer.py:350-381` (`rollback`), auto-called at L430/L43 | **Unguarded `shutil.rmtree` rollback (data-loss risk).** `rollback()` does `shutil.rmtree(self._install_root)`
 - [ ] H110 | RED | `kernel/umer_kernel.py:674-676` | **Live kernel wires no-op placeholder stubs for `MemoryManager`, `IPCBus`, `CapabilityManager`** (`type('X', (
 - [x] H111 | RED | `kernel/umer_kernel.py:429-434` (`CryptoEngine`) | **Dummy crypto — `verify` returns `True` unconditionally, `sign` returns `b"dummy_signature"`** (`encrypt` onl
 - [ ] H112 | RED | `kernel/umer_kernel.py:436-441` (`SecuritySandbox.register_process`) | **`register_process` only stores `{name, fs_root}` and `print`s; performs no sandboxing / fs_root enforcement*
@@ -269,7 +269,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [ ] H69 | YELLOW | `drivers/` (19 of 75 modules) | **19/75 modules lack `from __future__ import annotations`** (incl. `driver_service.py`, `device.py`, `bus.py`,
 - [ ] H71 | YELLOW | `etc/` (license headers) | **License inconsistency.** 28/81 modules carry GPLv3/GPL-3.0 (✓ canonical per H7), but **6/81 say `Licence: Ap
 - [ ] H72 | YELLOW | `etc/pam_config.py:255-257, 1258-1264` | **Weak-auth detector is non-blocking (fail-open).** `_WEAK_PATTERNS` flags `auth sufficient pam_permit.so` and
-- [ ] H73 | YELLOW | `etc/sudoers.py:40-98` (+ whole `etc/` config-writer subsystem) | **Privileged `/etc` writes with no capability gate.** `SudoersManager` writes `/etc/sudoers` + `/etc/sudoers.d
+- [x] H73 | YELLOW | `etc/sudoers.py:40-98` (+ whole `etc/` config-writer subsystem) | **Privileged `/etc` writes with no capability gate — FIXED (session 19):** 3 critical writers gated behind `CAP_FS_ADMIN`; blanket NOPASSWD rejected; host-/etc guard added. `SudoersManager` writes `/etc/sudoers` + `/etc/sudoers.d
 - [ ] H76 | YELLOW | `feedback/__init__.py:33-43` | **Broken package — imports 5 non-existent modules.** `from collector/tracker/channels/gfdl/manager import ...`
 - [ ] H77 | YELLOW | `feedback/__init__.py:21`, `feedback/models.py:14` | **License inconsistency — `Licence: GPL-3.0 (GNU General Public License Version 3)`** on both files (violates H7 GPL-3.0 canonical; adds 2 more Ap
 - [ ] H80 | YELLOW | `fs/vfs.py:69-71, write_file`, `fs/qfs.py:QFS.write_file/delete_file/s | **No capability gating on VFS/QFS mutations.** Every filesystem-mutating entry point (`VirtualFileSystem.write
@@ -282,7 +282,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [ ] H94 | YELLOW | `initrd/ai_helper.py:155`, `initrd/__main__.py:66` | **Dynamic `__import__` by name.** `_try_import(name)` returns `__import__(name)` (name from a fixed `("qiskit"
 - [ ] H95 | YELLOW | `initrd/` (all 17 modules) | **License inconsistency — `GPL-3.0 (GNU General Public License Version 3)` on all 17 files** (violates H7 GPL-3.0 canonical; adds 17 Apac
 - [ ] H97 | YELLOW | `initrd/builder.py:290/305`, `initrd/ai_helper.py:133/135/243`, `initr | **Hash strength below the design mandate.** Image hashes (`hashlib.sha256(raw)`/`sha256(final_bytes)`), AI ent
-- [ ] H100 | YELLOW | `installer/installer.py:385-404` (`run(consent_override=...)`) | **Unguarded programmatic EULA bypass.** `run(consent_override=True)` skips `show_eula()` entirely ("for testin
+- [x] H100 | YELLOW | `installer/installer.py:385-404` (`run(consent_override=...)`) |**Unguarded programmatic EULA bypass.** `run(consent_override=True)` skips `show_eula()` entirely ("for testin
 - [ ] H102 | YELLOW | `installer/installer.py` (`backup_bootloader`/`copy_os_files`/`install | **No capability gating on privileged install ops.** The installer writes to `/opt/umer_os`, `/opt/umer_backup`
 - [ ] H103 | YELLOW | `installer/installer.py:258-295` (`copy_os_files`) | **No `_safe_join` / `..` canonicalization on copy destinations.** `dst_path = os.path.join(dst, os.path.relpat
 - [ ] H104 | YELLOW | `installer/installer.py:25`, `installer/install.py` (no header), `inst | **License inconsistency (H7).** `installer.py` declares `Licence: GPL-3.0 (GNU General Public License Version 3)` (non-canonical); `install.py` an

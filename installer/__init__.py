@@ -11,4 +11,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .install import UmerInstaller
+# [FIX H98] Re-export the real, feature-complete installer (installer.py), not the
+# dead non-functional stub (install.py), so `from installer import UmerInstaller`
+# returns the canonical class. (The stub was deleted — see H98/H106.)
+from .installer import UmerInstaller

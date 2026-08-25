@@ -9,6 +9,7 @@
  *           if/elif/else, while, for, def, class, imports, try/except.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "../Include/umeros_python.h"
@@ -369,8 +370,12 @@ static int GetTokenType(const char *s) {
 
 /* Simple token reading - returns token type */
 static int Parser_NextToken(Parser *parser) {
+    int result = TOKEN_ERROR; /* default for unmatched paths */
     Lexer_SkipWhitespace(parser->lexer);
-    if (parser->lexer->pos >= parser->lexer->length) return TOKEN_ENDMARKER;
+    if (parser->lexer->pos >= parser->lexer->length) {
+        result = TOKEN_ENDMARKER;
+        goto out;
+    }
 
     char c = Lexer_Peek(parser->lexer);
 
@@ -380,9 +385,11 @@ static int Parser_NextToken(Parser *parser) {
         if (str) {
             if (parser->current_token) Py_DECREF(parser->current_token);
             parser->current_token = str;
-            return TOKEN_STRING;
+            result = TOKEN_STRING;
+            goto out;
         }
-        return TOKEN_ERROR;
+        result = TOKEN_ERROR;
+        goto out;
     }
 
     /* Number */
@@ -390,7 +397,8 @@ static int Parser_NextToken(Parser *parser) {
         PyObject *num = Lexer_ReadNumber(parser->lexer);
         if (parser->current_token) Py_DECREF(parser->current_token);
         parser->current_token = num;
-        return PyFloat_Check(num) ? TOKEN_NUMBER : TOKEN_NUMBER;
+        result = TOKEN_NUMBER;
+        goto out;
     }
 
     /* Name or keyword */
@@ -399,58 +407,63 @@ static int Parser_NextToken(Parser *parser) {
         if (parser->current_token) Py_DECREF(parser->current_token);
         parser->current_token = name;
         const char *s = PyUnicode_AsString(name);
-        return GetTokenType(s);
+        result = GetTokenType(s);
+        goto out;
     }
 
     /* Operators and delimiters */
     Lexer_Advance(parser->lexer);
     switch (c) {
-        case '(': return TOKEN_LPAREN;
-        case ')': return TOKEN_RPAREN;
-        case '[': return TOKEN_LBRACKET;
-        case ']': return TOKEN_RBRACKET;
-        case '{': return TOKEN_LBRACE;
-        case '}': return TOKEN_RBRACE;
-        case ',': return TOKEN_COMMA;
-        case ':': return TOKEN_COLON;
-        case '.': return TOKEN_DOT;
-        case ';': return TOKEN_SEMICOLON;
-        case '@': return TOKEN_AT;
+        case '(': result = TOKEN_LPAREN; goto out;
+        case ')': result = TOKEN_RPAREN; goto out;
+        case '[': result = TOKEN_LBRACKET; goto out;
+        case ']': result = TOKEN_RBRACKET; goto out;
+        case '{': result = TOKEN_LBRACE; goto out;
+        case '}': result = TOKEN_RBRACE; goto out;
+        case ',': result = TOKEN_COMMA; goto out;
+        case ':': result = TOKEN_COLON; goto out;
+        case '.': result = TOKEN_DOT; goto out;
+        case ';': result = TOKEN_SEMICOLON; goto out;
+        case '@': result = TOKEN_AT; goto out;
         case '+':
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_PLUSEQUAL; }
-            return TOKEN_PLUS;
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_PLUSEQUAL; goto out; }
+            result = TOKEN_PLUS; goto out;
         case '-':
-            if (Lexer_Peek(parser->lexer) == '>') { Lexer_Advance(parser->lexer); return TOKEN_ARROW; }
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_MINEQUAL; }
-            return TOKEN_MINUS;
+            if (Lexer_Peek(parser->lexer) == '>') { Lexer_Advance(parser->lexer); result = TOKEN_ARROW; goto out; }
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_MINEQUAL; goto out; }
+            result = TOKEN_MINUS; goto out;
         case '*':
-            if (Lexer_Peek(parser->lexer) == '*') { Lexer_Advance(parser->lexer); return TOKEN_DOUBLESTAR; }
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_STAREQUAL; }
-            return TOKEN_STAR;
+            if (Lexer_Peek(parser->lexer) == '*') { Lexer_Advance(parser->lexer); result = TOKEN_DOUBLESTAR; goto out; }
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_STAREQUAL; goto out; }
+            result = TOKEN_STAR; goto out;
         case '/':
-            if (Lexer_Peek(parser->lexer) == '/') { Lexer_Advance(parser->lexer); return TOKEN_DOUBLESLASH; }
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_SLASHEQUAL; }
-            return TOKEN_SLASH;
+            if (Lexer_Peek(parser->lexer) == '/') { Lexer_Advance(parser->lexer); result = TOKEN_DOUBLESLASH; goto out; }
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_SLASHEQUAL; goto out; }
+            result = TOKEN_SLASH; goto out;
         case '%':
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_PERCENTEQUAL; }
-            return TOKEN_PERCENT;
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_PERCENTEQUAL; goto out; }
+            result = TOKEN_PERCENT; goto out;
         case '=':
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_EQEQ; }
-            return TOKEN_EQ;
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_EQEQ; goto out; }
+            result = TOKEN_EQ; goto out;
         case '!':
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_NOTEQ; }
-            return TOKEN_ERROR;
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_NOTEQ; goto out; }
+            result = TOKEN_ERROR; goto out;
         case '<':
-            if (Lexer_Peek(parser->lexer) == '<') { Lexer_Advance(parser->lexer); return TOKEN_LSHIFT; }
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_LE; }
-            return TOKEN_LT;
+            if (Lexer_Peek(parser->lexer) == '<') { Lexer_Advance(parser->lexer); result = TOKEN_LSHIFT; goto out; }
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_LE; goto out; }
+            result = TOKEN_LT; goto out;
         case '>':
-            if (Lexer_Peek(parser->lexer) == '>') { Lexer_Advance(parser->lexer); return TOKEN_RSHIFT; }
-            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); return TOKEN_GE; }
-            return TOKEN_GT;
-        case '\n': return TOKEN_NL;
-        default: return TOKEN_ERROR;
+            if (Lexer_Peek(parser->lexer) == '>') { Lexer_Advance(parser->lexer); result = TOKEN_RSHIFT; goto out; }
+            if (Lexer_Peek(parser->lexer) == '=') { Lexer_Advance(parser->lexer); result = TOKEN_GE; goto out; }
+            result = TOKEN_GT; goto out;
+        case '\n': result = TOKEN_NL; goto out;
+        default: result = TOKEN_ERROR; goto out;
     }
+
+out:
+    parser->token_type = result;
+    return result;
 }
 
 /* Parse and compile an expression, emitting bytecode */
@@ -642,40 +655,79 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
 
 /* Compile source code to bytecode */
 PyObject* Py_CompileString(const char *source, const char *filename) {
+    fprintf(stderr, "[DBG] Py_CompileString entered, source='%s'\n", source);
+    fflush(stderr);
+
     Py_ssize_t length = strlen(source);
+    fprintf(stderr, "[DBG] Py_CompileString: length=%d\n", (int)length);
+    fflush(stderr);
 
+    fprintf(stderr, "[DBG] Py_CompileString: creating Lexer\n");
+    fflush(stderr);
     Lexer *lexer = Lexer_New(source, length);
-    if (!lexer) return NULL;
+    if (!lexer) {
+        fprintf(stderr, "[DBG] Py_CompileString: Lexer_New failed\n");
+        fflush(stderr);
+        return NULL;
+    }
+    fprintf(stderr, "[DBG] Py_CompileString: Lexer created OK\n");
+    fflush(stderr);
 
+    fprintf(stderr, "[DBG] Py_CompileString: creating Parser\n");
+    fflush(stderr);
     Parser *parser = Parser_New(lexer);
     if (!parser) {
+        fprintf(stderr, "[DBG] Py_CompileString: Parser_New failed\n");
+        fflush(stderr);
         Lexer_Free(lexer);
         return NULL;
     }
+    fprintf(stderr, "[DBG] Py_CompileString: Parser created OK\n");
+    fflush(stderr);
 
+    fprintf(stderr, "[DBG] Py_CompileString: creating Compiler\n");
+    fflush(stderr);
     Compiler *compiler = Compiler_New();
     if (!compiler) {
+        fprintf(stderr, "[DBG] Py_CompileString: Compiler_New failed\n");
+        fflush(stderr);
         Parser_Free(parser);
         Lexer_Free(lexer);
         return NULL;
     }
+    fprintf(stderr, "[DBG] Py_CompileString: Compiler created OK\n");
+    fflush(stderr);
 
     /* Compile all statements */
+    fprintf(stderr, "[DBG] Py_CompileString: starting compile loop\n");
+    fflush(stderr);
     while (1) {
         int token = Parser_NextToken(parser);
         parser->token_type = token;
+        fprintf(stderr, "[DBG] Py_CompileString: token=%d\n", token);
+        fflush(stderr);
 
         if (token == TOKEN_ENDMARKER) break;
 
         Compile_Statement(compiler, parser);
     }
+    fprintf(stderr, "[DBG] Py_CompileString: compile loop done\n");
+    fflush(stderr);
 
     /* Add return None at end */
     int none_idx = Compiler_AddConstant(compiler, Py_None);
     Compiler_Emit(compiler, OP_LOAD_CONST, none_idx);
     Compiler_Emit(compiler, OP_RETURN_VALUE, 0);
 
+    fprintf(stderr, "[DBG] Py_CompileString: calling Compiler_MakeCode\n");
+    fflush(stderr);
     PyCodeObject *code = Compiler_MakeCode(compiler);
+    fprintf(stderr, "[DBG] Py_CompileString: Compiler_MakeCode returned %p\n", (void*)code);
+    if (code) {
+        fprintf(stderr, "[DBG] Py_CompileString: bytecode=%p code_size=%d n_consts=%d\n",
+                (void*)code->code, (int)code->code_size, code->n_consts);
+    }
+    fflush(stderr);
 
     Compiler_Free(compiler);
     Parser_Free(parser);

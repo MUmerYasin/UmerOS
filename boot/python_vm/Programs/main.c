@@ -150,32 +150,63 @@ static void RunREPL(void) {
 
 /* Execute a script file */
 static int RunScript(const char *filename) {
+    fprintf(stderr, "[DBG] RunScript entered, filename='%s'\n", filename);
+    fflush(stderr);
+
     Py_ssize_t length;
     char *source = ReadFile(filename, &length);
-    if (!source) return 1;
+    if (!source) {
+        fprintf(stderr, "[DBG] RunScript: ReadFile returned NULL\n");
+        fflush(stderr);
+        return 1;
+    }
+    fprintf(stderr, "[DBG] RunScript: file read OK, length=%d\n", (int)length);
+    fflush(stderr);
 
+    fprintf(stderr, "[DBG] RunScript: creating globals dict\n");
+    fflush(stderr);
     PyObject *globals = PyDict_New();
+    fprintf(stderr, "[DBG] RunScript: getting builtins dict\n");
+    fflush(stderr);
     PyObject *builtins = PyBuiltins_GetDict();
+    fprintf(stderr, "[DBG] RunScript: setting __builtins__\n");
+    fflush(stderr);
     PyDict_SetItemString(globals, "__builtins__", builtins);
 
-    /* Set __name__ to '__main__' */
+    fprintf(stderr, "[DBG] RunScript: setting __name__\n");
+    fflush(stderr);
     PyDict_SetItemString(globals, "__name__",
                          PyUnicode_FromString("__main__"));
 
-    /* Set __file__ */
+    fprintf(stderr, "[DBG] RunScript: setting __file__\n");
+    fflush(stderr);
     PyDict_SetItemString(globals, "__file__",
                          PyUnicode_FromString(filename));
 
+    fprintf(stderr, "[DBG] RunScript: calling Py_CompileString\n");
+    fflush(stderr);
     PyCodeObject *code = (PyCodeObject *)Py_CompileString(source, filename);
     free(source);
+    fprintf(stderr, "[DBG] RunScript: Py_CompileString returned %p\n", (void*)code);
+    fflush(stderr);
 
     if (!code) {
+        fprintf(stderr, "[DBG] RunScript: compile failed, printing error\n");
+        fflush(stderr);
         PyErr_Print();
         Py_DECREF(globals);
         return 1;
     }
 
+    fprintf(stderr, "[DBG] RunScript: bytecode=%p, code_size=%d, n_consts=%d\n",
+            (void*)code->code, (int)code->code_size, code->n_consts);
+    fflush(stderr);
+
+    fprintf(stderr, "[DBG] RunScript: calling PyEval_EvalCode\n");
+    fflush(stderr);
     PyObject *result = PyEval_EvalCode(code, globals, globals);
+    fprintf(stderr, "[DBG] RunScript: PyEval_EvalCode returned %p\n", (void*)result);
+    fflush(stderr);
     Py_DECREF((PyObject *)code);
     Py_DECREF(globals);
 

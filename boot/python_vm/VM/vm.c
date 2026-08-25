@@ -356,6 +356,9 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
 
 /* Execute a code object */
 PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *locals) {
+    fprintf(stderr, "[DBG] PyEval_EvalCode entered, code=%p\n", (void*)code);
+    fflush(stderr);
+
     if (!globals) {
         globals = PyDict_New();
     }
@@ -365,8 +368,12 @@ PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *local
     } else {
         Py_INCREF(locals);
     }
+    fprintf(stderr, "[DBG] PyEval_EvalCode: creating frame\n");
+    fflush(stderr);
 
     PyFrameObject *frame = PyFrame_New(code, globals, locals);
+    fprintf(stderr, "[DBG] PyEval_EvalCode: frame=%p\n", (void*)frame);
+    fflush(stderr);
     if (!frame) {
         Py_DECREF(locals);
         return NULL;
@@ -375,7 +382,11 @@ PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *local
     PyThreadState *tstate = PyThreadState_Get();
     PyThreadState_PushFrame(tstate, frame);
 
+    fprintf(stderr, "[DBG] PyEval_EvalCode: calling PyEval_EvalFrame\n");
+    fflush(stderr);
     PyObject *result = PyEval_EvalFrame(frame);
+    fprintf(stderr, "[DBG] PyEval_EvalCode: EvalFrame returned %p\n", (void*)result);
+    fflush(stderr);
 
     PyThreadState_PopFrame(tstate);
     Py_DECREF(locals);

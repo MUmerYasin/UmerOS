@@ -11,3 +11,9 @@
 104	229	8092653446889425	CMakeFiles/umeros_python.dir/Builtins/builtins.c.obj	8f059a78c7970061
 193	251	8092653447787789	CMakeFiles/umeros_python.dir/Programs/main.c.obj	813c4a408faad35d
 251	481	8092653448363606	umeros_python.exe	a5058bef741ba400
+80	768	8093480560680817	CMakeFiles/umeros_python.dir/Compiler/compiler.c.obj	b3d29d2ca9c1cdcc
+768	1116	8093480567567764	umeros_python.exe	a5058bef741ba400
+71	609	8093575827065750	CMakeFiles/umeros_python.dir/VM/vm.c.obj	c50e14a5b3cd35ab
+50	505	8093582070427015	CMakeFiles/umeros_python.dir/Programs/main.c.obj	813c4a408faad35d
+42	532	8093582070357007	CMakeFiles/umeros_python.dir/Compiler/compiler.c.obj	b3d29d2ca9c1cdcc
+532	1267	8093582075246950	umeros_python.exe	a5058bef741ba400
