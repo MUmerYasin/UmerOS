@@ -59,6 +59,12 @@ def create_parser() -> argparse.ArgumentParser:
     con_p = subparsers.add_parser("consent", help="Grant and record explicit legal consent")
     con_p.add_argument("key", nargs="?", default="general", help="Disclaimer key")
     con_p.add_argument("--user", help="Username granting consent")
+    con_p.add_argument(
+        "--i-agree",
+        action="store_true",
+        help="Explicitly assert you have read and accept the liability waiver "
+             "(required for non-interactive use; consent is never auto-granted)",
+    )
 
     # verify
     ver_p = subparsers.add_parser("verify", help="Verify if valid consent exists")
@@ -113,6 +119,26 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     elif args.command == "consent":
+        # [FIX H135] Never auto-grant consent. Require an explicit --i-agree flag
+        # (out-of-band assertion) or real interactive 'I AGREE' input on a TTY.
+        if not getattr(args, "i_agree", False):
+            if sys.stdin.isatty():
+                notice = mgr.disclaimers.get_notice(args.key)
+                print("\n" + "=" * 65)
+                print(f"       {notice.title.upper()}")
+                print("=" * 65)
+                print(notice.full_text)
+                print("=" * 65)
+                resp = input("Type 'I AGREE' to accept and proceed: ").strip()
+                if resp.upper() != "I AGREE":
+                    print("✗ Consent declined. Operation aborted.\n")
+                    return 1
+            else:
+                print("[CONSENT] Refusing to grant consent non-interactively without --i-agree.",
+                      file=sys.stderr)
+                print("          Re-run on a terminal and type 'I AGREE', or pass --i-agree to "
+                      "assert acceptance.", file=sys.stderr)
+                return 1
         rec = mgr.consent.grant_consent(
             disclaimer_key=args.key,
             user_response="I AGREE",

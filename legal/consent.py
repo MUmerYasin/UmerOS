@@ -171,33 +171,55 @@ class ConsentManager:
         self,
         disclaimer_key: str = "installer",
         dry_run: bool = False,
+        allow_non_interactive: bool = False,
     ) -> bool:
         """
-        Interactive consent gate prompt.
+        Interactive legal-consent gate (FAIL-CLOSED).
+
+        Consent is granted ONLY when one of:
+          * the user is on a TTY and explicitly types "I AGREE", or
+          * `allow_non_interactive=True` is passed by a caller that has already
+            obtained consent out-of-band (e.g. a CI job given `--i-agree`).
+
+        It NEVER auto-grants in dry-run or non-TTY environments — that would
+        bypass the mandatory liability-waiver gate (same fail-open family as
+        H29/H99). The default `allow_non_interactive=False` keeps it closed.
         """
         notice = DisclaimerRegistry.get_notice(disclaimer_key)
 
-        print("\n" + "=" * 65)
-        print(f"       {notice.title.upper()}")
-        print("=" * 65)
-        print(notice.full_text)
-        print("=" * 65 + "\n")
-
         if dry_run:
-            print("[CONSENT] Dry-run mode: Automatically simulating agreement.")
-            return True
+            # [FIX H131] Dry-run simulates the flow but MUST NOT record legal consent.
+            print("\n" + "=" * 65)
+            print(f"       {notice.title.upper()} (DRY-RUN — no consent recorded)")
+            print("=" * 65)
+            print(notice.full_text)
+            print("=" * 65)
+            print("[CONSENT] Dry-run mode: NO consent was granted. Re-run without --dry-run to grant.\n")
+            return False
 
         if sys.stdin.isatty():
+            print("\n" + "=" * 65)
+            print(f"       {notice.title.upper()}")
+            print("=" * 65)
+            print(notice.full_text)
+            print("=" * 65 + "\n")
             resp = input("Type 'I AGREE' to accept and proceed: ").strip()
             if resp.upper() == "I AGREE":
                 self.grant_consent(disclaimer_key=disclaimer_key, user_response="I AGREE")
                 print("✓ Legal consent recorded successfully.\n")
                 return True
-            else:
-                print("✗ Consent declined. Operation aborted.\n")
-                return False
+            print("✗ Consent declined. Operation aborted.\n")
+            return False
 
-        # In non-interactive automated test environments
+        # [FIX H131] Non-interactive / headless: fail CLOSED. Auto-granting the
+        # liability waiver in automation is the exact bypass this gate exists to
+        # prevent. Require explicit opt-in, otherwise abort with a clear error.
+        if not allow_non_interactive:
+            raise ConsentGateError(
+                f"Refusing to grant consent for '{disclaimer_key}' non-interactively. "
+                "A TTY is required to capture an explicit 'I AGREE', or pass "
+                "allow_non_interactive=True when consent was obtained out-of-band."
+            )
         self.grant_consent(disclaimer_key=disclaimer_key, user_response="I AGREE")
         return True
 

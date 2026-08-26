@@ -239,7 +239,7 @@ def test_legal_manager_and_cli() -> bool:
         assert cli_main(["contributors"]) == 0
         assert cli_main(["donations"]) == 0
         assert cli_main(["maintainers"]) == 0
-        assert cli_main(["consent", "general", "--user", "test_user"]) == 0
+        assert cli_main(["consent", "general", "--user", "test_user", "--i-agree"]) == 0
         assert cli_main(["verify", "general"]) == 0
 
         print("[OK] LegalManager master coordinator and CLI commands executed successfully.")

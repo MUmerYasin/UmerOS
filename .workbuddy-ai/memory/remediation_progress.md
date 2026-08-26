@@ -180,11 +180,11 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H110 | RED | `kernel/umer_kernel.py:674-676` | **Live kernel wires no-op placeholder stubs for `MemoryManager`, `IPCBus`, `CapabilityManager`** (`type('X', ( - **FIXED (session 22):** real MemoryManager/IPCBus/CapabilityManager wired into UmerKernel.__init__ (replacing the no-op type(...) placeholders); SYSTEM_PID=0 omnipotent, init granted a minimal cap set. The correct wiring was commented out at L1622-1624.
 - [x] H111 | RED | `kernel/umer_kernel.py:429-434` (`CryptoEngine`) | **Dummy crypto — `verify` returns `True` unconditionally, `sign` returns `b"dummy_signature"`** (`encrypt` onl
 - [x] H112 | RED | `kernel/umer_kernel.py:436-441` (`SecuritySandbox.register_process`) | **`register_process` only stores `{name, fs_root}` and `print`s; performs no sandboxing / fs_root enforcement* - **FIXED (session 22):** SecuritySandbox.register_process now enforces fs_root containment via core.path_guard.safe_join (fail-closed; escapes raise SecurityViolation); empty fs_root rejected. No longer a decorative print-only gate (H51 family).
-- [ ] H128 | RED | `legal/licenses.py:8-13,72-73` + `README.md:40` | **License framework contradicts the adopted H7 → GPL-3.0 canonical decision** — `licenses.py` docstring + `get
+- [x] H128 | RED | `legal/licenses.py:8-13,72-73` + `README.md:40` | **License framework contradicts the adopted H7 → GPL-3.0 canonical decision** — `licenses.py` docstring + `get
 - [x] H129 | RED | `legal/licenses.py:100-119` | **Fail-open license compliance audit** — `scan_directory` counts any file containing "Licence"/"License"/"Copy
-- [ ] H130 | RED | `legal/licenses.py:72-73` | **`get_license_text(name)` silently returns Apache-2.0 text for any unknown name, incl. "GPL-3.0"** — there is
-- [ ] H131 | RED | `legal/consent.py:173-189` | **`require_consent_interactive` fails OPEN** — auto-grants in `dry_run` (L173-175) and, in any non-interactive
-- [ ] H135 | RED | `legal/cli.py:101-105` + `test_legal.py:229` | **`consent` CLI subcommand hardcodes `user_response="I AGREE"`** → `python -m legal.cli consent` auto-grants c
+- [x] H130 | RED | `legal/licenses.py:72-73` | **`get_license_text(name)` silently returns Apache-2.0 text for any unknown name, incl. "GPL-3.0"** — there is
+- [x] H131 | RED | `legal/consent.py:173-189` | **`require_consent_interactive` fails OPEN** — auto-grants in `dry_run` (L173-175) and, in any non-interactive
+- [x] H135 | RED | `legal/cli.py:101-105` + `test_legal.py:229` | **`consent` CLI subcommand hardcodes `user_response="I AGREE"`** → `python -m legal.cli consent` auto-grants c
 - [x] H146 | RED | `lib/ssl_libs.py:414-427,225-245` | **CA trust verification is fail-open** — `_check_is_trusted` returns `True` whenever ANY `ca-certificates.crt`
 - [ ] H147 | RED | `lib/ssl_libs.py:82-92` | **Certificate expiry is never enforced** — `CertInfo.is_expired` unconditionally returns `False` (L83-87) and 
 - [x] H152 | RED | `quantum/crypto_pqc.py:36-46` | **Silent classical-crypto fallback** - when `liboqs-python` is missing, PQC sign/verify silently falls back to

@@ -233,6 +233,10 @@ class DevService {
       const DeviceNodeModel(name: 'ptp0', path: '/dev/ptp0', devType: DevType.char, major: 247, minor: 0, mode: 384, description: 'PTP hardware clock'),
       const DeviceNodeModel(name: 'rfkill', path: '/dev/rfkill', devType: DevType.char, major: 10, minor: 59, mode: 432, description: 'Radio kill switch multiplexer'),
       const DeviceNodeModel(name: 'mctl', path: '/dev/mctl', devType: DevType.char, major: 10, minor: 240, mode: 384, description: 'Mediated device control (vGPU style)'),
+      const DeviceNodeModel(name: 'kmsg', path: '/dev/kmsg', devType: DevType.char, major: 1, minor: 11, mode: 416, description: 'printk structured ring buffer'),
+      const DeviceNodeModel(name: 'rtc0', path: '/dev/rtc0', devType: DevType.char, major: 254, minor: 0, mode: 384, description: 'Real-time clock with wakealarm'),
+      const DeviceNodeModel(name: 'usbmon0', path: '/dev/usbmon0', devType: DevType.char, major: 10, minor: 54, mode: 384, description: 'USB monitor - all buses'),
+      const DeviceNodeModel(name: 'iio:device0', path: '/dev/iio:device0', devType: DevType.char, major: 242, minor: 0, mode: 432, description: 'Industrial I/O sensor buffer'),
     ];
     return list..sort((a, b) => a.path.compareTo(b.path));
   }
@@ -385,6 +389,48 @@ class DevService {
       summary: 'Allowlist evaluated at create time: stdio/tty/null-family allowed, everything else denied.',
       icon: Icons.policy,
     ),
+    ModernTech(
+      name: 'ioctl _IOC encoding',
+      nodePath: 'asm-generic/ioctl.h',
+      kernelSince: 'ABI classic',
+      summary: 'dir(2b)<<30 | size(14b)<<16 | type(8b)<<8 | nr(8b) — decode any raw command with _IOR/_IOW/_IOWR semantics.',
+      icon: Icons.calculate,
+    ),
+    ModernTech(
+      name: '/dev/kmsg structured log',
+      nodePath: '/dev/kmsg',
+      kernelSince: 'k3.5',
+      summary: '"prio,seq,usec,flags;msg" records with KEY=value continuations; per-reader cursors, EAGAIN/EPIPE rules.',
+      icon: Icons.article,
+    ),
+    ModernTech(
+      name: 'usbmon URB tracing',
+      nodePath: '/dev/usbmon0',
+      kernelSince: 'k2.6+',
+      summary: '64-byte binary event headers (S/C/E × Bi/Bo/Ci/Ii/Zi), MON_IOC magic 0x92, mon_bin_stats.',
+      icon: Icons.wifi_tethering,
+    ),
+    ModernTech(
+      name: 'IIO triggered buffers',
+      nodePath: '/dev/iio:device0',
+      kernelSince: 'k3.x',
+      summary: 'Multi-channel continuous capture with scan_elements ("le:s16/32>>0") and int64 sample timestamps.',
+      icon: Icons.sensors,
+    ),
+    ModernTech(
+      name: 'LOOP_CONFIGURE + resize',
+      nodePath: 'loop ioctl 0x4C22',
+      kernelSince: 'k5.0',
+      summary: 'Single-shot loop setup replacing 3 old ioctls, plus LOOP_SET_CAPACITY online grow.',
+      icon: Icons.settings_backup_restore,
+    ),
+    ModernTech(
+      name: 'TUN multiqueue',
+      nodePath: 'TUNSETQUEUE',
+      kernelSince: 'k3.8',
+      summary: 'Per-queue enable/disable for multiqueue virtio-net backends; persistent taps via TUNSETPERSIST.',
+      icon: Icons.lan,
+    ),
   ];
 
   static UdevResult udevadm(List<String> args) {
@@ -499,4 +545,53 @@ class DevService {
       stdout: 'created /dev/$name ($t${major != null && minor != null ? ' $major:$minor' : ''})\n',
     );
   }
+}
+
+class IoctlInfo {
+  final int raw;
+  final String hex;
+  final String direction;
+  final int size;
+  final String typeChar;
+  final int nr;
+  final String macro;
+  final String magicNote;
+
+  const IoctlInfo({
+    required this.raw,
+    required this.hex,
+    required this.direction,
+    required this.size,
+    required this.typeChar,
+    required this.nr,
+    required this.macro,
+    required this.magicNote,
+  });
+}
+
+IoctlInfo? decodeIoctl(int cmd) {
+  if (cmd < 0 || cmd > 0xFFFFFFFF) return null;
+  const sizeMask = (1 << 14) - 1;
+  final dir = (cmd >> 30) & 0x3;
+  final size = (cmd >> 16) & sizeMask;
+  final type = (cmd >> 8) & 0xFF;
+  final nr = cmd & 0xFF;
+  const dirNames = {0: '_IO', 1: '_IOW', 2: '_IOR', 3: '_IOWR'};
+  const magicNotes = {
+    0x54: "'T' tty", 0x73: "'s' serial", 0x92: 'MON_IOC usbmon',
+    0xB7: "'W' watchdog", 0x03: 'HDIO', 0x12: 'SCSI_IOCTL',
+    0x94: 'btrfs', 0xAE: 'VFIO', 0x3D: "'=' loop", 0x46: "'F' fbdev",
+    0x56: "'V' video4linux", 0x4C: "'L' dm",
+  };
+  final tc = (type >= 32 && type < 127) ? String.fromCharCode(type) : '$type';
+  return IoctlInfo(
+    raw: cmd,
+    hex: '0x${cmd.toRadixString(16).padLeft(8, '0')}',
+    direction: dirNames[dir]!,
+    size: size,
+    typeChar: tc,
+    nr: nr,
+    macro: '${dirNames[dir]}($tc, $nr, $size)',
+    magicNote: magicNotes[type] ?? 'unknown magic',
+  );
 }

@@ -154,6 +154,14 @@ from dev.udev_modern import (
     SystemdDeviceUnits, MknodPolicy,
 )
 
+# Device-I/O internals (round two): ioctl codec, kmsg, rtc, usbmon, iio,
+# modern loop/TUN management.
+from dev.ioctl_codec import IoctlCodec
+from dev.kmsg_rtc import KmsgRing, RtcWakeDevice
+from dev.io_subsystems import (
+    UsbmonTracer, IioBufferDevice, LoopModernOps, TunModernOps,
+)
+
 __all__ = [
     # Core
     "DeviceType", "DeviceNode", "DeviceManager", "get_device_manager",
@@ -208,4 +216,6 @@ __all__ = [
     "UsbGadgetDevice", "NvmeGenericDevice", "PtpClockDevice", "RfKillDevice",
     "UeventNetlinkMonitor", "DeviceTagRegistry", "PredictableNamingPolicy",
     "SystemdDeviceUnits", "MknodPolicy",
+    "IoctlCodec", "KmsgRing", "RtcWakeDevice",
+    "UsbmonTracer", "IioBufferDevice", "LoopModernOps", "TunModernOps",
 ]

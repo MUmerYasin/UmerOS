@@ -18,6 +18,7 @@ class _DevAppState extends State<DevApp> {
 
   final TextEditingController _cmdController =
       TextEditingController(text: 'udevadm info /dev/null');
+  final TextEditingController _ioctlController = TextEditingController();
   final ScrollController _consoleScroll = ScrollController();
   final List<UdevResult> _history = [];
 
@@ -32,6 +33,7 @@ class _DevAppState extends State<DevApp> {
   @override
   void dispose() {
     _cmdController.dispose();
+    _ioctlController.dispose();
     _consoleScroll.dispose();
     super.dispose();
   }
@@ -738,7 +740,83 @@ class _DevAppState extends State<DevApp> {
           ),
         ),
         const SizedBox(height: 12),
+        _buildIoctlDecoder(colorScheme, textTheme),
+        const SizedBox(height: 12),
         Expanded(child: _console(colorScheme)),
+      ]),
+    );
+  }
+
+  Widget _buildIoctlDecoder(ColorScheme colorScheme, TextTheme textTheme) {
+    final text = _ioctlController.text.trim();
+    IoctlInfo? info;
+    if (text.isNotEmpty) {
+      final normalized = text.toLowerCase().startsWith('0x')
+          ? text.substring(2)
+          : text;
+      final value = int.tryParse(normalized, radix: 16) ?? int.tryParse(text);
+      if (value != null) info = decodeIoctl(value);
+    }
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        AutoAdjustRow(children: [
+          Icon(Icons.calculate,
+              size: 18, color: Colors.deepPurple),
+          const SizedBox(width: 8),
+          Flexible(child: Text('ioctl decoder — asm-generic/ioctl.h bit layout',
+              style: textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600, color: colorScheme.onSurface))),
+        ]),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _ioctlController,
+          onChanged: (_) => setState(() {}),
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'paste raw command — e.g. 0xc01854ca or 3222312138',
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: colorScheme.outline)),
+            filled: true,
+            fillColor: colorScheme.surfaceContainerLowest,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (info == null)
+          Text(text.isEmpty ? 'waiting for a command…' : 'invalid number',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                  color: colorScheme.onSurface.withValues(alpha: 0.5)))
+        else ...[
+          Wrap(spacing: 6, runSpacing: 4, children: [
+            _badge(info.hex, Colors.deepPurple, colorScheme),
+            _badge(info.direction, Colors.blue, colorScheme),
+            _badge("type '${info.typeChar}'", Colors.teal, colorScheme),
+            _badge('nr ${info.nr}', Colors.orange, colorScheme),
+            _badge('size ${info.size} B',
+                info.size <= 8191 ? Colors.green : Colors.redAccent, colorScheme),
+          ]),
+          const SizedBox(height: 8),
+          Text(info.macro,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'monospace',
+                  color: colorScheme.onSurface)),
+          Text(info.magicNote,
+              style: TextStyle(
+                  fontSize: 11, color: colorScheme.onSurface.withValues(alpha: 0.6))),
+        ],
       ]),
     );
   }

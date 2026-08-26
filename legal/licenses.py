@@ -2,13 +2,13 @@
 UmerOS Legal & Compliance — Licenses & Open-Source Compliance Subsystem
 ======================================================================
 
-Provides software license compliance scanning, multi-license headers,
-and compatibility auditing across all UmerOS subsystems.
+Provides GPL-3.0-exclusive license compliance scanning, header enforcement,
+and audit reporting across all UmerOS subsystems.
 
 Approved Licenses:
 ------------------
-- GPL-3.0 (GNU General Public License Version 3) 
-  Exclusive License for all UmerOS source code.
+- GPL-3.0 (GNU General Public License Version 3)  [FIX H128]
+  Exclusive License for all UmerOS source code (canonical decision H7).
 
 Author: UmerOS Project
 Licence: GPL-3.0 
@@ -73,6 +73,9 @@ class LicenseManager:
 
     @classmethod
     def get_license_text(cls, license_name: str = "GPL-3.0") -> str:
+        # [FIX H130] Strictly GPL-3.0: raise on any other requested license instead
+        # of silently substituting the wrong text (the old code returned Apache-2.0
+        # for unknown names including "GPL-3.0"). Correctness/integrity of attribution.
         if license_name != "GPL-3.0":
             raise ValueError(f"UmerOS strictly uses GPL-3.0. Requested: {license_name}")
         return cls.GPL_HEADER_TEMPLATE
@@ -103,15 +106,25 @@ class LicenseManager:
                     try:
                         with open(fp, "r", encoding="utf-8", errors="ignore") as fo:
                             content = fo.read(2048)  # Read top 2KB
-                            
+
+                            # [FIX H129] Fail-CLOSED license audit: a file is compliant ONLY
+                            # when it carries an explicit GPL-3.0 license DECLARATION. A loose
+                            # "GPL-3.0" substring (which any prose mention would satisfy) is NOT
+                            # accepted — the old code counted such files compliant (fail-open),
+                            # so proprietary/unknown files passed the audit. Accepted declarations:
+                            #   1) the canonical GPL-3.0 header block, or
+                            #   2) an explicit `License: GPL-3.0` grant line, or
+                            #   3) a valid SPDX id (`SPDX-License-Identifier: GPL-3.0[-or-later]`).
                             found_lic = None
-                            for _marker, _name in (
-                                ("GNU General Public License as published by\n# the Free Software Foundation, either version 3", "GPL-3.0"),
-                                ("License: GPL-3.0", "GPL-3.0"),
-                                ("GPL-3.0", "GPL-3.0"),
-                            ):
+                            _declarations = (
+                                "GNU General Public License as published by\n# the Free Software Foundation, either version 3",
+                                "License: GPL-3.0",
+                                "SPDX-License-Identifier: GPL-3.0",
+                                "SPDX-License-Identifier: GPL-3.0-or-later",
+                            )
+                            for _marker in _declarations:
                                 if _marker in content:
-                                    found_lic = _name
+                                    found_lic = "GPL-3.0"
                                     break
 
                             if found_lic:
