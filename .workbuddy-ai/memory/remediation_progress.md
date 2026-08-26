@@ -213,9 +213,9 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H216 | RED | `quantum/crypto_pqc.py` `PostQuantumCrypto` | **Silent classical-crypto downgrade advertised as Post-Quantum** - when `import oqs` fails, the facade silentl
 - [x] H217 | RED | `quantum/cloud/auth.py:278-288` `AuthManager.save_to_file` | **Provider credentials persisted as plaintext JSON** - `path.write_text(json.dumps(creds.to_dict()…))` writes 
 - [x] H221 | RED | `quantum/quantum_server.py:76-82,490-494` FastAPI app | **Unauthenticated network surface, wildcard CORS, binds 0.0.0.0** - `CORSMiddleware(allow_origins=["*"], allow
-- [ ] H244 | RED | `security/security.py:45,83-93,111-117` `SecureBoot` | **Fail-open secure boot (allow-unknown default)** - `strict_mode=False` by default, so `verify_image`/`verify_
-- [ ] H245 | RED | `security/antivirus/api_server.py:6,113-137` `create_app`/`web.run_app | **Unauthenticated AV API with destructive endpoints** - aiohttp server on `127.0.0.1:9095` has NO authn/authz;
-- [ ] H246 | RED | `security/sandbox.py:35-104` `SecuritySandbox` | **SecuritySandbox provides no real isolation (masquerades as zero-trust)** - processes/permissions live in an 
+- [x] H244 | RED | `security/security.py:45,83-93,111-117` `SecureBoot` | **Fail-open secure boot (allow-unknown default)** - `strict_mode=False` by default, so `verify_image`/`verify_
+- [x] H245 | RED | `security/antivirus/api_server.py:6,113-137` `create_app`/`web.run_app | **Unauthenticated AV API with destructive endpoints** - aiohttp server on `127.0.0.1:9095` has NO authn/authz;
+- [x] H246 | RED | `security/sandbox.py:35-104` `SecuritySandbox` | **SecuritySandbox provides no real isolation (masquerades as zero-trust)** - processes/permissions live in an 
 - [x] H265 | RED | `srv/backup.py:153-154` `restore_backup`/`_extract_archive` | **Tar extraction without `filter=` (CVE-2007-4559 path traversal)** - `tarfile.open(archive_path, "r:*")` then
 - [x] H266 | RED | `srv/backup.py:157` `restore_backup` | **Zip extraction without `filter=` (zip-slip)** - `zipf.extractall(temp_dir)` with no `filter=`; `zipfile` doe
 - [x] H267 | RED | `srv/backup.py:181` `restore_backup` | **Destructive `shutil.rmtree` with no capability gate** - when `overwrite=True`, the destination folder is `sh
@@ -501,3 +501,16 @@ New tests/test_quantum_security.py (4). Full suite **1876 passed / 54 skipped / 
 Say **'continues'** to pick up **security/ H244 (SecureBoot strict-by-default),
 H245 (unauthenticated AV API destructive endpoints), H246 (SecuritySandbox no real
 isolation)** — then cross-cutting H1,H12,H18,H21,H42.
+
+## NEXT (where to pick up)
+**✅ security/ RED CLUSTER CLOSED (session 29, 2026-08-26).**
+H244 verified (H17 remediation already made strict_mode=True default + deny-unknown in both modes);
+H245 AV API: bearer-token middleware (UMEROS_AV_API_TOKEN) + destructive endpoints fail-closed 403
+without a token; H246 sandbox: honest [SIMULATION] scope docstring, logging replaces print,
+jail containment/deny-by-default locked by tests. New tests/test_security_cluster.py (4).
+Full suite **1879 passed / 54 skipped / 0 failed**.
+
+ALL folder-cluster REDs done. Remaining RED = cross-cutting only:
+H1 (revoke+rotate live OpenRouter key, .gitignore, history purge), H12 (AI hot-patch gate),
+H18 (OnlineProvider consent gate), H21 (self-healing under H12 gate), H42 (build signing).
+Say **'continues'** to pick up **H1**.

@@ -125,6 +125,36 @@ async def handle_watched_dirs(request):
 
 def create_app():
     app = web.Application()
+
+
+# [FIX H245] Token auth + destructive-endpoint guard.
+# Previously every route — including quarantine restore/delete and realtime
+# start/stop — was callable with zero authn/authz. Now:
+#   * when UMEROS_AV_API_TOKEN is set, ALL routes require "Bearer <token>";
+#   * destructive endpoints additionally require the token even in no-token
+#     mode is impossible: without a token they answer 403 (fail-closed),
+#     keeping the local dashboard/scan surface usable on 127.0.0.1.
+_DESTRUCTIVE = {
+    "/api/quarantine/delete",
+    "/api/quarantine/restore",
+    "/api/realtime/start",
+    "/api/realtime/stop",
+}
+
+
+@web.middleware
+async def _auth_middleware(request, handler):
+    expected = os.environ.get("UMEROS_AV_API_TOKEN", "")
+    supplied = request.headers.get("Authorization", "")
+    if expected:
+        if supplied != f"Bearer {expected}":
+            return web.json_response({"error": "unauthorized"}, status=401)
+    elif request.path in _DESTRUCTIVE:
+        return web.json_response(
+            {"error": "destructive endpoint requires UMEROS_AV_API_TOKEN"},
+            status=403,
+        )
+    return await handler(request)
     app.router.add_get("/api/dashboard", handle_dashboard)
     app.router.add_post("/api/scan/file", handle_scan_file)
     app.router.add_post("/api/scan/directory", handle_scan_directory)

@@ -34,9 +34,12 @@ Provides process-level isolation by restricting each sandboxed process
 to a virtual chroot within the VFS. 
 """
 import hashlib
+import logging
 import os
 from dataclasses import dataclass, field
 from typing import Dict, Set
+
+log = logging.getLogger("UmerOS.Security.Sandbox")
 
 @dataclass
 class ProcessRecord:
@@ -56,7 +59,7 @@ class SecuritySandbox:
 
     def register_process(self, pid: int, name: str, fs_root: str = "/"):
         self.processes[pid] = ProcessRecord(pid=pid, name=name, fs_root=fs_root)
-        print(f"[SECURITY] Registered PID {pid} ('{name}') with fs_root='{fs_root}'")
+        log.info("Registered PID %d (%s) fs_root=%s", pid, name, fs_root)
 
     def grant_permission(self, pid: int, permission: str):
         if pid in self.processes:
@@ -68,11 +71,11 @@ class SecuritySandbox:
 
     def check_permission(self, pid: int, permission: str) -> bool:
         if pid not in self.processes:
-            print(f"[SECURITY] DENIED: PID {pid} is not registered.")
+            log.warning("DENIED: PID %d is not registered.", pid)
             return False
         allowed = permission in self.processes[pid].permissions
         if not allowed:
-            print(f"[SECURITY] DENIED: PID {pid} lacks '{permission}' permission.")
+            log.warning("DENIED: PID %d lacks %r.", pid, permission)
         return allowed
 
     def resolve_path(self, pid: int, path: str) -> str:
@@ -110,9 +113,9 @@ class SecuritySandbox:
         is_valid = _hmac.compare_digest(computed_hash, expected_hash)
         
         if not is_valid:
-            print(f"[SECURITY] CODE SIGNING FAILED: PID {pid} hash mismatch!")
+            log.critical("CODE SIGNING FAILED: PID %d hash mismatch!", pid)
         else:
-            print(f"[SECURITY] Code signature verified for PID {pid}.")
+            log.info("Code signature verified for PID %d.", pid)
             
         return is_valid
 
@@ -123,7 +126,7 @@ class SecuritySandbox:
 # import hashlib
 # import asyncio
 # from dataclasses import dataclass, field
-# from typing import Dict, Set, Optional
+# from typing import Dict, Set
 
 # @dataclass
 # class ProcessRecord:
@@ -224,6 +227,8 @@ class SecuritySandbox:
 # from dataclasses import dataclass, field
 # from typing import Dict, Set
 
+log = logging.getLogger("UmerOS.Security.Sandbox")
+
 
 # @dataclass
 # class ProcessRecord:
@@ -248,7 +253,7 @@ class SecuritySandbox:
 
 #     def register_process(self, pid: int, name: str, fs_root: str = "/"):
 #         self.processes[pid] = ProcessRecord(pid=pid, name=name, fs_root=fs_root)
-#         print(f"[SECURITY] Registered PID {pid} ('{name}') with fs_root='{fs_root}'")
+#         log.info("Registered PID %d (%s) fs_root=%s", pid, name, fs_root)
 
 #     def grant_permission(self, pid: int, permission: str):
 #         if pid in self.processes:
@@ -260,11 +265,11 @@ class SecuritySandbox:
 
 #     def check_permission(self, pid: int, permission: str) -> bool:
 #         if pid not in self.processes:
-#             print(f"[SECURITY] DENIED: PID {pid} is not registered.")
+#             log.warning("DENIED: PID %d is not registered.", pid)
 #             return False
 #         allowed = permission in self.processes[pid].permissions
 #         if not allowed:
-#             print(f"[SECURITY] DENIED: PID {pid} lacks '{permission}' permission.")
+#             log.warning("DENIED: PID %d lacks %r.", pid, permission)
 #         return allowed
 
 #     def resolve_path(self, pid: int, path: str) -> str:
