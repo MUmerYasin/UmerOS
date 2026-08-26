@@ -204,7 +204,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H195 | RED | `packages/umer_pkg.py:347,510` `_install_single`/`build` | **Untrusted manifest `name`/`version` → attacker-controlled paths** - `dest = os.path.join(install_dir, manife
 - [x] H196 | RED | `packages/umer_pkg.py:250,268` `_verify_hash` | **"Signed" archives overstated; verification fails OPEN** - docstring advertises "Signed .umerpkg archives" bu
 - [x] H197 | RED | `packages/umer_pkg.py:250,277` `_verify_hash` | **Integrity check ignores the `files/` payload** - `_verify_hash` hashes only `manifest.json` bytes, contradic
-- [ ] H198 | RED | `packages/umer_pkg.py:285,390,414` `install`/`remove`/`update` | **No `CapabilityManager` gate on privileged ops** - docstring claims "system-wide requires admin grant" but th
+- [x] H198 | RED | `packages/umer_pkg.py:285,390,414` `install`/`remove`/`update` | **No `CapabilityManager` gate on privileged ops** - **FIXED (session 27):** `gate.require(CAP_FS_ADMIN)` as first statement of all three lifecycle ops (permissive-when-unwired / fail-closed-when-wired bridge). Tests: new `tests/test_packages_security.py` (4 - strict-mode PermissionError x3 + permissive fallback sanity). Full suite 1868->**1872 passed**.
 - [x] H205 | RED | `proc/procfs.py:177` + `proc/nodes.py:95` `ProcFileSystem.write`/`Proc | **Write path has no authorization — only per-file read-only `mode`** - `procfs.write` delegates straight to `n
 - [x] H206 | RED | `proc/sysctl_fs.py:26-225` `register_sysctl_entries` | **`/proc/sys/*` mutation gated by nothing** - ~60 writable sysctl params (kernel.hostname/panic_timeout/hung_t
 - [x] H207 | RED | `proc/pid_entries.py:258` `oom_score_adj` | **Per-PID `oom_score_adj` writable with no cap gate** - `write=lambda text, p=pid: adapter.oom_adj.__setitem__
@@ -473,12 +473,12 @@ Also cross-cutting: H1 (plaintext API key), H12 (AI hot-patch), H18 (OnlineProvi
 governance), H21 (self-healing), H42 (no code signing).
 
 ## NEXT (where to pick up)
-**✅ opt/ RED CLUSTER CLOSED (session 26, 2026-08-26).** H184 + H187 fixed
-(details in their `[x]` rows). New tests: `tests/test_opt_security.py` (8).
-Full suite **1868 passed / 54 skipped / 0 failed / 0 errors**.
+**✅ packages/ H198 CLOSED (session 27, 2026-08-26).** install/remove/update gated behind
+`CAP_FS_ADMIN`; new `tests/test_packages_security.py` (4). Full suite **1872 passed / 54 skipped / 0 failed**.
 
-Say **'continues'** to pick up **packages/ H198** (cap-gate `umer_pkg`
-install/remove/update), then **quantum/ H215,H216,H217,H221**, then
+Say **'continues'** to pick up **quantum/ H215,H216,H217,H221** (H215 licence stray,
+H216 silent PQC→classical downgrade advertised as PQ, H217 plaintext provider creds,
+H221 unauthenticated quantum_server with wildcard CORS on 0.0.0.0), then
 **security/ H244,H245,H246**, then cross-cutting H1,H12,H18,H21,H42.
 
 ## LOOP PROTOCOL (human-in-the-loop, always applies)

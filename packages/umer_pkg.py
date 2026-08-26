@@ -46,6 +46,17 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.path_guard import safe_child, PathTraversalError
 
+# [FIX H198] Privileged package lifecycle ops (install/remove/update mutate the
+# shared packages tree and registry) go through the zero-trust capability
+# bridge — permissive when no CapabilityManager is wired, fail-closed when one
+# is (same pattern as opt/ mnt/ media/ usr/ var/ clusters).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 # [FIX H194] Python < 3.12 lacks the fail-closed `filter=` argument on
 # extractall(); on those interpreters we fall back to no filter (still unsafe,
 # but matching the documented >=3.12 support target of UmerOS).
@@ -340,6 +351,7 @@ class UmerPackageManager:
         Returns:
             True on success, False on failure.
         """
+        gate.require(CAP_FS_ADMIN)  # [FIX H198] privileged install
         if package_name in self._db:
             log.info("'%s' is already installed (version %s).",
                      package_name, self._db[package_name]["version"])
@@ -454,6 +466,7 @@ class UmerPackageManager:
         Returns:
             True if removed, False if not installed.
         """
+        gate.require(CAP_FS_ADMIN)  # [FIX H198] privileged remove
         if package_name not in self._db:
             log.warning("'%s' is not installed.", package_name)
             return False
@@ -486,6 +499,7 @@ class UmerPackageManager:
         Returns:
             Dict mapping package name → True (updated) / False (failed).
         """
+        gate.require(CAP_FS_ADMIN)  # [FIX H198] privileged update
         targets = [package_name] if package_name else list(self._db.keys())
         results: Dict[str, bool] = {}
 
