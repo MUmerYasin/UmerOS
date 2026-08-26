@@ -223,7 +223,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H303 | RED | `var/directory_manager.py:77,87,94,184,106,212`, `var/spool_manager.py | **Path-traversal → arbitrary FS delete/write/RCE (CWE-22)** - `name`/`username`/`directory`/`filename` are joi
 ### YELLOW
 
-- [ ] H4 | YELLOW | `bin/user_commands.py:169-185` | `su`-like `[sh,"-c",command]` as other user; `_exec_shell` is a stub returning 0
+- [x] H4 | YELLOW | bin/user_commands.py | su exec as other user + _exec_shell stub returning 0 - **FIXED (session 33):** _exec_command + _exec_shell now behind CAP_SYS_ADMIN gate (permissive/fail-closed bridge); Windows refuses honestly (user=/group= are POSIX-only) instead of TypeError; _exec_shell no longer fakes success - returns 1 with clear not-implemented message. Tests: tests/test_su_h4.py (3; POSIX-skipped on Windows per repo convention). Suite 1886 passed / 57 skipped.
 - [ ] H5 | YELLOW | `bin/boolean_ops.py:411`, `etc/issue_motd.py` | `subprocess` to host with arg lists
 - [ ] H6 | YELLOW | `core/command.py` vs `bin/*` | Base `execute(*args)->Any` contradicts `execute(args=None)->int`
 - [ ] H7 | YELLOW | LICENSE/setup.py/README (GPL-3.0) vs `developer_guide.md` & master pro | License inconsistency: 3 sources say GPL-3.0, 2 say Apache-2.0
@@ -534,3 +534,7 @@ New tests/test_ai_governance_security.py (3). Suite **1882 passed / 54 skipped**
 
 Remaining RED: **H42 only** (build/UmerOS-GUI.spec codesign_identity=None).
 Say **'continues'** to pick up H42 — the LAST open RED blocker.
+
+## NEXT — YELLOW sweep started (session 33): H4 done. Next: H5 (bin/boolean_ops +
+etc/issue_motd host subprocess audit), then H6/H55 (core/command.py base signature).
+Same loop protocol. Say **'continues'** for H5.

@@ -182,6 +182,19 @@ class SuCommand:
     def _exec_command(self, target_user: str, user_info: Any,
                       command: str, env: Dict[str, str],
                       shell: Optional[str]) -> int:
+        # [FIX H4] Running a command as another user is a privileged op:
+        # capability-gated (permissive-when-unwired / fail-closed-when-wired).
+        try:
+            from core.capability_gate import gate, CAP_SYS_ADMIN
+            gate.require(CAP_SYS_ADMIN)
+        except ImportError:  # pragma: no cover - standalone fallback
+            pass
+        if os.name != "posix":
+            # subprocess user=/group= are POSIX-only; refuse honestly instead
+            # of raising TypeError deep inside subprocess.
+            print("su: -c requires a POSIX host (simulated elsewhere).",
+                  file=sys.stderr)
+            return 1
         import subprocess
         sh = shell or user_info.pw_shell or "/bin/sh"
         try:
@@ -200,16 +213,17 @@ class SuCommand:
     def _exec_shell(self, target_user: str, user_info: Any,
                     login_mode: bool, env: Dict[str, str],
                     shell: Optional[str]) -> int:
-        sh = shell or user_info.pw_shell or "/bin/sh"
-        argv = [sh]
-        if login_mode:
-            argv = [f"-{os.path.basename(sh)}"]
-
-        print(f"Switching to user '{target_user}' ({user_info.pw_uid})")
-        print(f"Shell: {sh}")
-        print(f"Home: {user_info.pw_dir}")
-        print("(Interactive shell not available in UmerOS)")
-        return 0
+        # [FIX H4] The old stub printed a message and returned 0 (fake
+        # success). An interactive su shell is not implemented in UmerOS;
+        # report that honestly with a non-zero exit code.
+        try:
+            from core.capability_gate import gate, CAP_SYS_ADMIN
+            gate.require(CAP_SYS_ADMIN)
+        except ImportError:  # pragma: no cover
+            pass
+        print(f"su: interactive shell for '{target_user}' is not "
+              "implemented in this build.", file=sys.stderr)
+        return 1
 
 
 # ─── login Command ───────────────────────────────────────────────────────────
