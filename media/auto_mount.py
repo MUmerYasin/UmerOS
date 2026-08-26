@@ -97,6 +97,29 @@ class AutoMountPolicy:
         }
         return _map.get(media_type, True)
 
+    def effective_options(self, fs_type: str = "") -> List[str]:
+        """Compute the option list used when auto-mounting.
+
+        [FIX H157] Removable media was previously mounted with whatever sat
+        in ``default_options`` — empty by default, so hot-plugged devices
+        came up plain ``rw`` with no ``nodev``/``nosuid``/``noexec``
+        hardening (a planted USB stick could host setuid binaries, device
+        nodes or auto-executed payloads).  Now every auto-mount gets the
+        secure flag set appended; callers may add extra options through
+        ``default_options``, but the three hard flags can never be dropped
+        on this path.
+        """
+        opts: List[str] = [o for o in self.default_options if o]
+        if fs_type in self.read_only_types:
+            if "ro" not in opts:
+                opts.append("ro")
+        elif "rw" not in opts and "ro" not in opts:
+            opts.append("rw")
+        for flag in ("nodev", "nosuid", "noexec"):
+            if flag not in opts:
+                opts.append(flag)
+        return opts
+
 
 # ---------------------------------------------------------------------------
 #  Events
@@ -294,7 +317,9 @@ class AutoMountDaemon:
                 actual_fs = "auto"
 
         # Determine options
-        opts = list(self._policy.default_options)
+        # [FIX H157] Secure defaults: nodev/nosuid/noexec are always applied
+        # to auto-mounted removable media (see AutoMountPolicy.effective_options).
+        opts = self._policy.effective_options(actual_fs)
         if actual_fs in self._policy.read_only_types:
             opts.append("ro")
 

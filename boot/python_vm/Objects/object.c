@@ -599,12 +599,54 @@ PyTypeObject* PyType_FromSpec(const char *name, PyTypeObject *base) {
 
 typedef struct { PyObject ob_base; PyMethodDef *m_ml; PyObject *m_self; PyObject *m_module; } PyCFunctionObject;
 
+/* Trampoline: dispatches 2-arg vs 3-arg C functions based on ml_flags */
+static PyObject* cfunction_call(PyObject *callable, PyObject *args, PyObject *kwargs) {
+    PyCFunctionObject *mf = (PyCFunctionObject *)callable;
+    PyMethodDef *ml = mf->m_ml;
+    if (ml->ml_flags & METH_KEYWORDS) {
+        PyCFunctionWithKeywords fn = (PyCFunctionWithKeywords)ml->ml_meth;
+        return fn(mf->m_self, args, kwargs);
+    }
+    return ml->ml_meth(mf->m_self, args);
+}
+
 static PyTypeObject _PyCFunction_Type = {
-    1, NULL, "builtin_function_or_method", sizeof(PyCFunctionObject), 0,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-    NULL, NULL, NULL, Py_TPFLAGS_DEFAULT
+    /* ob_refcnt */          1,
+    /* ob_type */            NULL,
+    /* tp_name */            "builtin_function_or_method",
+    /* tp_basicsize */       sizeof(PyCFunctionObject),
+    /* tp_itemsize */        0,
+    /* tp_new */             NULL,
+    /* tp_dealloc */         NULL,
+    /* tp_repr */            NULL,
+    /* tp_str */             NULL,
+    /* tp_richcompare */     NULL,
+    /* tp_hash */            NULL,
+    /* tp_bool */            NULL,
+    /* tp_add */             NULL,
+    /* tp_subtract */        NULL,
+    /* tp_multiply */        NULL,
+    /* tp_true_divide */     NULL,
+    /* tp_floor_divide */    NULL,
+    /* tp_remainder */       NULL,
+    /* tp_power */           NULL,
+    /* tp_negative */        NULL,
+    /* tp_positive */        NULL,
+    /* tp_absolute */        NULL,
+    /* tp_and */             NULL,
+    /* tp_xor */             NULL,
+    /* tp_or */              NULL,
+    /* tp_lshift */          NULL,
+    /* tp_rshift */          NULL,
+    /* tp_length */          NULL,
+    /* tp_concat */          NULL,
+    /* tp_repeat */          NULL,
+    /* tp_item */            NULL,
+    /* tp_getattro */        NULL,
+    /* tp_setattro */        NULL,
+    /* tp_call */            cfunction_call,
+    /* tp_base */            NULL,
+    /* tp_flags */           Py_TPFLAGS_DEFAULT
 };
 
 PyObject* PyCFunction_NewEx(PyMethodDef *method, PyObject *self, PyObject *module) {

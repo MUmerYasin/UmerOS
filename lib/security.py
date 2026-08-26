@@ -82,7 +82,7 @@ class PamModuleType(str, Enum):
     AUTH       = "auth"        # authenticate the user
     ACCOUNT    = "account"     # check account validity (expiry, time, etc.)
     SESSION    = "session"     # setup/teardown for a session
-    PASSWORD   = "password"    # change password
+    PASSWORD   = "password"    # PAM module-TYPE label (auth/account/session/password group), NOT a credential [FIX H3]
 
 
 class PamControlFlag(str, Enum):

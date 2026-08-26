@@ -47,16 +47,30 @@ from typing import Tuple
 log = logging.getLogger("UmerOS.CryptoPQC")
 
 # Try to import liboqs (post-quantum); fall back to classical crypto
+# [FIX H152] Honest fallback. The guard catches BaseException-derived
+# failures too: broken liboqs wheels call sys.exit(1) from their own
+# module import when the native shared library is missing (observed with
+# oqs on Python 3.14), and a plain `except ImportError` lets that
+# SystemExit escape and kill the whole test collection. A missing or
+# broken optional dependency must degrade to the classical fallback —
+# never crash the interpreter.
 try:
     import oqs  # type: ignore
     _LIBOQS_AVAILABLE = True
     log.info("liboqs available — using CRYSTALS-Kyber + Dilithium.")
-except ImportError:  # pragma: no cover
+except BaseException as exc:  # pragma: no cover - noqa: BLE001
     _LIBOQS_AVAILABLE = False
-    log.warning(
-        "liboqs not installed — using classical AES-256-GCM/ECDSA fallback. "
-        "Install: pip install liboqs-python"
-    )
+    if isinstance(exc, SystemExit):
+        log.warning(
+            "liboqs import attempted to exit the process (broken wheel / "
+            "missing native library) — treating liboqs as unavailable and "
+            "using the classical AES-256-GCM/Ed25519 fallback."
+        )
+    else:
+        log.warning(
+            "liboqs not installed — using classical AES-256-GCM/ECDSA fallback. "
+            "Install: pip install liboqs-python"
+        )
 
 # Symmetric primitives (always available in stdlib)
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # type: ignore

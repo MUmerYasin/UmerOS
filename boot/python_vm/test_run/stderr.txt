@@ -1,0 +1,67 @@
+[DBG] RunScript entered, filename='F:\Pension Person Details\UmerOS\boot\python_vm\test_run\test_print.py'
+[DBG] RunScript: file read OK, length=9
+[DBG] RunScript: creating globals dict
+[DBG] RunScript: getting builtins dict
+[DBG] RunScript: setting __builtins__
+[DBG] RunScript: setting __name__
+[DBG] RunScript: setting __file__
+[DBG] RunScript: calling Py_CompileString
+[DBG] Py_CompileString entered, source='print(2)
+'
+[DBG] Py_CompileString: length=9
+[DBG] Py_CompileString: creating Lexer
+[DBG] Py_CompileString: Lexer created OK
+[DBG] Py_CompileString: creating Parser
+[DBG] Py_CompileString: Parser created OK
+[DBG] Py_CompileString: creating Compiler
+[DBG] Py_CompileString: Compiler created OK
+[DBG] Py_CompileString: starting compile loop
+[DBG] Py_CompileString: token=4
+[DBG] TEST: token=4 ENDMARKER=0 cmp=0
+[DBG] calling Compile_Statement token=4
+[DBG-C] Compile_Statement ENTER token=4
+[DBG-C] Compile_Statement: NAME='print'
+[DBG-C] Compile_Statement: found 'print'
+[DBG-C] Compile_Statement: after skip print, token=59
+[DBG-C] Compile_Statement: found '('
+[DBG-C] Compile_Statement: after skip '(', token=1
+[DBG-C] Compile_Statement: calling Compile_Expr
+[DBG-C] Compile_Expr ENTER token=1
+[DBG-AC] entered: value=000002B816F7D7E0 n_consts=0 consts_size=256
+[DBG-AC] compiler struct: consts=000002B816F85930 bytecode=000002B816F850B0 bytecode_pos=0
+[DBG-C] Compile_Statement: Compile_Expr returned, token=60
+[DBG-AC] entered: value=000002B816F83350 n_consts=1 consts_size=256
+[DBG-AC] compiler struct: consts=000002B816F85930 bytecode=000002B816F850B0 bytecode_pos=2
+[DBG-AC] loop i=0 consts[i]=000002B816F7D7E0 value=000002B816F83350
+[DBG-CMP] entered: a=000002B816F7D7E0 b=000002B816F83350
+[DBG-CMP] a->ob_type=00007FF751D31A00 b->ob_type=00007FF751D31E40
+[DBG-CMP] calling tp_richcompare=00007FF751D24120
+[DBG-C] Compile_Statement: emitted print bytecode
+[DBG-C] Compile_Statement: after closing paren, token=88
+[DBG-C] Compile_Statement: returning 1 (print)
+[DBG] Py_CompileString: Compile_Statement returned 1
+[DBG] Py_CompileString: token=0
+[DBG] TEST: token=0 ENDMARKER=0 cmp=1
+[DBG] Py_CompileString: compile loop done
+[DBG-CHECK] compiler=000002B816F85020
+[DBG-CHECK] compiler->consts=000002B816F85930
+[DBG-CHECK] compiler->n_consts=2
+[DBG-CHECK] compiler->consts_size=256
+[DBG-CHECK] compiler->bytecode=000002B816F850B0
+[DBG-CHECK] compiler->bytecode_pos=8
+[DBG-CHECK] compiler->bytecode_size=1024
+[DBG-CHECK] compiler->arg_top=0
+[DBG-CHECK] compiler->arg_top=0
+[DBG-CHECK]   consts[0]=000002B816F7D7E0
+[DBG-CHECK]   consts[1]=000002B816F83350
+[DBG] before Compiler_AddConstant(Py_None)
+[DBG-AC] entered: value=00007FF751D32398 n_consts=2 consts_size=256
+[DBG-AC] compiler struct: consts=000002B816F85930 bytecode=000002B816F850B0 bytecode_pos=8
+[DBG-AC] loop i=0 consts[i]=000002B816F7D7E0 value=00007FF751D32398
+[DBG-CMP] entered: a=000002B816F7D7E0 b=00007FF751D32398
+[DBG-CMP] a->ob_type=00007FF751D31A00 b->ob_type=00007FF751D32270
+[DBG-CMP] calling tp_richcompare=00007FF751D24120
+[DBG-AC] loop i=1 consts[i]=000002B816F83350 value=00007FF751D32398
+[DBG-CMP] entered: a=000002B816F83350 b=00007FF751D32398
+[DBG-CMP] a->ob_type=00007FF751D31E40 b->ob_type=00007FF751D32270
+[DBG-CMP] calling tp_richcompare=00007FF751D253E0

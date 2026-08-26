@@ -30,9 +30,20 @@ from __future__ import annotations
 import hashlib
 import os
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum, auto
 from pathlib import Path
 from typing import Optional
+
+# [FIX H147] Optional X.509 parsing dependency — used to read the real certificate
+# validity period so expiry is actually enforced (see CertInfo.is_expired /
+# days_until_expiry). Kept optional so the module imports without cryptography.
+try:
+    from cryptography import x509 as _x509
+    _HAS_CRYPTOGRAPHY = True
+except Exception:  # pragma: no cover - cryptography is an optional dependency
+    _x509 = None
+    _HAS_CRYPTOGRAPHY = False
 
 
 # ---------------------------------------------------------------------------
@@ -93,16 +104,39 @@ class CertInfo:
 
     @property
     def is_expired(self) -> bool:
-        """Check expiry — simplified: returns False if parsing fails."""
+        """Return True iff the certificate's ``not_after`` is in the past.
+
+        [FIX H147] Previously hard-coded to ``False`` (expiry never enforced), so
+        expired certificates passed every trust check — an expiry fail-open in the
+        same family as H111. The real validity period is now parsed from the X.509
+        cert in ``SslManager._inspect_cert``.
+        """
         if not self.not_after:
+            return False  # no validity data available (not a parsed cert)
+        try:
+            expiry = datetime.fromisoformat(self.not_after)
+        except ValueError:
             return False
-        # Simplified check — in production use datetime parsing
-        return False
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return expiry <= datetime.now(timezone.utc)
 
     @property
     def days_until_expiry(self) -> int:
-        """Estimated days until expiry — simplified."""
-        return 365  # Placeholder
+        """Signed days remaining until expiry (negative once expired).
+
+        [FIX H147] Previously hard-coded to ``365``. Returns -1 when the validity
+        period is unknown.
+        """
+        if not self.not_after:
+            return -1
+        try:
+            expiry = datetime.fromisoformat(self.not_after)
+        except ValueError:
+            return -1
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return (expiry - datetime.now(timezone.utc)).days
 
 
 @dataclass
@@ -237,25 +271,62 @@ class SslManager:
 
     def check_trust(self, cert_path: str) -> dict[str, object]:
         """
-        Check if a certificate is trusted by any CA in the store.
+        Check if a certificate is trusted by a CA in the configured store.
 
-        Simplified implementation — checks if the cert's issuer
-        matches any CA cert's subject in the store.
+        [FIX H147] Fail-closed trust decision with expiry enforcement.
+        Previously: any self-declared ``CA:TRUE`` certificate was trusted
+        unconditionally (bypassing even the H146 bundle-fingerprint check)
+        and expired certificates were never rejected. Now every branch
+        requires positive proof:
+
+          * unparseable certificate                      -> not trusted
+          * no parseable validity window                 -> not trusted
+          * expired (notAfter in the past)               -> not trusted
+          * CA root  -> trusted only if its fingerprint appears in a
+            configured CA bundle AND it is within its validity window
+          * leaf     -> trusted only if issued by such a stored,
+            unexpired CA
         """
         cert = self._inspect_cert(cert_path)
         if cert is None:
             return {"trusted": False, "reason": "Could not parse certificate"}
 
-        if cert.is_ca:
-            return {"trusted": True, "reason": "Certificate is a CA root"}
+        if not cert.not_before or not cert.not_after:
+            return {
+                "trusted": False,
+                "reason": "No parseable validity dates — cannot verify window",
+            }
+        if cert.is_expired:
+            return {
+                "trusted": False,
+                "reason": f"Certificate expired {cert.not_after}",
+            }
 
-        # Check if issuer matches any stored CA
         ca_certs = [c for c in self.list_certificates() if c.is_ca]
-        for ca in ca_certs:
-            if ca.subject and cert.issuer and ca.subject == cert.issuer:
-                return {"trusted": True, "reason": f"Signed by CA: {ca.subject}"}
 
-        return {"trusted": False, "reason": "No matching CA found in store"}
+        # A CA root must itself be present in the trust store (H146
+        # fingerprint compare) — being "a CA" is not proof of trust.
+        if cert.is_ca:
+            if self._check_is_trusted(cert):
+                return {
+                    "trusted": True,
+                    "reason": "Certificate is a CA root present in the trust store",
+                }
+            return {
+                "trusted": False,
+                "reason": "CA root not present in any configured bundle",
+            }
+
+        # Leaf: issuer must match a stored, unexpired, bundle-trusted CA.
+        for ca in ca_certs:
+            if not (ca.subject and cert.issuer and ca.subject == cert.issuer):
+                continue
+            if ca.is_expired:
+                continue
+            if self._check_is_trusted(ca):
+                return {"trusted": True, "reason": f"Signed by trusted CA: {ca.subject}"}
+
+        return {"trusted": False, "reason": "No matching trusted CA found in store"}
 
     def get_cert_chain(self, cert_path: str) -> list[str]:
         """Attempt to trace the certificate chain to a root CA."""
@@ -322,6 +393,25 @@ class SslManager:
             fmt = CertFormat.PKCS12
 
         # Simplified metadata extraction — in production use OpenSSL/cryptography
+        # [FIX H147] Read the REAL certificate validity period (not_before /
+        # not_after) so is_expired()/days_until_expiry() are accurate instead of
+        # always False / 365. Previously empty dates made expiry a fail-open.
+        not_before = ""
+        not_after = ""
+        if _HAS_CRYPTOGRAPHY:
+            try:
+                raw = Path(path).read_bytes()
+                if fmt == CertFormat.DER:
+                    cert = _x509.load_der_x509_certificate(raw)
+                else:
+                    cert = _x509.load_pem_x509_certificate(raw)
+                not_before = cert.not_valid_before_utc.isoformat()
+                not_after = cert.not_valid_after_utc.isoformat()
+            except Exception:
+                # Not a parseable X.509 certificate (or unreadable) — leave the
+                # dates empty; is_expired() then treats it as "no validity data".
+                pass
+
         info = CertInfo(
             path=path,
             filename=filename,
@@ -330,8 +420,8 @@ class SslManager:
             subject=self._extract_field(path, "subject"),
             issuer=self._extract_field(path, "issuer"),
             serial=self._extract_field(path, "serial"),
-            not_before="",
-            not_after="",
+            not_before=not_before,
+            not_after=not_after,
             # [FIX H146] Use the canonical X.509 DER fingerprint (or a
             # whitespace-normalised PEM-block hash) so it compares directly with
             # the bundle fingerprints computed in _bundle_fingerprints.
@@ -420,7 +510,33 @@ class SslManager:
         return ""
 
     def _check_is_ca(self, path: str) -> bool:
-        """Check if a certificate is a CA by looking for CA extensions."""
+        """Check if a certificate is a CA via its BasicConstraints extension.
+
+        [FIX H147] The previous heuristic grepped the raw file text for
+        ``"CA:TRUE"``/``"basicConstraints"`` — strings that never appear in
+        base64 PEM or binary DER, so real certificates were almost always
+        misclassified as non-CA. Parse the X.509 BasicConstraints extension
+        when ``cryptography`` is available; fall back to the legacy text
+        heuristic only for inputs that cannot be parsed (e.g. openssl-text
+        dumps kept as fixtures).
+        """
+        if _HAS_CRYPTOGRAPHY:
+            try:
+                raw = Path(path).read_bytes()
+                ext = os.path.splitext(path)[1].lower()
+                if ext == ".der":
+                    cert = _x509.load_der_x509_certificate(raw)
+                else:
+                    cert = _x509.load_pem_x509_certificate(raw)
+                try:
+                    bc = cert.extensions.get_extension_for_class(
+                        _x509.BasicConstraints
+                    )
+                    return bool(bc.value.ca)
+                except _x509.ExtensionNotFound:
+                    return False
+            except Exception:
+                pass  # fall through to the text heuristic below
         try:
             with open(path, "r") as f:
                 content = f.read(8192)

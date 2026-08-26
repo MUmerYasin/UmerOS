@@ -339,6 +339,25 @@ class MountPointManager:
         except OSError:
             if force:
                 import shutil
+
+                # [FIX H167] TOCTOU / arbitrary-delete guard. force=True used to
+                # call shutil.rmtree(path) unvalidated: a symlinked "mount point",
+                # a filesystem root, or a path that flipped between the exists()
+                # check and this call would recurse into real host data. Refuse
+                # symlinks, refuse root/drive targets, and re-stat immediately
+                # before the destructive call so the window is as narrow as a
+                # simulation layer allows.
+                if os.path.islink(path):
+                    log.error("Refusing force-remove of symlink: %s", path)
+                    return False
+                real = os.path.realpath(path)
+                if real in ("", "/") or re.fullmatch(r"[A-Za-z]:[\\/]*", real):
+                    log.error("Refusing force-remove of filesystem root: %s -> %s",
+                              path, real)
+                    return False
+                if os.path.islink(real) or not os.path.isdir(real):
+                    log.error("Mount point changed under us; refusing rmtree: %s", path)
+                    return False
                 shutil.rmtree(path)
                 log.info("Force-removed mount point: %s", path)
             else:

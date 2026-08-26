@@ -24,6 +24,7 @@ import os
 import sys
 import time
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 
 # Ensure parent package is importable
@@ -899,6 +900,57 @@ class TestSelfTests(unittest.TestCase):
     def test_udisks2_selftest(self):
         from media.udisks2 import _selftest
         self.assertTrue(_selftest())
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# [FIX H157] Removable auto-mount hardening: nodev/nosuid/noexec enforced
+# ---------------------------------------------------------------------------
+
+class TestAutoMountSecureOptions(unittest.TestCase):
+    """Auto-mounted removable media must always carry nodev/nosuid/noexec."""
+
+    def test_default_options_get_secure_flags(self):
+        policy = AutoMountPolicy()          # default_options == []
+        opts = policy.effective_options("vfat")
+        for flag in ("rw", "nodev", "nosuid", "noexec"):
+            self.assertIn(flag, opts)
+
+    def test_hard_flags_cannot_be_dropped(self):
+        # Even if a caller tries to override with a permissive list, the
+        # auto-mount path re-asserts the hard flags.
+        policy = AutoMountPolicy(default_options=["rw", "dev", "suid", "exec"])
+        opts = policy.effective_options("vfat")
+        for flag in ("nodev", "nosuid", "noexec"):
+            self.assertIn(flag, opts)
+
+    def test_read_only_media_get_ro_plus_flags(self):
+        policy = AutoMountPolicy()
+        opts = policy.effective_options("iso9660")
+        self.assertIn("ro", opts)
+        self.assertNotIn("rw", opts)
+        for flag in ("nodev", "nosuid", "noexec"):
+            self.assertIn(flag, opts)
+
+    def test_do_mount_uses_effective_options(self):
+        from unittest.mock import patch
+
+        daemon = AutoMountDaemon(policy=AutoMountPolicy())
+        captured = {}
+
+        def fake_mount(device, mnt, fs_type="", options=None, create_dir=False):
+            captured["options"] = list(options or [])
+            return SimpleNamespace(success=True, summary="ok")
+
+        with patch("media.auto_mount.mount", side_effect=fake_mount):
+            ev = daemon._do_mount("/dev/sdg1", MediaType.USB)
+
+        self.assertEqual(ev.status, AutoMountStatus.MOUNTED)
+        for flag in ("nodev", "nosuid", "noexec"):
+            self.assertIn(flag, captured["options"])
 
 
 if __name__ == "__main__":

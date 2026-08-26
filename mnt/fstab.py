@@ -265,6 +265,10 @@ class Fstab:
         for i, raw_line in enumerate(text.splitlines(), 1):
             line = raw_line.strip()
             if not line or line.startswith("#"):
+                # [FIX H168] Capture comments here too so a round-trip through
+                # from_string() -> to_string() no longer silently drops them.
+                if line.startswith("#"):
+                    fstab._comments.append(line)
                 continue
             entry = _parse_line(line, line_num=i)
             if entry is not None:
@@ -352,11 +356,21 @@ class Fstab:
     # -- Serialization -------------------------------------------------------
 
     def to_string(self) -> str:
-        """Render the fstab as a string."""
-        lines: List[str] = []
+        """Render the fstab as a string.
+
+        [FIX H168] Comments and the header captured by ``from_file`` /
+        ``from_string`` are preserved (they used to be dropped on write,
+        destroying operator documentation in the boot-critical
+        ``/etc/fstab``). Entry lines follow the comment block.
+        """
+        parts: List[str] = []
+        if self._header:
+            parts.append(self._header)
+        parts.extend(self._comments)
         for e in self._entries:
-            lines.append(e.to_line())
-        return "\n".join(lines) + "\n" if lines else ""
+            parts.append(e.to_line())
+        rendered = "\n".join(p for p in parts if p != "")
+        return rendered + "\n" if rendered else ""
 
     def write_file(self, path: str | Path, backup: bool = True) -> None:
         """Write the fstab to disk.

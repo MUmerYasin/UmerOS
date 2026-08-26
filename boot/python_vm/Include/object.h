@@ -63,6 +63,12 @@ typedef struct _threadstate PyThreadState;
 #define Py_TPFLAGS_FLOAT_SUBCLASS    (1UL << 13)
 #define Py_TPFLAGS_BOOL_SUBCLASS     (1UL << 14)
 
+/* Method flags for PyMethodDef.ml_flags */
+#define METH_VARARGS  0x0001
+#define METH_KEYWORDS 0x0002
+#define METH_NOARGS   0x0004
+#define METH_O        0x0008
+
 /* ==================== OBJECT STRUCTURE ==================== */
 
 struct _object {
@@ -257,6 +263,7 @@ typedef struct {
     PyCFunction ml_meth;
     int         ml_flags;
     const char *ml_name;
+    const char *ml_doc;
 } PyMethodDef;
 
 #define PyCFunction_New(method, self) PyCFunction_NewEx(method, self, NULL)

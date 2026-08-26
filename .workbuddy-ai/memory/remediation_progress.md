@@ -157,7 +157,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 
 - [ ] H1 | RED | `settings.local.json` | Live OpenRouter API key committed in plaintext
 - [x] H2 | RED | `initrd/ai_helper.py:166` | `eval(line)` on user history (suppressed B307) - **FIXED (session 21):** `_load_history` uses `ast.literal_eval`; non-literal lines dropped fail-closed (same fix as H91).
-- [ ] H3 | RED | `lib/security.py:72` | Hardcoded default `PASSWORD="password"`
+- [x] H3 | RED | `lib/security.py:72` | Hardcoded default `PASSWORD="password"` — **VERIFIED GONE (session 24):** grep across `lib/*.py` finds zero credential constants; the only `PASSWORD` match is `PamModuleType.PASSWORD = "password"` (the PAM interface-type enum value, legitimate FHS semantics — not a secret). Constant was already removed by earlier hardening; no code reference existed.
 - [ ] H12 | RED | `ai/` self-healing (design) | AI hot-patch path, if enabled, applies generated code
 - [x] H17 | RED | `security/security.py` → `SecureBoot.verify_image` (also planned `secu | Signature/trust verification is **fail-open**: `verify_image` returns `True` when there is no trust-store entr
 - [ ] H18 | RED | `ai/umer_ai.py:LocalAIAssistant.query` (→ `OnlineProvider`) | The assistant delegates to `OnlineProvider` (POSTs the user prompt to an external API) **without** an `AIGover
@@ -186,14 +186,14 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H131 | RED | `legal/consent.py:173-189` | **`require_consent_interactive` fails OPEN** — auto-grants in `dry_run` (L173-175) and, in any non-interactive
 - [x] H135 | RED | `legal/cli.py:101-105` + `test_legal.py:229` | **`consent` CLI subcommand hardcodes `user_response="I AGREE"`** → `python -m legal.cli consent` auto-grants c
 - [x] H146 | RED | `lib/ssl_libs.py:414-427,225-245` | **CA trust verification is fail-open** — `_check_is_trusted` returns `True` whenever ANY `ca-certificates.crt`
-- [ ] H147 | RED | `lib/ssl_libs.py:82-92` | **Certificate expiry is never enforced** — `CertInfo.is_expired` unconditionally returns `False` (L83-87) and 
+- [x] H147 | RED | `lib/ssl_libs.py:82-92` | **Certificate expiry is never enforced** — `CertInfo.is_expired` unconditionally returns `False` (L83-87) and - **FIXED (session 24, completing the earlier partial):** `is_expired`/`days_until_expiry` were already real, but `check_trust` still failed open — any self-declared `CA:TRUE` cert was trusted unconditionally (bypassing even H146 fingerprints) and expired certs were accepted. Now fail-closed: unknown validity window → untrusted; expired → untrusted; CA roots trusted only when bundle-fingerprint-present AND unexpired; leaves only under such a CA. Also fixed `_check_is_ca` (grepped raw PEM text for "CA:TRUE" — never matches base64/DER → now parses the X.509 BasicConstraints extension via cryptography; legacy heuristic kept as fallback) and repaired `tests/test_ssl_security.py::_make_cert_pem` (`NameError: x509` → module-level `_x509`; those 3 tests had failed since introduction). New `tests/test_ssl.py` H147 block (4 tests with real cryptography-generated certs): expired-in-store rejected, CA-shortcut requires bundle membership, positive in-store path trusted. Full suite **1851 passed / 54 skipped / 0 failed**.
 - [x] H152 | RED | `quantum/crypto_pqc.py:36-46` | **Silent classical-crypto fallback** - when `liboqs-python` is missing, PQC sign/verify silently falls back to
 - [x] H154 | RED | `cloud/ota_updater/update_system.py:33` | **Hardcoded fake PQC signature** - `simulated_dilithium_sig_abc123` is used in a "verify signature" step, rein
 - [x] H156 | RED | `media/mount_ops.py`, `media/auto_mount.py`, `media/udisks2.py` | **No `CapabilityManager` gate on the privileged mount path** - `mount_ops.mount`, `auto_mount._handle_hotplug`
-- [ ] H157 | RED | `media/auto_mount.py:_do_mount` (L282-284) | **Removable media auto-mounted `rw` without `noexec,nodev,nosuid`** - builds options from empty `policy.defaul
+- [x] H157 | RED | `media/auto_mount.py:_do_mount` (L282-284) | **Removable media auto-mounted `rw` without `noexec,nodev,nosuid`** - builds options from empty `policy.default_opts` - **FIXED (session 24):** new `AutoMountPolicy.effective_options(fs_type)` always appends `nodev/nosuid/noexec` (plus `rw`, or `ro` for iso9660/udf); `_do_mount` uses it — hard flags can never be dropped on the auto-mount path even by a permissive `default_options`. Tests: `tests/test_media.py::TestAutoMountSecureOptions` (4).
 - [x] H166 | RED | `mnt/mount_ops.py`, `mnt/mount_point.py`, `mnt/fstab.py` | **No `CapabilityManager` gate on privileged mount ops** - `MountManager.mount`/`umount`/`remount`, `MountPoint
-- [ ] H167 | RED | `mnt/mount_point.py:remove(force=True)` (L279-315) | **`shutil.rmtree` on a non-symlink-checked path -> TOCTOU arbitrary delete** - `remove(force=True)` rmtrees a 
-- [ ] H168 | RED | `mnt/fstab.py:write_file` (L334) | **Un-gated privileged `/etc/fstab` write + drops comments/header** - `write_file` writes `/etc/fstab` with no 
+- [x] H167 | RED | `mnt/mount_point.py:remove(force=True)` (L279-315) | **`shutil.rmtree` on a non-symlink-checked path -> TOCTOU arbitrary delete** - `remove(force=True)` rmtrees - **FIXED (session 24):** force path now refuses symlinks (top + realpath), refuses filesystem roots (`/`, drive roots via regex on realpath), and re-stats isdir/islink immediately before rmtree; benign force-remove still works. Tests: `tests/test_mnt_security.py::TestForceRemoveGuards` (3).
+- [x] H168 | RED | `mnt/fstab.py:write_file` (L334) | **Un-gated privileged `/etc/fstab` write + drops comments/header** - `write_file` writes `/etc/fstab` with no - **FIXED (session 24, completing session 10's gate):** the `CAP_FS_ADMIN` gate landed earlier (H166); the remaining half — comment/header loss — is now fixed: `_comments`/`_header` captured by `from_file` AND `from_string` are re-emitted by `to_string()` ahead of entry lines (also closes H174's round-trip loss). Tests: `tests/test_mnt_security.py::TestFstabCommentPreservation` (2).
 - [x] H177 | RED | `network/` (all egress) | **No `CapabilityManager` gate on ANY network egress** - `DNSResolver.resolve*`/`resolve_all`/`reverse_lookup`,
 - [x] H178 | RED | `network/http_client.py:227` `_validate_url` | **SSRF - egress client omits internal-range blocking** - only scheme in {http,https} + netloc presence are val
 - [ ] H184 | RED | `opt/` (all privileged ops) | **No `CapabilityManager` gate on ANY privileged `/opt` op** - `OptManager.install/remove/update`, `OptPackage.
@@ -467,16 +467,25 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [ ] H302 | BLUE | `usr/` (many modules) | **Per-file baseline gaps + no tests** - many modules lack `from __future__ import annotations`/module docstrin
 - [x] H307 | BLUE | `var/` (whole package) | **No tests + minor baseline smells** - `var/` ships **no `_selftest()`/test module** (contrast `srv`/`tmp` whi
 
-## NEXT (where to pick up)
-**✅ legal/ CONSENT + LICENSING CLUSTER CLOSED (session 23, 2026-08-24).** H128,H129,H130,H131,H135 fixed
-(H129 already [x] from session 3; tightened further). Code: `legal/licenses.py` docstring + `README.md:40`
-GPL-3.0-exclusive (no Apache/GPL-2.0/MIT); `scan_directory` requires an explicit GPL-3.0 declaration
-(canonical header / `License: GPL-3.0` / SPDX id) — loose substring removed (H129); `get_license_text`
-raises on non-GPL (H130); `require_consent_interactive` fail-closed (H131); `consent` CLI requires `--i-agree`
-(H135). NEW `tests/test_legal_security.py` (13 tests). Full suite **1460 passed, 0 failures, 0 errors**
-(excl. pre-existing `tests/test_ai.py` collection error). No regressions.
+**Next open RED hotspots (per §9 untrusted-input+RCE priority):** `opt/` H184,H187 →
+`packages/` H198 → `quantum/` H215,H216,H217,H221 → `security/` H244,H245,H246.
+Also cross-cutting: H1 (plaintext API key), H12 (AI hot-patch), H18 (OnlineProvider no
+governance), H21 (self-healing), H42 (no code signing).
 
-**Next open RED hotspots (per §9 / untrusted-input+RCE priority):** `lib/` H3,H147 → `media/` H157 →
-`mnt/` H167,H168 → `opt/` H184,H187 → `packages/` H198 → `quantum/` H215,H216,H217,H221 → `security/`
-H244,H245,H246. Also cross-cutting: H1 (plaintext API key), H12 (AI hot-patch), H18 (OnlineProvider no
-governance), H21 (self-healing), H42 (no code signing). Say **'continues'** to pick up lib/ H3,H147.
+## NEXT (where to pick up)
+**✅ media/ + mnt/ RED CLUSTER CLOSED (session 25, 2026-08-26).** H157 + H167 + H168 fixed
+(details in their `[x]` rows). New tests: `tests/test_media.py::TestAutoMountSecureOptions` (4),
+new file `tests/test_mnt_security.py` (5). Full suite **1860 passed / 54 skipped / 0 failed**.
+
+Say **'continues'** to pick up **opt/ H184** (cap-gate all privileged `/opt` ops: install/remove/update,
+launcher/wrapper creation) and **H187** (command-injection in generated launcher scripts — quote/escape
+`command`+args, validate bin_path). Then packages/ H198.
+
+## LOOP PROTOCOL (human-in-the-loop, always applies)
+1. Read this file's first `[ ]` under "NEXT".
+2. Fix that hotspot WITH a `# [FIX Hxxx]` comment; add/extend `tests/test_*.py`.
+3. Run `python -m pytest tests/ -q` → must be green (0 failures).
+4. Flip its box to `[x]`, update NEXT, append the daily log.
+5. If context/token budget is ending: STOP after step 4 and end the reply with:
+   *"Checkpoint saved. Say 'continues' to resume with <next hotspot>."*
+Say **'continues'** to pick up media/ H157.
