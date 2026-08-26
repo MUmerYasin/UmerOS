@@ -209,10 +209,10 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H206 | RED | `proc/sysctl_fs.py:26-225` `register_sysctl_entries` | **`/proc/sys/*` mutation gated by nothing** - ~60 writable sysctl params (kernel.hostname/panic_timeout/hung_t
 - [x] H207 | RED | `proc/pid_entries.py:258` `oom_score_adj` | **Per-PID `oom_score_adj` writable with no cap gate** - `write=lambda text, p=pid: adapter.oom_adj.__setitem__
 - [x] H208 | RED | `proc/system_files.py:524` `smp_affinity` | **`/proc/irq/<n>/smp_affinity` writable with no cap gate** - `write=lambda text, i=irq: adapter.irq_affinity._
-- [ ] H215 | RED | `quantum/crypto_pqc.py:22` | **H7 Apache-2.0 header stray** - docstring line `GPL-3.0 (GNU General Public License Version 3)` (British spelling) in a UmerOS file that
-- [ ] H216 | RED | `quantum/crypto_pqc.py` `PostQuantumCrypto` | **Silent classical-crypto downgrade advertised as Post-Quantum** - when `import oqs` fails, the facade silentl
-- [ ] H217 | RED | `quantum/cloud/auth.py:278-288` `AuthManager.save_to_file` | **Provider credentials persisted as plaintext JSON** - `path.write_text(json.dumps(creds.to_dict()…))` writes 
-- [ ] H221 | RED | `quantum/quantum_server.py:76-82,490-494` FastAPI app | **Unauthenticated network surface, wildcard CORS, binds 0.0.0.0** - `CORSMiddleware(allow_origins=["*"], allow
+- [x] H215 | RED | `quantum/crypto_pqc.py:22` | **H7 Apache-2.0 header stray** - docstring line `GPL-3.0 (GNU General Public License Version 3)` (British spelling) in a UmerOS file that
+- [x] H216 | RED | `quantum/crypto_pqc.py` `PostQuantumCrypto` | **Silent classical-crypto downgrade advertised as Post-Quantum** - when `import oqs` fails, the facade silentl
+- [x] H217 | RED | `quantum/cloud/auth.py:278-288` `AuthManager.save_to_file` | **Provider credentials persisted as plaintext JSON** - `path.write_text(json.dumps(creds.to_dict()…))` writes 
+- [x] H221 | RED | `quantum/quantum_server.py:76-82,490-494` FastAPI app | **Unauthenticated network surface, wildcard CORS, binds 0.0.0.0** - `CORSMiddleware(allow_origins=["*"], allow
 - [ ] H244 | RED | `security/security.py:45,83-93,111-117` `SecureBoot` | **Fail-open secure boot (allow-unknown default)** - `strict_mode=False` by default, so `verify_image`/`verify_
 - [ ] H245 | RED | `security/antivirus/api_server.py:6,113-137` `create_app`/`web.run_app | **Unauthenticated AV API with destructive endpoints** - aiohttp server on `127.0.0.1:9095` has NO authn/authz;
 - [ ] H246 | RED | `security/sandbox.py:35-104` `SecuritySandbox` | **SecuritySandbox provides no real isolation (masquerades as zero-trust)** - processes/permissions live in an 
@@ -489,3 +489,15 @@ H221 unauthenticated quantum_server with wildcard CORS on 0.0.0.0), then
 5. If context/token budget is ending: STOP after step 4 and end the reply with:
    *"Checkpoint saved. Say 'continues' to resume with <next hotspot>."*
 Say **'continues'** to pick up media/ H157.
+
+## NEXT (where to pick up)
+**✅ quantum/ RED CLUSTER CLOSED (session 28, 2026-08-26).**
+H215 licence tag normalized; H216 module docstring now states fallback is NOT
+quantum-safe + is_post_quantum guidance; H217 provider creds sealed AES-256-GCM
+(env passphrase or ~/.umer/quantum_auth.key 0600), plaintext load refused;
+H221 CORS loopback-default + UMEROS_QS_TOKEN bearer gate + loopback bind default.
+New tests/test_quantum_security.py (4). Full suite **1876 passed / 54 skipped / 0 failed**.
+
+Say **'continues'** to pick up **security/ H244 (SecureBoot strict-by-default),
+H245 (unauthenticated AV API destructive endpoints), H246 (SecuritySandbox no real
+isolation)** — then cross-cutting H1,H12,H18,H21,H42.

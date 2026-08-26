@@ -79,16 +79,51 @@ except ImportError as e:
             self.duration = duration
 
 # Create FastAPI app
+# [FIX H221] Secure-by-default network posture:
+#   * optional bearer-token auth on every route when UMEROS_QS_TOKEN is set;
+#   * CORS restricted to loopback origins unless UMEROS_QS_ALLOWED_ORIGINS
+#     overrides it (was allow_origins=["*"] with credentials=True — a combo
+#     browsers refuse and attackers love);
+#   * the __main__ entrypoint binds to 127.0.0.1 unless explicitly overridden.
+def _allowed_origins() -> List[str]:
+    raw = os.environ.get("UMEROS_QS_ALLOWED_ORIGINS", "")
+    if raw.strip():
+        return [o.strip() for o in raw.split(",") if o.strip()]
+    return [
+        "http://localhost:8420",
+        "http://127.0.0.1:8420",
+    ]
+
+
+def _require_token(authorization: Optional[str] = None) -> None:
+    """Legacy placeholder — superseded by :func:`_auth_dependency`."""
+
+
+from fastapi import Header  # noqa: E402  (kept beside usage for clarity)
+
+
+def _auth_dependency(
+    authorization: Optional[str] = Header(default=None, alias="Authorization"),
+) -> None:
+    """[FIX H221] Bearer-token gate; enforced only when a token is configured."""
+    expected = os.environ.get("UMEROS_QS_TOKEN", "")
+    if not expected:
+        return  # no token configured — loopback-only default keeps surface local
+    if authorization != f"Bearer {expected}":
+        raise HTTPException(status_code=401, detail="invalid or missing bearer token")
+
+
 app = FastAPI(
     title="UmerOS Quantum Computing API",
     description="REST API for quantum computing operations, simulation, and algorithms",
-    version="1.0.0"
+    version="1.0.0",
+    dependencies=[Depends(_auth_dependency)],
 )
 
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -502,7 +537,16 @@ async def export_to_qasm(request: QASMExportRequest):
 # Run the server
 if __name__ == "__main__":
     import uvicorn
+    # [FIX H221] Loopback bind by default; remote binding requires an explicit
+    # host override AND a configured bearer token.
+    host = os.environ.get("UMEROS_QS_HOST", "127.0.0.1")
+    token = os.environ.get("UMEROS_QS_TOKEN", "")
+    if host not in ("127.0.0.1", "localhost") and not token:
+        raise SystemExit(
+            "Refusing to expose the quantum API remotely without auth: "
+            "set UMEROS_QS_TOKEN (and optionally UMEROS_QS_HOST) first."
+        )
     print("Starting UmerOS Quantum Computing API Server...")
-    print("Server will be available at: http://localhost:8420")
-    print("API docs available at: http://localhost:8420/docs")
-    uvicorn.run(app, host="0.0.0.0", port=8420)
+    print(f"Server will be available at: http://{host}:8420")
+    print(f"API docs available at: http://{host}:8420/docs")
+    uvicorn.run(app, host=host, port=8420)

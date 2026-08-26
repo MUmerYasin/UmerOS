@@ -272,9 +272,19 @@ class AuthManager:
     def load_from_file(self, provider: str, filepath: str) -> AuthCredentials:
         """Load credentials from a JSON file.
 
-        Raises FileNotFoundError if the file does not exist and
-        ValueError if the JSON is malformed.
+        Reads the encrypted-at-rest envelope written by :meth:`save_to_file`
+        ([FIX H217]). Legacy **plaintext** credential files are refused with
+        a actionable error — silently accepting them would re-open the
+        plaintext-credentials hole through the load path.
+
+        Raises FileNotFoundError if the file does not exist, ValueError if
+        the JSON is malformed / the envelope is a legacy plaintext file.
         """
+        import base64
+
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        from cryptography.exceptions import InvalidTag
+
         path = Path(filepath)
         if not path.is_file():
             raise FileNotFoundError(f"Credentials file not found: {filepath}")
@@ -282,23 +292,102 @@ class AuthManager:
             data = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             raise ValueError(f"Invalid JSON in {filepath}: {exc}") from exc
-        creds = AuthCredentials.from_dict(data)
+
+        if isinstance(data, dict) and data.get("enc") == "aes256gcm":
+            nonce = base64.b64decode(data["nonce"])
+            ct = base64.b64decode(data["ct"])
+            try:
+                plaintext = AESGCM(self._local_auth_key()).decrypt(
+                    nonce, ct, None)
+            except InvalidTag as exc:
+                raise ValueError(
+                    f"Cannot decrypt {filepath} (wrong key or tampered file)"
+                ) from exc
+            creds = AuthCredentials.from_dict(json.loads(plaintext.decode("utf-8")))
+        else:
+            raise ValueError(
+                f"{filepath} stores credentials as PLAINTEXT. "
+                "Refusing to load them; re-save with "
+                "AuthManager.save_to_file() to encrypt at rest."
+            )
+
         key = provider.lower()
         creds.provider = key
         self.set_credentials(key, creds)
         return creds
 
     def save_to_file(self, provider: str, filepath: str) -> None:
-        """Save credentials for *provider* to a JSON file."""
+        """Save credentials for *provider* to *filepath*, encrypted at rest.
+
+        [FIX H217] Credentials were previously written as plaintext JSON —
+        any disk reader (backup sync, malware, curious roommate) got the
+        provider API key. Now the payload is sealed with AES-256-GCM under a
+        local key:
+
+          * ``UMEROS_QUANTUM_AUTH_KEY`` env var wins if set (any passphrase;
+            hashed to 32 bytes), otherwise
+          * a machine-local key file ``~/.umer/quantum_auth.key`` (hex, mode
+            0600) is created on first use.
+
+        The written file has mode 0600 and the JSON envelope
+        ``{"v":1, "kdf":"sha256", "nonce":<b64>, "ct":<b64>}``.
+        """
+        import base64
+        import secrets as _secrets
+
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
         creds = self.get_credentials(provider)
         if creds is None:
             raise KeyError(f"No credentials stored for provider {provider!r}")
+
+        plaintext = json.dumps(
+            creds.to_dict(), indent=2, ensure_ascii=False
+        ).encode("utf-8")
+        nonce = _secrets.token_bytes(12)
+        ct = AESGCM(self._local_auth_key()).encrypt(nonce, plaintext, None)
+
         path = Path(filepath)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps(creds.to_dict(), indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+        envelope = {
+            "v": 1,
+            "enc": "aes256gcm",
+            "nonce": base64.b64encode(nonce).decode("ascii"),
+            "ct": base64.b64encode(ct).decode("ascii"),
+        }
+        path.write_text(json.dumps(envelope, indent=2), encoding="utf-8")
+        try:
+            os.chmod(path, 0o600)
+        except OSError:  # pragma: no cover - e.g. Windows FAT
+            logger.warning("Could not tighten permissions on %s", path)
+        logger.info("Encrypted credentials written to %s", path)
+
+    @staticmethod
+    def _local_auth_key() -> bytes:
+        """Resolve the at-rest key: env passphrase first, then keyfile."""
+        import hashlib
+        import secrets as _secrets
+
+        env_pass = os.environ.get("UMEROS_QUANTUM_AUTH_KEY", "")
+        if env_pass:
+            return hashlib.sha256(env_pass.encode("utf-8")).digest()
+
+        key_path = Path(os.path.expanduser("~/.umer/quantum_auth.key"))
+        if key_path.is_file():
+            try:
+                return bytes.fromhex(key_path.read_text(encoding="utf-8").strip())
+            except ValueError:
+                logger.warning("Corrupt quantum auth keyfile; regenerating.")
+
+        key = _secrets.token_bytes(32)
+        key_path.parent.mkdir(parents=True, exist_ok=True)
+        key_path.write_text(key.hex(), encoding="utf-8")
+        try:
+            os.chmod(key_path, 0o600)
+        except OSError:  # pragma: no cover
+            pass
+        logger.info("Generated new quantum auth keyfile at %s", key_path)
+        return key
 
     def clear(self, provider: Optional[str] = None) -> None:
         """Clear stored credentials.

@@ -15,9 +15,15 @@
 Umer OS Post-Quantum Cryptography  [TODAY]
 ==========================================
 Provides CRYSTALS-Kyber (key encapsulation) and CRYSTALS-Dilithium
-(digital signatures) via the ``liboqs-python`` library when available,
-with a pure-Python fallback using AES-256-GCM + ECDSA for environments
-where liboqs is not installed.
+(digital signatures) via the ``liboqs-python`` library **only when that
+library is installed**. When liboqs is missing, this module falls back to
+classical AES-256-GCM + Ed25519 — which is NOT quantum-safe.
+
+[FIX H216] The fallback was previously silent, so callers could believe
+they had post-quantum guarantees while running classical crypto. Always
+check ``PostQuantumCrypto.is_post_quantum`` (or call
+``assert_post_quantum()`` in security-critical paths) before relying on
+quantum-safe properties; the active backend is also logged at init.
 
 Public API (same regardless of backend):
   - PostQuantumCrypto.generate_keypair()  → (public_key, private_key) bytes
@@ -26,13 +32,14 @@ Public API (same regardless of backend):
   - PostQuantumCrypto.sign(msg, sk)       → signature bytes
   - PostQuantumCrypto.verify(msg, sig, pk) → bool
   - PostQuantumCrypto.backend             → str  ("liboqs" or "fallback")
+  - PostQuantumCrypto.is_post_quantum     → bool (True only under liboqs)
 
 Hash utilities:
   - sha3_256(data: bytes) → bytes
   - sha3_512(data: bytes) → bytes
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0
 """
 
 from __future__ import annotations
