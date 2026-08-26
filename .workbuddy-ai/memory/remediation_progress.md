@@ -158,10 +158,10 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H1 | RED | `settings.local.json` | Live OpenRouter API key committed - **REPO-SIDE FIXED (session 30):** key value scrubbed from the working file (`REDACTED-ROTATE-ME`), `settings.local.json` added to .gitignore and UNTRACKED (`git rm --cached`). ⚠️ USER ACTIONS STILL REQUIRED: (1) REVOKE+rotate the key at openrouter.ai — it must be treated as compromised; (2) history purge before any push: repo has 2 remotes, key entered history in commit 09bf20b — run git filter-repo --path settings.local.json --invert-paths (or BFG) then force-push all remotes, and have collaborators re-clone.
 - [x] H2 | RED | `initrd/ai_helper.py:166` | `eval(line)` on user history (suppressed B307) - **FIXED (session 21):** `_load_history` uses `ast.literal_eval`; non-literal lines dropped fail-closed (same fix as H91).
 - [x] H3 | RED | `lib/security.py:72` | Hardcoded default `PASSWORD="password"` — **VERIFIED GONE (session 24):** grep across `lib/*.py` finds zero credential constants; the only `PASSWORD` match is `PamModuleType.PASSWORD = "password"` (the PAM interface-type enum value, legitimate FHS semantics — not a secret). Constant was already removed by earlier hardening; no code reference existed.
-- [ ] H12 | RED | `ai/` self-healing (design) | AI hot-patch path, if enabled, applies generated code
+- [x] H12 | RED | `ai/` self-healing (design) | AI hot-patch path, if enabled, applies generated code
 - [x] H17 | RED | `security/security.py` → `SecureBoot.verify_image` (also planned `secu | Signature/trust verification is **fail-open**: `verify_image` returns `True` when there is no trust-store entr
-- [ ] H18 | RED | `ai/umer_ai.py:LocalAIAssistant.query` (→ `OnlineProvider`) | The assistant delegates to `OnlineProvider` (POSTs the user prompt to an external API) **without** an `AIGover
-- [ ] H21 | RED | `ai/umer_ai.py:SelfHealingEngine` + `ai/self_healing.py:SelfHealingSer | Self-healing generates patch *code strings*; FUTURE is LLM auto-apply. TODAY's stubs are comment-only (safe), 
+- [x] H18 | RED | `ai/umer_ai.py:LocalAIAssistant.query` (→ `OnlineProvider`) | The assistant delegates to `OnlineProvider` (POSTs the user prompt to an external API) **without** an `AIGover
+- [x] H21 | RED | `ai/umer_ai.py:SelfHealingEngine` + `ai/self_healing.py:SelfHealingSer | Self-healing generates patch *code strings*; FUTURE is LLM auto-apply. TODAY's stubs are comment-only (safe), 
 - [x] H27 | RED | `boot/bootloader.py:147` (`verify_kernel`) | Kernel integrity check returns `True` when the image is **missing** ("Permissive during prototype phase") and 
 - [x] H28 | RED | `boot/efi_system.py:524-533` (`is_binary_trusted`) | Secure Boot trust returns `True` when state is `DISABLED` or `SETUP_MODE` and never consults `dbx` (forbidden 
 - [x] H29 | RED | `boot/init.py:27` (`display_waiver`) | The EULA/"I AGREE" liability waiver is **auto-accepted** when stdin is not a TTY ("[Non-interactive mode: Auto
@@ -522,3 +522,15 @@ Remaining RED: cross-cutting only — H12/H21 (AI self-healing capability-scoped
 sandboxed, audited, rollback-tested gate), H18 (OnlineProvider consent gate via
 AIGovernance.check_consent), H42 (PyInstaller codesign_identity).
 Say **'continues'** to pick up **H18 + H12/H21**, then H42.
+
+## NEXT (where to pick up)
+**✅ H18 + H21/H12 CLOSED (session 31, 2026-08-26).**
+H18 VERIFIED: ai/assistant_service.py ChatService fails closed on
+governance.check_consent before ANY online call; LocalAIAssistant surfaces a
+"[Consent required]" reply. H21/H12: ai/self_healing.py rewritten — mitigate()
+behind CAP_SYS_ADMIN gate, before/after audit records, NEVER executes generated
+code (no exec/eval/import), honest [TODAY]/[FUTURE] tier docstring.
+New tests/test_ai_governance_security.py (3). Suite **1882 passed / 54 skipped**.
+
+Remaining RED: **H42 only** (build/UmerOS-GUI.spec codesign_identity=None).
+Say **'continues'** to pick up H42 — the LAST open RED blocker.
