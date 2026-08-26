@@ -466,3 +466,17 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [ ] H301 | BLUE | `usr/lib_manager.py`, `usr/sbin_manager.py`, `usr/rpm_manager.py`, `us | **SIMULATED privileged/kernel-surface modules masquerade as functional** - the privileged FHS managers (`lib`/
 - [ ] H302 | BLUE | `usr/` (many modules) | **Per-file baseline gaps + no tests** - many modules lack `from __future__ import annotations`/module docstrin
 - [x] H307 | BLUE | `var/` (whole package) | **No tests + minor baseline smells** - `var/` ships **no `_selftest()`/test module** (contrast `srv`/`tmp` whi
+
+## NEXT (where to pick up)
+**✅ legal/ CONSENT + LICENSING CLUSTER CLOSED (session 23, 2026-08-24).** H128,H129,H130,H131,H135 fixed
+(H129 already [x] from session 3; tightened further). Code: `legal/licenses.py` docstring + `README.md:40`
+GPL-3.0-exclusive (no Apache/GPL-2.0/MIT); `scan_directory` requires an explicit GPL-3.0 declaration
+(canonical header / `License: GPL-3.0` / SPDX id) — loose substring removed (H129); `get_license_text`
+raises on non-GPL (H130); `require_consent_interactive` fail-closed (H131); `consent` CLI requires `--i-agree`
+(H135). NEW `tests/test_legal_security.py` (13 tests). Full suite **1460 passed, 0 failures, 0 errors**
+(excl. pre-existing `tests/test_ai.py` collection error). No regressions.
+
+**Next open RED hotspots (per §9 / untrusted-input+RCE priority):** `lib/` H3,H147 → `media/` H157 →
+`mnt/` H167,H168 → `opt/` H184,H187 → `packages/` H198 → `quantum/` H215,H216,H217,H221 → `security/`
+H244,H245,H246. Also cross-cutting: H1 (plaintext API key), H12 (AI hot-patch), H18 (OnlineProvider no
+governance), H21 (self-healing), H42 (no code signing). Say **'continues'** to pick up lib/ H3,H147.
