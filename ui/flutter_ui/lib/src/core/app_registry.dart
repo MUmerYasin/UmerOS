@@ -23,6 +23,7 @@ import 'package:flutter/material.dart';
 
 import '../apps/ai_assistant_app.dart';
 import '../apps/antivirus_app.dart';
+import '../apps/bin_app.dart';
 import '../apps/boot_manager_app.dart';
 import '../apps/browser_app.dart';
 import '../apps/calculator_app.dart';
@@ -200,6 +201,15 @@ abstract final class AppRegistry {
     ),
 
     // ── Development ───────────────────────────────────────────────
+    AppDefinition(
+      id: 'bin',
+      title: 'Bin Manager',
+      description: 'Inspect essential binaries and run built-in commands.',
+      icon: Icons.terminal,
+      color: Colors.lightBlue,
+      category: AppCategory.development,
+      builder: (_) => const BinApp(),
+    ),
     AppDefinition(
       id: 'terminal',
       title: 'Terminal',

@@ -468,6 +468,8 @@ out:
 
 /* Parse and compile an expression, emitting bytecode */
 static void Compile_Expr(Compiler *compiler, Parser *parser) {
+    fprintf(stderr, "[DBG-C] Compile_Expr ENTER token=%d\n", parser->token_type);
+    fflush(stderr);
     /* Parse primary expression */
     int token = parser->token_type;
 
@@ -593,6 +595,8 @@ static PyCodeObject* Compiler_MakeCode(Compiler *compiler) {
 
 /* Compile a statement */
 static int Compile_Statement(Compiler *compiler, Parser *parser) {
+    fprintf(stderr, "[DBG-C] Compile_Statement ENTER token=%d\n", parser->token_type);
+    fflush(stderr);
     int token = parser->token_type;
 
     /* Skip newlines */
@@ -605,15 +609,29 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
     /* print(...) statement */
     if (token == TOKEN_NAME) {
         const char *name = PyUnicode_AsString(parser->current_token);
+        fprintf(stderr, "[DBG-C] Compile_Statement: NAME='%s'\n", name ? name : "NULL");
+        fflush(stderr);
         if (strcmp(name, "print") == 0) {
+            fprintf(stderr, "[DBG-C] Compile_Statement: found 'print'\n");
+            fflush(stderr);
             /* Parse function call */
             Parser_NextToken(parser);  /* skip 'print' */
+            fprintf(stderr, "[DBG-C] Compile_Statement: after skip print, token=%d\n", parser->token_type);
+            fflush(stderr);
             if (parser->token_type == TOKEN_LPAREN) {
+                fprintf(stderr, "[DBG-C] Compile_Statement: found '('\n");
+                fflush(stderr);
                 /* Parse arguments */
                 Parser_NextToken(parser);  /* skip '(' */
+                fprintf(stderr, "[DBG-C] Compile_Statement: after skip '(', token=%d\n", parser->token_type);
+                fflush(stderr);
 
                 /* Compile the argument expression */
+                fprintf(stderr, "[DBG-C] Compile_Statement: calling Compile_Expr\n");
+                fflush(stderr);
                 Compile_Expr(compiler, parser);
+                fprintf(stderr, "[DBG-C] Compile_Statement: Compile_Expr returned, token=%d\n", parser->token_type);
+                fflush(stderr);
 
                 /* Emit: LOAD_GLOBAL <print>, CALL_FUNCTION 1, POP_TOP */
                 int print_idx = Compiler_AddConstant(compiler,
@@ -621,6 +639,8 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
                 Compiler_Emit(compiler, OP_LOAD_GLOBAL, print_idx);
                 Compiler_Emit(compiler, OP_CALL_FUNCTION, 1);
                 Compiler_Emit(compiler, OP_POP_TOP, 0);
+                fprintf(stderr, "[DBG-C] Compile_Statement: emitted print bytecode\n");
+                fflush(stderr);
 
                 /* Consume closing paren */
                 while (parser->token_type != TOKEN_RPAREN &&
@@ -630,7 +650,11 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
                 if (parser->token_type == TOKEN_RPAREN) {
                     Parser_NextToken(parser);
                 }
+                fprintf(stderr, "[DBG-C] Compile_Statement: after closing paren, token=%d\n", parser->token_type);
+                fflush(stderr);
             }
+            fprintf(stderr, "[DBG-C] Compile_Statement: returning 1 (print)\n");
+            fflush(stderr);
             return 1;
         }
 
@@ -646,10 +670,14 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
     }
 
     /* Skip unrecognized tokens */
+    fprintf(stderr, "[DBG-C] Compile_Statement: skipping unrecognized tokens\n");
+    fflush(stderr);
     while (token != TOKEN_NL && token != TOKEN_ENDMARKER) {
         token = Parser_NextToken(parser);
     }
 
+    fprintf(stderr, "[DBG-C] Compile_Statement: returning 1\n");
+    fflush(stderr);
     return 1;
 }
 
@@ -709,7 +737,11 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
 
         if (token == TOKEN_ENDMARKER) break;
 
-        Compile_Statement(compiler, parser);
+        fprintf(stderr, "[DBG] Py_CompileString: calling Compile_Statement\n");
+        fflush(stderr);
+        int ret = Compile_Statement(compiler, parser);
+        fprintf(stderr, "[DBG] Py_CompileString: Compile_Statement returned %d\n", ret);
+        fflush(stderr);
     }
     fprintf(stderr, "[DBG] Py_CompileString: compile loop done\n");
     fflush(stderr);
