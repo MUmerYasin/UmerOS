@@ -155,7 +155,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 
 ### RED
 
-- [ ] H1 | RED | `settings.local.json` | Live OpenRouter API key committed in plaintext
+- [x] H1 | RED | `settings.local.json` | Live OpenRouter API key committed - **REPO-SIDE FIXED (session 30):** key value scrubbed from the working file (`REDACTED-ROTATE-ME`), `settings.local.json` added to .gitignore and UNTRACKED (`git rm --cached`). ⚠️ USER ACTIONS STILL REQUIRED: (1) REVOKE+rotate the key at openrouter.ai — it must be treated as compromised; (2) history purge before any push: repo has 2 remotes, key entered history in commit 09bf20b — run git filter-repo --path settings.local.json --invert-paths (or BFG) then force-push all remotes, and have collaborators re-clone.
 - [x] H2 | RED | `initrd/ai_helper.py:166` | `eval(line)` on user history (suppressed B307) - **FIXED (session 21):** `_load_history` uses `ast.literal_eval`; non-literal lines dropped fail-closed (same fix as H91).
 - [x] H3 | RED | `lib/security.py:72` | Hardcoded default `PASSWORD="password"` — **VERIFIED GONE (session 24):** grep across `lib/*.py` finds zero credential constants; the only `PASSWORD` match is `PamModuleType.PASSWORD = "password"` (the PAM interface-type enum value, legitimate FHS semantics — not a secret). Constant was already removed by earlier hardening; no code reference existed.
 - [ ] H12 | RED | `ai/` self-healing (design) | AI hot-patch path, if enabled, applies generated code
@@ -514,3 +514,11 @@ ALL folder-cluster REDs done. Remaining RED = cross-cutting only:
 H1 (revoke+rotate live OpenRouter key, .gitignore, history purge), H12 (AI hot-patch gate),
 H18 (OnlineProvider consent gate), H21 (self-healing under H12 gate), H42 (build signing).
 Say **'continues'** to pick up **H1**.
+
+## NEXT (where to pick up)
+**✅ H1 repo-side remediation DONE (session 30).** Remaining USER actions on H1
+(revoke/rotate + history rewrite + force-push) are outside agent reach.
+Remaining RED: cross-cutting only — H12/H21 (AI self-healing capability-scoped,
+sandboxed, audited, rollback-tested gate), H18 (OnlineProvider consent gate via
+AIGovernance.check_consent), H42 (PyInstaller codesign_identity).
+Say **'continues'** to pick up **H18 + H12/H21**, then H42.

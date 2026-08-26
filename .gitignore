@@ -4,3 +4,6 @@ F:\Pension Person Details\UmerOS\Old Linux Code/
 __pycache__/
 *.py[cod]
 
+
+# [FIX H1] local secrets must never be committed
+settings.local.json
