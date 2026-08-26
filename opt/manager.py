@@ -37,6 +37,14 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.path_guard import safe_child, PathTraversalError
 
+# [FIX H184] Zero-trust gate for privileged /opt lifecycle operations
+# (permissive-when-unwired / fail-closed-when-wired, matching the mnt/ media/
+# usr/ var/ cap-gate clusters).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 
 class OptManager:
     """
@@ -129,7 +137,8 @@ class OptManager:
             "paths": {},
             "errors": []
         }
-        
+        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt install
+
         try:
             # Create package structure
             package = OptPackage(name, provider, str(self.opt_root))
@@ -208,13 +217,8 @@ class OptManager:
     def remove(self, name: str, provider: str = "") -> Dict[str, Any]:
         """
         Remove a package from /opt.
-        
-        Args:
-            name: Package name
-            provider: Optional provider name
-            
-        Returns:
-            Dictionary with removal results
+
+        [FIX H184] requires CAP_FS_ADMIN.
         """
         result = {
             "success": False,
@@ -224,7 +228,8 @@ class OptManager:
             "paths_removed": [],
             "errors": []
         }
-        
+        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt remove
+
         try:
             # Remove from /opt
             package_key = self._get_package_db_key(name, provider)
@@ -271,15 +276,8 @@ class OptManager:
                config: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Update a package.
-        
-        Args:
-            name: Package name
-            provider: Optional provider name
-            version: New version (optional)
-            config: New configuration (optional)
-            
-        Returns:
-            Dictionary with update results
+
+        [FIX H184] requires CAP_FS_ADMIN.
         """
         result = {
             "success": False,
@@ -288,7 +286,8 @@ class OptManager:
             "updated_at": datetime.now().isoformat(),
             "errors": []
         }
-        
+        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt update
+
         try:
             db = self._read_database()
             package_key = self._get_package_db_key(name, provider)
@@ -415,7 +414,8 @@ class OptManager:
                                    provider: str = "", target_name: str = "") -> str:
         """
         Install a binary to an existing package.
-        
+
+        [FIX H184] requires CAP_FS_ADMIN.
         Args:
             package_name: Package name
             source_path: Path to binary source
@@ -425,6 +425,7 @@ class OptManager:
         Returns:
             Path to installed binary or error message
         """
+        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged binary install
         try:
             package = self.package_manager.get_package(package_name, provider)
             installed = package.install_binary(source_path, target_name)

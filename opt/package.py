@@ -23,11 +23,24 @@ License: GPL-3.0
 # [FIX H7] Add canonical GPL-3.0 licence tag (repo is GPL-3.0 per LICENSE/setup.py/README).
 
 import os
+import re
+import shlex
 import sys
 import shutil
 from pathlib import Path
 from typing import Dict, Optional, Any, List
 from datetime import datetime
+
+# [FIX H184] Privileged /opt mutations go through the zero-trust capability
+# bridge (permissive when no CapabilityManager is wired, fail-closed when one
+# is). Same pattern as the mnt/ media/ usr/ var/ clusters.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
 
 # [FIX H186] Guard against path traversal (CWE-22) when building /opt package
 # paths from caller-supplied name/provider.
@@ -196,27 +209,55 @@ class OptPackage:
         
         return target
     
-    def create_launcher_script(self, script_name: str, command: str, 
+    # -- [FIX H187] script-generation hardening helpers ----------------------
+
+    @staticmethod
+    def _validate_script_name(script_name: str) -> str:
+        """Reject path traversal / separators in generated script names."""
+        if not script_name or os.path.basename(script_name) != script_name \
+                or script_name in (".", "..") or "/" in script_name or "\\" in script_name:
+            raise ValueError(f"unsafe launcher script name: {script_name!r}")
+        return script_name
+
+    @staticmethod
+    def _reject_shell_metachar(token: str) -> str:
+        """Refuse control chars / newlines that could forge extra shell lines."""
+        if not token or any(ord(c) < 32 for c in token):
+            raise ValueError(f"unsafe shell token (control characters): {token!r}")
+        return token
+
+    @staticmethod
+    def _comment_safe(text: str) -> str:
+        """Neutralize newlines so comments cannot smuggle shell lines."""
+        return text.replace("\n", " ").replace("\r", " ")
+
+    def create_launcher_script(self, script_name: str, command: str,
                                 args: List[str] = None) -> Path:
         """
         Create a launcher script in the bin directory.
-        
-        Args:
-            script_name: Name of the launcher script
-            command: Command to execute
-            args: Optional list of arguments
-            
-        Returns:
-            Path to the created script
+
+        [FIX H187] The exec line is built with ``shlex.quote`` so neither the
+        command nor any argument can break out of its shell word (previously
+        ``exec {command} {' '.join(args)} "$@"`` interpolated raw — a crafted
+        arg like ``; rm -rf / #`` injected commands). Control characters are
+        rejected and script names cannot traverse out of bin/.
+
+        Raises:
+            ValueError: on unsafe names / commands / arguments.
         """
-        script_path = self.bin_path / script_name
-        
+        safe_name = self._validate_script_name(script_name)
+        clean_command = self._reject_shell_metachar(command)
+        clean_args = [self._reject_shell_metachar(a) for a in (args or [])]
+
+        script_path = self.bin_path / safe_name
+
         with open(script_path, 'w') as f:
             f.write("#!/bin/bash\n")
-            f.write(f"# Launcher script for {self.name}\n")
+            f.write(f"# Launcher script for {self._comment_safe(self.name)}\n")
             f.write(f"# Generated: {datetime.now().isoformat()}\n\n")
-            f.write(f"exec {command} {' '.join(args) if args else ''} \"$@\"\n")
-        
+            quoted = " ".join(shlex.quote(a) for a in clean_args)
+            f.write(f"exec {shlex.quote(clean_command)} {quoted} \"$@\"\n")
+
         script_path.chmod(0o755)
         return script_path
     
@@ -236,27 +277,40 @@ class OptPackage:
             
         Returns:
             Path to the created script
+
+        [FIX H187] Same hardening as the launcher: every dynamic token is
+        validated and ``shlex.quote``d; environment keys must be POSIX
+        identifiers and values are single-quoted so ``"$(cmd)"`` or backtick
+        payloads cannot execute when the wrapper is sourced.
         """
-        script_path = self.bin_path / script_name
-        
+        safe_name = self._validate_script_name(script_name)
+        clean_target = self._reject_shell_metachar(target_binary)
+        clean_pre = [self._reject_shell_metachar(a) for a in (pre_args or [])]
+        clean_post = [self._reject_shell_metachar(a) for a in (post_args or [])]
+
+        script_path = self.bin_path / safe_name
+
         with open(script_path, 'w') as f:
             f.write("#!/bin/bash\n")
-            f.write(f"# Wrapper script for {self.name}\n")
-            f.write(f"# Wrapper for: {target_binary}\n")
+            f.write(f"# Wrapper script for {self._comment_safe(self.name)}\n")
+            f.write(f"# Wrapper for: {self._comment_safe(clean_target)}\n")
             f.write(f"# Generated: {datetime.now().isoformat()}\n\n")
-            
+
             if environment:
                 f.write("# Environment setup\n")
                 for key, value in environment.items():
-                    f.write(f'export {key}="{value}"\n')
+                    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+                        raise ValueError(f"unsafe env var name: {key!r}")
+                    safe_val = self._reject_shell_metachar(str(value))
+                    f.write(f"export {key}={shlex.quote(safe_val)}\n")
                 f.write("\n")
-            
-            f.write(f"exec {target_binary} ")
-            if pre_args:
-                f.write(' '.join(pre_args) + " ")
+
+            f.write(f"exec {shlex.quote(clean_target)} ")
+            if clean_pre:
+                f.write(" ".join(shlex.quote(a) for a in clean_pre) + " ")
             f.write('$@')
-            if post_args:
-                f.write(" " + ' '.join(post_args))
+            if clean_post:
+                f.write(" " + " ".join(shlex.quote(a) for a in clean_post))
             f.write("\n")
         
         script_path.chmod(0o755)
@@ -265,10 +319,13 @@ class OptPackage:
     def remove(self) -> bool:
         """
         Remove the entire package directory.
-        
+
+        [FIX H184] requires CAP_FS_ADMIN (privileged rmtree under /opt).
+
         Returns:
             True if removal was successful
         """
+        gate.require(CAP_FS_ADMIN)
         try:
             if self.base_path.exists():
                 shutil.rmtree(self.base_path)
@@ -352,6 +409,7 @@ class OptManager:
         Returns:
             OptPackage instance
         """
+        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt install
         package = OptPackage(name, provider, str(self.opt_root))
         
         # Install binary if provided
@@ -375,6 +433,7 @@ class OptManager:
         Returns:
             True if removal was successful
         """
+        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt remove
         # [FIX H186] Contain the package path; refuse traversal names.
         try:
             if provider:

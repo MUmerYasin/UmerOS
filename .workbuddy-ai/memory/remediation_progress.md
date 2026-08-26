@@ -196,10 +196,10 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H168 | RED | `mnt/fstab.py:write_file` (L334) | **Un-gated privileged `/etc/fstab` write + drops comments/header** - `write_file` writes `/etc/fstab` with no - **FIXED (session 24, completing session 10's gate):** the `CAP_FS_ADMIN` gate landed earlier (H166); the remaining half — comment/header loss — is now fixed: `_comments`/`_header` captured by `from_file` AND `from_string` are re-emitted by `to_string()` ahead of entry lines (also closes H174's round-trip loss). Tests: `tests/test_mnt_security.py::TestFstabCommentPreservation` (2).
 - [x] H177 | RED | `network/` (all egress) | **No `CapabilityManager` gate on ANY network egress** - `DNSResolver.resolve*`/`resolve_all`/`reverse_lookup`,
 - [x] H178 | RED | `network/http_client.py:227` `_validate_url` | **SSRF - egress client omits internal-range blocking** - only scheme in {http,https} + netloc presence are val
-- [ ] H184 | RED | `opt/` (all privileged ops) | **No `CapabilityManager` gate on ANY privileged `/opt` op** - `OptManager.install/remove/update`, `OptPackage.
+- [x] H184 | RED | `opt/` (all privileged ops) | **No `CapabilityManager` gate on ANY privileged `/opt` op** - **FIXED (session 26):** `gate.require(CAP_FS_ADMIN)` (permissive-when-unwired / fail-closed-when-wired) added to `OptManager.install/remove/update/install_binary_to_package`, `OptManager(package).install_package/remove_package` and `OptPackage.remove()` (the rmtree). Tests: `tests/test_opt_security.py::TestOptCapGate` (3, strict-mode PermissionError).
 - [x] H185 | RED | `opt/var.py:189` `write_file` / `opt/config.py:73` `install_config` | **Path traversal via unvalidated `filename`/`config_file`/`package_name` in file writes** - `VarOptManager.wri
 - [x] H186 | RED | `opt/manager.py:208` `remove` / `opt/package.py:346` `remove_package`  | **Path traversal via unvalidated `name`/`provider` in `shutil.rmtree`** - `rmtree(self.opt_root / provider / n
-- [ ] H187 | RED | `opt/package.py:161,185` `create_launcher_script`/`create_wrapper_scri | **Command injection in generated launcher/wrapper scripts** - writes `exec {command} {' '.join(args)} "$@"` an
+- [x] H187 | RED | `opt/package.py` launcher/wrapper scripts | **Command injection in generated scripts** - **FIXED (session 26):** exec lines now built with `shlex.quote` for command+args+env values; env keys must match POSIX identifier regex; control characters rejected; script names traversal-checked; comment lines newline-sanitized. Verified via shlex.split tokenization: evil arg "; rm -rf / #` stays ONE argv token. Tests: `tests/test_opt_security.py::TestLauncherScriptInjection` (5).
 - [x] H194 | RED | `packages/umer_pkg.py:357,363` `_install_single`/`tarfile.extractall` | **Tar-slip path traversal on install** - members filtered only by naive string-prefix `m.name.startswith("file
 - [x] H195 | RED | `packages/umer_pkg.py:347,510` `_install_single`/`build` | **Untrusted manifest `name`/`version` → attacker-controlled paths** - `dest = os.path.join(install_dir, manife
 - [x] H196 | RED | `packages/umer_pkg.py:250,268` `_verify_hash` | **"Signed" archives overstated; verification fails OPEN** - docstring advertises "Signed .umerpkg archives" bu
@@ -473,13 +473,13 @@ Also cross-cutting: H1 (plaintext API key), H12 (AI hot-patch), H18 (OnlineProvi
 governance), H21 (self-healing), H42 (no code signing).
 
 ## NEXT (where to pick up)
-**✅ media/ + mnt/ RED CLUSTER CLOSED (session 25, 2026-08-26).** H157 + H167 + H168 fixed
-(details in their `[x]` rows). New tests: `tests/test_media.py::TestAutoMountSecureOptions` (4),
-new file `tests/test_mnt_security.py` (5). Full suite **1860 passed / 54 skipped / 0 failed**.
+**✅ opt/ RED CLUSTER CLOSED (session 26, 2026-08-26).** H184 + H187 fixed
+(details in their `[x]` rows). New tests: `tests/test_opt_security.py` (8).
+Full suite **1868 passed / 54 skipped / 0 failed / 0 errors**.
 
-Say **'continues'** to pick up **opt/ H184** (cap-gate all privileged `/opt` ops: install/remove/update,
-launcher/wrapper creation) and **H187** (command-injection in generated launcher scripts — quote/escape
-`command`+args, validate bin_path). Then packages/ H198.
+Say **'continues'** to pick up **packages/ H198** (cap-gate `umer_pkg`
+install/remove/update), then **quantum/ H215,H216,H217,H221**, then
+**security/ H244,H245,H246**, then cross-cutting H1,H12,H18,H21,H42.
 
 ## LOOP PROTOCOL (human-in-the-loop, always applies)
 1. Read this file's first `[ ]` under "NEXT".
