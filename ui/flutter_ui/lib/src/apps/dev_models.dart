@@ -286,6 +286,107 @@ class DevService {
     return null;
   }
 
+  static const List<ModernTech> modernFeatures = [
+    ModernTech(
+      name: 'VFIO Passthrough',
+      nodePath: '/dev/vfio/vfio',
+      kernelSince: 'iommufd k5.15',
+      summary: 'IOMMU-agnostic userspace drivers: VMs get safe direct GPU/NIC/NVMe access via group + container fds.',
+      icon: Icons.security,
+    ),
+    ModernTech(
+      name: 'DMA-BUF Heaps',
+      nodePath: '/dev/dma_heap/system',
+      kernelSince: 'k5.6 · 6.19 vfio-pci',
+      summary: 'Explicit zero-copy buffer sharing heaps; Linux 6.19 even exports VFIO PCI MMIO BARs as dma-bufs.',
+      icon: Icons.layers,
+    ),
+    ModernTech(
+      name: 'GPIO chardev ABI',
+      nodePath: '/dev/gpiochip0',
+      kernelSince: 'k4.8',
+      summary: 'Line-based GPIO with events and multi-consumer safety — replaces the deprecated sysfs GPIO.',
+      icon: Icons.settings_input_component,
+    ),
+    ModernTech(
+      name: 'ZRAM compressed swap',
+      nodePath: '/dev/zram0',
+      kernelSince: 'k3.14 gen',
+      summary: 'Compressed RAM block swap (lz4/zstd): faster than disk, no SSD wear; zram-generator configures at boot.',
+      icon: Icons.compress,
+    ),
+    ModernTech(
+      name: 'userfaultfd node',
+      nodePath: '/dev/userfaultfd',
+      kernelSince: 'k6.1',
+      summary: 'Device-node entry so sandboxes can grant page-fault handling without exposing the syscall.',
+      icon: Icons.touch_app,
+    ),
+    ModernTech(
+      name: 'USB gadget / functionfs',
+      nodePath: '/dev/functionfs',
+      kernelSince: 'k3.x+',
+      summary: 'Present UmerOS as a USB peripheral: HID keyboards (/dev/hidgN) and custom userspace functions.',
+      icon: Icons.usb,
+    ),
+    ModernTech(
+      name: 'NVMe generic char nodes',
+      nodePath: '/dev/ng0n1',
+      kernelSince: 'k4.10',
+      summary: 'Per-namespace admin passthrough alongside block nodes — powers modern nvme-cli commands.',
+      icon: Icons.bolt,
+    ),
+    ModernTech(
+      name: 'PTP hardware clock',
+      nodePath: '/dev/ptp0',
+      kernelSince: 'k3.0',
+      summary: 'Nanosecond-grade NIC hardware timestamps for linuxptp/chrony and TSN scheduling.',
+      icon: Icons.schedule,
+    ),
+    ModernTech(
+      name: 'RFKill multiplexer',
+      nodePath: '/dev/rfkill',
+      kernelSince: 'k2.6.33',
+      summary: 'Single event stream for all radio kill switches (wlan/bt/wwan) consumed by desktop shells.',
+      icon: Icons.signal_wifi_off,
+    ),
+    ModernTech(
+      name: 'Netlink uevent monitor',
+      nodePath: 'udev_modern.UeventNetlinkMonitor',
+      kernelSince: 'systemd-udevd',
+      summary: 'Ordered uevent queue with coalescing (debounce), settle() drain and listener groups.',
+      icon: Icons.notifications_active,
+    ),
+    ModernTech(
+      name: 'Tags & uaccess seats',
+      nodePath: 'TAGS=="uaccess"',
+      kernelSince: 'logind era',
+      summary: 'Per-device properties and tags; logind grants the active seat user ACLs on tagged nodes.',
+      icon: Icons.badge,
+    ),
+    ModernTech(
+      name: 'Predictable naming',
+      nodePath: '/dev/disk/by-*',
+      kernelSince: 'v197 rules',
+      summary: 'Persistent by-id/by-path/by-uuid disk aliases plus topology-based enpXsY network names.',
+      icon: Icons.abc,
+    ),
+    ModernTech(
+      name: 'systemd .device units',
+      nodePath: 'dev-null.device',
+      kernelSince: 'systemd',
+      summary: 'Every node synthesises a plugged .device unit for dependency ordering in modern init.',
+      icon: Icons.account_tree,
+    ),
+    ModernTech(
+      name: 'Container mknod policy',
+      nodePath: 'BPF device filter',
+      kernelSince: 'cgroup v2',
+      summary: 'Allowlist evaluated at create time: stdio/tty/null-family allowed, everything else denied.',
+      icon: Icons.policy,
+    ),
+  ];
+
   static UdevResult udevadm(List<String> args) {
     if (args.isEmpty) {
       return const UdevResult(command: 'udevadm', args: [], exitCode: 0, stdout: 'usage: udevadm info|monitor|trigger|settle|test [args]\n');

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/auto_adjust_box.dart';
 import 'dev_models.dart';
 
-enum _Section { overview, browse, tree, terminal, fhs }
+enum _Section { overview, browse, tree, modern, terminal, fhs }
 
 class DevApp extends StatefulWidget {
   const DevApp({super.key});
@@ -137,6 +137,7 @@ class _DevAppState extends State<DevApp> {
           _navTile('Overview', Icons.dashboard_outlined, _Section.overview, colorScheme),
           _navTile('Browse Nodes', Icons.apps_outlined, _Section.browse, colorScheme),
           _navTile('Device Tree', Icons.account_tree_outlined, _Section.tree, colorScheme),
+          _navTile('Modern Tech', Icons.auto_awesome, _Section.modern, colorScheme),
           _navTile('Udevadm Shell', Icons.terminal_outlined, _Section.terminal, colorScheme),
           _navTile('FHS Map', Icons.fact_check_outlined, _Section.fhs, colorScheme),
           const Spacer(),
@@ -196,6 +197,8 @@ class _DevAppState extends State<DevApp> {
         return _buildBrowse(colorScheme, textTheme);
       case _Section.tree:
         return _buildTree(colorScheme, textTheme);
+      case _Section.modern:
+        return _buildModern(colorScheme, textTheme);
       case _Section.terminal:
         return _buildTerminal(colorScheme, textTheme);
       case _Section.fhs:
@@ -584,6 +587,111 @@ class _DevAppState extends State<DevApp> {
                           setState(() => _runCommand('udevadm info ${n.path}')),
                     ),
                 ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildModern(ColorScheme colorScheme, TextTheme textTheme) {
+    const features = DevService.modernFeatures;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.deepPurple.withValues(alpha: 0.18),
+                Colors.cyan.withValues(alpha: 0.12),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.3)),
+          ),
+          child: AutoAdjustRow(children: [
+            Icon(Icons.auto_awesome, color: Colors.deepPurple, size: 26),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Next-Generation /dev Techniques',
+                    style: textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700, color: colorScheme.onSurface)),
+                const SizedBox(height: 4),
+                Text(
+                  '${features.length} techniques adopted from modern mainline Linux (k5.x–6.19) and systemd-udevd — previously missing from UmerOS. Implemented in dev/virtualization_devices.py, dev/modern_devices.py and dev/udev_modern.py.',
+                  style: textTheme.bodySmall
+                      ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.7)),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        for (final f in features)
+          Card(
+            color: colorScheme.surfaceContainerHigh,
+            margin: const EdgeInsets.only(bottom: 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                if (f.nodePath.startsWith('/dev/')) {
+                  _runCommand('udevadm info ${f.nodePath}');
+                }
+              },
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.withValues(alpha: 0.15),
+                      border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.35)),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(f.icon, size: 20, color: Colors.deepPurple),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      AutoAdjustRow(spacing: 6, runSpacing: 4, children: [
+                        Flexible(child: Text(f.name,
+                            style: textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700, color: colorScheme.onSurface))),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withValues(alpha: 0.15),
+                            border: Border.all(color: Colors.purple.withValues(alpha: 0.4)),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(f.kernelSince,
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.deepPurple)),
+                        ),
+                      ]),
+                      const SizedBox(height: 6),
+                      Text(f.nodePath,
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              color: colorScheme.primary.withValues(alpha: 0.9)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 6),
+                      Text(f.summary,
+                          style: textTheme.bodySmall
+                              ?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.65), height: 1.35)),
+                    ]),
+                  ),
+                ]),
               ),
             ),
           ),
