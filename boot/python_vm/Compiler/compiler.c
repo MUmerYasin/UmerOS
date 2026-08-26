@@ -773,7 +773,7 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
     fprintf(stderr, "[DBG-CHECK] compiler->bytecode_pos=%d\n", compiler->bytecode_pos);
     fprintf(stderr, "[DBG-CHECK] compiler->bytecode_size=%d\n", compiler->bytecode_size);
     fprintf(stderr, "[DBG-CHECK] compiler->arg_top=%d\n", compiler->arg_top);
-    fprintf(stderr, "[DBG-CHECK] compiler->stack_top=%d\n", compiler->stack_top);
+    fprintf(stderr, "[DBG-CHECK] compiler->arg_top=%d\n", compiler->arg_top);
     if (compiler->consts && compiler->n_consts > 0 && compiler->n_consts <= compiler->consts_size) {
         for (Py_ssize_t ci = 0; ci < compiler->n_consts; ci++) {
             fprintf(stderr, "[DBG-CHECK]   consts[%lld]=%p\n", (long long)ci, (void*)compiler->consts[ci]);

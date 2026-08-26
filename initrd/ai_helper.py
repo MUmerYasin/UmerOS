@@ -43,6 +43,7 @@ License: GPL-3.0 (GNU General Public License Version 3)
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import logging
 import os
@@ -173,14 +174,28 @@ class AIHelper:
         path = os.path.join(host_root, "var", "log", "umeros_initrd_history.log")
         if not os.path.isfile(path):
             return []
+        # [FIX H2][FIX H91] The boot history log is NOT a trusted script.
+        # Parsing it with eval() allowed any writer of the log to execute
+        # arbitrary code at early-boot (PID 1, uid 0) - a classic code
+        # injection (CWE-94).  Use the literal-safe parser instead; malformed
+        # or non-literal lines are dropped rather than executed.  Only
+        # dict-shaped records (what the suggester actually consumes) are kept.
         try:
+            parsed: List[Dict[str, object]] = []
             with open(path, "r", encoding="utf-8") as fh:
-                return [
-                    eval(line)  # noqa: S307 - history file is trusted
-                    for line in fh
-                    if line.strip()
-                ]
-        except Exception:  # noqa: BLE001
+                for line in fh:
+                    if not line.strip():
+                        continue
+                    try:
+                        value = ast.literal_eval(line)
+                    except (ValueError, SyntaxError, MemoryError, RecursionError):
+                        # Not a literal structure -> untrusted input, skip it.
+                        log.warning("skipping non-literal initrd history line")
+                        continue
+                    if isinstance(value, dict):
+                        parsed.append(value)
+            return parsed
+        except OSError:  # noqa: BLE001 - cannot read the log
             return []
 
     def _rule_based_suggest(self, base: List[str], top_k: int) -> List[ModuleSuggestion]:

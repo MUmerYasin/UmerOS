@@ -28,6 +28,7 @@ import '../apps/boot_manager_app.dart';
 import '../apps/browser_app.dart';
 import '../apps/calculator_app.dart';
 import '../apps/calendar_app.dart';
+import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/games_app.dart';
@@ -209,6 +210,15 @@ abstract final class AppRegistry {
       color: Colors.lightBlue,
       category: AppCategory.development,
       builder: (_) => const BinApp(),
+    ),
+    AppDefinition(
+      id: 'dev',
+      title: 'Device Manager',
+      description: 'Browse /dev device nodes and query with udevadm.',
+      icon: Icons.developer_board,
+      color: Colors.brown,
+      category: AppCategory.development,
+      builder: (_) => const DevApp(),
     ),
     AppDefinition(
       id: 'terminal',

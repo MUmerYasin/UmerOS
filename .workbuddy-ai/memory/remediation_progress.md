@@ -156,7 +156,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 ### RED
 
 - [ ] H1 | RED | `settings.local.json` | Live OpenRouter API key committed in plaintext
-- [ ] H2 | RED | `initrd/ai_helper.py:166` | `eval(line)` on user history (suppressed B307)
+- [x] H2 | RED | `initrd/ai_helper.py:166` | `eval(line)` on user history (suppressed B307) - **FIXED (session 21):** `_load_history` uses `ast.literal_eval`; non-literal lines dropped fail-closed (same fix as H91).
 - [ ] H3 | RED | `lib/security.py:72` | Hardcoded default `PASSWORD="password"`
 - [ ] H12 | RED | `ai/` self-healing (design) | AI hot-patch path, if enabled, applies generated code
 - [x] H17 | RED | `security/security.py` → `SecureBoot.verify_image` (also planned `secu | Signature/trust verification is **fail-open**: `verify_image` returns `True` when there is no trust-store entr
@@ -171,15 +171,15 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H51 | RED | `compatibility/container.py:12-23` | **Fail-open zero-trust capability gate.** `ZeroTrustContainer.execute_binary` calls `self.capabilities.check(s
 - [x] H64 | RED | `drivers/driver_service.py:61-94, 259, 323` | **Static-secret / weak-default auth gap.** When OIDC env vars are unset, `verify_oauth_token` validates JWTs w
 - [x] H83 | RED | `home/home_backup.py:66-79` (`restore_backup`) | **Unsafe tar restore — arbitrary file write + data loss.** [FIXED session 18 — fail-closed, traversal-safe, non-destructive] `restore_backup` does `shutil.rmtree(str(user_home)
-- [ ] H91 | RED | `initrd/ai_helper.py:166` (`_load_history`) | **`eval()` on a "trusted" boot history log — re-locates the known H2 into the early-boot path.** `_load_histor
-- [ ] H92 | RED | `initrd/linuxrc.py:302-320` (`_drop_to_root`), `initrd/pivot_root.py`, | **No capability gating on the most privileged boot operations.** `_drop_to_root` calls `os.seteuid(0)` wheneve
-- [ ] H93 | RED | `initrd/builder.py:342-360` (`_unpack_to_dir`) | **CPIO entry-name path traversal (arbitrary file write).** `_unpack_to_dir` writes `dest = target / rel` where
+- [x] H91 | RED | `initrd/ai_helper.py:166` (`_load_history`) | **`eval()` on a "trusted" boot history log - FIXED (session 21, same fix as H2):** `ast.literal_eval`, non-literal lines dropped fail-closed.
+- [x] H92 | RED | `initrd/linuxrc.py:302-320` (`_drop_to_root`), `initrd/pivot_root.py`, | **No capability gating on the most privileged boot operations - FIXED (session 21):** `_drop_to_root` requires `CAP_SYS_ADMIN` (fail-closed when a manager is wired / strict mode; `pivot_root` is a simulated VFS swap, no real privilege).
+- [x] H93 | RED | `initrd/builder.py:342-360` (`_unpack_to_dir`) | **CPIO entry-name path traversal (arbitrary file write) - FIXED (session 21):** `_unpack_to_dir` validates every entry with `core.path_guard.safe_join`; escapes skipped fail-closed.
 - [x] H98 | RED | `installer/__init__.py:1`, `installer/install.py`, `installer/installe | **Two divergent `UmerInstaller` classes + wrong package re-export.** `__init__.py` does `from .install import 
 - [x] H99 | RED | `installer/install.py:45-52` (`display_waiver`) | **Fail-open legal-consent gate.** `display_waiver` returns `True` in `dry_run` mode (the *default* `dry_run=Tr
 - [x] H101 | RED | `installer/installer.py:350-381` (`rollback`), auto-called at L430/L43 | **Unguarded `shutil.rmtree` rollback (data-loss risk).** `rollback()` does `shutil.rmtree(self._install_root)`
-- [ ] H110 | RED | `kernel/umer_kernel.py:674-676` | **Live kernel wires no-op placeholder stubs for `MemoryManager`, `IPCBus`, `CapabilityManager`** (`type('X', (
+- [x] H110 | RED | `kernel/umer_kernel.py:674-676` | **Live kernel wires no-op placeholder stubs for `MemoryManager`, `IPCBus`, `CapabilityManager`** (`type('X', ( - **FIXED (session 22):** real MemoryManager/IPCBus/CapabilityManager wired into UmerKernel.__init__ (replacing the no-op type(...) placeholders); SYSTEM_PID=0 omnipotent, init granted a minimal cap set. The correct wiring was commented out at L1622-1624.
 - [x] H111 | RED | `kernel/umer_kernel.py:429-434` (`CryptoEngine`) | **Dummy crypto — `verify` returns `True` unconditionally, `sign` returns `b"dummy_signature"`** (`encrypt` onl
-- [ ] H112 | RED | `kernel/umer_kernel.py:436-441` (`SecuritySandbox.register_process`) | **`register_process` only stores `{name, fs_root}` and `print`s; performs no sandboxing / fs_root enforcement*
+- [x] H112 | RED | `kernel/umer_kernel.py:436-441` (`SecuritySandbox.register_process`) | **`register_process` only stores `{name, fs_root}` and `print`s; performs no sandboxing / fs_root enforcement* - **FIXED (session 22):** SecuritySandbox.register_process now enforces fs_root containment via core.path_guard.safe_join (fail-closed; escapes raise SecurityViolation); empty fs_root rejected. No longer a decorative print-only gate (H51 family).
 - [ ] H128 | RED | `legal/licenses.py:8-13,72-73` + `README.md:40` | **License framework contradicts the adopted H7 → GPL-3.0 canonical decision** — `licenses.py` docstring + `get
 - [x] H129 | RED | `legal/licenses.py:100-119` | **Fail-open license compliance audit** — `scan_directory` counts any file containing "Licence"/"License"/"Copy
 - [ ] H130 | RED | `legal/licenses.py:72-73` | **`get_license_text(name)` silently returns Apache-2.0 text for any unknown name, incl. "GPL-3.0"** — there is
@@ -283,8 +283,8 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [ ] H95 | YELLOW | `initrd/` (all 17 modules) | **License inconsistency — `GPL-3.0 (GNU General Public License Version 3)` on all 17 files** (violates H7 GPL-3.0 canonical; adds 17 Apac
 - [ ] H97 | YELLOW | `initrd/builder.py:290/305`, `initrd/ai_helper.py:133/135/243`, `initr | **Hash strength below the design mandate.** Image hashes (`hashlib.sha256(raw)`/`sha256(final_bytes)`), AI ent
 - [x] H100 | YELLOW | `installer/installer.py:385-404` (`run(consent_override=...)`) |**Unguarded programmatic EULA bypass.** `run(consent_override=True)` skips `show_eula()` entirely ("for testin
-- [ ] H102 | YELLOW | `installer/installer.py` (`backup_bootloader`/`copy_os_files`/`install | **No capability gating on privileged install ops.** The installer writes to `/opt/umer_os`, `/opt/umer_backup`
-- [ ] H103 | YELLOW | `installer/installer.py:258-295` (`copy_os_files`) | **No `_safe_join` / `..` canonicalization on copy destinations.** `dst_path = os.path.join(dst, os.path.relpat
+- [x] H102 | YELLOW | `installer/installer.py` (`backup_bootloader`/`copy_os_files`/`install | **No capability gating on privileged install ops — FIXED (session 20):** all gated behind `CAP_FS_ADMIN` (`backup_bootloader`/`install_bootloader`/`configure_first_boot`/`copy_os_files`/`run`).
+- [x] H103 | YELLOW | `installer/installer.py:258-295` (`copy_os_files`) | **No `_safe_join` / `..` canonicalization on copy destinations — FIXED (session 20):** `copy_os_files` now uses `_safe_join` (rejects escapes outside `dst`) + skips dotfiles.
 - [ ] H104 | YELLOW | `installer/installer.py:25`, `installer/install.py` (no header), `inst | **License inconsistency (H7).** `installer.py` declares `Licence: GPL-3.0 (GNU General Public License Version 3)` (non-canonical); `install.py` an
 - [ ] H106 | YELLOW | `installer/install.py:76-100` (`UmerInstaller.install`) | **`install.py` is a dead/legacy stub.** Its `install()` prints "Real installation would happen here" and never
 - [ ] H108 | YELLOW | `installer/installer.py:258-295` (`copy_os_files`), whole install pipe | **No integrity/signature verification of installed OS files.** The installer copies whatever is at `source_dir

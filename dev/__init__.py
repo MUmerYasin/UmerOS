@@ -143,6 +143,17 @@ from dev.media_device import MediaDevice
 from dev.parallel_device import ParallelDevice
 from dev.misc_system_devices import BtrfsControlDevice, DAXDevice, VGAArbiterDevice
 
+# Modern next-generation subsystems (2025+ techniques)
+from dev.virtualization_devices import VFIODevice, DmaBufHeap, MdevDevice
+from dev.modern_devices import (
+    GpioCharDevice, ZramDevice, UserfaultfdNode,
+    UsbGadgetDevice, NvmeGenericDevice, PtpClockDevice, RfKillDevice,
+)
+from dev.udev_modern import (
+    UeventNetlinkMonitor, DeviceTagRegistry, PredictableNamingPolicy,
+    SystemdDeviceUnits, MknodPolicy,
+)
+
 __all__ = [
     # Core
     "DeviceType", "DeviceNode", "DeviceManager", "get_device_manager",
@@ -191,4 +202,10 @@ __all__ = [
     "MediaDevice",
     "ParallelDevice",
     "BtrfsControlDevice", "DAXDevice", "VGAArbiterDevice",
+    # Modern next-generation devices
+    "VFIODevice", "DmaBufHeap", "MdevDevice",
+    "GpioCharDevice", "ZramDevice", "UserfaultfdNode",
+    "UsbGadgetDevice", "NvmeGenericDevice", "PtpClockDevice", "RfKillDevice",
+    "UeventNetlinkMonitor", "DeviceTagRegistry", "PredictableNamingPolicy",
+    "SystemdDeviceUnits", "MknodPolicy",
 ]

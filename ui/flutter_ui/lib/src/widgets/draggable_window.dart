@@ -32,15 +32,12 @@ class _DraggableWindowState extends State<DraggableWindow> {
       );
     }
 
-    // Maximized state
+    // Maximized state — stretches over the entire desktop.
     if (widget.window.isMaximized) {
-      return Positioned(
-        top: 32,
-        left: 0,
-        right: 0,
-        bottom: 80,
+      return Positioned.fill(
         child: GestureDetector(
           onTapDown: (_) => appState.focusWindow(widget.window.id),
+          onDoubleTap: () => appState.maximizeWindow(widget.window.id),
           child: Material(
             elevation: 12,
             color: colorScheme.surface,
@@ -106,6 +103,7 @@ class _DraggableWindowState extends State<DraggableWindow> {
                   children: [
                     // Header Drag Zone ONLY
                     GestureDetector(
+                      onDoubleTap: () => appState.maximizeWindow(widget.window.id),
                       onPanStart: (details) {
                         _isDraggingHeader = true;
                         _dragStartGlobal = details.globalPosition;

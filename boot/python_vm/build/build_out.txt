@@ -1,0 +1,30 @@
+**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.7.0
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
+=== CMAKE ===
+-- Configuring done (0.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: F:/Pension Person Details/UmerOS/boot/python_vm/build
+=== NINJA ===
+[1/2] Building C object CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(330): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'Py_ssize_t'
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(330): note: consider using '%lld' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(330): note: consider using '%Id' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(330): note: consider using '%I64d' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(773): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'Py_ssize_t'
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(773): note: consider using '%lld' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(773): note: consider using '%Id' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(773): note: consider using '%I64d' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(774): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'Py_ssize_t'
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(774): note: consider using '%lld' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(774): note: consider using '%Id' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(774): note: consider using '%I64d' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(800): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'Py_ssize_t'
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(800): note: consider using '%lld' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(800): note: consider using '%Id' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(800): note: consider using '%I64d' in the format string
+F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(701): warning C4100: 'filename': unreferenced parameter
+[2/2] Linking C executable umeros_python.exe
+=== BUILD SUCCESS ===

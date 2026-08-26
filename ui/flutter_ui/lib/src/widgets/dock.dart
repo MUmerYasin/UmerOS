@@ -373,99 +373,126 @@ class _SnapWindowButton extends StatefulWidget {
 class _SnapWindowButtonState extends State<_SnapWindowButton> {
   bool _isHovered = false;
 
-  @override
-  Widget build(BuildContext context) {
+  Future<void> _openSnapMenu() async {
     final appState = context.read<AppState>();
     final screenSize = MediaQuery.of(context).size;
+    final box = context.findRenderObject() as RenderBox;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        box.localToGlobal(
+          Offset(box.size.width - 220, box.size.height + 6),
+          ancestor: overlay,
+        ),
+        box.localToGlobal(
+          Offset(box.size.width + 20, box.size.height + 280),
+          ancestor: overlay,
+        ),
+      ),
+      Offset.zero & overlay.size,
+    );
 
+    final mode = await showMenu<WindowSnapMode>(
+      context: context,
+      position: position,
+      items: const [
+        PopupMenuItem(
+          value: WindowSnapMode.maximized,
+          child: Row(children: [
+            Icon(Icons.fullscreen, size: 18),
+            SizedBox(width: 8),
+            Text('Maximize / Fullscreen'),
+          ]),
+        ),
+        PopupMenuItem(
+          value: WindowSnapMode.leftHalf,
+          child: Row(children: [
+            Icon(Icons.align_horizontal_left, size: 18),
+            SizedBox(width: 8),
+            Text('Snap Left 50%'),
+          ]),
+        ),
+        PopupMenuItem(
+          value: WindowSnapMode.rightHalf,
+          child: Row(children: [
+            Icon(Icons.align_horizontal_right, size: 18),
+            SizedBox(width: 8),
+            Text('Snap Right 50%'),
+          ]),
+        ),
+        PopupMenuItem(
+          value: WindowSnapMode.topLeft,
+          child: Row(children: [
+            Icon(Icons.north_west, size: 18),
+            SizedBox(width: 8),
+            Text('Snap Top-Left 25%'),
+          ]),
+        ),
+        PopupMenuItem(
+          value: WindowSnapMode.topRight,
+          child: Row(children: [
+            Icon(Icons.north_east, size: 18),
+            SizedBox(width: 8),
+            Text('Snap Top-Right 25%'),
+          ]),
+        ),
+        PopupMenuItem(
+          value: WindowSnapMode.centered,
+          child: Row(children: [
+            Icon(Icons.filter_center_focus, size: 18),
+            SizedBox(width: 8),
+            Text('Center 80%'),
+          ]),
+        ),
+        PopupMenuItem(
+          value: WindowSnapMode.normal,
+          child: Row(children: [
+            Icon(Icons.refresh, size: 18),
+            SizedBox(width: 8),
+            Text('Restore Normal'),
+          ]),
+        ),
+      ],
+    );
+    if (mode == null || !mounted) return;
+    if (mode == WindowSnapMode.maximized && widget.isMaximized) {
+      appState.snapWindow(widget.windowId, WindowSnapMode.normal, screenSize);
+    } else {
+      appState.snapWindow(widget.windowId, mode, screenSize);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: PopupMenuButton<WindowSnapMode>(
-        tooltip: widget.isMaximized ? 'Restore Window' : 'Snap / Maximize Window',
-        icon: Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            color: _isHovered ? Colors.green : Colors.transparent,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            widget.isMaximized ? Icons.crop_square : Icons.crop_din,
-            size: 13,
-            color: _isHovered
-                ? Colors.white
-                : Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.7),
+      child: GestureDetector(
+        onTap: widget.onMaximizeToggle,
+        onSecondaryTap: _openSnapMenu,
+        onLongPress: _openSnapMenu,
+        child: Tooltip(
+          message:
+              widget.isMaximized ? 'Restore Window' : 'Maximize / Full Screen',
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: _isHovered ? Colors.green : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              widget.isMaximized ? Icons.crop_din : Icons.crop_square,
+              size: 13,
+              color: _isHovered
+                  ? Colors.white
+                  : Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.7),
+            ),
           ),
         ),
-        onSelected: (mode) {
-          if (mode == WindowSnapMode.maximized && widget.isMaximized) {
-            appState.snapWindow(widget.windowId, WindowSnapMode.normal, screenSize);
-          } else {
-            appState.snapWindow(widget.windowId, mode, screenSize);
-          }
-        },
-        itemBuilder: (context) => const [
-          PopupMenuItem(
-            value: WindowSnapMode.maximized,
-            child: Row(children: [
-              Icon(Icons.fullscreen, size: 18),
-              SizedBox(width: 8),
-              Text('Maximize / Fullscreen'),
-            ]),
-          ),
-          PopupMenuItem(
-            value: WindowSnapMode.leftHalf,
-            child: Row(children: [
-              Icon(Icons.align_horizontal_left, size: 18),
-              SizedBox(width: 8),
-              Text('Snap Left 50%'),
-            ]),
-          ),
-          PopupMenuItem(
-            value: WindowSnapMode.rightHalf,
-            child: Row(children: [
-              Icon(Icons.align_horizontal_right, size: 18),
-              SizedBox(width: 8),
-              Text('Snap Right 50%'),
-            ]),
-          ),
-          PopupMenuItem(
-            value: WindowSnapMode.topLeft,
-            child: Row(children: [
-              Icon(Icons.north_west, size: 18),
-              SizedBox(width: 8),
-              Text('Snap Top-Left 25%'),
-            ]),
-          ),
-          PopupMenuItem(
-            value: WindowSnapMode.topRight,
-            child: Row(children: [
-              Icon(Icons.north_east, size: 18),
-              SizedBox(width: 8),
-              Text('Snap Top-Right 25%'),
-            ]),
-          ),
-          PopupMenuItem(
-            value: WindowSnapMode.centered,
-            child: Row(children: [
-              Icon(Icons.filter_center_focus, size: 18),
-              SizedBox(width: 8),
-              Text('Center 80%'),
-            ]),
-          ),
-          PopupMenuItem(
-            value: WindowSnapMode.normal,
-            child: Row(children: [
-              Icon(Icons.refresh, size: 18),
-              SizedBox(width: 8),
-              Text('Restore Normal'),
-            ]),
-          ),
-        ],
       ),
     );
   }

@@ -61,7 +61,7 @@ from initrd.cpio import (
     unpack_archive,
 )
 from initrd.hooks import HookAbort, HookManager, HookPoint
-from initrd.linuxrc import BootContext, run as linuxrc_run
+from initrd.linuxrc import BootContext, run as linuxrc_run, _drop_to_root
 from initrd.module_resolver import ModuleResolver, detect_rootfstype
 from initrd.mounts import (
     FilesystemType, MountFlag, MountTable, chroot_into, chroot_undo,
@@ -80,6 +80,20 @@ from initrd.scenarios import (
 )
 from initrd.signals import InitSignal, PID1SignalHandler
 from initrd.vfs_ops import VfsRoot
+
+# Zero-trust capability gate (used by the H92 privileged-boot-op test).  Guarded
+# so this test module still imports if core is not on the path.
+try:
+    from core.capability_gate import gate as _cap_gate
+except Exception:  # pragma: no cover
+    class _NoGate:
+        def require(self, *args, **kwargs):  # always allow
+            return None
+        def unwire(self):
+            return None
+        def set_strict(self, value):
+            return None
+    _cap_gate = _NoGate()
 
 
 # ---------------------------------------------------------------------------
@@ -629,6 +643,141 @@ class TestLinuxrc(unittest.TestCase):
             self.assertIn("/dev", mp)
             self.assertIn("/proc", mp)
             self.assertIn("/sys", mp)
+
+
+# ---------------------------------------------------------------------------
+# ai_helper history log (H2 / H91 - code injection via eval)
+# ---------------------------------------------------------------------------
+
+class TestAIHelperHistorySafety(unittest.TestCase):
+    """The boot history log must be parsed safely, never with eval()."""
+
+    def _history_path(self, root: Path) -> Path:
+        p = root / "var" / "log" / "umeros_initrd_history.log"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        return p
+
+    def test_load_history_parses_dict_literals(self):
+        with tempfile_TmpDir() as tmp:
+            hist = self._history_path(tmp)
+            hist.write_text(
+                '{"modules": ["ext4", "nvme"]}\n'
+                '{"modules": ["btrfs"]}\n',
+                encoding="utf-8",
+            )
+            loaded = AIHelper()._load_history(str(tmp))
+            self.assertEqual(
+                loaded,
+                [{"modules": ["ext4", "nvme"]}, {"modules": ["btrfs"]}],
+            )
+
+    def test_load_history_rejects_code_injection(self):
+        with tempfile_TmpDir() as tmp:
+            sentinel = tmp / "PWNED_BY_EVAL.txt"
+            hist = self._history_path(tmp)
+            # A malicious history line that eval() WOULD execute (creating the
+            # sentinel file).  literal_eval refuses it, so it must be skipped.
+            payload = (
+                '__import__("pathlib").Path(r"%s").write_text("pwned")'
+                % str(sentinel)
+            )
+            hist.write_text(
+                '{"modules": ["ext4"]}\n' + payload + "\n",
+                encoding="utf-8",
+            )
+            loaded = AIHelper()._load_history(str(tmp))
+            # The legitimate dict is kept; the injection line never ran.
+            self.assertEqual(loaded, [{"modules": ["ext4"]}])
+            self.assertFalse(
+                sentinel.exists(),
+                "malicious history line executed code (eval injection not fixed)",
+            )
+
+
+# ---------------------------------------------------------------------------
+# builder cpio unpack (H93 - directory traversal on unpack)
+# ---------------------------------------------------------------------------
+
+class TestBuilderCpioTraversal(unittest.TestCase):
+    """_unpack_to_dir must reject cpio entries that escape the target."""
+
+    @staticmethod
+    def _raw_with(*entries):
+        return pack_archive(list(entries))
+
+    def test_unpack_rejects_parent_traversal(self):
+        with tempfile_TmpDir() as tmp:
+            target = tmp / "tree"
+            raw = self._raw_with(
+                newc_dir("."),
+                newc_file("etc/hostname", b"ok"),
+                newc_file("../evil.txt", b"PWNED"),
+            )
+            InitrdBuilder()._unpack_to_dir(raw, target)
+            # Benign entry written...
+            self.assertTrue((target / "etc" / "hostname").is_file())
+            self.assertEqual((target / "etc" / "hostname").read_bytes(), b"ok")
+            # ...but the traversal entry must NOT appear outside the target.
+            self.assertFalse((target.parent / "evil.txt").exists())
+
+    def test_unpack_rejects_nested_traversal(self):
+        with tempfile_TmpDir() as tmp:
+            target = tmp / "tree"
+            raw = self._raw_with(newc_file("etc/../../pwned", b"x"))
+            InitrdBuilder()._unpack_to_dir(raw, target)
+            self.assertFalse((target.parent / "pwned").exists())
+
+    def test_unpack_normal_tree_written(self):
+        with tempfile_TmpDir() as tmp:
+            target = tmp / "tree"
+            raw = self._raw_with(
+                newc_dir("bin"),
+                newc_file("bin/sh", b"#!/bin/sh\n", mode=0o755),
+                newc_symlink("bin/ash", "bin/sh"),
+            )
+            InitrdBuilder()._unpack_to_dir(raw, target)
+            self.assertTrue((target / "bin" / "sh").is_file())
+            self.assertTrue((target / "bin" / "ash").is_symlink())
+
+
+# ---------------------------------------------------------------------------
+# linuxrc privileged boot op (H92 - seteuid(0) capability gate)
+# ---------------------------------------------------------------------------
+
+class TestDropToRootCapGate(unittest.TestCase):
+    """Acquiring uid 0 is gated behind CAP_SYS_ADMIN (fail-closed)."""
+
+    def setUp(self):
+        # Start from the historical default: no trust source wired, non-strict.
+        _cap_gate.unwire()
+        _cap_gate.set_strict(False)
+
+    def tearDown(self):
+        _cap_gate.unwire()
+        _cap_gate.set_strict(False)
+
+    def test_default_permissive_returns_uid(self):
+        # With no manager wired the gate is permissive -> no exception.
+        self.assertIsInstance(_drop_to_root(), int)
+
+    def test_strict_mode_denies_seteuid(self):
+        _cap_gate.set_strict(True)
+        with self.assertRaises(PermissionError):
+            _drop_to_root()
+
+    def test_boot_aborts_without_capability(self):
+        # Integration: a boot with strict mode must fail closed (the privileged
+        # drop-to-root is refused) instead of proceeding as a non-privileged
+        # PID 1.
+        with tempfile_TmpDir() as tmp:
+            _cap_gate.set_strict(True)
+            try:
+                ctx = BootContext.default_demo()
+                ctx.host_root = str(tmp)
+                code = linuxrc_run(ctx)
+                self.assertNotEqual(code, 0)
+            finally:
+                _cap_gate.set_strict(False)
 
 
 # ---------------------------------------------------------------------------

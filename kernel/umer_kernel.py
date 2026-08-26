@@ -49,6 +49,14 @@ from kernel.cred import CredentialStore, Credentials, ROOT_UID
 from kernel.reboot import RebootManager, SystemState
 from kernel.resource import ResourceManager, IORESOURCE_MEM, IORESOURCE_IO
 from kernel.softirq import SoftIRQManager, TaskletManager
+from kernel.memory_manager import MemoryManager, PAGE_SIZE as _MM_PAGE_SIZE  # [FIX H110] real memory accounting
+from kernel.ipc_bus import IPCBus, IPCMessage                                  # [FIX H110] signed IPC bus
+from kernel.capability_manager import (                                        # [FIX H110] zero-trust caps
+    CapabilityManager, SYSTEM_PID,
+    CAP_FS_READ, CAP_FS_WRITE, CAP_FS_ADMIN,
+    CAP_PROC_SPAWN, CAP_AI_INFERENCE, CAP_IPC_BROADCAST,
+)
+from core.path_guard import PathTraversalError, safe_join                       # [FIX H112] fs_root containment
 
 # -- lost+found / fsck subsystem (lib/lostfound) --
 try:
@@ -486,12 +494,53 @@ class CryptoEngine:  # [FIX H111] Real (non-dummy) crypto.
         expected = hmac.new(k, data, hashlib.sha256).digest()
         return hmac.compare_digest(expected, sig)
 
-class SecuritySandbox: # Sandbox (Using the improved version from security/sandbox.py)
+class SecurityViolation(Exception):
+    """Raised when a process attempts to escape its declared sandbox ``fs_root``."""
+
+
+class SecuritySandbox:  # [FIX H112] Real fs_root containment enforcement.
+    # The previous `register_process` only stored `{name, fs_root}` and `print`ed
+    # — a decorative zero-trust gate that *claimed* sandboxing it did not perform
+    # (same family as H51/H112).  It now records the process AND enforces that any
+    # path a PID touches stays inside its declared `fs_root` via
+    # `core.path_guard.safe_join` (CWE-22 containment).  `check_path` is fail-closed:
+    # an escape raises `SecurityViolation`.  This is a *simulated* VFS-level jail
+    # (the kernel runs in userspace), but the containment contract is real and
+    # testable — not a no-op.
+
     def __init__(self):
         self.processes = {}
-    def register_process(self, pid, name, fs_root): 
-        self.processes[pid] = {"name": name, "fs_root": fs_root}
-        print(f"[SECURITY] Registered PID {pid} ('{name}') with fs_root='{fs_root}'")
+
+    def register_process(self, pid, name, fs_root):
+        if not fs_root:
+            raise ValueError("SecuritySandbox.register_process requires a non-empty fs_root")
+        normalized = os.path.normpath(fs_root)
+        self.processes[pid] = {"name": name, "fs_root": normalized}
+        log.info("Registered PID %d ('%s') sandbox fs_root=%s", pid, name, normalized)
+
+    def check_path(self, pid, path):
+        """Return the contained absolute path for *path*, or raise SecurityViolation.
+
+        Enforces that *path* resolves inside the process's declared ``fs_root``.
+        Fail-closed: any traversal escape is rejected.
+        """
+        meta = self.processes.get(pid)
+        if meta is None:
+            raise SecurityViolation(f"PID {pid} is not registered in the sandbox")
+        try:
+            return safe_join(meta["fs_root"], path)
+        except PathTraversalError as exc:
+            raise SecurityViolation(
+                f"PID {pid} path '{path}' escapes fs_root '{meta['fs_root']}'"
+            ) from exc
+
+    def is_path_allowed(self, pid, path):
+        """Boolean variant of :meth:`check_path` (never raises)."""
+        try:
+            self.check_path(pid, path)
+            return True
+        except SecurityViolation:
+            return False
 
 # --- STAGE 5: Networking & Cloud (Placeholders) ---
 class DNSResolver: pass
@@ -724,9 +773,14 @@ class UmerKernel:
         # --- STAGE 2: Core Kernel Subsystems ---
         # Using the simplified scheduler logic here, incorporating the enhanced AI
         self.scheduler = HybridScheduler(quantum_simulator=self.q_scheduler) # Pass quantum ref if needed by scheduler
-        self.memory = type('MemoryManager', (), {'stats': lambda self: {"used": "1GB", "total": "4GB"}, 'allocate': lambda self, size, pid: 0x1000, 'free': lambda self, ptr, pid: None})() # Placeholder
-        self.ipc = type('IPCBus', (), {'start': lambda self: print("[IPC] Bus started"), 'register': lambda self, pid: print(f"[IPC] Registered PID {pid}")})() # Placeholder
-        self.capabilities = type('CapabilityManager', (), {'register': lambda self, pid: None, 'grant_many': lambda self, pid, caps: None})() # Placeholder
+        # [FIX H110] Wire the REAL, previously-built subsystems instead of the
+        # no-op `type(...)` placeholders.  While these were stubs, zero-trust
+        # capability gating, signed IPC and real memory accounting were all inert.
+        # SYSTEM_PID (0) is omnipotent in CapabilityManager, so the kernel keeps
+        # every privilege; init receives a modest default grant a few lines below.
+        self.memory = MemoryManager(total_memory_bytes=_DEFAULT_RAM)
+        self.ipc = IPCBus()
+        self.capabilities = CapabilityManager()
 
         # --- STAGE 3: AI & Compatibility ---
         self.ai_firewall = AIFirewall()
@@ -915,6 +969,13 @@ class UmerKernel:
         init_pid = PID_INIT
         self.pid_allocator._in_use.add(init_pid)  # mark as allocated
         self.capabilities.register(init_pid)
+        # [FIX H110] Grant init a minimal zero-trust capability set.  The old
+        # placeholder granted nothing and enforced nothing, leaving a booted
+        # userspace init silently without (or with unverifiable) privileges.
+        self.capabilities.grant_many(
+            init_pid,
+            [CAP_FS_READ, CAP_FS_WRITE, CAP_PROC_SPAWN, CAP_AI_INFERENCE, CAP_IPC_BROADCAST],
+        )
         self.ipc.register(init_pid) # Register kernel (PID 0)
         self.cred_store.register(init_pid)  # init gets root credentials
         init_task = Task(pid=init_pid, name="init", priority=1.0)

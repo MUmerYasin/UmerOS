@@ -319,10 +319,13 @@ class AppState extends ChangeNotifier {
     final idx = _windows.indexWhere((w) => w.id == id);
     if (idx == -1) return;
     final old = _windows[idx];
-    final isMax = !old.isMaximized;
+    final willMaximize = !old.isMaximized;
     _windows[idx] = old.copyWith(
-      isMaximized: isMax,
-      snapMode: isMax ? WindowSnapMode.maximized : WindowSnapMode.normal,
+      isMaximized: willMaximize,
+      snapMode: willMaximize ? WindowSnapMode.maximized : WindowSnapMode.normal,
+      preSnapPosition:
+          old.snapMode == WindowSnapMode.normal ? old.position : old.preSnapPosition,
+      preSnapSize: old.snapMode == WindowSnapMode.normal ? old.size : old.preSnapSize,
     );
     focusWindow(id);
   }

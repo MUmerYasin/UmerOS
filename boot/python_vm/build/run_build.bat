@@ -14,5 +14,3 @@ if errorlevel 1 (
     exit /b 1
 )
 echo === BUILD SUCCESS ===
-dir umeros_python.exe 2>nul
-dir *.exe 2>nul

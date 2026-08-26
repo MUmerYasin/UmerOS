@@ -74,6 +74,21 @@ from initrd.scenarios import (
 from initrd.signals import InitSignal, PID1SignalHandler
 from initrd.vfs_ops import VfsRoot
 
+# [FIX H92] Zero-trust capability gate for the most privileged boot op
+# (acquiring uid 0).  Falls back to a permissive stub if the shared gate
+# module is unavailable so the import is never a boot blocker.
+try:
+    from core.capability_gate import CAP_SYS_ADMIN, gate
+except Exception:  # pragma: no cover - import safety net
+    class _GateFallback:
+        """Permissive stand-in when the real gate is not importable."""
+
+        def require(self, *args, **kwargs) -> None:  # always allow
+            return None
+
+    gate = _GateFallback()
+    CAP_SYS_ADMIN = "sys.admin"
+
 log = logging.getLogger("UmerOS.Initrd.Linuxrc")
 
 
@@ -321,7 +336,18 @@ def _drop_to_root() -> int:
     binary.  When the host refuses (Windows has no ``geteuid``/
     ``seteuid``) we simply record the intended uid (0) so the rest
     of the boot proceeds correctly.
+
+    [FIX H92] Acquiring uid 0 is the single most privileged operation in the
+    boot path.  It is gated behind ``CAP_SYS_ADMIN`` so a wired zero-trust
+    ``CapabilityManager`` (or strict mode) can refuse it; the refusal
+    propagates and aborts the boot fail-closed instead of silently running
+    as a non-privileged PID 1.  When no trust source is wired the gate is
+    permissive (the historical default), so the boot is unchanged.
     """
+    # [FIX H92] Require the capability FIRST, before any platform short-circuit,
+    # so the zero-trust check applies on every platform (including ones without a
+    # POSIX uid model) and a denial fails the boot rather than being skipped.
+    gate.require(CAP_SYS_ADMIN)
     if not hasattr(os, "geteuid"):
         # Windows / no POSIX uid model - record the contract value.
         return 0
