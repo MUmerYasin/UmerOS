@@ -665,6 +665,7 @@ class _BinAppState extends State<BinApp> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(children: [
             Container(
@@ -673,11 +674,22 @@ class _BinAppState extends State<BinApp> {
               decoration: BoxDecoration(color: color.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(10)),
               child: Icon(icon, size: 18, color: color),
             ),
-            const Spacer(),
-            Text(value, style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: colorScheme.onSurface)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Text(value, style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: colorScheme.onSurface)),
+              ),
+            ),
           ]),
           const SizedBox(height: 8),
-          Text(label, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6))),
+          Text(
+            label,
+            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withValues(alpha: 0.6)),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
@@ -693,19 +705,45 @@ class _BinAppState extends State<BinApp> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        GridView.count(
-          crossAxisCount: 4,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 2.1,
-          children: [
-            _statCard('Indexed binaries', '$total', Icons.apps, colorScheme.primary, colorScheme, textTheme),
-            _statCard('Total footprint', '$totalMb MB', Icons.sd_storage_outlined, Colors.amber.shade700, colorScheme, textTheme),
-            _statCard('setuid binaries', '${stats['setuidCount']}', Icons.enhanced_encryption_outlined, Colors.redAccent, colorScheme, textTheme),
-            _statCard('Symlinks', '${stats['symlinkCount']}', Icons.link, Colors.cyan, colorScheme, textTheme),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const gap = 12.0;
+            final w = constraints.maxWidth;
+            final cols = w < 480 ? 1 : (w < 760 ? 2 : 4);
+            final items = <Widget>[
+              _statCard('Indexed binaries', '$total', Icons.apps, colorScheme.primary, colorScheme, textTheme),
+              _statCard('Total footprint', '$totalMb MB', Icons.sd_storage_outlined, Colors.amber.shade700, colorScheme, textTheme),
+              _statCard('setuid binaries', '${stats['setuidCount']}', Icons.enhanced_encryption_outlined, Colors.redAccent, colorScheme, textTheme),
+              _statCard('Symlinks', '${stats['symlinkCount']}', Icons.link, Colors.cyan, colorScheme, textTheme),
+            ];
+            final rows = <List<Widget>>[];
+            for (var i = 0; i < items.length; i += cols) {
+              rows.add(items.sublist(i, (i + cols).clamp(0, items.length)));
+            }
+            return Column(
+              children: [
+                for (final row in rows)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: gap),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final card in row) ...[
+                            Expanded(child: card),
+                            if (card != row.last) const SizedBox(width: gap),
+                          ],
+                          for (var f = row.length; f < cols; f++) ...[
+                            const SizedBox(width: gap),
+                            const Expanded(child: SizedBox.shrink()),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 20),
         Text('Distribution by category', style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
@@ -910,7 +948,10 @@ class _BinAppState extends State<BinApp> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           b.name,
@@ -935,7 +976,6 @@ class _BinAppState extends State<BinApp> {
                           const SizedBox(width: 4),
                           _badge('STICKY', Colors.purple, colorScheme),
                         ],
-                        const Spacer(),
                         Text(b.humanSize, style: TextStyle(fontSize: 11, color: colorScheme.onSurface.withValues(alpha: 0.55))),
                       ],
                     ),

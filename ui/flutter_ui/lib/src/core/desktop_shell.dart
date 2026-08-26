@@ -1198,46 +1198,50 @@ class _LaunchPad extends StatelessWidget {
                           ),
                           child: MouseRegion(
                             cursor: SystemMouseCursors.click,
-                            child: Tooltip(
-                              message: app.description,
-                              child: GestureDetector(
-                                onTap: () => onOpenApp(app),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 72,
-                                      height: 72,
-                                      decoration: BoxDecoration(
-                                        color: app.color
-                                            .withValues(alpha: 0.18),
-                                        borderRadius:
-                                            BorderRadius.circular(22),
-                                        border: Border.all(
-                                          color: app.color
-                                              .withValues(alpha: 0.3),
+                              child: Tooltip(
+                               message: app.description,
+                               child: GestureDetector(
+                                 onTap: () => onOpenApp(app),
+                                 child: Center(
+                                   child: FittedBox(
+                                     fit: BoxFit.scaleDown,
+                                     child: ConstrainedBox(
+                                       constraints: const BoxConstraints(maxWidth: 130),
+                                       child: Column(
+                                         mainAxisSize: MainAxisSize.min,
+                                         children: [
+                                           Container(
+                                             width: 72,
+                                             height: 72,
+                                             decoration: BoxDecoration(
+                                               color: app.color.withValues(alpha: 0.18),
+                                               borderRadius: BorderRadius.circular(22),
+                                               border: Border.all(color: app.color.withValues(alpha: 0.3)),
+                                             ),
+                                             child: Icon(app.icon, size: 38, color: app.color),
+                                           ),
+                                           const SizedBox(height: 10),
+                                           Text(
+                                             app.title,
+                                             style: TextStyle(
+                                               fontSize: 13,
+                                               fontWeight: FontWeight.w500,
+                                               color: colorScheme.onSurface,
+                                             ),
+                                             textAlign: TextAlign.center,
+                                             maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      child: Icon(app.icon,
-                                          size: 38, color: app.color),
                                     ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      app.title,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500,
-                                        color: colorScheme.onSurface,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
                     ),
                   ),
                 ],

@@ -735,9 +735,11 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
         fprintf(stderr, "[DBG] Py_CompileString: token=%d\n", token);
         fflush(stderr);
 
+        fprintf(stderr, "[DBG] TEST: token=%d ENDMARKER=%d cmp=%d\n", token, TOKEN_ENDMARKER, token == TOKEN_ENDMARKER);
+        fflush(stderr);
         if (token == TOKEN_ENDMARKER) break;
 
-        fprintf(stderr, "[DBG] Py_CompileString: calling Compile_Statement\n");
+        fprintf(stderr, "[DBG] calling Compile_Statement token=%d\n", token);
         fflush(stderr);
         int ret = Compile_Statement(compiler, parser);
         fprintf(stderr, "[DBG] Py_CompileString: Compile_Statement returned %d\n", ret);
@@ -747,9 +749,13 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
     fflush(stderr);
 
     /* Add return None at end */
+    fprintf(stderr, "[DBG] before Compiler_AddConstant(Py_None)\n"); fflush(stderr);
     int none_idx = Compiler_AddConstant(compiler, Py_None);
+    fprintf(stderr, "[DBG] none_idx=%d, before emit LOAD_CONST\n", none_idx); fflush(stderr);
     Compiler_Emit(compiler, OP_LOAD_CONST, none_idx);
+    fprintf(stderr, "[DBG] before emit RETURN_VALUE\n"); fflush(stderr);
     Compiler_Emit(compiler, OP_RETURN_VALUE, 0);
+    fprintf(stderr, "[DBG] after all emits\n"); fflush(stderr);
 
     fprintf(stderr, "[DBG] Py_CompileString: calling Compiler_MakeCode\n");
     fflush(stderr);

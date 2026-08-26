@@ -83,12 +83,15 @@ class _GamesAppState extends State<GamesApp> {
                 ),
           ),
           const SizedBox(height: 12),
-          GridView.count(
+          GridView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 320,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.95,
+            ),
             children: [
               _buildGameCard(
                 icon: Icons.play_arrow,
@@ -181,10 +184,14 @@ class _GamesAppState extends State<GamesApp> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                description,
-                style: theme.textTheme.bodySmall,
-                textAlign: TextAlign.center,
+              Flexible(
+                child: Text(
+                  description,
+                  style: theme.textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const Spacer(),
               Text(
