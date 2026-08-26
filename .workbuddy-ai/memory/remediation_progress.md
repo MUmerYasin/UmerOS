@@ -166,7 +166,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [x] H28 | RED | `boot/efi_system.py:524-533` (`is_binary_trusted`) | Secure Boot trust returns `True` when state is `DISABLED` or `SETUP_MODE` and never consults `dbx` (forbidden 
 - [x] H29 | RED | `boot/init.py:27` (`display_waiver`) | The EULA/"I AGREE" liability waiver is **auto-accepted** when stdin is not a TTY ("[Non-interactive mode: Auto
 - [x] H37 | RED | `bin/user_commands.py:268-273,233,245` | `LoginCommand` auth bypass: `-f`/`-F` set `opts["skip_auth"]=True`; `skip_auth` then skips `_authenticate` (`i
-- [ ] H42 | RED | `build/UmerOS-GUI.spec:36,29` | **No code signing**: `codesign_identity=None` on the frozen binary — breaks the zero-trust signed-artifact man
+- [x] H42 | RED | build/UmerOS-GUI.spec | No code signing on frozen binary - **FIXED (session 32):** new mandatory post-build gate build/sign_artifact.py (signtool sign+verify /pa /all on Windows via UMEROS_SIGN_PFX or UMEROS_SIGN_THUMBPRINT; codesign on macOS) - exits non-zero unless signed, explicit UMEROS_ALLOW_UNSIGNED=1 dev opt-out warns DO NOT SHIP. Spec rewritten: hardcoded dev path removed ([FIX H43]), repo-relative entrypoint with existence check.
 - [x] H46 | RED | `cloud/ota_updater/update_system.py:48-60` | **Fail-open OTA signature verification.** `verify_and_apply` returns `True` and **applies the update even when
 - [x] H51 | RED | `compatibility/container.py:12-23` | **Fail-open zero-trust capability gate.** `ZeroTrustContainer.execute_binary` calls `self.capabilities.check(s
 - [x] H64 | RED | `drivers/driver_service.py:61-94, 259, 323` | **Static-secret / weak-default auth gap.** When OIDC env vars are unset, `verify_oauth_token` validates JWTs w
