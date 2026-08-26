@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/auto_adjust_box.dart';
+
 class NetworkManagerApp extends StatefulWidget {
   const NetworkManagerApp({super.key});
 
@@ -115,12 +117,16 @@ class _NetworkManagerAppState extends State<NetworkManagerApp>
             children: [
               Icon(Icons.wifi, color: colorScheme.primary),
               const SizedBox(width: 12),
-              Text(
-                'WiFi Networks',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+              Flexible(
+                child: Text(
+                  'WiFi Networks',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -259,11 +265,17 @@ class _NetworkManagerAppState extends State<NetworkManagerApp>
               color: colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
-          Text(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: colorScheme.onSurface,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: colorScheme.onSurface,
+                ),
+              ),
             ),
           ),
         ],
@@ -278,12 +290,16 @@ class _NetworkManagerAppState extends State<NetworkManagerApp>
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Text(
-                'Firewall Rules',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+              Flexible(
+                child: Text(
+                  'Firewall Rules',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -297,7 +313,14 @@ class _NetworkManagerAppState extends State<NetworkManagerApp>
                 },
               ),
               const SizedBox(width: 8),
-              Text('Default Policy', style: TextStyle(color: colorScheme.onSurface)),
+              Flexible(
+                child: Text(
+                  'Default Policy',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colorScheme.onSurface),
+                ),
+              ),
               const Spacer(),
               IconButton(
                 onPressed: () {},
@@ -387,34 +410,36 @@ class _NetworkManagerAppState extends State<NetworkManagerApp>
                 color: colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(Icons.settings, color: colorScheme.onSurface.withValues(alpha: 0.6)),
-                  tooltip: 'Configure',
-                ),
-                const SizedBox(width: 8),
-                isConnected
-                    ? TextButton(
-                        onPressed: () {
-                          setState(() => vpn['connected'] = false);
-                        },
-                        child: Text('Disconnect', style: TextStyle(color: colorScheme.error)),
-                      )
-                    : FilledButton(
-                        onPressed: () {
-                          setState(() {
-                            for (var v in _vpnProfiles) {
-                              v['connected'] = false;
-                            }
-                            vpn['connected'] = true;
-                          });
-                        },
-                        child: const Text('Connect'),
-                      ),
-              ],
+            trailing: AutoAdjustBox(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () {},
+                    icon: Icon(Icons.settings, color: colorScheme.onSurface.withValues(alpha: 0.6)),
+                    tooltip: 'Configure',
+                  ),
+                  const SizedBox(width: 8),
+                  isConnected
+                      ? TextButton(
+                          onPressed: () {
+                            setState(() => vpn['connected'] = false);
+                          },
+                          child: Text('Disconnect', style: TextStyle(color: colorScheme.error)),
+                        )
+                      : FilledButton(
+                          onPressed: () {
+                            setState(() {
+                              for (var v in _vpnProfiles) {
+                                v['connected'] = false;
+                              }
+                              vpn['connected'] = true;
+                            });
+                          },
+                          child: const Text('Connect'),
+                        ),
+                ],
+              ),
             ),
           ),
         );

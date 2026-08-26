@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/auto_adjust_box.dart';
+
 class PackageManagerApp extends StatefulWidget {
   const PackageManagerApp({super.key});
 
@@ -233,7 +235,7 @@ class _PackageManagerAppState extends State<PackageManagerApp> {
       ),
       child: Column(
         children: [
-          Row(
+          AutoAdjustRow(
             children: [
               Icon(Icons.inventory_2, color: colorScheme.primary, size: 28),
               const SizedBox(width: 12),
@@ -311,11 +313,19 @@ class _PackageManagerAppState extends State<PackageManagerApp> {
               ),
             ),
           ),
-          _categoryTile('All', Icons.all_inclusive, colorScheme),
-          ..._categories.map((cat) {
-            return _categoryTile(cat, _categoryIcons[cat] ?? Icons.category, colorScheme);
-          }),
-          const Spacer(),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _categoryTile('All', Icons.all_inclusive, colorScheme),
+                  ..._categories.map((cat) {
+                    return _categoryTile(cat, _categoryIcons[cat] ?? Icons.category, colorScheme);
+                  }),
+                ],
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: SizedBox(
@@ -428,11 +438,15 @@ class _PackageManagerAppState extends State<PackageManagerApp> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        pkg['name'] as String,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.onSurface,
+                      Flexible(
+                        child: Text(
+                          pkg['name'] as String,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -527,9 +541,15 @@ class _PackageManagerAppState extends State<PackageManagerApp> {
             children: [
               Icon(Icons.download, size: 16, color: colorScheme.primary),
               const SizedBox(width: 8),
-              Text(
-                'Installing $_installingPackage... ${(_installProgress * 100).round()}%',
-                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Installing $_installingPackage... ${(_installProgress * 100).round()}%',
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurface),
+                  ),
+                ),
               ),
             ],
           ),

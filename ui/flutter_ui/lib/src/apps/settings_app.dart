@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/auto_adjust_box.dart';
 
 class SettingsApp extends StatefulWidget {
   const SettingsApp({super.key});
@@ -219,7 +220,9 @@ class _SettingsAppState extends State<SettingsApp> {
                   child: Text('Accent Color', style: textTheme.titleSmall),
                 ),
                 const SizedBox(height: 8),
-                Row(
+                AutoAdjustRow(
+                  spacing: 0,
+                  runSpacing: 8,
                   children: List.generate(_accentColors.length, (index) {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -558,9 +561,8 @@ class _SettingsAppState extends State<SettingsApp> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+          Expanded(child: Text(label, style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)))),
           Text(value, style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
         ],
       ),

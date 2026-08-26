@@ -1,6 +1,0 @@
-F:/Pension Person Details/UmerOS/boot/python_vm/build/CMakeFiles/umeros_python.dir
-F:/Pension Person Details/UmerOS/boot/python_vm/build/CMakeFiles/edit_cache.dir
-F:/Pension Person Details/UmerOS/boot/python_vm/build/CMakeFiles/rebuild_cache.dir
-F:/Pension Person Details/UmerOS/boot/python_vm/build/CMakeFiles/list_install_components.dir
-F:/Pension Person Details/UmerOS/boot/python_vm/build/CMakeFiles/install.dir
-F:/Pension Person Details/UmerOS/boot/python_vm/build/CMakeFiles/install/local.dir

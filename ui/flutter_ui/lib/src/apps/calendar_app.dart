@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/auto_adjust_box.dart';
+
 class CalendarApp extends StatefulWidget {
   const CalendarApp({super.key});
 
@@ -123,12 +125,17 @@ class _CalendarAppState extends State<CalendarApp> {
                       onPressed: _previousMonth,
                       icon: const Icon(Icons.chevron_left),
                     ),
-                    Text(
-                      '${_getMonthName(_currentDate.month)} ${_currentDate.year}',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
+                    Flexible(
+                      child: Text(
+                        '${_getMonthName(_currentDate.month)} ${_currentDate.year}',
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -324,7 +331,7 @@ class _CalendarAppState extends State<CalendarApp> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Row(
+                      AutoAdjustRow(
                         children: [
                           // Time picker
                           OutlinedButton.icon(

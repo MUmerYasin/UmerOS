@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../widgets/auto_adjust_box.dart';
 
 class SystemMonitorApp extends StatefulWidget {
   const SystemMonitorApp({super.key});
@@ -61,7 +62,8 @@ class _SystemMonitorAppState extends State<SystemMonitorApp> {
               ),
             ),
           ),
-          child: Row(
+          child: AutoAdjustRow(
+            spacing: 0,
             children: [
               _TabButton(
                 label: 'Overview',
@@ -281,8 +283,8 @@ class _MetricCard extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 24),
               const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              const Spacer(),
+              Expanded(child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+              const SizedBox(width: 8),
               Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
             ],
           ),
@@ -379,7 +381,7 @@ class _StatCard extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 20),
               const SizedBox(width: 8),
-              Text(title, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7))),
+              Expanded(child: Text(title, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)))),
             ],
           ),
           const SizedBox(height: 8),
@@ -442,7 +444,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
           ),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
         ],
       ),
     );
@@ -466,9 +468,8 @@ class _ResourceBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label),
+            Expanded(child: Text(label)),
             Text('${(value * 100).toStringAsFixed(1)}%', style: TextStyle(color: color)),
           ],
         ),

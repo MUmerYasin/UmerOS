@@ -434,15 +434,24 @@ PyObject* PyObject_RichCompare(PyObject *v, PyObject *w, int op) {
 }
 
 int PyObject_Compare(PyObject *a, PyObject *b) {
-    if (a == b) return 0;
-    if (!a) return -1;
-    if (!b) return 1;
+    fprintf(stderr, "[DBG-CMP] entered: a=%p b=%p\n", (void*)a, (void*)b);
+    if (a == b) { fprintf(stderr, "[DBG-CMP] identity match\n"); return 0; }
+    if (!a) { fprintf(stderr, "[DBG-CMP] a is NULL\n"); return -1; }
+    if (!b) { fprintf(stderr, "[DBG-CMP] b is NULL\n"); return 1; }
+    fprintf(stderr, "[DBG-CMP] a->ob_type=%p b->ob_type=%p\n",
+            (void*)Py_TYPE(a), (void*)Py_TYPE(b));
+    fflush(stderr);
     if (Py_TYPE(a)->tp_richcompare) {
+        fprintf(stderr, "[DBG-CMP] calling tp_richcompare=%p\n",
+                (void*)Py_TYPE(a)->tp_richcompare);
+        fflush(stderr);
         PyObject *r = Py_TYPE(a)->tp_richcompare(a, b, Py_EQ);
         if (r) { int ok = PyObject_IsTrue(r); Py_DECREF(r); return ok ? 0 : -1; }
     }
     const char *n1 = Py_TYPE(a)->tp_name ? Py_TYPE(a)->tp_name : "";
     const char *n2 = Py_TYPE(b)->tp_name ? Py_TYPE(b)->tp_name : "";
+    fprintf(stderr, "[DBG-CMP] fallback strcmp: n1='%s' n2='%s'\n", n1, n2);
+    fflush(stderr);
     return strcmp(n1, n2);
 }
 

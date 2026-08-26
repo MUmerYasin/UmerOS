@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+import '../widgets/auto_adjust_box.dart';
+
 class CalculatorApp extends StatefulWidget {
   const CalculatorApp({super.key});
 
@@ -245,11 +247,15 @@ class _CalculatorAppState extends State<CalculatorApp> {
             children: [
               Icon(Icons.calculate, color: colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              Text(
-                'Calculator',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+              Flexible(
+                child: Text(
+                  'Calculator',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
               ),
               const Spacer(),
@@ -309,31 +315,30 @@ class _CalculatorAppState extends State<CalculatorApp> {
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _expression.isEmpty ? '0' : _expression,
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+            child: AutoAdjustBox(
+              alignment: Alignment.bottomRight,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _expression.isEmpty ? '0' : _expression,
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _result,
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
+                  const SizedBox(height: 8),
+                  Text(
+                    _result,
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

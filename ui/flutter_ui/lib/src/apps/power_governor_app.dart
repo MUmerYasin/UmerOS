@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/auto_adjust_box.dart';
+
 class PowerGovernorApp extends StatefulWidget {
   const PowerGovernorApp({super.key});
 
@@ -325,12 +327,14 @@ class _MetricCard extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 2),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+            AutoAdjustBox(
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
               ),
             ),
           ],

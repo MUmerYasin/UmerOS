@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/auto_adjust_box.dart';
+
 class BootManagerApp extends StatefulWidget {
   const BootManagerApp({super.key});
 
@@ -96,7 +98,8 @@ class _BootManagerAppState extends State<BootManagerApp> {
           ),
         ),
       ),
-      child: Row(
+      child: AutoAdjustRow(
+        spacing: 0,
         children: [
           _TabButton(label: 'Boot Sequence', isSelected: _selectedTab == 0, onTap: () => setState(() => _selectedTab = 0)),
           _TabButton(label: 'Services', isSelected: _selectedTab == 1, onTap: () => setState(() => _selectedTab = 1)),
@@ -638,8 +641,9 @@ class _BootManagerAppState extends State<BootManagerApp> {
           ),
         ),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: AutoAdjustRow(
+        spacing: 0,
+        alignment: WrapAlignment.center,
         children: [
           OutlinedButton.icon(
             onPressed: () => _showPowerDialog('Shutdown'),

@@ -324,9 +324,25 @@ static void Compiler_Emit(Compiler *compiler, Opcode op, int arg) {
 
 /* Emit opcode with argument from constant pool */
 static int Compiler_AddConstant(Compiler *compiler, PyObject *value) {
+    fprintf(stderr, "[DBG-AC] entered: value=%p n_consts=%lld consts_size=%lld\n",
+            (void*)value, (long long)compiler->n_consts, (long long)compiler->consts_size);
+    fflush(stderr);
+    fprintf(stderr, "[DBG-AC] compiler struct: consts=%p bytecode=%p bytecode_pos=%d\n",
+            (void*)compiler->consts, (void*)compiler->bytecode, compiler->bytecode_pos);
+    fflush(stderr);
     /* Check if constant already exists */
     for (Py_ssize_t i = 0; i < compiler->n_consts; i++) {
+        fprintf(stderr, "[DBG-AC] loop i=%lld consts[i]=%p value=%p\n",
+                (long long)i, (void*)compiler->consts[i], (void*)value);
+        fflush(stderr);
+        if (compiler->consts[i] == NULL) {
+            fprintf(stderr, "[DBG-AC] WARNING: consts[%lld] is NULL!\n", (long long)i);
+            fflush(stderr);
+            continue;
+        }
         if (PyObject_Compare(compiler->consts[i], value) == 0) {
+            fprintf(stderr, "[DBG-AC] found match at i=%lld\n", (long long)i);
+            fflush(stderr);
             return (int)i;
         }
     }
@@ -746,6 +762,25 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
         fflush(stderr);
     }
     fprintf(stderr, "[DBG] Py_CompileString: compile loop done\n");
+    fflush(stderr);
+
+    /* Compiler struct integrity check */
+    fprintf(stderr, "[DBG-CHECK] compiler=%p\n", (void*)compiler);
+    fprintf(stderr, "[DBG-CHECK] compiler->consts=%p\n", (void*)compiler->consts);
+    fprintf(stderr, "[DBG-CHECK] compiler->n_consts=%lld\n", (long long)compiler->n_consts);
+    fprintf(stderr, "[DBG-CHECK] compiler->consts_size=%lld\n", (long long)compiler->consts_size);
+    fprintf(stderr, "[DBG-CHECK] compiler->bytecode=%p\n", (void*)compiler->bytecode);
+    fprintf(stderr, "[DBG-CHECK] compiler->bytecode_pos=%d\n", compiler->bytecode_pos);
+    fprintf(stderr, "[DBG-CHECK] compiler->bytecode_size=%d\n", compiler->bytecode_size);
+    fprintf(stderr, "[DBG-CHECK] compiler->arg_top=%d\n", compiler->arg_top);
+    fprintf(stderr, "[DBG-CHECK] compiler->stack_top=%d\n", compiler->stack_top);
+    if (compiler->consts && compiler->n_consts > 0 && compiler->n_consts <= compiler->consts_size) {
+        for (Py_ssize_t ci = 0; ci < compiler->n_consts; ci++) {
+            fprintf(stderr, "[DBG-CHECK]   consts[%lld]=%p\n", (long long)ci, (void*)compiler->consts[ci]);
+        }
+    } else {
+        fprintf(stderr, "[DBG-CHECK] consts array invalid or empty\n");
+    }
     fflush(stderr);
 
     /* Add return None at end */

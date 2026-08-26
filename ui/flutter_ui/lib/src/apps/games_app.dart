@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
 
+import '../widgets/auto_adjust_box.dart';
+
 // ─── Games App (Hub) ────────────────────────────────────────────────────────
 
 class GamesApp extends StatefulWidget {
@@ -257,9 +259,14 @@ class _GamesAppState extends State<GamesApp> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                '5 open-source games',
-                style: theme.textTheme.bodySmall,
+              Flexible(
+                child: Text(
+                  '5 open-source games',
+                  style: theme.textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const Spacer(),
               Text(
@@ -338,7 +345,7 @@ class _GamesAppState extends State<GamesApp> {
           children: [
             Text(game['desc']!, style: theme.textTheme.bodySmall),
             const SizedBox(height: 4),
-            Row(
+            AutoAdjustRow(
               children: [
                 Icon(Icons.star, size: 14, color: Colors.amber[600]),
                 const SizedBox(width: 4),
@@ -574,8 +581,8 @@ class _SnakeGameState extends State<SnakeGame> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               color: isDark ? Colors.grey[850] : theme.primaryColor,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: AutoAdjustRow(
+                alignment: WrapAlignment.spaceBetween,
                 children: [
                   Text(
                     'Score: $_score',
@@ -845,13 +852,14 @@ class _TicTacToeGameState extends State<TicTacToeGame> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Column(
+    return AutoAdjustColumn(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Score board
         Container(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          child: AutoAdjustRow(
+            alignment: WrapAlignment.spaceEvenly,
             children: [
               _buildScoreChip('X', _scoreX, Colors.blue, isDark),
               _buildScoreChip('Draw', _draws, Colors.grey, isDark),
@@ -888,8 +896,7 @@ class _TicTacToeGameState extends State<TicTacToeGame> {
         const SizedBox(height: 24),
 
         // 3x3 Grid
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 48),
+        AutoAdjustBox(
           child: Column(
             children: List.generate(3, (row) {
               return Row(
@@ -944,8 +951,8 @@ class _TicTacToeGameState extends State<TicTacToeGame> {
         const SizedBox(height: 24),
 
         // Reset button
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        AutoAdjustRow(
+          alignment: WrapAlignment.center,
           children: [
             ElevatedButton.icon(
               onPressed: _resetGame,
@@ -1175,8 +1182,8 @@ class _MemoryGameState extends State<MemoryGame> {
         // Stats bar
         Container(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          child: AutoAdjustRow(
+            alignment: WrapAlignment.spaceEvenly,
             children: [
               _buildStat('Moves', '$_moves', Icons.touch_app, isDark),
               _buildStat(

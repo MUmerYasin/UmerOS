@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import '../widgets/auto_adjust_box.dart';
 
 class SecurityApp extends StatefulWidget {
   const SecurityApp({super.key});
@@ -169,7 +170,8 @@ class _SecurityAppState extends State<SecurityApp> {
           ),
         ),
       ),
-      child: Row(
+      child: AutoAdjustRow(
+        spacing: 0,
         children: [
           _TabButton(label: 'Dashboard', isSelected: _selectedTab == 0, onTap: () => setState(() => _selectedTab = 0)),
           _TabButton(label: 'Firewall', isSelected: _selectedTab == 1, onTap: () => setState(() => _selectedTab = 1)),
@@ -247,7 +249,7 @@ class _SecurityAppState extends State<SecurityApp> {
                             children: [
                               const Icon(Icons.check_circle, color: Colors.green, size: 16),
                               const SizedBox(width: 4),
-                              Text('Last scan: $_lastScanTime', style: const TextStyle(fontSize: 12)),
+                              Expanded(child: Text('Last scan: $_lastScanTime', style: const TextStyle(fontSize: 12))),
                             ],
                           ),
                         ],
@@ -256,7 +258,7 @@ class _SecurityAppState extends State<SecurityApp> {
                           children: [
                             const Icon(Icons.warning_amber, color: Colors.amber, size: 16),
                             const SizedBox(width: 4),
-                            Text('Threats: $_detectedThreats', style: const TextStyle(fontSize: 12)),
+                            Expanded(child: Text('Threats: $_detectedThreats', style: const TextStyle(fontSize: 12))),
                           ],
                         ),
                       ],
@@ -333,8 +335,8 @@ class _SecurityAppState extends State<SecurityApp> {
                 onChanged: (v) => setState(() => _firewallEnabled = v),
               ),
               const SizedBox(width: 8),
-              Text('Firewall ${_firewallEnabled ? "Enabled" : "Disabled"}', style: const TextStyle(fontSize: 13)),
-              const Spacer(),
+              Expanded(child: Text('Firewall ${_firewallEnabled ? "Enabled" : "Disabled"}', style: const TextStyle(fontSize: 13))),
+              const SizedBox(width: 8),
               FilledButton.icon(
                 onPressed: _addFirewallRule,
                 icon: const Icon(Icons.add, size: 18),
@@ -489,28 +491,25 @@ class _SecurityAppState extends State<SecurityApp> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            FilledButton.icon(
-                              onPressed: _encrypting ? null : () {
-                                setState(() => _encrypting = true);
-                                Future.delayed(const Duration(seconds: 2), () {
-                                  if (mounted) setState(() => _encrypting = false);
-                                });
-                              },
-                              icon: _encrypting
-                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const Icon(Icons.lock, size: 18),
-                              label: const Text('Encrypt'),
-                            ),
-                            const SizedBox(width: 8),
-                            OutlinedButton.icon(
-                              onPressed: () {},
-                              icon: const Icon(Icons.lock_open, size: 18),
-                              label: const Text('Decrypt'),
-                            ),
-                          ],
-                        ),
+                        AutoAdjustRow(children: [
+                          FilledButton.icon(
+                            onPressed: _encrypting ? null : () {
+                              setState(() => _encrypting = true);
+                              Future.delayed(const Duration(seconds: 2), () {
+                                if (mounted) setState(() => _encrypting = false);
+                              });
+                            },
+                            icon: _encrypting
+                                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.lock, size: 18),
+                            label: const Text('Encrypt'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () {},
+                            icon: const Icon(Icons.lock_open, size: 18),
+                            label: const Text('Decrypt'),
+                          ),
+                        ]),
                       ],
                     ),
                   ),
@@ -580,8 +579,8 @@ class _SecurityAppState extends State<SecurityApp> {
             children: [
               Icon(Icons.history, size: 16, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
-              Text('Audit Log (${_auditLog.length} entries)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              const Spacer(),
+              Expanded(child: Text('Audit Log (${_auditLog.length} entries)', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: () => setState(() => _auditLog.clear()),
                 icon: const Icon(Icons.delete_outline, size: 16),
@@ -629,8 +628,8 @@ class _SecurityAppState extends State<SecurityApp> {
             children: [
               Icon(Icons.security, size: 16, color: Theme.of(context).colorScheme.primary),
               const SizedBox(width: 8),
-              Text('Sandboxed Processes (${_sandboxProcesses.length})', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-              const Spacer(),
+              Expanded(child: Text('Sandboxed Processes (${_sandboxProcesses.length})', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+              const SizedBox(width: 8),
               FilledButton.icon(
                 onPressed: () {
                   setState(() {

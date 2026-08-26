@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/quantum_service.dart';
+import '../widgets/auto_adjust_box.dart';
 
 class QuantumSimApp extends StatefulWidget {
   const QuantumSimApp({super.key});
@@ -117,22 +118,23 @@ class _QuantumSimAppState extends State<QuantumSimApp>
         _gatePalette(cs),
         const SizedBox(height: 12),
         Row(children: [
-          _pillButton('Add Qubit', Icons.add, cs, () {
-            setState(() {
-              _qubitLines.add(_QubitLine(label: 'q${superScript(_qubitLines.length)}'));
-            });
-          }),
+          Expanded(
+            child: AutoAdjustRow(children: [
+              _pillButton('Add Qubit', Icons.add, cs, () {
+                setState(() {
+                  _qubitLines.add(_QubitLine(label: 'q${superScript(_qubitLines.length)}'));
+                });
+              }),
+              _pillButton('Remove Qubit', Icons.remove, cs, () {
+                if (_qubitLines.length > 1) setState(() => _qubitLines.removeLast());
+              }),
+              _pillButton('Clear All', Icons.delete_sweep, cs, () {
+                setState(() => _placedGates.clear());
+              }),
+              _pillButton('Export QASM', Icons.code, cs, _showQasmDialog),
+            ]),
+          ),
           const SizedBox(width: 8),
-          _pillButton('Remove Qubit', Icons.remove, cs, () {
-            if (_qubitLines.length > 1) setState(() => _qubitLines.removeLast());
-          }),
-          const SizedBox(width: 8),
-          _pillButton('Clear All', Icons.delete_sweep, cs, () {
-            setState(() => _placedGates.clear());
-          }),
-          const SizedBox(width: 8),
-          _pillButton('Export QASM', Icons.code, cs, _showQasmDialog),
-          const Spacer(),
           _pillButton('Run Circuit', Icons.play_arrow, cs, () {
             setState(() => _tabs.index = 3);
           }),
@@ -250,7 +252,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionHeader('QUANTUM STATES', Icons.scatter_plot, cs),
         const SizedBox(height: 10),
-        Row(children: [
+        AutoAdjustRow(spacing: 0, runSpacing: 6, children: [
           Text('Qubit: ', style: GoogleFonts.inter(fontSize: 12, color: cs.onSurface)),
           for (int i = 0; i < _qubitLines.length; i++)
             Padding(padding: const EdgeInsets.only(right: 6), child: ChoiceChip(label: Text(_qubitLines[i].label), selected: _blochQubit == i, onSelected: (_) => setState(() => _blochQubit = i))),
@@ -292,12 +294,14 @@ class _QuantumSimAppState extends State<QuantumSimApp>
         _sectionHeader('QUANTUM SIMULATOR', Icons.play_circle, cs),
         const SizedBox(height: 10),
         Row(children: [
-          _configChip('Backend', 'StatevectorSimulator', cs),
+          Expanded(
+            child: AutoAdjustRow(children: [
+              _configChip('Backend', 'StatevectorSimulator', cs),
+              _configChip('Shots', '1024', cs),
+              _configChip('Noise Model', 'None', cs),
+            ]),
+          ),
           const SizedBox(width: 8),
-          _configChip('Shots', '1024', cs),
-          const SizedBox(width: 8),
-          _configChip('Noise Model', 'None', cs),
-          const Spacer(),
           _pillButton(_simRunning ? 'Running\u2026' : 'Run Simulation', _simRunning ? Icons.hourglass_top : Icons.play_arrow, cs, _simRunning ? null : _runSimulation),
         ]),
         const SizedBox(height: 12),
@@ -352,19 +356,15 @@ class _QuantumSimAppState extends State<QuantumSimApp>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionHeader('CIRCUIT TRANSPILER', Icons.compare_arrows, cs),
         const SizedBox(height: 10),
-        Row(children: [
+        AutoAdjustRow(children: [
           _configChip('Backend', _transpilerBackend, cs),
-          const SizedBox(width: 8),
           _configChip('Optimization', _transpilerOptLevel, cs),
-          const SizedBox(width: 8),
           _configChip('Gates', '${_placedGates.length} total', cs),
         ]),
         const SizedBox(height: 12),
-        Row(children: [
+        AutoAdjustRow(children: [
           _pillButton('Transpile', Icons.speed, cs, _transpileRunning ? null : _runTranspile),
-          const SizedBox(width: 8),
           _pillButton('Decompose', Icons.unfold_more, cs, () {}),
-          const SizedBox(width: 8),
           _pillButton('Optimize', Icons.auto_fix_high, cs, () {}),
         ]),
         const SizedBox(height: 14),
@@ -378,11 +378,9 @@ class _QuantumSimAppState extends State<QuantumSimApp>
             else ...[
               Text('// Transpiled circuit will appear here\n// Native gates: GZ, GP, GK\n// Fidelity estimate: 0.987', style: GoogleFonts.jetBrainsMono(fontSize: 11, color: cs.onSurfaceVariant)),
               const Spacer(),
-              Row(children: [
+              AutoAdjustRow(children: [
                 _metricChip('Depth', '${_placedGates.isNotEmpty ? _placedGates.map((g) => g.col).reduce(max) + 1 : 0}', cs),
-                const SizedBox(width: 8),
                 _metricChip('Two-Qubit', '${_placedGates.where((g) => ['CNOT', 'SWAP', 'Toffoli'].contains(g.type)).length}', cs),
-                const SizedBox(width: 8),
                 _metricChip('Fidelity', '98.7%', cs),
               ]),
             ],
@@ -399,13 +397,11 @@ class _QuantumSimAppState extends State<QuantumSimApp>
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _sectionHeader('PULSE CONTROL', Icons.wifi_tethering, cs),
         const SizedBox(height: 10),
-        Row(children: [
+        AutoAdjustRow(children: [
           _pillButton('Add Frame', Icons.add, cs, () {
             setState(() => _pulseFrames.add(_PulseFrame(name: 'New', frequency: 5.0, amplitude: 0.5, duration: 0.1)));
           }),
-          const SizedBox(width: 8),
           _pillButton('Run Sequence', Icons.play_arrow, cs, () {}),
-          const SizedBox(width: 8),
           _pillButton('Export OPENQASM', Icons.code, cs, () {}),
         ]),
         const SizedBox(height: 12),
@@ -426,11 +422,9 @@ class _QuantumSimAppState extends State<QuantumSimApp>
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(f.name, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
-                  Row(children: [
+                  AutoAdjustRow(spacing: 6, children: [
                     _miniChip('Freq: ${f.frequency.toStringAsFixed(1)} GHz', cs),
-                    const SizedBox(width: 6),
                     _miniChip('Amp: ${f.amplitude.toStringAsFixed(2)}', cs),
-                    const SizedBox(width: 6),
                     _miniChip('Dur: ${f.duration.toStringAsFixed(3)} \u03BCs', cs),
                   ]),
                 ])),
@@ -452,10 +446,13 @@ class _QuantumSimAppState extends State<QuantumSimApp>
         _sectionHeader('QUANTUM JOBS', Icons.workspaces, cs),
         const SizedBox(height: 10),
         Row(children: [
-          _pillButton('Submit Job', Icons.send, cs, _submitJob),
+          Expanded(
+            child: AutoAdjustRow(children: [
+              _pillButton('Submit Job', Icons.send, cs, _submitJob),
+              _pillButton('Refresh', Icons.refresh, cs, () {}),
+            ]),
+          ),
           const SizedBox(width: 8),
-          _pillButton('Refresh', Icons.refresh, cs, () {}),
-          const Spacer(),
           Text('${_jobs.length} jobs', style: GoogleFonts.inter(fontSize: 11, color: cs.onSurfaceVariant)),
         ]),
         const SizedBox(height: 12),
@@ -530,7 +527,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
     return Row(children: [
       Icon(icon, size: 16, color: cs.primary),
       const SizedBox(width: 6),
-      Text(text, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: cs.onSurfaceVariant)),
+      Expanded(child: Text(text, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: cs.onSurfaceVariant))),
     ]);
   }
 
@@ -604,7 +601,7 @@ class _QuantumSimAppState extends State<QuantumSimApp>
       child: Row(children: [
         Text(ket, style: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.teal)),
         const SizedBox(width: 10),
-        Text(amp, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: cs.onSurface)),
+        Flexible(child: Text(amp, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: cs.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ]),
     );
   }

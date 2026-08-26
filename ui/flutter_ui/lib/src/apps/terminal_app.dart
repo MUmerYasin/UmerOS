@@ -298,8 +298,7 @@ Memory Status:
               children: [
                 const Icon(Icons.terminal, size: 16, color: Colors.tealAccent),
                 const SizedBox(width: 6),
-                Text('UmerShell 2.0', style: fontStyle.copyWith(color: Colors.white70, fontSize: 11)),
-                const Spacer(),
+                Expanded(child: Text('UmerShell 2.0', style: fontStyle.copyWith(color: Colors.white70, fontSize: 11), maxLines: 1)),
                 TextButton.icon(
                   onPressed: () => _executeCommand('help'),
                   icon: const Icon(Icons.help_outline, size: 14, color: Colors.tealAccent),
@@ -348,9 +347,13 @@ Memory Status:
             color: const Color(0xFF11111B),
             child: Row(
               children: [
-                Text(
-                  '$_currentPath\$ ',
-                  style: fontStyle.copyWith(color: Colors.tealAccent),
+                Flexible(
+                  child: Text(
+                    '$_currentPath\$ ',
+                    style: fontStyle.copyWith(color: Colors.tealAccent),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 Expanded(
                   child: TextField(

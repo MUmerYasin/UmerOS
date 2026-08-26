@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/auto_adjust_box.dart';
+
 // ─── Documentation Browser App ───────────────────────────────────────────────
 
 class DocsApp extends StatefulWidget {
@@ -993,12 +995,16 @@ umer-ai hub push --model=my-custom-model
           ),
           const SizedBox(width: 8),
           // Logo
-          const Text(
-            '📚 UmerOS Docs',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          Flexible(
+            child: const Text(
+              '📚 UmerOS Docs',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -1101,11 +1107,15 @@ umer-ai hub push --model=my-custom-model
                 ),
               ),
             ),
-            child: Text(
-              _breadcrumb,
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
+            child: AutoAdjustBox(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _breadcrumb,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
               ),
             ),
           ),
@@ -1546,21 +1556,38 @@ umer-ai hub push --model=my-custom-model
     }
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         if (prevPage != null)
-          TextButton.icon(
-            onPressed: () => _navigateTo(_selectedSection, prevPage!),
-            icon: const Icon(Icons.arrow_back, size: 16),
-            label: Text(prevTitle!),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => _navigateTo(_selectedSection, prevPage!),
+                icon: const Icon(Icons.arrow_back, size: 16),
+                label: Text(
+                  prevTitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
           )
         else
           const SizedBox(),
         if (nextPage != null)
-          TextButton.icon(
-            onPressed: () => _navigateTo(_selectedSection, nextPage!),
-            label: Text(nextTitle!),
-            icon: const Icon(Icons.arrow_forward, size: 16),
+          Flexible(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _navigateTo(_selectedSection, nextPage!),
+                label: Text(
+                  nextTitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                icon: const Icon(Icons.arrow_forward, size: 16),
+              ),
+            ),
           )
         else
           const SizedBox(),

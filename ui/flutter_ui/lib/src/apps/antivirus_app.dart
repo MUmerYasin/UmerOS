@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 
+import '../widgets/auto_adjust_box.dart';
+
 class AntivirusApp extends StatefulWidget {
   const AntivirusApp({super.key});
 
@@ -208,14 +210,18 @@ class _AntivirusAppState extends State<AntivirusApp> {
                             : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tabs[i],
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: _selectedTab == i ? FontWeight.w600 : FontWeight.normal,
-                          color: _selectedTab == i
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                      Flexible(
+                        child: Text(
+                          tabs[i],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: _selectedTab == i ? FontWeight.w600 : FontWeight.normal,
+                            color: _selectedTab == i
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
                         ),
                       ),
                     ],
@@ -431,8 +437,8 @@ class _AntivirusAppState extends State<AntivirusApp> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          AutoAdjustRow(
+            alignment: WrapAlignment.spaceBetween,
             children: [
               const Text('Scanning...', style: TextStyle(fontWeight: FontWeight.w600)),
               Text('${_scanProgress.toStringAsFixed(0)}%  |  $_filesScanned files',
@@ -603,8 +609,8 @@ class _AntivirusAppState extends State<AntivirusApp> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          AutoAdjustRow(
+            alignment: WrapAlignment.spaceBetween,
             children: [
               Text('Quarantined Files (${_quarantine.length})',
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
@@ -762,8 +768,8 @@ class _AntivirusAppState extends State<AntivirusApp> {
           ),
           const SizedBox(height: 16),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          AutoAdjustRow(
+            alignment: WrapAlignment.spaceBetween,
             children: [
               const Text('Recent Events', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               Row(

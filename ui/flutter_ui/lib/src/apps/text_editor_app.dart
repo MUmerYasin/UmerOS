@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/auto_adjust_box.dart';
 
 class TextEditorApp extends StatefulWidget {
   const TextEditorApp({super.key});
@@ -233,7 +234,8 @@ class _TextEditorAppState extends State<TextEditorApp> {
           bottom: BorderSide(color: colorScheme.outline.withValues(alpha: 0.2)),
         ),
       ),
-      child: Row(
+      child: AutoAdjustRow(
+        spacing: 0,
         children: [
           _toolButton(Icons.add, 'New', _newFile, colorScheme),
           _toolButton(Icons.folder_open, 'Open', _openFile, colorScheme),
@@ -472,14 +474,19 @@ class _TextEditorAppState extends State<TextEditorApp> {
       ),
       child: Row(
         children: [
-          _statusItem('Lines: $_lineCount', colorScheme),
+          Expanded(
+            child: AutoAdjustRow(
+              spacing: 16,
+              runSpacing: 2,
+              children: [
+                _statusItem('Lines: $_lineCount', colorScheme),
+                _statusItem('Words: $_wordCount', colorScheme),
+                _statusItem('Chars: $_charCount', colorScheme),
+                _statusItem('Ln $_currentLine, Col $_currentCol', colorScheme),
+              ],
+            ),
+          ),
           const SizedBox(width: 16),
-          _statusItem('Words: $_wordCount', colorScheme),
-          const SizedBox(width: 16),
-          _statusItem('Chars: $_charCount', colorScheme),
-          const SizedBox(width: 16),
-          _statusItem('Ln $_currentLine, Col $_currentCol', colorScheme),
-          const Spacer(),
           _statusItem('UTF-8', colorScheme),
           const SizedBox(width: 16),
           Container(

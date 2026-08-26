@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/auto_adjust_box.dart';
+
 class FileManagerApp extends StatefulWidget {
   const FileManagerApp({super.key});
 
@@ -80,7 +82,7 @@ class _FileManagerAppState extends State<FileManagerApp> {
               ),
             ),
           ),
-          child: Column(
+          child: AutoAdjustColumn(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
@@ -185,6 +187,8 @@ class _FileManagerAppState extends State<FileManagerApp> {
                         ),
                         child: Text(
                           _currentPath,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 13,
                             color: Theme.of(context).colorScheme.onSurface,
@@ -229,11 +233,15 @@ class _FileManagerAppState extends State<FileManagerApp> {
                     ),
                     const Spacer(),
                     if (_selectedItem.isNotEmpty)
-                      Text(
-                        'Selected: $_selectedItem',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).colorScheme.primary,
+                      Flexible(
+                        child: Text(
+                          'Selected: $_selectedItem',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                         ),
                       ),
                   ],

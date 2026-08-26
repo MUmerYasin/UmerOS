@@ -8,6 +8,7 @@ import 'app_registry.dart';
 import 'theme_provider.dart';
 import '../widgets/dock.dart';
 import '../widgets/draggable_window.dart';
+import '../widgets/auto_adjust_box.dart';
 
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
@@ -580,6 +581,9 @@ class _ControlCenterPopoverState extends State<_ControlCenterPopover> {
       color: Colors.transparent,
       child: Container(
         width: 350,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height - 120,
+        ),
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHigh,
@@ -595,8 +599,7 @@ class _ControlCenterPopoverState extends State<_ControlCenterPopover> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: AutoAdjustColumn(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Title Header
@@ -1022,7 +1025,10 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
           child: GestureDetector(
             onTap: () {},
             child: Container(
-              width: 580,
+              constraints: const BoxConstraints(
+                maxWidth: 580,
+                maxHeight: 480,
+              ),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerHigh,
