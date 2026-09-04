@@ -113,6 +113,20 @@ class DosPathMapper:
     # ------------------------------------------------------------------
 
     def to_posix(self, dos_path: str) -> str:
+        """Public entry point -- normalises input, then defers to the
+        recursion-free :meth:`_to_posix_uncached` helper.
+        """
+        return self._to_posix_uncached(dos_path)
+
+    def _to_posix_uncached(self, dos_path: str) -> str:
+        """Internal helper used by :meth:`to_posix` after the input
+        has been normalised once.  It is safe to call recursively
+        from case 4 (drive-relative) because the rewritten path
+        always matches case 5 (drive-qualified absolute).
+        """
+        return self._to_posix_inner(dos_path)
+
+    def _to_posix_inner(self, dos_path: str) -> str:
         """Translate ``dos_path`` (e.g. ``C:\\Windows\\System32``) to POSIX.
 
         Raises:
@@ -122,7 +136,9 @@ class DosPathMapper:
             raise DosPathError("empty DOS path")
         p = self._normalise_separators(dos_path)
         if not self.case_sensitive:
-            p = p.lower()  # we don't lowercase drive letter here
+            p_lower = p.lower()
+        else:
+            p_lower = p
 
         # 1. Long path prefix: ``\\?\X:\foo`` or ``\\?\UNC\server\share\foo``
         m = _LONG_PATH_RE.match(p)
@@ -130,10 +146,10 @@ class DosPathMapper:
             inner = p[4:]
             # Recurse on the inner (drive / UNC) path.
             if _DRIVE_RE.match(inner):
-                return self.to_posix(inner)
+                return self._to_posix_uncached(inner)
             if inner.startswith("\\UNC\\"):
-                return self.to_posix("\\\\" + inner[5:])
-            return self.to_posix(inner)
+                return self._to_posix_uncached("\\\\" + inner[5:])
+            return self._to_posix_uncached(inner)
 
         # 2. Volume GUID path
         m = _VOL_GUID_RE.match(p)
@@ -151,11 +167,15 @@ class DosPathMapper:
                                rest.lstrip("\\/"))
 
         # 4. Drive-relative: ``C:foo`` means drive + working-dir + foo.
-        m = re.match(r"^([A-Za-z]):([^\\].*)?$", p)
+        # We avoid recursing here (which would loop) by computing
+        # the absolute DOS path directly and dispatching to the
+        # *drive-qualified absolute* branch via a helper.
+        m = re.match(r"^([A-Za-z]):([^\\].*)?$", p_lower)
         if m:
             drive, rest = m.group(1).upper(), (m.group(2) or "")
             cwd = self._drive_cwd.get(drive, "\\")
-            return self.to_posix(f"{drive}:{cwd.rstrip('\\\\')}\\{rest}")
+            abs_path = f"{drive}:{cwd.rstrip(chr(92))}\\{rest}".replace("/", chr(92))
+            return self._to_posix_uncached(abs_path)
 
         # 5. Drive-qualified absolute: ``C:\foo``
         m = _DRIVE_RE.match(p)
@@ -170,9 +190,11 @@ class DosPathMapper:
             rest = p.lstrip("\\").replace("\\", "/")
             return os.path.join(self.compat_root, self.default_drive, rest)
 
-        # 7. Relative path
+        # 7. Relative path on the default drive.
         cwd = self._drive_cwd.get(self.default_drive, "\\")
-        return self.to_posix(f"{self.default_drive}:{cwd}\\{p}")
+        return self._to_posix_uncached(
+            f"{self.default_drive}:{cwd}\\{p}"
+        )
 
     # ------------------------------------------------------------------
     # POSIX -> DOS

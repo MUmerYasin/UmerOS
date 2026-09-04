@@ -29,7 +29,10 @@ from __future__ import annotations
 
 import os
 import datetime
+import logging
 from core.command import Command
+
+log = logging.getLogger("UmerOS.usr_share")
 
 
 # ─── Man Pages / Documentation ──────────────────────────────────────────────

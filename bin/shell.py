@@ -30,6 +30,10 @@ import shlex
 import fnmatch
 from typing import List, Optional, Any, Tuple, IO
 
+import logging
+
+log = logging.getLogger("UmerOS.shell")
+
 
 class ShCommand:
     """
@@ -141,7 +145,8 @@ class ShCommand:
         try:
             self._working_dir = target
             return 0, ""
-        except Exception:
+        except Exception:  # [FIX H8]
+            log.exception("shell: cd failed")
             return 1, f"cd: {target}: No such file or directory"
 
     def _builtin_pwd(self, args: List[str]) -> Tuple[int, str]:
@@ -346,7 +351,8 @@ class TarCommand:
             with open(archive, "w") as f:
                 json.dump(manifest, f, indent=2)
             return 0
-        except Exception as e:
+        except OSError as e:  # [FIX H8]
+            log.exception("shell: tar create failed")
             print(f"tar: {archive}: {e}")
             return 1
 
@@ -365,7 +371,8 @@ class TarCommand:
         except FileNotFoundError:
             print(f"tar: {archive}: No such file or directory")
             return 1
-        except Exception as e:
+        except Exception as e:  # [FIX H8]
+            log.exception("shell: tar extract failed")
             print(f"tar: {e}")
             return 1
 
@@ -424,7 +431,8 @@ class GzipCommand:
             with gzip.open(out_path, "wb") as f_out:
                 f_out.write(data)
             return 0
-        except Exception as e:
+        except OSError as e:  # [FIX H8]
+            log.exception("shell: gzip compress failed")
             print(f"gzip: {fp}: {e}")
             return 1
 
@@ -437,7 +445,8 @@ class GzipCommand:
             with open(out_path, "wb") as f_out:
                 f_out.write(data)
             return 0
-        except Exception as e:
+        except OSError as e:  # [FIX H8]
+            log.exception("shell: gzip decompress failed")
             print(f"gunzip: {fp}: {e}")
             return 1
 
@@ -451,7 +460,8 @@ class GzipCommand:
             result = gzip.decompress(data)
             print(result.decode(errors="replace"))
             return 0
-        except Exception as e:
+        except Exception as e:  # [FIX H8]
+            log.exception("shell: gzip decompress stream failed")
             print(f"gunzip: {e}")
             return 1
 
@@ -497,7 +507,8 @@ class ZcatCommand:
                 data = f.read()
             print(data.decode(errors="replace"))
             return 0
-        except Exception as e:
+        except OSError as e:  # [FIX H8]
+            log.exception("shell: zcat failed")
             print(f"zcat: {e}")
             return 1
 

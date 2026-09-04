@@ -41,6 +41,10 @@ from enum import IntEnum, auto
 from pathlib import Path
 from typing import Any, Dict, IO, List, Optional, Tuple, Union
 
+import logging
+
+log = logging.getLogger("UmerOS.system_info")
+
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -124,8 +128,8 @@ class UnameInfo:
             info.processor = platform.processor() or info.machine
             info.hardware_platform = platform.machine()
             info.operating_system = f"{info.sysname}"
-        except Exception:
-            pass
+        except OSError:  # [FIX H8]
+            log.exception("system_info: failed to gather uname info")
         return info
 
     def to_dict(self) -> Dict[str, str]:
@@ -495,8 +499,8 @@ class HostnameCommand:
         if fqdn or domain:
             try:
                 current = socket.getfqdn()
-            except Exception:
-                pass
+            except OSError:  # [FIX H8]
+                log.exception("system_info: failed to get FQDN")
         elif short:
             current = current.split(".")[0]
         elif alias:
@@ -504,15 +508,15 @@ class HostnameCommand:
                 aliases = socket.gethostbyaddr(socket.gethostname())[1]
                 if aliases:
                     current = aliases[0]
-            except Exception:
-                pass
+            except OSError:  # [FIX H8]
+                log.exception("system_info: failed to get hostname alias")
         elif ip_address:
             try:
                 ips = socket.gethostbyname_ex(socket.gethostname())[2]
                 if ips:
                     current = " ".join(ips)
-            except Exception:
-                pass
+            except OSError:  # [FIX H8]
+                log.exception("system_info: failed to resolve hostname IP addresses")
 
         print(current, file=out)
         return 0
@@ -522,22 +526,22 @@ class HostnameCommand:
         try:
             # Try socket first
             return socket.gethostname()
-        except Exception:
-            pass
+        except OSError:  # [FIX H8]
+            log.exception("system_info: socket.gethostname failed")
 
         try:
             # Try os.uname
             return os.uname().nodename
-        except Exception:
-            pass
+        except (OSError, AttributeError):  # [FIX H8]
+            log.exception("system_info: os.uname failed")
 
         try:
             # Try hostname file
             if os.path.exists(HOSTNAME_FILE):
                 with open(HOSTNAME_FILE, "r") as f:
                     return f.read().strip()
-        except Exception:
-            pass
+        except OSError:  # [FIX H8]
+            log.exception("system_info: failed to read hostname file")
 
         return "localhost"
 

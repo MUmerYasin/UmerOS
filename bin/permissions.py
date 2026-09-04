@@ -1172,11 +1172,11 @@ def _selftest() -> bool:
             tmppath2 = f.name
         try:
             coc.execute(["0:0", tmppath2])
-        except Exception:
+        except (OSError, ValueError):  # [FIX H8]
             pass
         try:
             assert coc.execute(["nonexistent_user_xyz", tmppath2]) == 1
-        except (OSError, Exception):
+        except (OSError, ValueError):  # [FIX H8]
             pass
 
         # ChgrpCommand
@@ -1185,11 +1185,11 @@ def _selftest() -> bool:
             tmppath3 = f.name
         try:
             cgc.execute(["0", tmppath3])
-        except Exception:
+        except (OSError, ValueError):  # [FIX H8]
             pass
         try:
             assert cgc.execute(["nonexistent_xyz", tmppath3]) == 1
-        except Exception:
+        except (AssertionError, OSError, ValueError):  # [FIX H8]
             pass
 
         # Utility functions

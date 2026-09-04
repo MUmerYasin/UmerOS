@@ -1,8 +1,8 @@
 # ninja log v7
 16	119	8094290528393274	CMakeFiles/umeros_python.dir/Objects/float.c.obj	d7144c3bfc9a5e4b
-10	807	8102120502105622	CMakeFiles/umeros_python.dir/Objects/object.c.obj	8b72f907f26ca8f9
+6	74	8102122220277022	CMakeFiles/umeros_python.dir/Objects/object.c.obj	8b72f907f26ca8f9
 13	77	8094290528363274	CMakeFiles/umeros_python.dir/Objects/long.c.obj	5d3113865e646845
-18	810	8102120502175665	CMakeFiles/umeros_python.dir/Objects/unicode.c.obj	5cca2e08a63de33f
+10	71	8102122220317005	CMakeFiles/umeros_python.dir/Objects/unicode.c.obj	5cca2e08a63de33f
 78	164	8094290529018329	CMakeFiles/umeros_python.dir/Objects/none.c.obj	ee86ab45ee5afa12
 73	194	8094290528968414	CMakeFiles/umeros_python.dir/Objects/bool.c.obj	d7f1a463f1c82dd0
 120	232	8094290529428341	CMakeFiles/umeros_python.dir/Objects/errors.c.obj	2c66d4de425e1381
@@ -10,7 +10,6 @@
 203	287	8094290530258362	CMakeFiles/umeros_python.dir/VM/vm.c.obj	f2753f6de1bbcf1b
 228	303	8094290530508377	CMakeFiles/umeros_python.dir/Programs/main.c.obj	29261fd0db8a8560
 168	264	8094290529908345	CMakeFiles/umeros_python.dir/Compiler/compiler.c.obj	41e3f5474d5e6a0
-811	966	8102120510105682	umeros_python.exe	e2099d30c8ea0f0
-10	71	8102122220317005	CMakeFiles/umeros_python.dir/Objects/unicode.c.obj	5cca2e08a63de33f
-6	74	8102122220277022	CMakeFiles/umeros_python.dir/Objects/object.c.obj	8b72f907f26ca8f9
 76	179	8102122220976944	umeros_python.exe	e2099d30c8ea0f0
+14	591	8102136882995533	CMakeFiles/umeros_python.dir/VM/vm.c.obj	f2753f6de1bbcf1b
+594	750	8102136888783259	umeros_python.exe	e2099d30c8ea0f0

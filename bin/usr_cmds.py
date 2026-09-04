@@ -27,6 +27,10 @@ import hashlib
 import math
 from typing import Any, List, Optional
 
+import logging
+
+log = logging.getLogger("UmerOS.usr_cmds")
+
 
 # ─── Build & Development Tools ───────────────────────────────────────────────
 
@@ -934,7 +938,7 @@ class Base32Command:
             else:
                 data = open(files[0], 'rb').read() if files else sys.stdin.buffer.read()
                 print(base64.b32encode(data).decode())
-        except Exception as e:
+        except (ValueError, OSError) as e:  # [FIX H8]
             print(f"base32: {e}", file=sys.stderr)
             return 1
         return 0
@@ -962,7 +966,7 @@ class Base64Command:
                 encoded = base64.b64encode(data).decode()
                 for i in range(0, len(encoded), wrap):
                     print(encoded[i:i + wrap])
-        except Exception as e:
+        except (ValueError, OSError) as e:  # [FIX H8]
             print(f"base64: {e}", file=sys.stderr)
             return 1
         return 0
@@ -1029,7 +1033,7 @@ class NprocCommand:
             args = []
         try:
             cpus = os.cpu_count() or 1
-        except Exception:
+        except (OSError, AttributeError):  # [FIX H8]
             cpus = 1
         print(cpus)
         return 0
@@ -1157,7 +1161,7 @@ class IconvCommand:
                 with open(f, 'r', encoding=from_enc) as fh:
                     data = fh.read()
                 print(data, end='')
-            except Exception as e:
+            except (OSError, ValueError) as e:  # [FIX H8]
                 print(f"iconv: {e}", file=sys.stderr)
                 return 1
         return 0
@@ -2870,7 +2874,7 @@ class TouchCommand:
                 try:
                     with open(f, 'a'):
                         os.utime(f, None)
-                except Exception:
+                except (OSError, ValueError):  # [FIX H8]
                     pass
         return 0
 

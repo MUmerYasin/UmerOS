@@ -5,12 +5,9 @@
 [vcvarsall.bat] Environment initialized for: 'x64'
 === CMAKE ===
 -- Configuring done (0.0s)
--- Generating done (0.0s)
+-- Generating done (0.1s)
 -- Build files have been written to: F:/Pension Person Details/UmerOS/boot/python_vm/build
 === NINJA ===
-[1/3] Building C object CMakeFiles\umeros_python.dir\Objects\unicode.c.obj
-[2/3] Building C object CMakeFiles\umeros_python.dir\Objects\object.c.obj
-F:\Pension Person Details\UmerOS\boot\python_vm\Objects\object.c(400): warning C4142: 'PyObject_Hash': benign redefinition of type
-F:\Pension Person Details\UmerOS\boot\python_vm\Include\object.h(402): note: see declaration of 'PyObject_Hash'
-[3/3] Linking C executable umeros_python.exe
+[1/2] Building C object CMakeFiles\umeros_python.dir\VM\vm.c.obj
+[2/2] Linking C executable umeros_python.exe
 === BUILD SUCCESS ===

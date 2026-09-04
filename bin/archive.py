@@ -18,7 +18,10 @@ from __future__ import annotations
 import json
 import os
 import sys
+import logging
 from typing import Any, List, Optional
+
+log = logging.getLogger("UmerOS.archive")
 
 
 class TarCommand:
@@ -79,7 +82,7 @@ class TarCommand:
                 for fp in files:
                     print(fp, file=out)
             return 0
-        except Exception as e:
+        except (OSError, ValueError) as e:  # [FIX H8]
             print(f"tar: {archive}: {e}", file=sys.stderr)
             return 1
 
@@ -150,7 +153,7 @@ class TarCommand:
                 for fp in files:
                     print(fp, file=out)
             return 0
-        except Exception as e:
+        except (OSError, ValueError) as e:  # [FIX H8] json.dump + print I/O
             print(f"tar: {archive}: {e}", file=sys.stderr)
             return 1
 

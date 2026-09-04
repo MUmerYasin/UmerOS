@@ -19,10 +19,13 @@ Implements common /usr/bin commands as stubs for FHS compliance.
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import time
 from typing import Any, List, Optional, Tuple
+
+log = logging.getLogger("UmerOS.usr_commands")
 
 
 class CpioCommand:
@@ -119,7 +122,7 @@ class NohupCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except Exception:
+        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
             print(f"nohup: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -163,7 +166,7 @@ class StraceCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except Exception:
+        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
             print(f"strace: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -204,7 +207,7 @@ class TasksetCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except Exception:
+        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
             print(f"taskset: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -231,7 +234,7 @@ class TimeCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             exit_code = sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except Exception:
+        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
             print(f"time: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -278,7 +281,7 @@ class NiceCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except Exception:
+        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
             print(f"nice: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -829,7 +832,7 @@ class XargsCommand:
                         exit_code = sh_cmd.execute([cmd] + full_args, None, None)
                         if exit_code != 0:
                             return exit_code
-                    except Exception:
+                    except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
                         print(f"xargs: {cmd}: not found", file=sys.stderr)
                         return 127
         except Exception as e:
@@ -884,7 +887,7 @@ class IdCommand:
             egid = os.getegid() if hasattr(os, 'getegid') else 0
 
             print(f"uid={uid}(root) gid={gid}(root) euid={euid}(root) egid={egid}(root)")
-        except Exception:
+        except (OSError, AttributeError):  # [FIX H8] narrow
             print("uid=0(root) gid=0(root)")
 
         return 0
@@ -901,7 +904,7 @@ class WhoamiCommand:
             import os
             name = os.getenv('USER', 'root')
             print(name)
-        except Exception:
+        except (OSError, AttributeError):  # [FIX H8] narrow
             print("root")
         return 0
 
@@ -1178,7 +1181,7 @@ class TimeoutCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except Exception:
+        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
             print(f"timeout: command '{cmd}' not found", file=sys.stderr)
             return 127
 

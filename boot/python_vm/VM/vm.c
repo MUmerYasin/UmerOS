@@ -86,6 +86,7 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
     }
 
     while (frame->f_lasti < code_len) {
+        Py_ssize_t instr_off = frame->f_lasti;
         Opcode op = (Opcode)bytecode[frame->f_lasti++];
         int arg = -1;
 
@@ -96,6 +97,9 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                 arg = (arg << 8) | bytecode[frame->f_lasti++];
             }
         }
+
+        fprintf(stderr, "[VM] pc=%d op=%d arg=%d\n", (int)instr_off, (int)op, arg);
+        fflush(stderr);
 
         switch (op) {
             case OP_LOAD_CONST: {

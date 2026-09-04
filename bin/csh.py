@@ -105,7 +105,7 @@ class CshCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute(tokens, stdin, stdout)
-        except Exception:
+        except (ImportError, ModuleNotFoundError, AttributeError) as e:  # [FIX H8]
             print(f"{cmd}: Command not found.", file=sys.stderr)
             return 1
 
@@ -124,7 +124,7 @@ class CshCommand:
                     if exit_code != 0:
                         return exit_code
             return 0
-        except Exception as e:
+        except (OSError, ValueError) as e:  # [FIX H8]
             print(f"csh: {e}", file=sys.stderr)
             return 1
 

@@ -32,8 +32,11 @@ Licence: GPLv3
 
 from __future__ import annotations
 
+import logging
 import sys
 from typing import Any, List, Optional
+
+log = logging.getLogger("UmerOS.home")
 
 
 class HomeCommand:

@@ -22,7 +22,10 @@ from __future__ import annotations
 import os
 import re
 import sys
+import logging
 from typing import Any, List, Optional, Tuple
+
+log = logging.getLogger("UmerOS.ed")
 
 
 class EdCommand:
@@ -69,7 +72,7 @@ class EdCommand:
             try:
                 with open(self._filename, 'r') as f:
                     self._buffer = f.read().splitlines()
-            except Exception as e:
+            except (OSError, ValueError) as e:  # [FIX H8]
                 print(f"ed: {e}", file=sys.stderr)
                 return 1
 
@@ -85,7 +88,7 @@ class EdCommand:
                         break
                     self._buffer.append(line)
                     self._current_line = len(self._buffer)
-            except Exception:
+            except (OSError, ValueError):  # [FIX H8]
                 pass
             return 0
 
