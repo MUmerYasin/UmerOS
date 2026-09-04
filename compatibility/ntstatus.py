@@ -1,0 +1,221 @@
+"""
+Umer OS /compatibility/ntstatus — NTSTATUS codes
+==============================================
+
+The Windows NT kernel and the NT native API (``ntdll.dll``) return
+``NTSTATUS`` codes (32-bit).  The structure is::
+
+    3 3 2 2 2 2 2 2 2 2 2 2 1 1 1 1 1 1 1 1 1 1
+    1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+    +---+-------+-------------------------------------------------------------+
+    |Sev|  Cust | Facility                  |            Code             |
+    +---+-------+-------------------------------------------------------------+
+        31 30 29                              16 15                       0
+
+* ``Sev`` is 0=success / 1=info / 2=warn / 3=error
+* ``Customer`` is 0 for Microsoft-defined codes, 1 for customer.
+* ``Facility`` is the originating subsystem (kernel, io, tls, ...).
+* ``Code`` is the symbolic value.
+
+A common pattern in Windows: NTSTATUS ``STATUS_SUCCESS`` is ``0``; a
+``STATUS_*`` code with severity ``ERROR`` (3) is often returned in
+HKEY-native form, and converted to a Win32 ``ERROR_*`` code by
+``RtlNtStatusToDosError``.
+
+This module is a pure-Python reference table.  See
+``https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/`` for
+the full list.
+
+Author:  Umer OS Project
+Licence: GPL-3.0
+"""
+
+from __future__ import annotations
+
+from typing import Dict
+
+
+# --- Severity masks -------------------------------------------------------
+
+STATUS_SEVERITY_SUCCESS = 0x0
+STATUS_SEVERITY_INFORMATIONAL = 0x1
+STATUS_SEVERITY_WARNING = 0x2
+STATUS_SEVERITY_ERROR = 0x3
+STATUS_SEVERITY_MASK = 0xC0000000
+
+
+# --- A common subset of NTSTATUS codes -----------------------------------
+
+STATUS_SUCCESS = 0x00000000
+STATUS_PENDING = 0x00000103
+STATUS_TIMEOUT = 0x00000102
+STATUS_BUFFER_OVERFLOW = 0x80000005
+STATUS_BUFFER_TOO_SMALL = 0xC0000023
+STATUS_NOT_IMPLEMENTED = 0xC0000002
+STATUS_INFO_LENGTH_MISMATCH = 0xC0000004
+STATUS_ACCESS_VIOLATION = 0xC0000005
+STATUS_IN_PAGE_ERROR = 0xC0000006
+STATUS_PAGEFILE_QUOTA = 0xC0000007
+STATUS_INVALID_HANDLE = 0xC0000008
+STATUS_INVALID_PARAMETER = 0xC000000D
+STATUS_NO_SUCH_DEVICE = 0xC000000E
+STATUS_NO_SUCH_FILE = 0xC000000F
+STATUS_INVALID_DEVICE_REQUEST = 0xC0000010
+STATUS_END_OF_FILE = 0xC0000011
+STATUS_NO_MEMORY = 0xC0000017
+STATUS_ALREADY_COMMITTED = 0xC0000021
+STATUS_ACCESS_DENIED = 0xC0000022
+STATUS_OBJECT_NAME_INVALID = 0xC0000033
+STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
+STATUS_OBJECT_NAME_COLLISION = 0xC0000035
+STATUS_OBJECT_PATH_INVALID = 0xC0000039
+STATUS_OBJECT_PATH_NOT_FOUND = 0xC000003A
+STATUS_OBJECT_PATH_SYNTAX_BAD = 0xC000003B
+STATUS_NAME_TOO_LONG = 0xC0000106
+STATUS_IO_DEVICE_ERROR = 0xC0000185
+STATUS_DEVICE_NOT_READY = 0xC00000A3
+STATUS_SHARING_VIOLATION = 0xC0000043
+STATUS_FILE_LOCK_CONFLICT = 0xC0000054
+STATUS_LOCK_NOT_GRANTED = 0xC0000055
+STATUS_DELETE_PENDING = 0xC0000056
+STATUS_PRIVILEGE_NOT_HELD = 0xC0000061
+STATUS_INVALID_PAGE_PROTECTION = 0xC0000045
+STATUS_SECTION_TOO_BIG = 0xC0000040
+STATUS_PORT_ALREADY_SET = 0xC0000353
+STATUS_SUSPEND_COUNT = 0xC000004A
+STATUS_THREAD_IS_TERMINATING = 0xC000004B
+STATUS_BAD_WORKING_SET_LIMIT = 0xC000004C
+STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
+STATUS_DEVICE_BUSY = 0x80000011
+STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
+STATUS_PIPE_CONNECTED = 0xC000014D
+STATUS_PIPE_DISCONNECTED = 0xC000014B
+STATUS_PIPE_LISTENING = 0xC000014C
+STATUS_PIPE_CLOSING = 0xC000014E
+STATUS_PIPE_EMPTY = 0xC0000149
+STATUS_PIPE_BUSY = 0xC000014A
+STATUS_PIPE_NOT_AVAILABLE = 0xC00000AC
+STATUS_INVALID_PIPE_STATE = 0xC00000AD
+STATUS_INSTANCE_NOT_AVAILABLE = 0xC00000AB
+STATUS_PIPE_CLOSED = 0xC000014F
+STATUS_PIPE_DISCONNECTED_2 = 0xC000014B
+STATUS_PROCESS_IS_TERMINATING = 0xC0000105
+STATUS_CANNOT_DELETE = 0xC0000121
+STATUS_FILE_DELETED = 0xC0000123
+STATUS_DELETE_FAILED = 0xC0000122
+STATUS_INVALID_PARAMETER_2 = 0xC000000D
+STATUS_OBJECT_TYPE_MISMATCH = 0xC0000024
+STATUS_PORT_DISCONNECTED = 0xC0000037
+STATUS_DEVICE_ALREADY_ATTACHED = 0xC0000148
+STATUS_PORT_NOT_AVAILABLE = 0xC000014A
+STATUS_CALLBACK_POP_STACK = 0xC0000417
+STATUS_DISK_CORRUPT_ERROR = 0xC0000032
+STATUS_MEDIA_WRITE_PROTECTED = 0xC00000A2
+STATUS_VOLUME_DISMOUNTED = 0xC000026E
+STATUS_MEDIA_CHANGED = 0x8000001C
+STATUS_DEVICE_REMOVED = 0xC00002B6
+STATUS_INVALID_DEVICE_OBJECT = 0xC0000097
+STATUS_VOLUME_NOT_UPGRADED = 0xC0000287
+STATUS_VOLUME_NOT_MOUNTED = 0xC0000296
+STATUS_NOT_A_DIRECTORY = 0xC0000103
+STATUS_NOT_FOUND = 0xC0000225
+STATUS_CANNOT_DELETE_2 = 0xC0000121
+STATUS_IS_A_DIRECTORY = 0xC00000BA
+STATUS_REPARSE = 0xC0000289
+STATUS_REPARSE_OBJECT = 0xC0000289
+STATUS_REPARSE_GLOBAL = 0xC000028A
+STATUS_NOT_A_REPARSE_POINT = 0xC0000275
+STATUS_INVALID_REPARSE_BUFFER = 0xC0000276
+STATUS_REPARSE_TAG_INVALID = 0xC0000277
+STATUS_REPARSE_TAG_MISMATCH = 0xC0000278
+STATUS_DIRECTORY_NOT_EMPTY = 0xC0000101
+STATUS_TOO_MANY_OPEN_FILES_2 = 0xC000011F
+STATUS_TOO_MANY_LINKS = 0xC0000265
+STATUS_PIPE_CONNECTED_2 = 0xC000014D
+STATUS_TOO_MANY_PIPES = 0xC0000151
+STATUS_PIPE_BUSY_2 = 0xC000014A
+STATUS_PROCESSOR_ALREADY_ASSIGNED = 0xC00003B3
+STATUS_SECTION_PROTECTION = 0xC0000046
+STATUS_GRAPHICS_NOT_EXCLUSIVE_MODE_OWNER = 0xC0001B61
+STATUS_GRAPHICS_NO_VIDEO_MEMORY = 0xC0001B64
+STATUS_GRAPHICS_ALLOCATION_BUSY = 0xC0001B68
+STATUS_GRAPHICS_INVALID_ALLOCATION_HANDLE = 0xC0001B69
+STATUS_GRAPHICS_UNSWIZZLING_APERTURE_UNSUPPORTED = 0xC0001B6C
+
+
+#: Reverse map: status code -> name (subset).
+NTSTATUS_NAMES: Dict[int, str] = {
+    v: k
+    for k, v in globals().items()
+    if k.startswith("STATUS_") and isinstance(v, int)
+}
+
+
+def severity_of(status: int) -> int:
+    """Return the severity (0/1/2/3) of an NTSTATUS code."""
+    return (status & 0xC0000000) >> 30
+
+
+def is_success(status: int) -> bool:
+    """Return True if the status code indicates success or info (severity 0/1)."""
+    return severity_of(status) < 2
+
+
+def format_ntstatus(status: int) -> str:
+    """Return a human-readable label for an NTSTATUS code (or hex fallback)."""
+    name = NTSTATUS_NAMES.get(status)
+    if name is not None:
+        return f"{name} (0x{status:08X})"
+    sev = severity_of(status)
+    sev_name = (
+        "SUCCESS" if sev == 0
+        else "INFO" if sev == 1
+        else "WARN" if sev == 2
+        else "ERROR"
+    )
+    return f"NTSTATUS({sev_name}, 0x{status:08X})"
+
+
+def ntstatus_to_win32(status: int) -> int:
+    """Map a common subset of NTSTATUS codes to Win32 ``ERROR_*`` codes.
+
+    Mirrors the Windows API ``RtlNtStatusToDosError()`` for the codes
+    most likely to be returned by user-mode Win32 wrappers:
+
+    * ``STATUS_SUCCESS``              -> ``ERROR_SUCCESS``
+    * ``STATUS_INVALID_HANDLE``       -> ``ERROR_INVALID_HANDLE``
+    * ``STATUS_ACCESS_DENIED``        -> ``ERROR_ACCESS_DENIED``
+    * ``STATUS_INVALID_PARAMETER``    -> ``ERROR_INVALID_PARAMETER``
+    * ``STATUS_NO_MEMORY``            -> ``ERROR_NOT_ENOUGH_MEMORY``
+    * ``STATUS_OBJECT_NAME_NOT_FOUND``-> ``ERROR_FILE_NOT_FOUND``
+    * ``STATUS_SHARING_VIOLATION``     -> ``ERROR_SHARING_VIOLATION``
+    * ``STATUS_PIPE_*`` family         -> ``ERROR_PIPE_*``
+    * anything else                   -> ``ERROR_INVALID_FUNCTION`` (fallback).
+    """
+    if status == STATUS_SUCCESS:
+        return 0
+    table = {
+        STATUS_INVALID_HANDLE: 6,            # ERROR_INVALID_HANDLE
+        STATUS_ACCESS_DENIED: 5,             # ERROR_ACCESS_DENIED
+        STATUS_INVALID_PARAMETER: 87,         # ERROR_INVALID_PARAMETER
+        STATUS_NO_MEMORY: 14,                # ERROR_OUTOFMEMORY
+        STATUS_OBJECT_NAME_NOT_FOUND: 2,      # ERROR_FILE_NOT_FOUND
+        STATUS_OBJECT_NAME_INVALID: 123,      # ERROR_INVALID_NAME
+        STATUS_SHARING_VIOLATION: 32,        # ERROR_SHARING_VIOLATION
+        STATUS_FILE_LOCK_CONFLICT: 33,        # ERROR_LOCK_VIOLATION
+        STATUS_PRIVILEGE_NOT_HELD: 1314,      # ERROR_PRIVILEGE_NOT_HELD
+        STATUS_PIPE_NOT_AVAILABLE: 233,       # ERROR_PIPE_NOT_CONNECTED
+        STATUS_PIPE_BUSY: 231,               # ERROR_PIPE_BUSY
+        STATUS_PIPE_CLOSED: 230,             # ERROR_PIPE_CLOSED
+        STATUS_PIPE_LISTENING: 232,           # ERROR_PIPE_CONNECTED (re-used)
+        STATUS_DIRECTORY_NOT_EMPTY: 145,      # ERROR_DIR_NOT_EMPTY
+        STATUS_NOT_A_DIRECTORY: 267,          # ERROR_DIRECTORY (=ERROR_DIR_NOT_ROOT)
+        STATUS_DISK_FULL: 112,                # ERROR_DISK_FULL
+        STATUS_DEVICE_BUSY: 170,             # ERROR_BUSY
+        STATUS_FILE_NOT_FOUND: 2,             # ERROR_FILE_NOT_FOUND (fallback)
+    }
+    # Resolve STATUS_FILE_NOT_FOUND if it slipped into the local namespace.
+    fnf = globals().get("STATUS_FILE_NOT_FOUND")
+    if fnf is not None:
+        table[fnf] = 2
+    return table.get(status, 1)                # ERROR_INVALID_FUNCTION

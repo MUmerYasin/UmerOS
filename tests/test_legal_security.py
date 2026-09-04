@@ -168,7 +168,7 @@ class TestConsentCliFailClosed(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tmp_ledger = Path(d) / "ledger.json"
             with mock.patch.object(sys.stdin, "isatty", return_value=False):
-                with mock.patch.object(consent_module, "DEFAULT_LEDGER_PATH", tmp_ledger):
+                with mock.patch.object(sys.modules["legal.consent"], "DEFAULT_LEDGER_PATH", tmp_ledger):
                     rc = cli_main(["consent", "general"])
             self.assertEqual(rc, 1)
             # Refusal must NOT have written/granted a ledger entry.
@@ -178,7 +178,7 @@ class TestConsentCliFailClosed(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tmp_ledger = Path(d) / "ledger.json"
             with mock.patch.object(sys.stdin, "isatty", return_value=False):
-                with mock.patch.object(consent_module, "DEFAULT_LEDGER_PATH", tmp_ledger):
+                with mock.patch.object(sys.modules["legal.consent"], "DEFAULT_LEDGER_PATH", tmp_ledger):
                     rc = cli_main(["consent", "general", "--i-agree"])
             self.assertEqual(rc, 0)
             self.assertTrue(tmp_ledger.exists())

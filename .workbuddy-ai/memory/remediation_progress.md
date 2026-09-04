@@ -225,7 +225,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 
 - [x] H4 | YELLOW | bin/user_commands.py | su exec as other user + _exec_shell stub returning 0 - **FIXED (session 33):** _exec_command + _exec_shell now behind CAP_SYS_ADMIN gate (permissive/fail-closed bridge); Windows refuses honestly (user=/group= are POSIX-only) instead of TypeError; _exec_shell no longer fakes success - returns 1 with clear not-implemented message. Tests: tests/test_su_h4.py (3; POSIX-skipped on Windows per repo convention). Suite 1886 passed / 57 skipped.
 - [x] H5 | YELLOW | `bin/boolean_ops.py:411`, `etc/issue_motd.py` | `subprocess` to host with arg lists | [FIXED (session 34)] Keep list-form + no shell=True (verified); env host-exec gated behind CAP_SYS_ADMIN via core.capability_gate (require() before the try so a denied call fails closed, not swallowed); issue_motd who/uptime/last funnelled through a read-only allowlist helper that refuses on a Windows host. Sandbox control satisfied. |
-- [ ] H6 | YELLOW | `core/command.py` vs `bin/*` | Base `execute(*args)->Any` contradicts `execute(args=None)->int`
+- [x] H6 | YELLOW | `core/command.py` vs `bin/*` | [FIXED (session 35)] Base `Command.execute` converged to adopted convention `execute(self, args: Optional[List[str]] = None) -> int`; contract locked by `tests/test_command.py` (6 cases). The `*args` subclass form retained as call-compatible legacy (see H35). H55 root cause resolved. |
 - [ ] H7 | YELLOW | LICENSE/setup.py/README (GPL-3.0) vs `developer_guide.md` & master pro | License inconsistency: 3 sources say GPL-3.0, 2 say Apache-2.0
 - [ ] H8 | YELLOW | `bin/` (~30+) | Broad `except Exception`/`except:` swallow errors
 - [ ] H9 | YELLOW | CI | Only `security_scan.yml` runs (Bandit/Safety/Trivy/ZAP); **no test execution**, no Ruff/Mypy/pre-commit/covera
@@ -260,7 +260,7 @@ prior 1703 (exactly the new tests), 0 regressions.
 - [ ] H50 | YELLOW | `compatibility/container_engine.py:30` | `GPL-3.0 (GNU General Public License Version 3)` header in `container_engine.py` — contradicts canonical GPL-3.0 (extends H7/H20/H30). Th
 - [ ] H52 | YELLOW | `compatibility/container_engine.py:269,348,435` | Foreign binaries launched **unsandboxed.** `LinuxCompat.launch` (L269) / `WineShim.run` (L348) / `AndroidConta
 - [ ] H53 | YELLOW | `compatibility/container.py` + `compatibility/syscall_shim.py` (both f | These two files skip the per-file baseline: `print` instead of `logging`, no `from __future__ import annotatio
-- [ ] H55 | YELLOW | `core/command.py:30` | **Root cause of the H6 contract drift.** The base `Command.execute` signature is `execute(self, *args: Any) ->
+- [x] H55 | YELLOW | [FIXED (session 35)] `core/command.py:30` | **Root cause of the H6 contract drift.** The base `Command.execute` signature is `execute(self, *args: Any) ->
 - [ ] H56 | YELLOW | `core/command.py:25-28` | The base `Command` declares a `privileges: List[str]` field ("Required privileges (e.g. ["user"], ["root"])") 
 - [ ] H59 | YELLOW | `dev/core.py:69` (`DeviceNode.mode` default) + `dev/*_device.py` | The base `DeviceNode` dataclass defaults to `mode=0o666` (world **read+write**), and a long list of device nod
 - [ ] H60 | YELLOW | `dev/core.py:211-237` (`DeviceManager.sync_to_filesystem`) | **Privileged VFS mutation with no capability gate.** `sync_to_filesystem()` calls `os.mknod`/`os.mkfifo`/`os.s
@@ -535,7 +535,8 @@ New tests/test_ai_governance_security.py (3). Suite **1882 passed / 54 skipped**
 Remaining RED: **H42 only** (build/UmerOS-GUI.spec codesign_identity=None).
 Say **'continues'** to pick up H42 — the LAST open RED blocker.
 
-## NEXT — YELLOW sweep (session 34): H4 + H5 done. Next: H6 (and root-cause H55) —
-converge `core/command.py` base `Command.execute` signature (`execute(*args)->Any`
-vs `execute(args=None)->int`) so every `bin/*` subclass agrees on the contract.
-Same loop protocol. Say **'continues'** for H6.
+## NEXT — YELLOW sweep (session 35): H4 + H5 + H6 done (H55 root cause fixed). Next: H8 —
+`bin/*` broad `except` / arg-parsing cleanup (H8 extends H6/H35: the `def execute(self, *args)` form
+that survives in 27/44 modules should be normalized to `execute(self, args: Optional[List[str]] = None) -> int`,
+and bare/broad `except:` clauses in `bin/*` should be narrowed). Same loop protocol.
+Say **'continues'** for H8.

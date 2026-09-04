@@ -15,6 +15,9 @@
 /* ==================== VM INTERNAL STACK ==================== */
 
 static int Stack_Push(PyObject ***stacktop, PyObject *value) {
+    fprintf(stderr, "[STACK] PUSH %p (type=%s)\n", (void*)value,
+            value && value->ob_type ? value->ob_type->tp_name : "?");
+    fflush(stderr);
     Py_INCREF(value);
     *(*stacktop) = value;
     (*stacktop)++;
@@ -24,6 +27,9 @@ static int Stack_Push(PyObject ***stacktop, PyObject *value) {
 static PyObject* Stack_Pop(PyObject ***stacktop) {
     (*stacktop)--;
     PyObject *value = *(*stacktop);
+    fprintf(stderr, "[STACK] POP  %p (type=%s)\n", (void*)value,
+            value && value->ob_type ? value->ob_type->tp_name : "?");
+    fflush(stderr);
     return value;
 }
 
