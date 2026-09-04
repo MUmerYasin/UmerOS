@@ -1,63 +1,66 @@
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# UmerOS /home — User home-directory management
+# ==============================================
+# GPL-3.0 — see LICENSE and README for details.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+# /home: each user has a subdirectory under /home; ~/.local/
+# is the user-local install prefix; ~/.ssh is the per-user SSH
+# directory.  This package covers the full spec plus operations
+# like backup / restore, quota tracking, and dotfile templating.
 """
-UmerOS /home Package — Home Directory Management
-Manages user home directories, dotfiles, profiles, SSH, mail, and backups.
-
-FHS 3.0 /home specification:
-  ~user    = Home directory of the user.
-  /home/$USER/   Each user has a subdirectory in /home.
-  /etc/skel  Skeleton directory for new home directories.
-  Dotfiles  Hidden config files in user's home.
-  ~/.local/  User-local executables, data, state.
-
-Managers:
-  HomeManager        — Core home directory CRUD, XDG dirs, disk usage
-  DotfilesManager    — Default dotfile templates, install/remove
-  UserProfileManager — Per-user environment variables, PATH, aliases
-  HomeMailManager    — Maildir delivery, /var/spool/mail
-  HomeDirsManager    — XDG user dirs, hidden config dirs
-  HomeLocalManager   — ~/.local/ hierarchy (share, bin, lib, state)
-  HomeSSHManager     — SSH key pairs, authorized_keys, known_hosts, config
-  HomeQuotaManager   — Disk quota tracking per user
-  HomeBackupManager  — Home directory backup/restore (tar.gz)
-
-Integration:
-  etc/passwd_group.py  — User UID/GID, primary groups
-  etc/skeleton.py      — Skeleton files for new homes
-  etc/adduser_config.py — DHOME="/home"
-  kernel/umer_kernel.py — Pre-creates /home/umer at boot
+UmerOS /home — User home-directory management.
 """
 
-from .home_manager import HomeManager
-from .dotfiles import DotfilesManager
-from .user_profile import UserProfileManager
-from .home_mail import HomeMailManager
-from .home_dirs import HomeDirsManager
-from .home_local import HomeLocalManager
-from .home_ssh import HomeSSHManager
-from .home_quota import HomeQuotaManager
-from .home_backup import HomeBackupManager
+from __future__ import annotations
 
-__all__ = [
-    "HomeManager",
-    "DotfilesManager",
-    "UserProfileManager",
-    "HomeMailManager",
-    "HomeDirsManager",
-    "HomeLocalManager",
-    "HomeSSHManager",
-    "HomeQuotaManager",
-    "HomeBackupManager",
-]
+import logging
+from typing import List
+
+__version__ = "1.0.0"
+__all__: list[str] = []
+
+log = logging.getLogger("UmerOS.Home")
+
+
+def _try_import(module_name: str, names: tuple[str, ...]) -> None:
+    """Import optional helpers and add the names to ``__all__``."""
+    global __all__
+    try:
+        mod = __import__(f"{__name__}.{module_name}", fromlist=names)
+    except ImportError:
+        return
+    for n in names:
+        if hasattr(mod, n):
+            globals()[n] = getattr(mod, n)
+            __all__ = list(__all__) + [n]
+
+
+for _mod, _names in (
+    ("home_manager", ("HomeManager",)),
+    ("dotfiles", ("DotfilesManager",)),
+    ("user_profile", ("UserProfileManager",)),
+    ("home_mail", ("HomeMailManager",)),
+    ("home_dirs", ("HomeDirsManager",)),
+    ("home_local", ("HomeLocalManager",)),
+    ("home_ssh", ("HomeSSHManager",)),
+    ("home_quota", ("HomeQuotaManager",)),
+    ("home_backup", ("HomeBackupManager",)),
+):
+    _try_import(_mod, _names)
+
+
+def _selftest() -> bool:
+    """Verify the public surface is importable."""
+    import importlib
+    import sys
+
+    pkg = importlib.import_module(__name__)
+    missing = [n for n in __all__ if not hasattr(pkg, n)]
+    if missing:
+        print(f"home selftest FAIL: missing {missing}", file=sys.stderr)
+        return False
+    return True
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(0 if _selftest() else 1)

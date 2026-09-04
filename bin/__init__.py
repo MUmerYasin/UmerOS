@@ -1,40 +1,41 @@
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# UmerOS /bin — Essential command binaries
+# =========================================
+# GPL-3.0 — see LICENSE and README for details.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# /bin implementation.  Each command module lives in
+# this package and follows the
+# ``execute(args=None) -> int`` + ``self.name/description/usage`` +
+# ``_selftest()`` contract.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+# Modules
+# -------
+# essential_commands - cat, cp, mv, rm, ls, mkdir, rmdir, ln, dd, more
+# permissions        - chmod, chown, chgrp
+# system_info        - uname, dmesg, hostname, df, echo, date, pwd
+# process            - ps, kill, mount, umount, stty, sync
+# user_commands      - su, login
+# boolean_ops        - true, false, test, [, yes, printenv, env
+# shell              - sh, sed, tar, gzip, gunzip, zcat, netstat, ping, cpio
+# device             - mknod
+# archive            - tar (legacy)
+# network_cmds       - ifconfig, ip, route, arp
+# csh                - csh (C Shell)
+# ed                 - ed (line editor)
+# bin_manager        - command registry, FHS audit
 """
-UmerOS /bin -- Essential Command Binaries
-==========================================
-Contains all essential command binaries.
-
-Modules:
-    essential_commands - cat, cp, mv, rm, ls, mkdir, rmdir, ln, dd, more
-    permissions        - chmod, chown, chgrp
-    system_info        - uname, dmesg, hostname, df, echo, date, pwd
-    process            - ps, kill, mount, umount, stty, sync
-    user_commands      - su, login
-    boolean_ops        - true, false, test, [, yes, printenv, env
-    shell              - sh, sed, tar, gzip, gunzip, zcat, netstat, ping, cpio
-    device             - mknod
-    archive            - tar (legacy)
-    network_cmds       - ifconfig, ip, route, arp
-    csh                - csh (C Shell)
-    ed                 - ed (line editor)
+UmerOS /bin — Essential command binaries.
 """
 
 from __future__ import annotations
 
 import importlib
+import logging
 from typing import Any, Dict, List, Optional
+
+__version__ = "1.0.0"
+__author__ = "UmerOS Development Team"
+
+log = logging.getLogger("UmerOS.Bin")
 
 # All command modules available in /bin
 _BIN_MODULES: List[str] = [
@@ -57,7 +58,21 @@ _BIN_MODULES: List[str] = [
 
 
 def _selftest() -> bool:
-    """Run self-tests for all /bin modules."""
+    """Run self-tests for all /bin modules.
+
+    Imports every module in ``_BIN_MODULES`` and, when present, calls
+    its ``_selftest()`` function.  Returns True only when all modules
+    import and all sub-tests pass.
+
+    On non-POSIX platforms (notably Windows) some modules that depend
+    on ``pwd`` / ``termios`` / ``grp`` are skipped rather than treated
+    as failures — the modules are POSIX-only by design.
+    """
+    import os
+    import sys
+
+    is_posix = (os.name == "posix")
+
     tests_passed = 0
     tests_failed = 0
 
@@ -69,20 +84,30 @@ def _selftest() -> bool:
             tests_failed += 1
             print(f"FAIL: {msg}")
 
-    # Test that all modules can be imported
+    # Modules that depend on POSIX-only stdlib (pwd, grp, termios, spwd)
+    # and therefore cannot be imported on Windows.
+    POSIX_ONLY = {
+        "process",        # uses termios
+        "user_commands",  # uses pwd / grp / spwd
+    }
+
     for mod_name in _BIN_MODULES:
+        if mod_name in POSIX_ONLY and not is_posix:
+            check(True, f"skip {mod_name} (POSIX-only on this platform)")
+            continue
         try:
-            mod = importlib.import_module(mod_name)
-            check(True, f"import {mod_name}")
+            mod = importlib.import_module(f"{__name__}.{mod_name}")
+            check(True, f"import {__name__}.{mod_name}")
             if hasattr(mod, "_selftest"):
                 result = mod._selftest()
-                check(result, f"_selftest in {mod_name}")
-        except Exception as e:
-            check(False, f"import {mod_name}: {e}")
+                check(bool(result), f"_selftest in {mod_name}")
+        except Exception as e:  # noqa: BLE001
+            check(False, f"import {__name__}.{mod_name}: {e}")
 
     print(f"  {tests_passed} passed, {tests_failed} failed")
     return tests_failed == 0
 
 
 if __name__ == "__main__":
-    _selftest()
+    import sys
+    sys.exit(0 if _selftest() else 1)

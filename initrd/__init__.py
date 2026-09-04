@@ -134,6 +134,7 @@ from initrd.cpio import (
 )
 from initrd.hooks import HookAbort, HookManager, HookPoint
 from initrd.linuxrc import BootContext, run
+from initrd.linuxrc_main import main as linuxrc_main, _load_config, _load_image
 from initrd.module_resolver import ModuleResolver, ModuleSpec
 from initrd.mounts import (
     ChrootContext, FilesystemType, MountFlag, InitrdMountRecord, MountTable,
@@ -153,3 +154,23 @@ from initrd.scenarios import (
 )
 from initrd.signals import InitSignal, PID1SignalHandler
 from initrd.vfs_ops import VfsNode, VfsRoot
+
+
+def _selftest() -> bool:
+    """Verify every public name in ``__all__`` is importable from this package."""
+    import importlib as _il
+    import sys as _sys
+    pkg = _il.import_module(__name__)
+    missing = [n for n in __all__ if not hasattr(pkg, n)]
+    if missing:
+        print(
+            f"{__name__} selftest FAIL: missing {missing}",
+            file=_sys.stderr,
+        )
+        return False
+    return True
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    _sys.exit(0 if _selftest() else 1)

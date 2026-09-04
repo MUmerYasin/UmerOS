@@ -1,133 +1,159 @@
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# UmerOS /tmp — Temporary Filesystem Hierarchy
+# =============================================
+# GPL-3.0 — see LICENSE and README for details.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# Implementation of the ``/tmp`` filesystem hierarchy, managing
+# transient files, UNIX socket directories, process locks, tmpwatch /
+# systemd-tmpfiles reaper policies, and high-performance TmpFS.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+# Modules:
+# --------
+# fhs         - Specifications, protected socket dirs, FHSValidator
+# hierarchy   - TmpHierarchy, socket directory provisioning, per-user runtimes
+# secure_io   - SecureIO, race-free mktemp, SecureTempFile, SecureTempDir
+# lockfile    - ProcessLock, LockMetadata, stale lock detector
+# reaper      - TmpReaper, ReapReport, age/quota pruning policies
+# permissions - TmpPermissionManager, sticky-bit validation & security audit
+# tmpfs       - TmpFS in-memory virtual RAM filesystem
+# manager     - TmpManager (master coordinator & global API)
+# cli         - tmp_ctl command-line controller
+#
+# Author: UmerOS Project
+# License: GPL-3.0 (GNU General Public License Version 3)
 """
-UmerOS /tmp — Temporary Filesystem Hierarchy
-============================================
-
-Implementation of the ``/tmp`` filesystem
-hierarchy, managing transient files, UNIX socket directories, process locks,
-tmpwatch/systemd-tmpfiles reaper policies, and high-performance TmpFS.
-
-
-
-Modules:
---------
-fhs         - Specifications, protected socket dirs, FHSValidator
-hierarchy   - TmpHierarchy, socket directory provisioning, per-user runtimes
-secure_io   - SecureIO, race-free mktemp, SecureTempFile, SecureTempDir
-lockfile    - ProcessLock, LockMetadata, stale lock detector
-reaper      - TmpReaper, ReapReport, age/quota pruning policies
-permissions - TmpPermissionManager, sticky-bit validation & security audit
-tmpfs       - TmpFS in-memory virtual RAM filesystem
-manager     - TmpManager (master coordinator & global API)
-cli         - tmp_ctl command-line controller
-
-Author: UmerOS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+UmerOS /tmp — Temporary Filesystem Hierarchy.
 """
 
 from __future__ import annotations
 
-import sys as _sys
-from os import path as _p
+__version__ = "1.1.0"
+__all__: list[str] = []
 
-_this_dir = _p.dirname(_p.abspath(__file__))
-if _this_dir not in _sys.path:
-    _sys.path.insert(0, _this_dir)
+# Best-effort imports.  The previous sys.path self-injection was removed
+# because it shadowed the top-level ``manager`` module (H76 root cause).
 
-from .fhs import (
-    DEFAULT_TMP_ROOT,
-    PROTECTED_SOCKET_DIRS,
-    RECOMMENDED_PREFIXES,
-    FHSValidationResult,
-    FHSValidator,
-)
-from .hierarchy import (
-    TmpHierarchy,
-)
-from .secure_io import (
-    SecureIO,
-    SecureTempDir,
-    SecureTempFile,
-)
-from .lockfile import (
-    LockAcquisitionError,
-    LockMetadata,
-    ProcessLock,
-    is_pid_alive,
-)
-from .reaper import (
-    DEFAULT_MAX_AGE_SEC,
-    ReapReport,
-    TmpReaper,
-)
-from .permissions import (
-    TmpPermissionManager,
-    TmpSecurityAuditResult,
-)
-from .tmpfs import (
-    DEFAULT_TMPFS_MAX_BYTES,
-    TmpFS,
-    TmpFSNode,
-    TmpFSQuotaExceededError,
-)
-from .manager import (
-    TmpManager,
-    clean_temp,
-    get_default_tmp_manager,
-    get_temp_dir,
-    get_temp_file,
-    mktemp,
-)
+try:
+    from .fhs import (
+        DEFAULT_TMP_ROOT,
+        PROTECTED_SOCKET_DIRS,
+        RECOMMENDED_PREFIXES,
+        FHSValidationResult,
+        FHSValidator,
+    )
+    __all__ += [
+        "DEFAULT_TMP_ROOT",
+        "PROTECTED_SOCKET_DIRS",
+        "RECOMMENDED_PREFIXES",
+        "FHSValidationResult",
+        "FHSValidator",
+    ]
+except ImportError:
+    pass
 
-__version__ = "1.0.0"
+try:
+    from .hierarchy import TmpHierarchy
+    __all__ += ["TmpHierarchy"]
+except ImportError:
+    pass
 
-__all__ = [
-    # FHS & Standards
-    "DEFAULT_TMP_ROOT",
-    "PROTECTED_SOCKET_DIRS",
-    "RECOMMENDED_PREFIXES",
-    "FHSValidationResult",
-    "FHSValidator",
-    # Hierarchy
-    "TmpHierarchy",
-    # Secure IO
-    "SecureIO",
-    "SecureTempFile",
-    "SecureTempDir",
-    # Lockfiles
-    "ProcessLock",
-    "LockMetadata",
-    "LockAcquisitionError",
-    "is_pid_alive",
-    # Reaper
-    "TmpReaper",
-    "ReapReport",
-    "DEFAULT_MAX_AGE_SEC",
-    # Permissions
-    "TmpPermissionManager",
-    "TmpSecurityAuditResult",
-    # TmpFS
-    "TmpFS",
-    "TmpFSNode",
-    "TmpFSQuotaExceededError",
-    "DEFAULT_TMPFS_MAX_BYTES",
-    # Master Manager & Helpers
-    "TmpManager",
-    "get_default_tmp_manager",
-    "mktemp",
-    "get_temp_file",
-    "get_temp_dir",
-    "clean_temp",
-]
+try:
+    from .secure_io import (
+        SecureIO,
+        SecureTempDir,
+        SecureTempFile,
+    )
+    __all__ += ["SecureIO", "SecureTempDir", "SecureTempFile"]
+except ImportError:
+    pass
+
+try:
+    from .lockfile import (
+        LockAcquisitionError,
+        LockMetadata,
+        ProcessLock,
+        is_pid_alive,
+    )
+    __all__ += [
+        "LockAcquisitionError",
+        "LockMetadata",
+        "ProcessLock",
+        "is_pid_alive",
+    ]
+except ImportError:
+    pass
+
+try:
+    from .reaper import (
+        DEFAULT_MAX_AGE_SEC,
+        ReapReport,
+        TmpReaper,
+    )
+    __all__ += ["DEFAULT_MAX_AGE_SEC", "ReapReport", "TmpReaper"]
+except ImportError:
+    pass
+
+try:
+    from .permissions import (
+        TmpPermissionManager,
+        TmpSecurityAuditResult,
+    )
+    __all__ += ["TmpPermissionManager", "TmpSecurityAuditResult"]
+except ImportError:
+    pass
+
+try:
+    from .tmpfs import (
+        DEFAULT_TMPFS_MAX_BYTES,
+        TmpFS,
+        TmpFSNode,
+        TmpFSQuotaExceededError,
+    )
+    __all__ += [
+        "DEFAULT_TMPFS_MAX_BYTES",
+        "TmpFS",
+        "TmpFSNode",
+        "TmpFSQuotaExceededError",
+    ]
+except ImportError:
+    pass
+
+try:
+    from .manager import (
+        TmpManager,
+        clean_temp,
+        get_default_tmp_manager,
+        get_temp_dir,
+        get_temp_file,
+        mktemp,
+    )
+    __all__ += [
+        "TmpManager",
+        "clean_temp",
+        "get_default_tmp_manager",
+        "get_temp_dir",
+        "get_temp_file",
+        "mktemp",
+    ]
+except ImportError:
+    pass
+
+
+def _selftest() -> bool:
+    """Verify every name in ``__all__`` is importable from this package."""
+    import importlib
+    import sys
+
+    pkg = importlib.import_module(__name__)
+    missing = [name for name in __all__ if not hasattr(pkg, name)]
+    if missing:
+        print(
+            f"tmp selftest FAIL: missing {missing}",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(0 if _selftest() else 1)

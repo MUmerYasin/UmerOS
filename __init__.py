@@ -1,14 +1,23 @@
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# UmerOS — top-level package marker
+# =================================
+# GPL-3.0 — see LICENSE and README for details.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# This file exists to make the repository root a Python package
+# (so ``import umeros`` or any absolute cross-package import works
+# in the test suite) but it does **not** itself import any
+# sub-package.  Importing the root package is intentionally cheap
+# and side-effect free.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# The application entry point lives in ``main.py`` at the repo
+# root; individual subsystems are imported as their own packages
+# (e.g. ``import boot``, ``import initrd``, ``import quantum``).
+#
+# Author: UmerOS Project
+# License: GPL-3.0 (GNU General Public License Version 3)
+"""UmerOS — a Python-based hybrid classical + quantum OS simulation."""
 
-"""UmerOS — a Python-based OS simulation."""
+from __future__ import annotations
+
+__version__ = "2.0.0"
+__author__ = "UmerOS Development Team"
+__all__: list[str] = []

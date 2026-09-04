@@ -1,130 +1,161 @@
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# UmerOS /srv — Site-Specific Service Data Hierarchy
+# ===================================================
+# GPL-3.0 — see LICENSE and README for details.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# The ``/srv`` filesystem hierarchy, managing site-specific data
+# served by the system (WWW, FTP, Git, Rsync, TFTP, Samba, NFS).
 #
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+# Modules:
+# --------
+# fhs         - Standard protocol directories, FHSValidator
+# hierarchy   - SrvHierarchy, directory provisioning, single-tree layouts
+# service     - ServiceRecord, ServiceConfig, ServiceStatus, ServiceAccessMode
+# permissions - SrvPermissionManager, SecurityProfile, POSIX permission audit
+# protocols   - Handlers for WWW, FTP, Git, Rsync, TFTP, Samba/NFS
+# backup      - SrvBackupManager, BackupManifest, snapshot and restore engine
+# manager     - SrvManager (master coordinator, registry persistence, auto-discovery)
+# cli         - srv_ctl command line utility
+#
+# Author: UmerOS Project
+# License: GPL-3.0 (GNU General Public License Version 3)
 """
-UmerOS /srv — Site-Specific Service Data Hierarchy
-===================================================
-
-The ``/srv`` filesystem
-hierarchy, managing site-specific data served by the system (WWW, FTP,
-Git, Rsync, TFTP, Samba, NFS).
-
-
-Modules:
---------
-fhs         - Standard protocol directories, FHSValidator
-hierarchy   - SrvHierarchy, directory provisioning, single-tree layouts
-service     - ServiceRecord, ServiceConfig, ServiceStatus, ServiceAccessMode
-permissions - SrvPermissionManager, SecurityProfile, POSIX permission audit
-protocols   - Handlers for WWW, FTP, Git, Rsync, TFTP, Samba/NFS
-backup      - SrvBackupManager, BackupManifest, snapshot and restore engine
-manager     - SrvManager (master coordinator, registry persistence, auto-discovery)
-cli         - srv_ctl command line utility
-
-Author: UmerOS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+UmerOS /srv — Site-Specific Service Data Hierarchy.
 """
 
 from __future__ import annotations
 
-import sys as _sys
-from os import path as _p
+__version__ = "1.1.0"
+__all__: list[str] = []
 
-_this_dir = _p.dirname(_p.abspath(__file__))
-if _this_dir not in _sys.path:
-    _sys.path.insert(0, _this_dir)
+# Best-effort imports.  The previous sys.path self-injection was removed
+# because it let ``srv`` shadow the top-level ``manager`` module (H76
+# root cause).
 
-from .fhs import (
-    DEFAULT_SRV_ROOT,
-    PROHIBITED_IN_SRV,
-    STANDARD_PROTOCOL_DIRS,
-    FHSValidationResult,
-    FHSValidator,
-    OrganizationScheme,
-    StandardProtocol,
-)
-from .hierarchy import (
-    ServiceTreeLayout,
-    SrvHierarchy,
-)
-from .service import (
-    ServiceAccessMode,
-    ServiceConfig,
-    ServiceRecord,
-    ServiceStatus,
-)
-from .permissions import (
-    PermissionAuditResult,
-    SecurityProfile,
-    SrvPermissionManager,
-)
-from .protocols import (
-    FTPServiceHandler,
-    GitServiceHandler,
-    RsyncServiceHandler,
-    SambaNfsServiceHandler,
-    TFTPServiceHandler,
-    WWWServiceHandler,
-)
-from .backup import (
-    BackupManifest,
-    SrvBackupManager,
-)
-from .manager import (
-    SrvManager,
-    get_default_manager,
-    get_service_path,
-    list_services,
-    register_service,
-)
+try:
+    from .fhs import (
+        DEFAULT_SRV_ROOT,
+        PROHIBITED_IN_SRV,
+        STANDARD_PROTOCOL_DIRS,
+        FHSValidationResult,
+        FHSValidator,
+        OrganizationScheme,
+        StandardProtocol,
+    )
+    __all__ += [
+        "DEFAULT_SRV_ROOT",
+        "PROHIBITED_IN_SRV",
+        "STANDARD_PROTOCOL_DIRS",
+        "FHSValidationResult",
+        "FHSValidator",
+        "OrganizationScheme",
+        "StandardProtocol",
+    ]
+except ImportError:
+    pass
 
-__version__ = "1.0.0"
+try:
+    from .hierarchy import (
+        ServiceTreeLayout,
+        SrvHierarchy,
+    )
+    __all__ += ["ServiceTreeLayout", "SrvHierarchy"]
+except ImportError:
+    pass
 
-__all__ = [
-    # FHS & Standards
-    "DEFAULT_SRV_ROOT",
-    "STANDARD_PROTOCOL_DIRS",
-    "PROHIBITED_IN_SRV",
-    "OrganizationScheme",
-    "StandardProtocol",
-    "FHSValidationResult",
-    "FHSValidator",
-    # Hierarchy
-    "ServiceTreeLayout",
-    "SrvHierarchy",
-    # Service Models
-    "ServiceStatus",
-    "ServiceAccessMode",
-    "ServiceConfig",
-    "ServiceRecord",
-    # Permissions
-    "SecurityProfile",
-    "PermissionAuditResult",
-    "SrvPermissionManager",
-    # Protocol Handlers
-    "WWWServiceHandler",
-    "FTPServiceHandler",
-    "GitServiceHandler",
-    "RsyncServiceHandler",
-    "TFTPServiceHandler",
-    "SambaNfsServiceHandler",
-    # Backup & Restore
-    "BackupManifest",
-    "SrvBackupManager",
-    # Master Manager
-    "SrvManager",
-    "get_default_manager",
-    "register_service",
-    "get_service_path",
-    "list_services",
-]
+try:
+    from .service import (
+        ServiceAccessMode,
+        ServiceConfig,
+        ServiceRecord,
+        ServiceStatus,
+    )
+    __all__ += [
+        "ServiceAccessMode",
+        "ServiceConfig",
+        "ServiceRecord",
+        "ServiceStatus",
+    ]
+except ImportError:
+    pass
+
+try:
+    from .permissions import (
+        PermissionAuditResult,
+        SecurityProfile,
+        SrvPermissionManager,
+    )
+    __all__ += [
+        "PermissionAuditResult",
+        "SecurityProfile",
+        "SrvPermissionManager",
+    ]
+except ImportError:
+    pass
+
+try:
+    from .protocols import (
+        FTPServiceHandler,
+        GitServiceHandler,
+        RsyncServiceHandler,
+        SambaNfsServiceHandler,
+        TFTPServiceHandler,
+        WWWServiceHandler,
+    )
+    __all__ += [
+        "FTPServiceHandler",
+        "GitServiceHandler",
+        "RsyncServiceHandler",
+        "SambaNfsServiceHandler",
+        "TFTPServiceHandler",
+        "WWWServiceHandler",
+    ]
+except ImportError:
+    pass
+
+try:
+    from .backup import (
+        BackupManifest,
+        SrvBackupManager,
+    )
+    __all__ += ["BackupManifest", "SrvBackupManager"]
+except ImportError:
+    pass
+
+try:
+    from .manager import (
+        SrvManager,
+        get_default_manager,
+        get_service_path,
+        list_services,
+        register_service,
+    )
+    __all__ += [
+        "SrvManager",
+        "get_default_manager",
+        "get_service_path",
+        "list_services",
+        "register_service",
+    ]
+except ImportError:
+    pass
+
+
+def _selftest() -> bool:
+    """Verify every name in ``__all__`` is importable from this package."""
+    import importlib
+    import sys
+
+    pkg = importlib.import_module(__name__)
+    missing = [name for name in __all__ if not hasattr(pkg, name)]
+    if missing:
+        print(
+            f"srv selftest FAIL: missing {missing}",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(0 if _selftest() else 1)

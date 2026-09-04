@@ -1,240 +1,151 @@
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
+# UmerOS /etc — System configuration managers
+# ===========================================
+# GPL-3.0 — see LICENSE and README for details.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+# /etc: system configuration files (passwd, group, shadow,
+# fstab, profile, hostname, …) plus per-service config managers.
 """
-Umer OS /etc hierarchy — System configuration modules.
-
-FHS 3.0 /etc requirements:
-- System configuration files
-- passwd, group, shadow (user accounts)
-- hosts, resolv.conf (network)
-- fstab (filesystem mounts)
-- profile, bashrc (shell config)
-- hostname, timezone
-- System service configuration
-
-Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+UmerOS /etc — System configuration managers.
 """
 
-# Original modules
-from etc.config_manager import ConfigManager, get_config_manager
-from etc.passwd_group import PasswdGroupManager
-from etc.network_config import NetworkConfigManager
-from etc.shell_config import ShellConfigManager
-from etc.critical_files import CriticalFilesManager
+from __future__ import annotations
 
-# New /etc modules
-from etc.alternatives import AlternativesManager
-from etc.cron_schedule import CronScheduleManager
-from etc.pam_config import PAMConfigManager
-from etc.locale_timezone import LocaleTimezoneManager
-from etc.hostname_manager import HostnameManager
-from etc.fstab_manager import FstabManager
-from etc.module_config import ModuleConfigManager
-from etc.sysconfig import SysconfigManager
-from etc.udev_rules import UdevRulesManager
-from etc.tmpfiles import TmpfilesManager
-from etc.login_config import LoginConfigManager
-from etc.issue_motd import IssueMotdManager
+import logging
+from typing import List
 
-# FHS-mandated system config modules
-from etc.adduser_config import AdduserConfigManager
-from etc.mail_aliases import MailAliasesManager
-from etc.nfs_exports import NFSExportsManager
-from etc.login_environment import LoginEnvironmentManager
-from etc.cron_allow import CronAccessManager
-from etc.networks import NetworksManager
-from etc.cups_config import CUPSConfigManager
-from etc.conf_d import ConfDManager
-from etc.ssl_config import SSLConfigManager
-from etc.dpkg_config import DpkgConfigManager
-from etc.kernel_config import KernelConfigManager
-from etc.hotplug_config import HotplugConfigManager
-from etc.manpath_config import ManpathConfigManager
-from etc.updatedb_config import UpdatedbConfigManager
-from etc.usb_config import USBConfigManager
-from etc.x11_extra import X11ExtraManager
-from etc.kde_config import KDEConfigManager
+__version__ = "1.0.0"
+__all__: list[str] = []
 
-# Networking configuration
-from etc.hosts_access import HostsAccessManager
-from etc.inet_services import InetServicesManager
-from etc.dhcp_config import DHCPConfigManager
+log = logging.getLogger("UmerOS.Etc")
 
-# Shell and user environment
-from etc.shell_profile import ShellProfileManager
-from etc.csh_zsh_config import CshZshConfigManager
 
-# System logging and maintenance
-from etc.logrotate_config import LogrotateConfigManager
-from etc.syslog_config import SyslogConfigManager
-from etc.hardware_config import HardwareConfigManager
+def _try_import(module_name: str, names: tuple[str, ...]) -> None:
+    """Import optional helpers and add the names to ``__all__``."""
+    global __all__
+    try:
+        mod = __import__(f"{__name__}.{module_name}", fromlist=names)
+    except ImportError:
+        return
+    for n in names:
+        if hasattr(mod, n):
+            globals()[n] = getattr(mod, n)
+            __all__ = list(__all__) + [n]
 
-# MIME and package management
-from etc.mime_config import MimeConfigManager
-from etc.apt_config import AptConfigManager
 
-# File sharing and mail
-from etc.samba_config import SambaConfigManager
-from etc.mail_config import MailConfigManager
-
-# Core system modules
-from etc.skeleton import SkeletonManager
-from etc.security import SecurityConfigManager
-from etc.environment import EnvironmentManager
-
-# Service/daemon configuration
-from etc.cron_d import CronDManager
-from etc.init_scripts import InitScriptsManager
-from etc.dbus_config import DBusConfigManager
-
-# Hardware/storage configuration
-from etc.lvm_config import LVMConfigManager
-from etc.fonts_config import FontsConfigManager
-from etc.ssl_dirs import SSLDirsManager
-
-# Network/security configuration
-from etc.network_manager import NetworkManagerConfigManager
-from etc.wpa_supplicant import WPASupplicantManager
-
-# Desktop/system configuration
-from etc.xdg_config import XDGConfigManager
-from etc.gss_config import GSSConfigManager
-from etc.openvpn_config import OpenVPNConfigManager
-
-# Kernel/time configuration
-from etc.modprobe_d import ModprobeDManager
-from etc.sysctl_d import SysctlDManager
-from etc.chrony_config import ChronyConfigManager
-
-# Network/PPP/scanner configuration
-from etc.ppp_config import PPPConfigManager
-from etc.sane_config import SANEConfigManager
-from etc.modules_load import ModulesLoadManager
-
-# FHS batch 12 - shells, os-release, inputrc, securetty, etc
-from etc.shells import ShellsManager
-from etc.os_release import OSReleaseManager
-from etc.inputrc_config import InputRCManager
-from etc.securetty import SecureTTYManager
-from etc.host_conf import HostConfManager
-from etc.gai_conf import GAIConfManager
-from etc.vconsole_config import VConsoleManager
-from etc.profile_d import ProfileDManager
-from etc.binfmt_d import BinFmtManager
-from etc.default_config import DefaultConfigManager
-from etc.e2fsck_config import E2fsckConfigManager
-from etc.sudoers import SudoersManager
-from etc.init_system import InitSystemManager
-from etc.hosts import HostsManager
-
-__all__ = [
+for _mod, _names in (
     # Original
-    "ConfigManager",
-    "get_config_manager",
-    "PasswdGroupManager",
-    "NetworkConfigManager",
-    "ShellConfigManager",
-    "CriticalFilesManager",
+    ("config_manager", ("ConfigManager", "get_config_manager")),
+    ("passwd_group", ("PasswdGroupManager",)),
+    ("network_config", ("NetworkConfigManager",)),
+    ("shell_config", ("ShellConfigManager",)),
+    ("critical_files", ("CriticalFilesManager",)),
     # New
-    "AlternativesManager",
-    "CronScheduleManager",
-    "PAMConfigManager",
-    "LocaleTimezoneManager",
-    "HostnameManager",
-    "FstabManager",
-    "ModuleConfigManager",
-    "SysconfigManager",
-    "UdevRulesManager",
-    "TmpfilesManager",
-    "LoginConfigManager",
-    "IssueMotdManager",
+    ("alternatives", ("AlternativesManager",)),
+    ("cron_schedule", ("CronScheduleManager",)),
+    ("pam_config", ("PAMConfigManager",)),
+    ("locale_timezone", ("LocaleTimezoneManager",)),
+    ("hostname_manager", ("HostnameManager",)),
+    ("fstab_manager", ("FstabManager",)),
+    ("module_config", ("ModuleConfigManager",)),
+    ("sysconfig", ("SysconfigManager",)),
+    ("udev_rules", ("UdevRulesManager",)),
+    ("tmpfiles", ("TmpfilesManager",)),
+    ("login_config", ("LoginConfigManager",)),
+    ("issue_motd", ("IssueMotdManager",)),
     # FHS-mandated system config
-    "AdduserConfigManager",
-    "MailAliasesManager",
-    "NFSExportsManager",
-    "LoginEnvironmentManager",
-    "CronAccessManager",
-    "NetworksManager",
-    "CUPSConfigManager",
-    "ConfDManager",
-    "SSLConfigManager",
-    "DpkgConfigManager",
-    "KernelConfigManager",
-    "HotplugConfigManager",
-    "ManpathConfigManager",
-    "UpdatedbConfigManager",
-    "USBConfigManager",
-    "X11ExtraManager",
-    "KDEConfigManager",
+    ("adduser_config", ("AdduserConfigManager",)),
+    ("mail_aliases", ("MailAliasesManager",)),
+    ("nfs_exports", ("NFSExportsManager",)),
+    ("login_environment", ("LoginEnvironmentManager",)),
+    ("cron_allow", ("CronAccessManager",)),
+    ("networks", ("NetworksManager",)),
+    ("cups_config", ("CUPSConfigManager",)),
+    ("conf_d", ("ConfDManager",)),
+    ("ssl_config", ("SSLConfigManager",)),
+    ("dpkg_config", ("DpkgConfigManager",)),
+    ("kernel_config", ("KernelConfigManager",)),
+    ("hotplug_config", ("HotplugConfigManager",)),
+    ("manpath_config", ("ManpathConfigManager",)),
+    ("updatedb_config", ("UpdatedbConfigManager",)),
+    ("usb_config", ("USBConfigManager",)),
+    ("x11_extra", ("X11ExtraManager",)),
+    ("kde_config", ("KDEConfigManager",)),
     # Networking configuration
-    "HostsAccessManager",
-    "InetServicesManager",
-    "DHCPConfigManager",
+    ("hosts_access", ("HostsAccessManager",)),
+    ("inet_services", ("InetServicesManager",)),
+    ("dhcp_config", ("DHCPConfigManager",)),
     # Shell and user environment
-    "ShellProfileManager",
-    "CshZshConfigManager",
+    ("shell_profile", ("ShellProfileManager",)),
+    ("csh_zsh_config", ("CshZshConfigManager",)),
     # System logging and maintenance
-    "LogrotateConfigManager",
-    "SyslogConfigManager",
-    "HardwareConfigManager",
+    ("logrotate_config", ("LogrotateConfigManager",)),
+    ("syslog_config", ("SyslogConfigManager",)),
+    ("hardware_config", ("HardwareConfigManager",)),
     # MIME and package management
-    "MimeConfigManager",
-    "AptConfigManager",
+    ("mime_config", ("MimeConfigManager",)),
+    ("apt_config", ("AptConfigManager",)),
     # File sharing and mail
-    "SambaConfigManager",
-    "MailConfigManager",
+    ("samba_config", ("SambaConfigManager",)),
+    ("mail_config", ("MailConfigManager",)),
     # Core system modules
-    "SkeletonManager",
-    "SecurityConfigManager",
-    "EnvironmentManager",
+    ("skeleton", ("SkeletonManager",)),
+    ("security", ("SecurityConfigManager",)),
+    ("environment", ("EnvironmentManager",)),
     # Service/daemon configuration
-    "CronDManager",
-    "InitScriptsManager",
-    "DBusConfigManager",
+    ("cron_d", ("CronDManager",)),
+    ("init_scripts", ("InitScriptsManager",)),
+    ("dbus_config", ("DBusConfigManager",)),
     # Hardware/storage configuration
-    "LVMConfigManager",
-    "FontsConfigManager",
-    "SSLDirsManager",
+    ("lvm_config", ("LVMConfigManager",)),
+    ("fonts_config", ("FontsConfigManager",)),
+    ("ssl_dirs", ("SSLDirsManager",)),
     # Network/security configuration
-    "NetworkManagerConfigManager",
-    "WPASupplicantManager",
+    ("network_manager", ("NetworkManagerConfigManager",)),
+    ("wpa_supplicant", ("WPASupplicantManager",)),
     # Desktop/system configuration
-    "XDGConfigManager",
-    "GSSConfigManager",
-    "OpenVPNConfigManager",
+    ("xdg_config", ("XDGConfigManager",)),
+    ("gss_config", ("GSSConfigManager",)),
+    ("openvpn_config", ("OpenVPNConfigManager",)),
     # Kernel/time configuration
-    "ModprobeDManager",
-    "SysctlDManager",
-    "ChronyConfigManager",
+    ("modprobe_d", ("ModprobeDManager",)),
+    ("sysctl_d", ("SysctlDManager",)),
+    ("chrony_config", ("ChronyConfigManager",)),
     # Network/PPP/scanner configuration
-    "PPPConfigManager",
-    "SANEConfigManager",
-    "ModulesLoadManager",
+    ("ppp_config", ("PPPConfigManager",)),
+    ("sane_config", ("SANEConfigManager",)),
+    ("modules_load", ("ModulesLoadManager",)),
     # FHS batch 12 - shell/os/security/misc
-    "ShellsManager",
-    "OSReleaseManager",
-    "InputRCManager",
-    "SecureTTYManager",
-    "HostConfManager",
-    "GAIConfManager",
-    "VConsoleManager",
-    "ProfileDManager",
-    "BinFmtManager",
-    "DefaultConfigManager",
-    "E2fsckConfigManager",
-    "SudoersManager",
-    "InitSystemManager",
-    "HostsManager",
-]
+    ("shells", ("ShellsManager",)),
+    ("os_release", ("OSReleaseManager",)),
+    ("inputrc_config", ("InputRCManager",)),
+    ("securetty", ("SecureTTYManager",)),
+    ("host_conf", ("HostConfManager",)),
+    ("gai_conf", ("GAIConfManager",)),
+    ("vconsole_config", ("VConsoleManager",)),
+    ("profile_d", ("ProfileDManager",)),
+    ("binfmt_d", ("BinFmtManager",)),
+    ("default_config", ("DefaultConfigManager",)),
+    ("e2fsck_config", ("E2fsckConfigManager",)),
+    ("sudoers", ("SudoersManager",)),
+    ("init_system", ("InitSystemManager",)),
+    ("hosts", ("HostsManager",)),
+):
+    _try_import(_mod, _names)
+
+
+def _selftest() -> bool:
+    """Verify the public surface is intact."""
+    import importlib
+    import sys
+
+    pkg = importlib.import_module(__name__)
+    missing = [n for n in __all__ if not hasattr(pkg, n)]
+    if missing:
+        print(f"etc selftest FAIL: missing {missing}", file=sys.stderr)
+        return False
+    return True
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(0 if _selftest() else 1)

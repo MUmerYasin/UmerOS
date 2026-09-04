@@ -41,7 +41,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from disclaimer import DisclaimerNotice, DisclaimerRegistry
+from .disclaimer import DisclaimerNotice, DisclaimerRegistry
 
 log = logging.getLogger("UmerOS.Legal.Consent")
 
