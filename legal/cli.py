@@ -40,8 +40,8 @@ import json
 import sys
 from pathlib import Path
 
-from disclaimer import RiskLevel
-from manager import LegalManager
+from .disclaimer import RiskLevel
+from .manager import LegalManager
 
 
 def create_parser() -> argparse.ArgumentParser:

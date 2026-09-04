@@ -52,11 +52,6 @@ from legal.licenses import LicenseManager                                  # noq
 from legal.consent import ConsentManager, ConsentGateError                  # noqa: E402
 from legal.cli import main as cli_main                                      # noqa: E402
 
-# manager.py does `from consent import ConsentManager` (top-level `consent`
-# module, because legal/ is on sys.path) — a distinct module object from
-# `legal.consent`. Patch THAT one so LegalManager's default ledger redirects.
-import consent as consent_module                                            # noqa: E402
-
 
 def _write(tmp: str, name: str, content: str) -> str:
     path = os.path.join(tmp, name)

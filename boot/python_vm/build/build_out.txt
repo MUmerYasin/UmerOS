@@ -4,48 +4,13 @@
 **********************************************************************
 [vcvarsall.bat] Environment initialized for: 'x64'
 === CMAKE ===
--- Configuring done (0.0s)
--- Generating done (0.0s)
+-- Configuring done (0.1s)
+-- Generating done (0.1s)
 -- Build files have been written to: F:/Pension Person Details/UmerOS/boot/python_vm/build
 === NINJA ===
-[1/12] Building C object CMakeFiles\umeros_python.dir\Objects\object.c.obj
+[1/3] Building C object CMakeFiles\umeros_python.dir\Objects\object.c.obj
 F:\Pension Person Details\UmerOS\boot\python_vm\Objects\object.c(400): warning C4142: 'PyObject_Hash': benign redefinition of type
 F:\Pension Person Details\UmerOS\boot\python_vm\Include\object.h(402): note: see declaration of 'PyObject_Hash'
-[2/12] Building C object CMakeFiles\umeros_python.dir\Objects\long.c.obj
-F:\Pension Person Details\UmerOS\boot\python_vm\Objects\long.c(169): warning C4113: 'Py_ssize_t (__cdecl *)(PyObject *)' differs in parameter lists from 'PyObject *(__cdecl *)(PyObject *,PyObject *)'
-F:\Pension Person Details\UmerOS\boot\python_vm\Objects\long.c(169): warning C4047: 'initializing': 'PyObject *(__cdecl *)(PyObject *,PyObject *)' differs in levels of indirection from 'Py_ssize_t (__cdecl *)(PyObject *)'
-F:\Pension Person Details\UmerOS\boot\python_vm\Objects\long.c(174): warning C4047: 'initializing': 'PyObject *(__cdecl *)(PyObject *,PyObject *,PyObject *)' differs in levels of indirection from 'unsigned long'
-[3/12] Building C object CMakeFiles\umeros_python.dir\Objects\float.c.obj
-[4/12] Building C object CMakeFiles\umeros_python.dir\Objects\unicode.c.obj
-[5/12] Building C object CMakeFiles\umeros_python.dir\Objects\none.c.obj
-[6/12] Building C object CMakeFiles\umeros_python.dir\Objects\bool.c.obj
-F:\Pension Person Details\UmerOS\boot\python_vm\Objects\bool.c(125): warning C4047: 'initializing': 'int (__cdecl *)(PyObject *)' differs in levels of indirection from 'PyObject *(__cdecl *)(PyObject *)'
-[7/12] Building C object CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj
-F:\Pension Person Details\UmerOS\boot\python_vm\Builtins\builtins.c(82): warning C4244: 'function': conversion from 'Py_ssize_t' to 'long', possible loss of data
-[8/12] Building C object CMakeFiles\umeros_python.dir\Objects\errors.c.obj
-[9/12] Building C object CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(330): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'Py_ssize_t'
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(330): note: consider using '%lld' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(330): note: consider using '%Id' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(330): note: consider using '%I64d' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(773): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'Py_ssize_t'
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(773): note: consider using '%lld' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(773): note: consider using '%Id' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(773): note: consider using '%I64d' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(774): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 1 has type 'Py_ssize_t'
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(774): note: consider using '%lld' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(774): note: consider using '%Id' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(774): note: consider using '%I64d' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(800): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'Py_ssize_t'
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(800): note: consider using '%lld' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(800): note: consider using '%Id' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(800): note: consider using '%I64d' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Compiler\compiler.c(701): warning C4100: 'filename': unreferenced parameter
-[10/12] Building C object CMakeFiles\umeros_python.dir\VM\vm.c.obj
-[11/12] Building C object CMakeFiles\umeros_python.dir\Programs\main.c.obj
-F:\Pension Person Details\UmerOS\boot\python_vm\Programs\main.c(201): warning C4477: 'fprintf' : format string '%d' requires an argument of type 'int', but variadic argument 3 has type 'Py_ssize_t'
-F:\Pension Person Details\UmerOS\boot\python_vm\Programs\main.c(201): note: consider using '%lld' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Programs\main.c(201): note: consider using '%Id' in the format string
-F:\Pension Person Details\UmerOS\boot\python_vm\Programs\main.c(201): note: consider using '%I64d' in the format string
-[12/12] Linking C executable umeros_python.exe
+[2/3] Building C object CMakeFiles\umeros_python.dir\Objects\unicode.c.obj
+[3/3] Linking C executable umeros_python.exe
 === BUILD SUCCESS ===

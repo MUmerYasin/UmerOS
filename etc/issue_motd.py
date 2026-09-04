@@ -27,8 +27,12 @@ import socket
 import platform
 import subprocess
 import datetime
+import sys
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+
+log = logging.getLogger("UmerOS.IssueMotd")
 
 
 # ---------------------------------------------------------------------------
@@ -528,27 +532,48 @@ def _safe_tty_name() -> str:
     return "unknown"
 
 
+# [FIX H5] Host-info probes (who/uptime/last) stay list-form (never shell=True)
+# and are restricted to an explicit read-only allowlist. They must not run on a
+# Windows host (no POSIX who/uptime/last available) and degrade gracefully.
+_HOST_INFO_ALLOWLIST = frozenset({"who", "uptime", "last"})
+
+
+def _run_host_readonly(cmd: List[str]) -> Optional[str]:
+    """Run a read-only, allowlisted host-info command (no shell).
+
+    Returns stripped stdout, or ``None`` if the command is not allowlisted,
+    the host is Windows, or the call fails for any reason.
+    """
+    if not cmd:
+        return None
+    if sys.platform == "win32":
+        return None  # POSIX host-info tools are unavailable on a Windows host
+    if cmd[0] not in _HOST_INFO_ALLOWLIST:
+        log.warning("Refused non-allowlisted host-info command: %r", cmd[0])
+        return None
+    try:
+        return subprocess.check_output(
+            cmd, stderr=subprocess.DEVNULL, text=True
+        ).strip()
+    except Exception:
+        return None
+
+
 def _current_users() -> str:
     """Return a comma‑separated string of currently logged‑in users."""
-    try:
-        output = subprocess.check_output(
-            ["who"], stderr=subprocess.DEVNULL, text=True
-        )
-        names = sorted(set(line.split()[0] for line in output.splitlines() if line))
-        return ", ".join(names) if names else "none"
-    except Exception:
+    output = _run_host_readonly(["who"])
+    if output is None:
         return "unknown"
+    names = sorted(set(line.split()[0] for line in output.splitlines() if line))
+    return ", ".join(names) if names else "none"
 
 
 def _user_count() -> int:
     """Return the number of currently logged‑in users."""
-    try:
-        output = subprocess.check_output(
-            ["who"], stderr=subprocess.DEVNULL, text=True
-        )
-        return len([line for line in output.splitlines() if line])
-    except Exception:
+    output = _run_host_readonly(["who"])
+    if output is None:
         return 0
+    return len([line for line in output.splitlines() if line])
 
 
 # ---------------------------------------------------------------------------
@@ -560,19 +585,8 @@ def _format_standard_motd() -> str:
     motd_template = IssueMotdManager.get_standard_motd()
     now = datetime.datetime.now()
 
-    try:
-        uptime_raw = subprocess.check_output(
-            ["uptime", "-p"], stderr=subprocess.DEVNULL, text=True
-        ).strip()
-    except Exception:
-        uptime_raw = "uptime unavailable"
-
-    try:
-        last_login_raw = subprocess.check_output(
-            ["last", "-1", "-w", "who"], stderr=subprocess.DEVNULL, text=True
-        ).strip()
-    except Exception:
-        last_login_raw = "unknown"
+    uptime_raw = _run_host_readonly(["uptime", "-p"]) or "uptime unavailable"
+    last_login_raw = _run_host_readonly(["last", "-1", "-w", "who"]) or "unknown"
 
     return motd_template.format(
         date=now.strftime("%a %b %d %H:%M:%S %Z %Y"),

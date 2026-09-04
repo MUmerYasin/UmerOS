@@ -430,7 +430,15 @@ class EnvCommand:
             return 0
 
         # Execute command with modified environment
+        # [FIX H5] Arbitrary host command execution is a privileged operation.
+        # Gate it behind CAP_SYS_ADMIN so the env-host-exec path is sandboxed by
+        # the zero-trust capability gate (args stay list-form, no shell=True;
+        # on a Windows host this is the control that prevents an escape). The
+        # require() is OUTSIDE the try so a denied call fails closed instead of
+        # being swallowed by the OSError handler below.
         import subprocess
+        from core.capability_gate import gate, CAP_SYS_ADMIN
+        gate.require(CAP_SYS_ADMIN)
         try:
             result = subprocess.run(real_args, env=env)
             return result.returncode

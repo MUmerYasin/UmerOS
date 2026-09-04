@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from disclaimer import RiskLevel
+from .disclaimer import RiskLevel
 
 log = logging.getLogger("UmerOS.Legal.SafetyCheck")
 

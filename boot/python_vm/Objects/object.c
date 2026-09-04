@@ -446,6 +446,7 @@ int PyObject_Compare(PyObject *a, PyObject *b) {
                 (void*)Py_TYPE(a)->tp_richcompare);
         fflush(stderr);
         PyObject *r = Py_TYPE(a)->tp_richcompare(a, b, Py_EQ);
+        if (r == Py_NotImplemented) { fprintf(stderr, "[DBG-CMP] got Py_NotImplemented\n"); Py_DECREF(r); return -1; }
         if (r) { int ok = PyObject_IsTrue(r); Py_DECREF(r); return ok ? 0 : -1; }
     }
     const char *n1 = Py_TYPE(a)->tp_name ? Py_TYPE(a)->tp_name : "";

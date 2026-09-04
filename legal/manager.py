@@ -28,13 +28,13 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from consent import ConsentManager, ConsentRecord
-from contributors import ContributorRegistry
-from disclaimer import DisclaimerNotice, DisclaimerRegistry, RiskLevel
-from donations import DonationsManager
-from licenses import LicenseManager, LicenseScanResult
-from maintainers import MaintainerRegistry
-from safety_check import SafetyCheckResult, SafetyChecker
+from .consent import ConsentManager, ConsentRecord
+from .contributors import ContributorRegistry
+from .disclaimer import DisclaimerNotice, DisclaimerRegistry, RiskLevel
+from .donations import DonationsManager
+from .licenses import LicenseManager, LicenseScanResult
+from .maintainers import MaintainerRegistry
+from .safety_check import SafetyCheckResult, SafetyChecker
 
 log = logging.getLogger("UmerOS.Legal.Manager")
 

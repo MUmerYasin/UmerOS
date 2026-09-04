@@ -1,9 +1,124 @@
-node_modules
+# =============================================================================
+# UmerOS - .gitignore
+# =============================================================================
+# The /boot, /initrd, /lib, /root, /usr, /etc, /proc, /tmp, /srv, /var, /dev,
+# /lib, /opt, /mnt, /media, /sources, /bin, /sbin, /home, /legal, /ai, /cloud,
+# /compatibility, /core, /docs, /drivers, /feedback, /fs, /installer, /kernel,
+# /network, /packages, /quantum, /sbin, /sdk, /security, /tests, /ui packages
+# themselves are the source of truth — see ``Code Review Standards and
+# Process.md`` for the review rules that govern them.
+# =============================================================================
+
+# --- Reference / generated material -----------------------------------------
+node_modules/
 Old Linux Code/
+/Old Linux Code/
 F:\Pension Person Details\UmerOS\Old Linux Code/
+
+# --- Python ---------------------------------------------------------------
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
+# --- Virtualenvs / tooling -----------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
 
-# [FIX H1] local secrets must never be committed
+# --- Flutter / Dart ------------------------------------------------------
+ui/flutter_ui/.dart_tool/
+ui/flutter_ui/.flutter-plugins
+ui/flutter_ui/.flutter-plugins-dependencies
+ui/flutter_ui/.packages
+ui/flutter_ui/.pub-cache/
+ui/flutter_ui/.pub/
+ui/flutter_ui/build/
+ui/flutter_ui/.dart_tool/
+ui/flutter_ui/.idea/
+ui/flutter_ui/coverage/
+ui/flutter_ui/pubspec.lock
+!package-lock.json
+
+# --- Uvicorn / log files --------------------------------------------------
+*.log
+*.pid
+*.sock
+.uvicorn/
+.run/
+
+# --- Test / coverage / diagnostic outputs --------------------------------
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.cache
+nosetests.xml
+test_output.txt
+diagnose_output.txt
+crash_test.log
+*.out.txt
+*.err.txt
+out.txt
+err.txt
+
+# --- Local secrets — [FIX H1] --------------------------------------------
+# Per the Code Review Standards H1/H100 family: any local-secret file
+# must NEVER be committed.  Listed explicitly here so even users who
+# forget to set `git config --global core.excludesFile` are protected.
 settings.local.json
+.env
+.env.*
+*.local.json
+*.local.yml
+*.local.yaml
+api_key.txt
+secrets.yml
+secrets.json
+
+# --- Editor / OS / scratch -----------------------------------------------
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.bak
+*.orig
+*.rej
+*_scratch.py
+_*_debug_*.py
+_*_scratch.py
+_*_selftest_tool.py
+_add_*.py
+_remove_*.py
