@@ -206,6 +206,7 @@ class AppState extends ChangeNotifier {
     'security',
     'games',
     'docs',
+    'backup',
   ];
 
   void pinDockItem(String id) {

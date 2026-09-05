@@ -25,6 +25,7 @@ import '../apps/ai_assistant_app.dart';
 import '../apps/antivirus_app.dart';
 import '../apps/bin_app.dart';
 import '../apps/boot_manager_app.dart';
+import '../apps/backup_app.dart';
 import '../apps/browser_app.dart';
 import '../apps/calculator_app.dart';
 import '../apps/calendar_app.dart';
@@ -142,6 +143,15 @@ abstract final class AppRegistry {
       color: Colors.amber,
       category: AppCategory.system,
       builder: (_) => const BootManagerApp(),
+    ),
+    AppDefinition(
+      id: 'backup',
+      title: 'Backup & Restore',
+      description: 'Create snapshots, manage factory resets, and restore the system.',
+      icon: Icons.settings_backup_restore,
+      color: Colors.teal,
+      category: AppCategory.system,
+      builder: (_) => const BackupApp(),
     ),
 
     // ── Tools ─────────────────────────────────────────────────────
