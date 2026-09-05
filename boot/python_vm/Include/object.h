@@ -109,6 +109,7 @@ struct _frame {
     Py_ssize_t f_lasti;
     Py_ssize_t f_block_top;
     PyObject **f_stacktop;
+    PyObject **f_stackbase;
 };
 
 /* ==================== THREAD STATE ==================== */

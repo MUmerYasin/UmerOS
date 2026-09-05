@@ -324,25 +324,12 @@ static void Compiler_Emit(Compiler *compiler, Opcode op, int arg) {
 
 /* Emit opcode with argument from constant pool */
 static int Compiler_AddConstant(Compiler *compiler, PyObject *value) {
-    fprintf(stderr, "[DBG-AC] entered: value=%p n_consts=%lld consts_size=%lld\n",
-            (void*)value, (long long)compiler->n_consts, (long long)compiler->consts_size);
-    fflush(stderr);
-    fprintf(stderr, "[DBG-AC] compiler struct: consts=%p bytecode=%p bytecode_pos=%d\n",
-            (void*)compiler->consts, (void*)compiler->bytecode, compiler->bytecode_pos);
-    fflush(stderr);
     /* Check if constant already exists */
     for (Py_ssize_t i = 0; i < compiler->n_consts; i++) {
-        fprintf(stderr, "[DBG-AC] loop i=%lld consts[i]=%p value=%p\n",
-                (long long)i, (void*)compiler->consts[i], (void*)value);
-        fflush(stderr);
         if (compiler->consts[i] == NULL) {
-            fprintf(stderr, "[DBG-AC] WARNING: consts[%lld] is NULL!\n", (long long)i);
-            fflush(stderr);
             continue;
         }
         if (PyObject_Compare(compiler->consts[i], value) == 0) {
-            fprintf(stderr, "[DBG-AC] found match at i=%lld\n", (long long)i);
-            fflush(stderr);
             return (int)i;
         }
     }
@@ -484,62 +471,77 @@ out:
 
 /* Parse and compile an expression, emitting bytecode */
 static void Compile_Expr(Compiler *compiler, Parser *parser) {
-    fprintf(stderr, "[DBG-C] Compile_Expr ENTER token=%d\n", parser->token_type);
-    fflush(stderr);
     /* Parse primary expression */
     int token = parser->token_type;
+    fprintf(stderr, "[COMPILER-EXPR] entry: token=%d\n", token);
+    fflush(stderr);
 
     if (token == TOKEN_NUMBER) {
+        fprintf(stderr, "[COMPILER-EXPR] NUMBER branch\n");
+        fflush(stderr);
         Py_INCREF(parser->current_token);
         int idx = Compiler_AddConstant(compiler, parser->current_token);
+        fprintf(stderr, "[COMPILER-EXPR] LOAD_CONST idx=%d\n", idx);
+        fflush(stderr);
         Compiler_Emit(compiler, OP_LOAD_CONST, idx);
         Py_DECREF(parser->current_token);
         parser->current_token = NULL;
         Parser_NextToken(parser);  /* consume the token we just read */
+        fprintf(stderr, "[COMPILER-EXPR] after NUMBER parse, token=%d\n", parser->token_type);
+        fflush(stderr);
         goto parse_binop;
     }
 
     if (token == TOKEN_STRING) {
+        fprintf(stderr, "[COMPILER-EXPR] STRING branch\n");
+        fflush(stderr);
         Py_INCREF(parser->current_token);
         int idx = Compiler_AddConstant(compiler, parser->current_token);
         Compiler_Emit(compiler, OP_LOAD_CONST, idx);
         Py_DECREF(parser->current_token);
         parser->current_token = NULL;
-        Parser_NextToken(parser);  /* consume the token we just read */
+        Parser_NextToken(parser);
         goto parse_binop;
     }
 
     if (token == TOKEN_LPAREN) {
-        Parser_NextToken(parser);  /* consume '(' */
-        Compile_Expr(compiler, parser);  /* parse inner expression */
+        fprintf(stderr, "[COMPILER-EXPR] LPAREN branch\n");
+        fflush(stderr);
+        Parser_NextToken(parser);
+        Compile_Expr(compiler, parser);
         if (parser->token_type == TOKEN_RPAREN) {
-            Parser_NextToken(parser);  /* consume ')' */
+            Parser_NextToken(parser);
         }
         goto parse_binop;
     }
 
     if (token == TOKEN_MINUS) {
-        /* Unary minus: emit 0 then subtract */
+        fprintf(stderr, "[COMPILER-EXPR] MINUS branch\n");
+        fflush(stderr);
         Compiler_Emit(compiler, OP_LOAD_CONST,
             Compiler_AddConstant(compiler, PyLong_FromLong(0)));
-        Parser_NextToken(parser);  /* consume '-' */
-        Compile_Expr(compiler, parser);  /* parse operand */
+        Parser_NextToken(parser);
+        Compile_Expr(compiler, parser);
         Compiler_Emit(compiler, OP_BINARY_SUBTRACT, 0);
         goto parse_binop;
     }
 
     if (token == TOKEN_NAME) {
+        fprintf(stderr, "[COMPILER-EXPR] NAME branch\n");
+        fflush(stderr);
         Py_INCREF(parser->current_token);
         int idx = Compiler_AddConstant(compiler, parser->current_token);
         Compiler_Emit(compiler, OP_LOAD_NAME, idx);
         Py_DECREF(parser->current_token);
         parser->current_token = NULL;
-        Parser_NextToken(parser);  /* consume the name */
+        Parser_NextToken(parser);
         goto parse_binop;
     }
 
     if (token == TOKEN_KEYWORD_TRUE) {
-        Parser_NextToken(parser);  /* consume keyword */
+        fprintf(stderr, "[COMPILER-EXPR] TRUE branch\n");
+        fflush(stderr);
+        Parser_NextToken(parser);
         int idx = Compiler_AddConstant(compiler, PyBool_FromLong(1));
         Compiler_Emit(compiler, OP_LOAD_CONST, idx);
         goto parse_binop;
@@ -611,56 +613,58 @@ static PyCodeObject* Compiler_MakeCode(Compiler *compiler) {
 
 /* Compile a statement */
 static int Compile_Statement(Compiler *compiler, Parser *parser) {
-    fprintf(stderr, "[DBG-C] Compile_Statement ENTER token=%d\n", parser->token_type);
-    fflush(stderr);
     int token = parser->token_type;
+    fprintf(stderr, "[COMPILER-STMT] entry: token=%d\n", token);
+    fflush(stderr);
 
     /* Skip newlines */
     while (token == TOKEN_NL) {
         token = Parser_NextToken(parser);
     }
 
-    if (token == TOKEN_ENDMARKER) return 0;
+    if (token == TOKEN_ENDMARKER) {
+        fprintf(stderr, "[COMPILER-STMT] ENDMARKER, returning 0\n");
+        fflush(stderr);
+        return 0;
+    }
 
     /* print(...) statement */
     if (token == TOKEN_NAME) {
         const char *name = PyUnicode_AsString(parser->current_token);
-        fprintf(stderr, "[DBG-C] Compile_Statement: NAME='%s'\n", name ? name : "NULL");
+        fprintf(stderr, "[COMPILER-STMT] NAME token: '%s'\n", name);
         fflush(stderr);
         if (strcmp(name, "print") == 0) {
-            fprintf(stderr, "[DBG-C] Compile_Statement: found 'print'\n");
+            fprintf(stderr, "[COMPILER-STMT] print statement detected\n");
             fflush(stderr);
             /* Parse function call */
             Parser_NextToken(parser);  /* skip 'print' */
-            fprintf(stderr, "[DBG-C] Compile_Statement: after skip print, token=%d\n", parser->token_type);
+            fprintf(stderr, "[COMPILER-STMT] after skip print: token=%d\n", parser->token_type);
             fflush(stderr);
             if (parser->token_type == TOKEN_LPAREN) {
-                fprintf(stderr, "[DBG-C] Compile_Statement: found '('\n");
+                fprintf(stderr, "[COMPILER-STMT] LPAREN found, parsing args\n");
                 fflush(stderr);
                 /* Parse arguments */
                 Parser_NextToken(parser);  /* skip '(' */
-                fprintf(stderr, "[DBG-C] Compile_Statement: after skip '(', token=%d\n", parser->token_type);
+                fprintf(stderr, "[COMPILER-STMT] after skip '(': token=%d\n", parser->token_type);
                 fflush(stderr);
 
                 /* Emit: LOAD_GLOBAL <print> first, THEN compile arg, THEN CALL_FUNCTION */
                 int print_idx = Compiler_AddConstant(compiler,
                     PyUnicode_FromString("print"));
-                Compiler_Emit(compiler, OP_LOAD_GLOBAL, print_idx);
-                fprintf(stderr, "[DBG-C] Compile_Statement: emitted LOAD_GLOBAL print (idx=%d)\n", print_idx);
+                fprintf(stderr, "[COMPILER-STMT] print_idx=%d, emitting LOAD_GLOBAL\n", print_idx);
                 fflush(stderr);
+                Compiler_Emit(compiler, OP_LOAD_GLOBAL, print_idx);
 
                 /* Compile the argument expression */
-                fprintf(stderr, "[DBG-C] Compile_Statement: calling Compile_Expr\n");
+                fprintf(stderr, "[COMPILER-STMT] calling Compile_Expr\n");
                 fflush(stderr);
                 Compile_Expr(compiler, parser);
-                fprintf(stderr, "[DBG-C] Compile_Statement: Compile_Expr returned, token=%d\n", parser->token_type);
-                fflush(stderr);
 
                 /* Now emit CALL_FUNCTION and POP_TOP */
+                fprintf(stderr, "[COMPILER-STMT] emitting CALL_FUNCTION(1)\n");
+                fflush(stderr);
                 Compiler_Emit(compiler, OP_CALL_FUNCTION, 1);
                 Compiler_Emit(compiler, OP_POP_TOP, 0);
-                fprintf(stderr, "[DBG-C] Compile_Statement: emitted print bytecode\n");
-                fflush(stderr);
 
                 /* Consume closing paren */
                 while (parser->token_type != TOKEN_RPAREN &&
@@ -670,10 +674,8 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
                 if (parser->token_type == TOKEN_RPAREN) {
                     Parser_NextToken(parser);
                 }
-                fprintf(stderr, "[DBG-C] Compile_Statement: after closing paren, token=%d\n", parser->token_type);
-                fflush(stderr);
             }
-            fprintf(stderr, "[DBG-C] Compile_Statement: returning 1 (print)\n");
+            fprintf(stderr, "[COMPILER-STMT] print done, returning 1\n");
             fflush(stderr);
             return 1;
         }
@@ -690,125 +692,76 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
     }
 
     /* Skip unrecognized tokens */
-    fprintf(stderr, "[DBG-C] Compile_Statement: skipping unrecognized tokens\n");
-    fflush(stderr);
     while (token != TOKEN_NL && token != TOKEN_ENDMARKER) {
         token = Parser_NextToken(parser);
     }
 
-    fprintf(stderr, "[DBG-C] Compile_Statement: returning 1\n");
-    fflush(stderr);
     return 1;
 }
 
 /* Compile source code to bytecode */
 PyObject* Py_CompileString(const char *source, const char *filename) {
-    fprintf(stderr, "[DBG] Py_CompileString entered, source='%s'\n", source);
+    fprintf(stderr, "[COMPILER] Py_CompileString enter, source=%p\n", (void*)source);
+    fflush(stderr);
+    if (!source) return NULL;
+
+    int len = strlen(source);
+    fprintf(stderr, "[COMPILER] strlen=%d, creating Lexer\n", len);
     fflush(stderr);
 
-    Py_ssize_t length = strlen(source);
-    fprintf(stderr, "[DBG] Py_CompileString: length=%d\n", (int)length);
+    Lexer *lexer = Lexer_New(source, len);
+    fprintf(stderr, "[COMPILER] Lexer_New returned %p\n", (void*)lexer);
     fflush(stderr);
+    if (!lexer) return NULL;
 
-    fprintf(stderr, "[DBG] Py_CompileString: creating Lexer\n");
-    fflush(stderr);
-    Lexer *lexer = Lexer_New(source, length);
-    if (!lexer) {
-        fprintf(stderr, "[DBG] Py_CompileString: Lexer_New failed\n");
-        fflush(stderr);
-        return NULL;
-    }
-    fprintf(stderr, "[DBG] Py_CompileString: Lexer created OK\n");
-    fflush(stderr);
-
-    fprintf(stderr, "[DBG] Py_CompileString: creating Parser\n");
+    /* Step 2: restore Parser_New + Compiler_New */
+    fprintf(stderr, "[COMPILER] calling Parser_New(lexer=%p)\n", (void*)lexer);
     fflush(stderr);
     Parser *parser = Parser_New(lexer);
-    if (!parser) {
-        fprintf(stderr, "[DBG] Py_CompileString: Parser_New failed\n");
-        fflush(stderr);
-        Lexer_Free(lexer);
-        return NULL;
-    }
-    fprintf(stderr, "[DBG] Py_CompileString: Parser created OK\n");
+    fprintf(stderr, "[COMPILER] Parser_New returned %p\n", (void*)parser);
     fflush(stderr);
+    if (!parser) { Lexer_Free(lexer); return NULL; }
 
-    fprintf(stderr, "[DBG] Py_CompileString: creating Compiler\n");
+    fprintf(stderr, "[COMPILER] calling Compiler_New()\n");
     fflush(stderr);
     Compiler *compiler = Compiler_New();
-    if (!compiler) {
-        fprintf(stderr, "[DBG] Py_CompileString: Compiler_New failed\n");
-        fflush(stderr);
-        Parser_Free(parser);
-        Lexer_Free(lexer);
-        return NULL;
-    }
-    fprintf(stderr, "[DBG] Py_CompileString: Compiler created OK\n");
+    fprintf(stderr, "[COMPILER] Compiler_New returned %p\n", (void*)compiler);
+    fflush(stderr);
+    if (!compiler) { Parser_Free(parser); Lexer_Free(lexer); return NULL; }
+
+    /* Step 3: restore token loop + Compile_Statement */
+    fprintf(stderr, "[COMPILER] calling Parser_NextToken(parser=%p)\n", (void*)parser);
+    fflush(stderr);
+    int token = Parser_NextToken(parser);
+    fprintf(stderr, "[COMPILER] first token=%d\n", token);
     fflush(stderr);
 
-    /* Compile all statements */
-    fprintf(stderr, "[DBG] Py_CompileString: starting compile loop\n");
-    fflush(stderr);
-    while (1) {
-        int token = Parser_NextToken(parser);
-        parser->token_type = token;
-        fprintf(stderr, "[DBG] Py_CompileString: token=%d\n", token);
+    while (token != TOKEN_ENDMARKER) {
+        fprintf(stderr, "[COMPILER] calling Compile_Statement(compiler=%p, parser=%p)\n",
+                (void*)compiler, (void*)parser);
         fflush(stderr);
-
-        fprintf(stderr, "[DBG] TEST: token=%d ENDMARKER=%d cmp=%d\n", token, TOKEN_ENDMARKER, token == TOKEN_ENDMARKER);
+        int result = Compile_Statement(compiler, parser);
+        fprintf(stderr, "[COMPILER] Compile_Statement returned %d\n", result);
         fflush(stderr);
-        if (token == TOKEN_ENDMARKER) break;
-
-        fprintf(stderr, "[DBG] calling Compile_Statement token=%d\n", token);
-        fflush(stderr);
-        int ret = Compile_Statement(compiler, parser);
-        fprintf(stderr, "[DBG] Py_CompileString: Compile_Statement returned %d\n", ret);
+        if (result == -1) { break; }
+        token = Parser_NextToken(parser);
+        fprintf(stderr, "[COMPILER] next token=%d\n", token);
         fflush(stderr);
     }
-    fprintf(stderr, "[DBG] Py_CompileString: compile loop done\n");
-    fflush(stderr);
 
-    /* Compiler struct integrity check */
-    fprintf(stderr, "[DBG-CHECK] compiler=%p\n", (void*)compiler);
-    fprintf(stderr, "[DBG-CHECK] compiler->consts=%p\n", (void*)compiler->consts);
-    fprintf(stderr, "[DBG-CHECK] compiler->n_consts=%lld\n", (long long)compiler->n_consts);
-    fprintf(stderr, "[DBG-CHECK] compiler->consts_size=%lld\n", (long long)compiler->consts_size);
-    fprintf(stderr, "[DBG-CHECK] compiler->bytecode=%p\n", (void*)compiler->bytecode);
-    fprintf(stderr, "[DBG-CHECK] compiler->bytecode_pos=%d\n", compiler->bytecode_pos);
-    fprintf(stderr, "[DBG-CHECK] compiler->bytecode_size=%d\n", compiler->bytecode_size);
-    fprintf(stderr, "[DBG-CHECK] compiler->arg_top=%d\n", compiler->arg_top);
-    fprintf(stderr, "[DBG-CHECK] compiler->arg_top=%d\n", compiler->arg_top);
-    if (compiler->consts && compiler->n_consts > 0 && compiler->n_consts <= compiler->consts_size) {
-        for (Py_ssize_t ci = 0; ci < compiler->n_consts; ci++) {
-            fprintf(stderr, "[DBG-CHECK]   consts[%lld]=%p\n", (long long)ci, (void*)compiler->consts[ci]);
-        }
-    } else {
-        fprintf(stderr, "[DBG-CHECK] consts array invalid or empty\n");
-    }
+    fprintf(stderr, "[COMPILER] aborting here (Step 3)\n");
     fflush(stderr);
-
-    /* Add return None at end */
-    fprintf(stderr, "[DBG] before Compiler_AddConstant(Py_None)\n"); fflush(stderr);
-    int none_idx = Compiler_AddConstant(compiler, Py_None);
-    fprintf(stderr, "[DBG] none_idx=%d, before emit LOAD_CONST\n", none_idx); fflush(stderr);
-    Compiler_Emit(compiler, OP_LOAD_CONST, none_idx);
-    fprintf(stderr, "[DBG] before emit RETURN_VALUE\n"); fflush(stderr);
-    Compiler_Emit(compiler, OP_RETURN_VALUE, 0);
-    fprintf(stderr, "[DBG] after all emits\n"); fflush(stderr);
-
-    fprintf(stderr, "[DBG] Py_CompileString: calling Compiler_MakeCode\n");
-    fflush(stderr);
-    PyCodeObject *code = Compiler_MakeCode(compiler);
-    fprintf(stderr, "[DBG] Py_CompileString: Compiler_MakeCode returned %p\n", (void*)code);
-    if (code) {
-        fprintf(stderr, "[DBG] Py_CompileString: bytecode=%p code_size=%d n_consts=%d\n",
-                (void*)code->code, (int)code->code_size, code->n_consts);
-    }
-    fflush(stderr);
-
     Compiler_Free(compiler);
     Parser_Free(parser);
     Lexer_Free(lexer);
+    return NULL;
+}
 
-    return (PyObject *)code;
+/* Test function: can ANY compiler.c code be called from main.c? */
+void Compiler_Test(void) {
+    fprintf(stderr, "[COMPILER] Compiler_Test entered OK\n");
+    fflush(stderr);
+    int x = 42;
+    fprintf(stderr, "[COMPILER] x=%d\n", x);
+    fflush(stderr);
 }

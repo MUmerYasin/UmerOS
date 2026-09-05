@@ -10,10 +10,14 @@
 
 /* print() implementation */
 static PyObject* builtin_print(PyObject *self, PyObject *args, PyObject *kwargs) {
+    fprintf(stderr, "[PRINT] builtin_print enter: self=%p, args=%p, kwargs=%p\n", (void*)self, (void*)args, (void*)kwargs);
+    fflush(stderr);
     (void)self;
     (void)kwargs;
 
     Py_ssize_t nargs = args ? PyList_Size(args) : 0;
+    fprintf(stderr, "[PRINT] nargs=%zd\n", nargs);
+    fflush(stderr);
     const char *sep = " ";
     const char *end = "\n";
 
@@ -36,18 +40,26 @@ static PyObject* builtin_print(PyObject *self, PyObject *args, PyObject *kwargs)
     /* Print each argument */
     for (Py_ssize_t i = 0; i < nargs; i++) {
         PyObject *item = PyList_GetItem(args, i);
+        fprintf(stderr, "[PRINT] item[%zd]=%p\n", i, (void*)item);
+        fflush(stderr);
         if (item == NULL) {
             PyErr_Print();
             return NULL;
         }
 
+        fprintf(stderr, "[PRINT] calling PyObject_Str on %p\n", (void*)item);
+        fflush(stderr);
         PyObject *str = PyObject_Str(item);
+        fprintf(stderr, "[PRINT] PyObject_Str returned %p\n", (void*)str);
+        fflush(stderr);
         if (str == NULL) {
             PyErr_Print();
             return NULL;
         }
 
         const char *s = PyUnicode_AsString(str);
+        fprintf(stderr, "[PRINT] PyUnicode_AsString returned %p, s=%s\n", (void*)s, s ? s : "(null)");
+        fflush(stderr);
         if (s) {
             if (i > 0) {
                 fputs(sep, stdout);

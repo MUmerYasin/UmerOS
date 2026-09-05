@@ -62,10 +62,17 @@ PyFrameObject* PyFrame_New(PyCodeObject *code, PyObject *globals, PyObject *loca
     f->f_locals = locals;
     f->f_back = NULL;
     f->f_block_top = 0;
+    f->f_stackbase = (PyObject**)calloc(MAX_VALUE_STACK, sizeof(PyObject*));
+    f->f_stacktop = f->f_stackbase;
     return f;
 }
 
-void PyFrame_Free(PyFrameObject *frame) { if (frame) free(frame); }
+void PyFrame_Free(PyFrameObject *frame) {
+    if (frame) {
+        if (frame->f_stackbase) free(frame->f_stackbase);
+        free(frame);
+    }
+}
 
 PyObject* PyFrame_GetLocal(PyFrameObject *frame, const char *name) {
     if (!frame || !frame->f_locals) return NULL;
@@ -167,8 +174,16 @@ PyObject* PyDict_New(void) {
 int PyDict_SetItem(PyObject *dict, PyObject *key, PyObject *value) {
     if (!dict || !key) return -1;
     PyDictObject *d = (PyDictObject *)dict;
+    /* Fast path: identity match */
     for (Py_ssize_t i = 0; i < d->size; i++) {
         if (d->entries[i].key == key) {
+            Py_XDECREF(d->entries[i].value); Py_INCREF(value);
+            d->entries[i].value = value; return 0;
+        }
+    }
+    /* Slow path: value comparison (for temporary key objects) */
+    for (Py_ssize_t i = 0; i < d->size; i++) {
+        if (PyObject_Compare(d->entries[i].key, key) == 0) {
             Py_XDECREF(d->entries[i].value); Py_INCREF(value);
             d->entries[i].value = value; return 0;
         }
@@ -182,8 +197,12 @@ int PyDict_SetItem(PyObject *dict, PyObject *key, PyObject *value) {
 PyObject* PyDict_GetItem(PyObject *dict, PyObject *key) {
     if (!dict || !key) return NULL;
     PyDictObject *d = (PyDictObject *)dict;
+    /* Fast path: identity match */
     for (Py_ssize_t i = 0; i < d->size; i++)
         if (d->entries[i].key == key) return d->entries[i].value;
+    /* Slow path: value comparison (for temporary key objects) */
+    for (Py_ssize_t i = 0; i < d->size; i++)
+        if (PyObject_Compare(d->entries[i].key, key) == 0) return d->entries[i].value;
     return NULL;
 }
 
@@ -434,25 +453,12 @@ PyObject* PyObject_RichCompare(PyObject *v, PyObject *w, int op) {
 }
 
 int PyObject_Compare(PyObject *a, PyObject *b) {
-    fprintf(stderr, "[DBG-CMP] entered: a=%p b=%p\n", (void*)a, (void*)b);
-    if (a == b) { fprintf(stderr, "[DBG-CMP] identity match\n"); return 0; }
-    if (!a) { fprintf(stderr, "[DBG-CMP] a is NULL\n"); return -1; }
-    if (!b) { fprintf(stderr, "[DBG-CMP] b is NULL\n"); return 1; }
-    fprintf(stderr, "[DBG-CMP] a->ob_type=%p b->ob_type=%p\n",
-            (void*)Py_TYPE(a), (void*)Py_TYPE(b));
-    fflush(stderr);
     if (Py_TYPE(a)->tp_richcompare) {
-        fprintf(stderr, "[DBG-CMP] calling tp_richcompare=%p\n",
-                (void*)Py_TYPE(a)->tp_richcompare);
-        fflush(stderr);
         PyObject *r = Py_TYPE(a)->tp_richcompare(a, b, Py_EQ);
-        if (r == Py_NotImplemented) { fprintf(stderr, "[DBG-CMP] got Py_NotImplemented\n"); Py_DECREF(r); return -1; }
         if (r) { int ok = PyObject_IsTrue(r); Py_DECREF(r); return ok ? 0 : -1; }
     }
     const char *n1 = Py_TYPE(a)->tp_name ? Py_TYPE(a)->tp_name : "";
     const char *n2 = Py_TYPE(b)->tp_name ? Py_TYPE(b)->tp_name : "";
-    fprintf(stderr, "[DBG-CMP] fallback strcmp: n1='%s' n2='%s'\n", n1, n2);
-    fflush(stderr);
     return strcmp(n1, n2);
 }
 
@@ -602,13 +608,29 @@ typedef struct { PyObject ob_base; PyMethodDef *m_ml; PyObject *m_self; PyObject
 
 /* Trampoline: dispatches 2-arg vs 3-arg C functions based on ml_flags */
 static PyObject* cfunction_call(PyObject *callable, PyObject *args, PyObject *kwargs) {
+    fprintf(stderr, "[TRAMP] cfunction_call enter: callable=%p, args=%p, kwargs=%p\n", (void*)callable, (void*)args, (void*)kwargs);
+    fflush(stderr);
     PyCFunctionObject *mf = (PyCFunctionObject *)callable;
+    fprintf(stderr, "[TRAMP] mf=%p, m_ml=%p, m_self=%p, m_module=%p\n", (void*)mf, (void*)mf->m_ml, (void*)mf->m_self, (void*)mf->m_module);
+    fflush(stderr);
     PyMethodDef *ml = mf->m_ml;
+    fprintf(stderr, "[TRAMP] ml->ml_meth=%p, ml->ml_flags=%d, ml->ml_name=%s\n", (void*)ml->ml_meth, ml->ml_flags, ml->ml_name ? ml->ml_name : "(null)");
+    fflush(stderr);
     if (ml->ml_flags & METH_KEYWORDS) {
+        fprintf(stderr, "[TRAMP] calling METH_KEYWORDS: fn=%p, self=%p, args=%p, kwargs=%p\n", (void*)ml->ml_meth, (void*)mf->m_self, (void*)args, (void*)kwargs);
+        fflush(stderr);
         PyCFunctionWithKeywords fn = (PyCFunctionWithKeywords)ml->ml_meth;
-        return fn(mf->m_self, args, kwargs);
+        PyObject *result = fn(mf->m_self, args, kwargs);
+        fprintf(stderr, "[TRAMP] METH_KEYWORDS returned: result=%p\n", (void*)result);
+        fflush(stderr);
+        return result;
     }
-    return ml->ml_meth(mf->m_self, args);
+    fprintf(stderr, "[TRAMP] calling METH_VARARGS/METH_NOARGS: fn=%p, self=%p, args=%p\n", (void*)ml->ml_meth, (void*)mf->m_self, (void*)args);
+    fflush(stderr);
+    PyObject *result2 = ml->ml_meth(mf->m_self, args);
+    fprintf(stderr, "[TRAMP] non-KW call returned: result=%p\n", (void*)result2);
+    fflush(stderr);
+    return result2;
 }
 
 static PyTypeObject _PyCFunction_Type = {

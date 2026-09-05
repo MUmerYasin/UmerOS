@@ -66,8 +66,7 @@ static PyObjectHash unicode_hash(PyObject *op) {
 }
 
 static PyObject* unicode_richcompare(PyObject *left, PyObject *right, int op) {
-    fprintf(stderr, "[DBG-UCMP] ENTER unicode_richcompare a=%p right=%p op=%d\n", left, right, op);
-    fflush(stderr);
+
     if (!PyUnicode_Check(right)) {
         Py_INCREF(Py_NotImplemented);
         return Py_NotImplemented;

@@ -12,12 +12,12 @@
 #include "../Include/umeros_python.h"
 #include <stdio.h>
 
+/* External builtins registry */
+extern PyObject* PyBuiltins_GetDict(void);
+
 /* ==================== VM INTERNAL STACK ==================== */
 
 static int Stack_Push(PyObject ***stacktop, PyObject *value) {
-    fprintf(stderr, "[STACK] PUSH %p (type=%s)\n", (void*)value,
-            value && value->ob_type ? value->ob_type->tp_name : "?");
-    fflush(stderr);
     Py_INCREF(value);
     *(*stacktop) = value;
     (*stacktop)++;
@@ -27,9 +27,6 @@ static int Stack_Push(PyObject ***stacktop, PyObject *value) {
 static PyObject* Stack_Pop(PyObject ***stacktop) {
     (*stacktop)--;
     PyObject *value = *(*stacktop);
-    fprintf(stderr, "[STACK] POP  %p (type=%s)\n", (void*)value,
-            value && value->ob_type ? value->ob_type->tp_name : "?");
-    fflush(stderr);
     return value;
 }
 
@@ -64,23 +61,24 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
         return NULL;
     }
 
+    fprintf(stderr, "[VM] ENTRY: frame=%p code=%p\n", (void*)frame, (void*)frame->f_code);
+    fflush(stderr);
+
     uint8_t *bytecode = frame->f_code->code;
     Py_ssize_t code_len = frame->f_code->code_size;
     PyObject **consts = frame->f_code->consts;
     Py_ssize_t n_consts = frame->f_code->n_consts;
     PyObject ***stack = &frame->f_stacktop;
 
+    fprintf(stderr, "[VM] stack=%p stacktop=%p\n", (void*)stack, (void*)frame->f_stacktop);
+    fflush(stderr);
+
     frame->f_lasti = 0;
 
     /* DEBUG: dump bytecode */
-    fprintf(stderr, "BYTECODE DUMP [%d bytes, %d consts]:", (int)code_len, (int)n_consts);
-    for (Py_ssize_t i = 0; i < code_len; i++) fprintf(stderr, " %02x", bytecode[i]);
     fprintf(stderr, "\n");
     for (Py_ssize_t i = 0; i < n_consts; i++) {
-        fprintf(stderr, "  const[%d]: ", (int)i);
         if (consts[i] == Py_None) fprintf(stderr, "None");
-        else if (PyLong_Check(consts[i])) fprintf(stderr, "%ld", PyLong_AsLong(consts[i]));
-        else if (PyUnicode_Check(consts[i])) fprintf(stderr, "\"%s\"", PyUnicode_AsString(consts[i]));
         else fprintf(stderr, "<object>");
         fprintf(stderr, "\n");
     }
@@ -98,7 +96,9 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
             }
         }
 
-        fprintf(stderr, "[VM] pc=%d op=%d arg=%d\n", (int)instr_off, (int)op, arg);
+
+
+        fprintf(stderr, "[VM] op=%d arg=%d stacktop=%p\n", op, arg, (void*)*stack);
         fflush(stderr);
 
         switch (op) {
@@ -171,8 +171,12 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                     PyErr_SetString(PyExc_SystemError, "LOAD_GLOBAL: name is not a string");
                     return NULL;
                 }
+                fprintf(stderr, "[VM] LOAD_GLOBAL name='%s'\n", name);
+                fflush(stderr);
                 PyObject *value = VM_GetGlobal(frame, name);
                 if (value == NULL) {
+                    fprintf(stderr, "[VM] LOAD_GLOBAL: VM_GetGlobal returned NULL\n");
+                    fflush(stderr);
                     if (PyErr_ExceptionMatches(PyExc_NameError)) {
                         PyErr_Clear();
                         Py_INCREF(Py_None);
@@ -181,6 +185,8 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                         return NULL;
                     }
                 } else {
+                    fprintf(stderr, "[VM] LOAD_GLOBAL: found value=%p type=%p\n", (void*)value, (void*)Py_TYPE(value));
+                    fflush(stderr);
                     Stack_Push(stack, value);
                     Py_DECREF(value);
                 }
@@ -204,18 +210,24 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
             }
 
             case OP_CALL_FUNCTION: {
+                fprintf(stderr, "[VM] CALL_FUNCTION nargs=%d\n", arg);
+                fflush(stderr);
                 if (arg < 0) {
                     PyErr_SetString(PyExc_SystemError, "CALL_FUNCTION: bad argument");
                     return NULL;
                 }
                 PyObject *args = PyList_New(arg);
-                if (!args) return NULL;
+                if (!args) { fprintf(stderr, "[VM] CALL_FUNCTION: PyList_New failed\n"); fflush(stderr); return NULL; }
                 for (int i = arg - 1; i >= 0; i--) {
                     PyObject *item = Stack_Pop(stack);
                     PyList_SetItem(args, i, item);
                 }
                 PyObject *callable = Stack_Pop(stack);
+                fprintf(stderr, "[VM] CALL_FUNCTION: callable=%p type=%p\n", (void*)callable, callable ? (void*)Py_TYPE(callable) : NULL);
+                fflush(stderr);
                 PyObject *result = PyObject_Call(callable, args, NULL);
+                fprintf(stderr, "[VM] CALL_FUNCTION: result=%p\n", (void*)result);
+                fflush(stderr);
                 Py_DECREF(args);
                 Py_DECREF(callable);
                 if (!result) return NULL;
@@ -366,11 +378,16 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
 
 /* Execute a code object */
 PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *locals) {
-    fprintf(stderr, "[DBG] PyEval_EvalCode entered, code=%p\n", (void*)code);
-    fflush(stderr);
 
     if (!globals) {
         globals = PyDict_New();
+        if (globals) {
+            PyObject *builtins = PyBuiltins_GetDict();
+            if (builtins) {
+                PyDict_SetItemString(globals, "__builtins__", builtins);
+                Py_DECREF(builtins);
+            }
+        }
     }
     if (!locals) {
         Py_INCREF(globals);
@@ -378,12 +395,8 @@ PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *local
     } else {
         Py_INCREF(locals);
     }
-    fprintf(stderr, "[DBG] PyEval_EvalCode: creating frame\n");
-    fflush(stderr);
 
     PyFrameObject *frame = PyFrame_New(code, globals, locals);
-    fprintf(stderr, "[DBG] PyEval_EvalCode: frame=%p\n", (void*)frame);
-    fflush(stderr);
     if (!frame) {
         Py_DECREF(locals);
         return NULL;
@@ -392,11 +405,7 @@ PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *local
     PyThreadState *tstate = PyThreadState_Get();
     PyThreadState_PushFrame(tstate, frame);
 
-    fprintf(stderr, "[DBG] PyEval_EvalCode: calling PyEval_EvalFrame\n");
-    fflush(stderr);
     PyObject *result = PyEval_EvalFrame(frame);
-    fprintf(stderr, "[DBG] PyEval_EvalCode: EvalFrame returned %p\n", (void*)result);
-    fflush(stderr);
 
     PyThreadState_PopFrame(tstate);
     Py_DECREF(locals);

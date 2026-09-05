@@ -1,79 +1,27 @@
-[DBG] Py_CompileString entered, source='print(2)'
-[DBG] Py_CompileString: length=8
-[DBG] Py_CompileString: creating Lexer
-[DBG] Py_CompileString: Lexer created OK
-[DBG] Py_CompileString: creating Parser
-[DBG] Py_CompileString: Parser created OK
-[DBG] Py_CompileString: creating Compiler
-[DBG] Py_CompileString: Compiler created OK
-[DBG] Py_CompileString: starting compile loop
-[DBG] Py_CompileString: token=4
-[DBG] TEST: token=4 ENDMARKER=0 cmp=0
-[DBG] calling Compile_Statement token=4
-[DBG-C] Compile_Statement ENTER token=4
-[DBG-C] Compile_Statement: NAME='print'
-[DBG-C] Compile_Statement: found 'print'
-[DBG-C] Compile_Statement: after skip print, token=59
-[DBG-C] Compile_Statement: found '('
-[DBG-C] Compile_Statement: after skip '(', token=1
-[DBG-AC] entered: value=000001E9AE292950 n_consts=0 consts_size=256
-[DBG-AC] compiler struct: consts=000001E9AE296DF0 bytecode=000001E9AE296570 bytecode_pos=0
-[DBG-C] Compile_Statement: emitted LOAD_GLOBAL print (idx=0)
-[DBG-C] Compile_Statement: calling Compile_Expr
-[DBG-C] Compile_Expr ENTER token=1
-[DBG-AC] entered: value=000001E9AE28BC60 n_consts=1 consts_size=256
-[DBG-AC] compiler struct: consts=000001E9AE296DF0 bytecode=000001E9AE296570 bytecode_pos=2
-[DBG-AC] loop i=0 consts[i]=000001E9AE292950 value=000001E9AE28BC60
-[DBG-CMP] entered: a=000001E9AE292950 b=000001E9AE28BC60
-[DBG-CMP] a->ob_type=00007FF765B91E60 b->ob_type=00007FF765B91A20
-[DBG-CMP] calling tp_richcompare=00007FF765B85450
-[DBG-UCMP] ENTER unicode_richcompare a=000001E9AE292950 right=000001E9AE28BC60 op=2
-[DBG-CMP] got Py_NotImplemented
-[DBG-C] Compile_Statement: Compile_Expr returned, token=60
-[DBG-C] Compile_Statement: emitted print bytecode
-[DBG-C] Compile_Statement: after closing paren, token=0
-[DBG-C] Compile_Statement: returning 1 (print)
-[DBG] Py_CompileString: Compile_Statement returned 1
-[DBG] Py_CompileString: token=0
-[DBG] TEST: token=0 ENDMARKER=0 cmp=1
-[DBG] Py_CompileString: compile loop done
-[DBG-CHECK] compiler=000001E9AE28E560
-[DBG-CHECK] compiler->consts=000001E9AE296DF0
-[DBG-CHECK] compiler->n_consts=2
-[DBG-CHECK] compiler->consts_size=256
-[DBG-CHECK] compiler->bytecode=000001E9AE296570
-[DBG-CHECK] compiler->bytecode_pos=8
-[DBG-CHECK] compiler->bytecode_size=1024
-[DBG-CHECK] compiler->arg_top=0
-[DBG-CHECK] compiler->arg_top=0
-[DBG-CHECK]   consts[0]=000001E9AE292950
-[DBG-CHECK]   consts[1]=000001E9AE28BC60
-[DBG] before Compiler_AddConstant(Py_None)
-[DBG-AC] entered: value=00007FF765B923F8 n_consts=2 consts_size=256
-[DBG-AC] compiler struct: consts=000001E9AE296DF0 bytecode=000001E9AE296570 bytecode_pos=8
-[DBG-AC] loop i=0 consts[i]=000001E9AE292950 value=00007FF765B923F8
-[DBG-CMP] entered: a=000001E9AE292950 b=00007FF765B923F8
-[DBG-CMP] a->ob_type=00007FF765B91E60 b->ob_type=00007FF765B922D0
-[DBG-CMP] calling tp_richcompare=00007FF765B85450
-[DBG-UCMP] ENTER unicode_richcompare a=000001E9AE292950 right=00007FF765B923F8 op=2
-[DBG-CMP] got Py_NotImplemented
-[DBG-AC] loop i=1 consts[i]=000001E9AE28BC60 value=00007FF765B923F8
-[DBG-CMP] entered: a=000001E9AE28BC60 b=00007FF765B923F8
-[DBG-CMP] a->ob_type=00007FF765B91A20 b->ob_type=00007FF765B922D0
-[DBG-CMP] calling tp_richcompare=00007FF765B84190
-[DBG] none_idx=2, before emit LOAD_CONST
-[DBG] before emit RETURN_VALUE
-[DBG] after all emits
-[DBG] Py_CompileString: calling Compiler_MakeCode
-[DBG] Py_CompileString: Compiler_MakeCode returned 000001E9AE28E5F0
-[DBG] Py_CompileString: bytecode=000001E9AE291950 code_size=12 n_consts=3
-[DBG] PyEval_EvalCode entered, code=000001E9AE28E5F0
-[DBG] PyEval_EvalCode: creating frame
-[DBG] PyEval_EvalCode: frame=000001E9AE28E560
-[DBG] PyEval_EvalCode: calling PyEval_EvalFrame
-BYTECODE DUMP [12 bytes, 3 consts]: 03 00 01 01 12 01 06 00 01 02 13 00
-  const[0]: "print"
-  const[1]: <object>
-  const[2]: None
-[VM] pc=0 op=3 arg=0
-[STACK] PUSH 00007FF765B923F8 (type=NoneType)
+[MAIN] main() enter, argc=1
+[MAIN] calling PyErrors_Init
+[MAIN] calling PyBool_Init
+[MAIN] calling PyNone_Init
+[MAIN] calling PyBuiltins_Init
+[MAIN] init complete
+[REPL] creating globals dict
+[REPL] getting builtins dict
+[REPL] setting __builtins__ in globals
+[REPL] globals setup complete
+[REPL] waiting for fgets
+[REPL] got line: 'print(2)
+'
+[REPL] stripped newline, len=8
+[REPL] paren_count=0
+[REPL] calling Py_CompileString
+[COMPILER] Py_CompileString enter, source=00000077836EDB50
+[COMPILER] strlen=8, creating Lexer
+[COMPILER] Lexer_New returned 000001AC028139C0
+[COMPILER] calling Parser_New(lexer=000001AC028139C0)
+[COMPILER] Parser_New returned 000001AC028106A0
+[COMPILER] calling Compiler_New()
+[COMPILER] Compiler_New returned 000001AC02809D40
+[COMPILER] aborting here (Step 2)
+[REPL] Py_CompileString returned 0000000000000000
+[REPL] waiting for fgets
+[REPL] fgets returned NULL
