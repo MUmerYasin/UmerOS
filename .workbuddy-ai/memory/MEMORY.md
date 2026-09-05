@@ -19,13 +19,13 @@
 
 ## Remediation status
 - **RED blockers: ALL CLOSED (H1–H307).** Per-cluster detail + bookkeeping live in `remediation_progress.md` (sessions 1–33).
-- **YELLOW sweep in progress (session 35+):** H4, H5, H6 done (H55 root cause fixed). Next = **H8** (`bin/*` broad-except / arg-parsing cleanup, extends H35/H6), then remaining YELLOW.
+- **YELLOW sweep in progress (session 36+):** H4, H5, H6, H8 done (H55 root cause fixed; bin/* broad-except finalized + lint gate strengthened). Next = **H9** (CI: add test-exec + Ruff/Mypy gates), then remaining YELLOW.
 - Sessions 1–23 clusters: var/ boot/ path-traversal, fail-open + dummy-crypto, cap-gate (8/8), collection-error reconciliation, bin/proc, H7 GPL sweep, mount (media/mnt), legal/ GPL + consent, initrd/ eval + traversal, kernel/ managers + crypto + sandbox, proc/srv priv-write, installer/ priv-write + fail-open + dataloss, home tar-restore, etc/ priv-write. (Full per-session notes in the checkpoint file.)
 - Sessions 24–35 (carried RED + YELLOW): H3/H146/H147 (lib ssl/pam false-positive + cert-expiry), H157/H167/H168 (media/mnt auto-mount + symlink rmtree), H184/H187 (opt), H198 (packages), H215/H216/H217/H221 (quantum), H244/H245/H246 (security), H12/H18/H21/H42 (cross-cutting: API key, OnlineProvider, self-heal, code-signing), H4/H5 (bin host-subprocess sandbox), H6/H55 (core command base signature convergence).
 
 ## Folder scope map — hotspots (🟢 fixed / 🟡 yellow / 💭 nit / 🔴 red; blurbs in standard §9)
 - boot/ 🟢 H27,H28,H29; 🟡 H30–H34
-- bin/ 🟢 H4,H5,H37; 🟡 H6,H35,H36,H38–H40
+- bin/ 🟢 H4,H5,H37,H6,H8; 🟡 H35,H36,H38–H40
 - build/ 🟢 H42; 🟡 H41,H43–H45
 - cloud/ 🟢 H46,H154; 🟡 H47–H49
 - compatibility/ 🟡 H50,H52–H54 (H51 🟢)

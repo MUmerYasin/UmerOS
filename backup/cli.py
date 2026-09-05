@@ -49,6 +49,9 @@ def create_parser():
     parser.add_argument("--create-factory", action="store_true", help="Initialize the factory baseline snapshot")
     parser.add_argument("--factory-reset", action="store_true", help="Restore the system to the factory baseline")
     
+    parser.add_argument("--json", action="store_true", help="Output in JSON format for UI consumption")
+    parser.add_argument("--parts", type=str, help="Comma-separated list of specific paths to backup/restore (partial mode)")
+    
     # Internal dev overrides
     parser.add_argument("--backup-dir", type=str, help="Override backup destination directory")
     parser.add_argument("--source-root", type=str, help="Override source root directory")
@@ -56,28 +59,31 @@ def create_parser():
     return parser
 
 
-def print_list(backup_dir: Path):
+def print_list(backup_dir: Path, as_json: bool = False):
+    import json
+    snaps = []
+    if backup_dir.exists():
+        for p in backup_dir.iterdir():
+            info_file = p / "info.json"
+            if p.is_dir() and info_file.exists():
+                try:
+                    with open(info_file, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        snaps.append(data)
+                except Exception:
+                    pass
+    snaps.sort(key=lambda x: x["id"])
+    
+    if as_json:
+        print(json.dumps(snaps))
+        return
+
     if not backup_dir.exists():
         print(f"Backup directory {backup_dir} does not exist.")
         return
         
-    import json
-    
     print(f"{'Snapshot ID':<25} {'Level':<10} {'Description'}")
     print("-" * 60)
-    
-    snaps = []
-    for p in backup_dir.iterdir():
-        info_file = p / "info.json"
-        if p.is_dir() and info_file.exists():
-            try:
-                with open(info_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    snaps.append(data)
-            except Exception:
-                pass
-                
-    snaps.sort(key=lambda x: x["id"])
     for s in snaps:
         print(f"{s['id']:<25} {s['level']:<10} {s['description']}")
 
@@ -89,22 +95,41 @@ def main(argv=None):
     backup_dir = Path(args.backup_dir) if args.backup_dir else BACKUP_DIR
     source_root = Path(args.source_root) if args.source_root else SOURCE_ROOT
     
+    # If parts are specified, we modify the filter or pass it down
+    # For simplicity in this CLI, we pass it via environment or directly to engine
+    
     if args.list:
-        print_list(backup_dir)
+        print_list(backup_dir, as_json=args.json)
         return 0
         
     if args.create:
         engine = SnapshotEngine(backup_dir, source_root)
+        if args.parts:
+            engine.filter.includes = [Path(source_root) / p.strip() for p in args.parts.split(",")]
+            # Clear excludes if explicit parts are provided, to allow backing up otherwise excluded dirs if explicitly requested
+            engine.filter.excludes = []
+            
         level = SnapshotLevel(args.tags)
         log.info(f"Creating snapshot (Level: {level.name})...")
+        if args.json:
+            log.setLevel(logging.ERROR) # suppress info logs for clean json output
+        
         snap = engine.create_snapshot(level, description=args.comments)
-        log.info(f"Snapshot created successfully: {snap.id}")
+        
+        if args.json:
+            import json
+            print(json.dumps(snap.to_dict()))
+        else:
+            log.info(f"Snapshot created successfully: {snap.id}")
         return 0
         
     if args.restore:
         engine = SnapshotEngine(backup_dir, source_root)
         restorer = RestoreEngine(source_root)
-        
+        if args.parts:
+            restorer.filter.includes = [Path(source_root) / p.strip() for p in args.parts.split(",")]
+            restorer.filter.excludes = []
+            
         target = args.restore
         if target == 'LATEST':
             latest = engine.get_latest_snapshot()
@@ -119,8 +144,11 @@ def main(argv=None):
             log.error(f"Snapshot {target} not found in {backup_dir}.")
             return 1
             
-        restorer.restore_snapshot(snapshot_path)
-        return 0
+        success = restorer.restore_snapshot(snapshot_path)
+        if args.json:
+            import json
+            print(json.dumps({"success": success}))
+        return 0 if success else 1
         
     if args.create_factory:
         frm = FactoryResetManager(backup_dir, source_root)
