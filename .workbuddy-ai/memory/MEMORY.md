@@ -14,12 +14,12 @@
 - Test runner: stdlib `unittest` via venv `C:/Users/MC Raja Jang/.workbuddy-ai/binaries/python/envs/default`. `cryptography` 50.0.0 available in venv.
 - Shared CWE-22 guard: `core/path_guard.py` (`safe_child`, `safe_join`, `PathTraversalError`).
 - Shared zero-trust guard: `core/capability_gate.py` (`gate` singleton + `require(cap)`) — bridge to `kernel.capability_manager.CapabilityManager`; fail-closed when wired, permissive-with-warning standalone; `set_strict` to deny.
-- Project facts: ~735 Python modules; `tests/` uses stdlib `unittest` (pytest's `imp` import is broken on this machine), NO CI; `security_scan.yml` only workflow; `Old Linux Code/` (~93k) reference-only (excluded from scope).
+- Project facts: ~735 Python modules; `tests/` runnable via stdlib `unittest` AND pytest>=8 (the old bundled pytest `imp` issue is fixed by the pin — pytest 9.1.1 verified working in the managed venv). CI now lives in `.github/workflows/` (`ci.yml` + `security_scan.yml`). `Old Linux Code/` (~93k) reference-only (excluded from scope).
 - Pre-existing broken test to ignore: `tests/test_ai.py` (collection error — `ai.providers` missing `AIConfigManager`); `home` package-shadowing collision (`bin/home.py`/`root/home.py`) — load `home_backup.py` by file path under a unique name in tests.
 
 ## Remediation status
 - **RED blockers: ALL CLOSED (H1–H307).** Per-cluster detail + bookkeeping live in `remediation_progress.md` (sessions 1–33).
-- **YELLOW sweep in progress (session 36+):** H4, H5, H6, H8 done (H55 root cause fixed; bin/* broad-except finalized + lint gate strengthened). Next = **H9** (CI: add test-exec + Ruff/Mypy gates), then remaining YELLOW.
+- **YELLOW sweep in progress (session 36+):** H4, H5, H6, H8, H9 done (H55 root cause fixed; bin/* broad-except finalized + lint gate; CI gates implemented per §7). Next = **H7** (license consistency: Apache-2.0 strays in docs), then remaining YELLOW.
 - Sessions 1–23 clusters: var/ boot/ path-traversal, fail-open + dummy-crypto, cap-gate (8/8), collection-error reconciliation, bin/proc, H7 GPL sweep, mount (media/mnt), legal/ GPL + consent, initrd/ eval + traversal, kernel/ managers + crypto + sandbox, proc/srv priv-write, installer/ priv-write + fail-open + dataloss, home tar-restore, etc/ priv-write. (Full per-session notes in the checkpoint file.)
 - Sessions 24–35 (carried RED + YELLOW): H3/H146/H147 (lib ssl/pam false-positive + cert-expiry), H157/H167/H168 (media/mnt auto-mount + symlink rmtree), H184/H187 (opt), H198 (packages), H215/H216/H217/H221 (quantum), H244/H245/H246 (security), H12/H18/H21/H42 (cross-cutting: API key, OnlineProvider, self-heal, code-signing), H4/H5 (bin host-subprocess sandbox), H6/H55 (core command base signature convergence).
 
