@@ -103,7 +103,7 @@ class HomeCommand:
             else:
                 print(f"home create: {result.get('error', 'failed')}", file=sys.stderr)
                 return 1
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:  # [FIX H8]
             print(f"home create: {exc}", file=sys.stderr)
             return 1
 
@@ -119,7 +119,7 @@ class HomeCommand:
             for f in files:
                 print(f"  {f}")
             return 0
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:  # [FIX H8]
             print(f"home dotfiles: {exc}", file=sys.stderr)
             return 1
 
@@ -142,7 +142,7 @@ class HomeCommand:
             else:
                 print(f"home profile: {result.get('error', 'not found')}", file=sys.stderr)
                 return 1
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:  # [FIX H8]
             print(f"home profile: {exc}", file=sys.stderr)
             return 1
 
@@ -167,7 +167,7 @@ class HomeCommand:
             else:
                 print(f"home quota: {result.get('error', 'not found')}", file=sys.stderr)
                 return 1
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:  # [FIX H8]
             print(f"home quota: {exc}", file=sys.stderr)
             return 1
 
@@ -188,7 +188,7 @@ class HomeCommand:
             else:
                 print(f"home backup: {result.get('error', 'failed')}", file=sys.stderr)
                 return 1
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:  # [FIX H8]
             print(f"home backup: {exc}", file=sys.stderr)
             return 1
 
@@ -209,7 +209,7 @@ class HomeCommand:
             else:
                 print(f"home mail: {result.get('error', 'not found')}", file=sys.stderr)
                 return 1
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:  # [FIX H8]
             print(f"home mail: {exc}", file=sys.stderr)
             return 1
 
@@ -233,7 +233,7 @@ class HomeCommand:
             else:
                 print(f"home info: {result.get('error', 'not found')}", file=sys.stderr)
                 return 1
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:  # [FIX H8]
             print(f"home info: {exc}", file=sys.stderr)
             return 1
 
@@ -250,7 +250,7 @@ class HomeCommand:
             else:
                 print("No user homes found.")
                 return 0
-        except Exception as exc:
+        except (ImportError, OSError, ValueError) as exc:  # [FIX H8]
             print(f"home list: {exc}", file=sys.stderr)
             return 1
 

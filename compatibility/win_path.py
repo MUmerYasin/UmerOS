@@ -167,23 +167,31 @@ class DosPathMapper:
                                rest.lstrip("\\/"))
 
         # 4. Drive-relative: ``C:foo`` means drive + working-dir + foo.
-        # We avoid recursing here (which would loop) by computing
-        # the absolute DOS path directly and dispatching to the
-        # *drive-qualified absolute* branch via a helper.
+        # Compute the result directly (no recursion) to avoid
+        # pathological inputs such as ``D:D:\foo`` which would
+        # otherwise loop forever.
         m = re.match(r"^([A-Za-z]):([^\\].*)?$", p_lower)
         if m:
             drive, rest = m.group(1).upper(), (m.group(2) or "")
             cwd = self._drive_cwd.get(drive, "\\")
-            abs_path = f"{drive}:{cwd.rstrip(chr(92))}\\{rest}".replace("/", chr(92))
-            return self._to_posix_uncached(abs_path)
+            cwd = cwd.rstrip("\\").rstrip("/")
+            if cwd:
+                resolved = f"{drive}:{cwd}\\{rest}"
+            else:
+                resolved = f"{drive}:\\{rest}"
+            return self._drive_absolute_to_posix(drive, resolved.split(":", 1)[1])
 
         # 5. Drive-qualified absolute: ``C:\foo``
         m = _DRIVE_RE.match(p)
         if m:
             drive, rest = m.group(1).upper(), m.group(2)
-            rest = rest.lstrip("\\").replace("\\", "/")
-            return os.path.join(self.compat_root, drive, rest) if rest \
-                else os.path.join(self.compat_root, drive)
+            return self._drive_absolute_to_posix(drive, rest)
+
+    def _drive_absolute_to_posix(self, drive: str, rest: str) -> str:
+        """Helper: convert ``drive + \\rest\\path`` to its POSIX form."""
+        rest = rest.lstrip("\\").replace("\\", "/")
+        return os.path.join(self.compat_root, drive, rest) if rest \
+            else os.path.join(self.compat_root, drive)
 
         # 6. Root-relative on default drive: ``\foo``
         if p.startswith("\\"):

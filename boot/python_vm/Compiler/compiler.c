@@ -642,6 +642,13 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
                 fprintf(stderr, "[DBG-C] Compile_Statement: after skip '(', token=%d\n", parser->token_type);
                 fflush(stderr);
 
+                /* Emit: LOAD_GLOBAL <print> first, THEN compile arg, THEN CALL_FUNCTION */
+                int print_idx = Compiler_AddConstant(compiler,
+                    PyUnicode_FromString("print"));
+                Compiler_Emit(compiler, OP_LOAD_GLOBAL, print_idx);
+                fprintf(stderr, "[DBG-C] Compile_Statement: emitted LOAD_GLOBAL print (idx=%d)\n", print_idx);
+                fflush(stderr);
+
                 /* Compile the argument expression */
                 fprintf(stderr, "[DBG-C] Compile_Statement: calling Compile_Expr\n");
                 fflush(stderr);
@@ -649,10 +656,7 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
                 fprintf(stderr, "[DBG-C] Compile_Statement: Compile_Expr returned, token=%d\n", parser->token_type);
                 fflush(stderr);
 
-                /* Emit: LOAD_GLOBAL <print>, CALL_FUNCTION 1, POP_TOP */
-                int print_idx = Compiler_AddConstant(compiler,
-                    PyUnicode_FromString("print"));
-                Compiler_Emit(compiler, OP_LOAD_GLOBAL, print_idx);
+                /* Now emit CALL_FUNCTION and POP_TOP */
                 Compiler_Emit(compiler, OP_CALL_FUNCTION, 1);
                 Compiler_Emit(compiler, OP_POP_TOP, 0);
                 fprintf(stderr, "[DBG-C] Compile_Statement: emitted print bytecode\n");

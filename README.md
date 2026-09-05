@@ -773,17 +773,24 @@ We welcome contributions from developers, researchers, and enthusiasts!
 
 ### Development Setup
 ```bash
-# Install development dependencies
-pip install black flake8 mypy pylint
+# Install dev tools (enforced toolchain — see pyproject.toml)
+pip install -e .[dev]
 
-# Format code
-black kernel/ quantum/ ai/
+# Install pre-commit hooks (ruff + gitleaks + general hygiene)
+pre-commit install
 
-# Lint code
-flake8 kernel/ quantum/ ai/
+# Lint + format (replaces black/flake8/pylint)
+ruff check .              # lint
+ruff format .             # format
 
 # Type check
-mypy kernel/
+mypy .
+
+# Security scan
+bandit -c pyproject.toml -r .
+
+# Full CI gate (what runs in CI)
+pytest tests/ --cov=. --cov-fail-under=50 -v
 ```
 
 ---

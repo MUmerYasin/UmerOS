@@ -1696,7 +1696,7 @@ def _selftest() -> bool:
         dd_out = tempfile.mktemp()
         try:
             dd.execute(["if=/dev/null", f"of={dd_out}", "count=1", "bs=512"])
-        except Exception:
+        except (OSError, ValueError):  # [FIX H8]
             pass
         if os.path.exists(dd_out):
             os.unlink(dd_out)

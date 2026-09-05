@@ -1,0 +1,91 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "umer_os"
+version = "2.0.0"
+description = "A Python-first, hybrid classical-quantum, AI-native, cross-device operating system."
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+
+# ── Ruff (linter + formatter, replaces black + flake8 + isort) ──────────────
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "A",     # flake8-builtins
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking
+    "RUF",   # Ruff-specific rules
+    "S",     # flake8-bandit (security)
+]
+ignore = [
+    "S101",   # assert used — fine in tests
+    "S301",   # pickle usage — some modules use it
+    "S311",   # pseudo-random generator — fine for non-security uses
+    "UP007",  # use X | Y for union — not yet
+    "RUF012", # mutable class variables — many existing
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S105", "S106"]
+"__init__.py" = ["F401"]   # unused imports in __init__.py
+
+[tool.ruff.lint.isort]
+known-first-party = ["umer_os", "core", "kernel", "fs", "network", "dev", "boot"]
+
+# ── Mypy (static type-checking) ────────────────────────────────────────────
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false        # too strict for legacy code; raise later
+ignore_missing_imports = true        # many untyped third-party deps
+exclude = [
+    "tests/",
+    "build/",
+    "dist/",
+    "node_modules/",
+    "ui/",
+    "Old Linux Code/",
+]
+
+# ── Pytest ──────────────────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short --strict-markers -q"
+
+# ── Coverage ────────────────────────────────────────────────────────────────
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "build/*",
+    "dist/*",
+    "ui/*",
+    "Old Linux Code/*",
+    "node_modules/*",
+    "__pycache__/*",
+    "setup.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 50          # start conservative; raise over time
+
+[tool.coverage.html]
+directory = "htmlcov"

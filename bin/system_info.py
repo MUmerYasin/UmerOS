@@ -574,7 +574,7 @@ class HostnameCommand:
         """Get fully qualified domain name."""
         try:
             return socket.getfqdn()
-        except Exception:
+        except (OSError, ValueError):  # [FIX H8]
             return self._get_hostname()
 
 
@@ -843,7 +843,7 @@ class DfCommand:
                                     ))
                                 except OSError:
                                     pass
-        except Exception:
+        except (OSError, ValueError, PermissionError):  # [FIX H8]
             pass
 
         # Add UmerOS synthetic filesystems
