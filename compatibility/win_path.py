@@ -176,22 +176,20 @@ class DosPathMapper:
             cwd = self._drive_cwd.get(drive, "\\")
             cwd = cwd.rstrip("\\").rstrip("/")
             if cwd:
-                resolved = f"{drive}:{cwd}\\{rest}"
+                # Strip any drive-letter prefix from the CWD; we
+                # re-add ``drive`` ourselves.
+                if len(cwd) >= 2 and cwd[1] == ":":
+                    cwd = cwd[2:].lstrip("\\").lstrip("/")
+                full_rest = (cwd + "\\" if cwd else "") + rest
             else:
-                resolved = f"{drive}:\\{rest}"
-            return self._drive_absolute_to_posix(drive, resolved.split(":", 1)[1])
+                full_rest = rest
+            return self._drive_absolute_to_posix(drive, full_rest)
 
         # 5. Drive-qualified absolute: ``C:\foo``
         m = _DRIVE_RE.match(p)
         if m:
             drive, rest = m.group(1).upper(), m.group(2)
             return self._drive_absolute_to_posix(drive, rest)
-
-    def _drive_absolute_to_posix(self, drive: str, rest: str) -> str:
-        """Helper: convert ``drive + \\rest\\path`` to its POSIX form."""
-        rest = rest.lstrip("\\").replace("\\", "/")
-        return os.path.join(self.compat_root, drive, rest) if rest \
-            else os.path.join(self.compat_root, drive)
 
         # 6. Root-relative on default drive: ``\foo``
         if p.startswith("\\"):
@@ -203,6 +201,17 @@ class DosPathMapper:
         return self._to_posix_uncached(
             f"{self.default_drive}:{cwd}\\{p}"
         )
+
+    def _drive_absolute_to_posix(self, drive: str, rest: str) -> str:
+        """Helper: convert ``drive + \\rest\\path`` to its POSIX form.
+
+        All path separators are normalised to forward slashes so
+        the result is consistent on every host.
+        """
+        rest = rest.lstrip("\\").replace("\\", "/")
+        out = os.path.join(self.compat_root, drive, rest) if rest \
+            else os.path.join(self.compat_root, drive)
+        return out.replace("\\", "/")
 
     # ------------------------------------------------------------------
     # POSIX -> DOS

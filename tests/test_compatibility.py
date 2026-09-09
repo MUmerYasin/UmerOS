@@ -270,23 +270,29 @@ class TestDosPath(unittest.TestCase):
         import shutil
         shutil.rmtree(self.tmp, ignore_errors=True)
 
+    def _expected(self, *parts) -> str:
+        """Compose an expected path with forward slashes (the
+        mapper normalises everything to forward slashes for
+        portability)."""
+        return "/".join([self.m.compat_root.replace("\\", "/")] + list(parts))
+
     def test_drive_path(self) -> None:
         self.assertEqual(
             self.m.to_posix(r"C:\Windows"),
-            os.path.join(self.m.compat_root, "C", "Windows"),
+            self._expected("C", "Windows"),
         )
 
     def test_unc(self) -> None:
         self.assertEqual(
             self.m.to_posix(r"\\server\share\path"),
-            os.path.join(self.m.compat_root, "unc", "server", "share", "path"),
+            self._expected("unc", "server", "share", "path"),
         )
 
     def test_drive_relative(self) -> None:
         self.m.set_drive_cwd("D", r"D:\Projects\UmerOS")
         self.assertEqual(
             self.m.to_posix("D:readme.txt"),
-            os.path.join(self.m.compat_root, "D", "Projects", "UmerOS", "readme.txt"),
+            self._expected("D", "Projects", "UmerOS", "readme.txt"),
         )
 
 
@@ -346,10 +352,13 @@ class TestKernel32(unittest.TestCase):
                          win_kernel32.ERROR_FILE_NOT_FOUND)
 
     def test_file_io(self) -> None:
-        with tempfile.NamedTemporaryFile(delete=False) as tf:
-            path = tf.name
-            tf.write(b"hello world")
+        import os
+        import tempfile
+        fd, path = tempfile.mkstemp()
+        os.close(fd)
         try:
+            with open(path, "wb") as f:
+                f.write(b"hello world")
             h = win_kernel32.CreateFileA(
                 path, 0xC0000000, 0, None, 3, 0, 0)
             self.assertNotEqual(h, 0xFFFFFFFF)

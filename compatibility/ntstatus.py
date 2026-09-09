@@ -88,6 +88,7 @@ STATUS_BAD_WORKING_SET_LIMIT = 0xC000004C
 STATUS_INSUFFICIENT_RESOURCES = 0xC000009A
 STATUS_DEVICE_BUSY = 0x80000011
 STATUS_MORE_PROCESSING_REQUIRED = 0xC0000016
+STATUS_DISK_FULL = 0xC000007F
 STATUS_PIPE_CONNECTED = 0xC000014D
 STATUS_PIPE_DISCONNECTED = 0xC000014B
 STATUS_PIPE_LISTENING = 0xC000014C
@@ -212,10 +213,6 @@ def ntstatus_to_win32(status: int) -> int:
         STATUS_NOT_A_DIRECTORY: 267,          # ERROR_DIRECTORY (=ERROR_DIR_NOT_ROOT)
         STATUS_DISK_FULL: 112,                # ERROR_DISK_FULL
         STATUS_DEVICE_BUSY: 170,             # ERROR_BUSY
-        STATUS_FILE_NOT_FOUND: 2,             # ERROR_FILE_NOT_FOUND (fallback)
+        STATUS_NOT_FOUND: 2,                 # ERROR_FILE_NOT_FOUND (fallback)
     }
-    # Resolve STATUS_FILE_NOT_FOUND if it slipped into the local namespace.
-    fnf = globals().get("STATUS_FILE_NOT_FOUND")
-    if fnf is not None:
-        table[fnf] = 2
     return table.get(status, 1)                # ERROR_INVALID_FUNCTION
