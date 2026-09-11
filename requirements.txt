@@ -1,6 +1,25 @@
 # UmerOS Requirements
 # Python 3.12+
 # Install: pip install -r requirements.txt
+#
+# ── Reproducibility policy (H15) ──────────────────────────────────────────────
+# Builds must be reproducible. This file declares BOUNDED ranges (>=MIN,<MAX) so a
+# fresh `pip install` can never silently pull a breaking major. For fully
+# deterministic, hash-pinned installs, generate a lock and install from it:
+#
+#     pip install pip-tools
+#     pip-compile --generate-hashes --output-file=requirements.lock requirements.txt
+#     pip install -r requirements.lock
+#
+# Notes:
+#   * `g4f` was REMOVED — free GPT-4o/Claude via reverse-engineered endpoints is a
+#     supply-chain + ToS risk and is UNUSED in the codebase (no import sites). If an
+#     online AI provider ever needs it, vendor/isolate it behind
+#     ai/umer_ai.OnlineProvider with an AIGovernance.check_consent gate (H18).
+#   * The legacy linters black/flake8/pylint were REMOVED. Linting/formatting is
+#     enforced via Ruff + Mypy (see pyproject.toml and README "Contributing").
+#   * `kivy` was REMOVED — Flutter (Dart) is the canonical UI (H11/H25); the
+#     Kivy-based kernel/gui.py is legacy drift and must not gate installs on kivy.
 
 # ===============================================================================
 # QUANTUM COMPUTING & SIMULATION
@@ -26,20 +45,21 @@ sentence-transformers>=2.7.0     # Semantic text embeddings
 torch>=2.2.0                     # PyTorch deep learning framework
 llama-cpp-python>=0.2.0          # Local LLM inference (llama.cpp bindings)
 scikit-learn>=1.4.0              # Classical ML algorithms
-g4f>=0.4.0                       # Free GPT-4o/Claude access (no API key needed)
+# g4f REMOVED (H15): free GPT-4o/Claude via reverse-engineered endpoints — supply-chain
+#   + ToS risk, and unused in the codebase (no import sites). See policy note above.
 
 # ===============================================================================
 # CRYPTOGRAPHY & SECURITY
 # ===============================================================================
-cryptography>=42.0.0             # General-purpose crypto primitives
+cryptography>=42.0.0,<46.0.0     # General-purpose crypto primitives
 liboqs-python>=0.9.0             # Post-quantum cryptography (NIST PQC)
 PyNaCl>=1.5.0                    # Libsodium bindings (modern crypto)
 loguru>=0.7.0                    # Structured logging
-python-jose[cryptography]>=3.3.0 # JWT handling
+python-jose[cryptography]>=3.3.0,<4.0.0 # JWT handling
 prometheus-client>=0.20.0        # Metrics for Prometheus
-httpx>0.27.0                    # Async HTTP client (used by tls_utils)
-fastapi>0.110.0                # FastAPI framework
-uvicorn[standard]>0.30.0       # ASGI server
+httpx>=0.27.0,<1.0              # Async HTTP client (used by tls_utils)
+fastapi>=0.110.0,<1.0           # FastAPI framework
+uvicorn[standard]>=0.30.0,<1.0   # ASGI server
 
 # ===============================================================================
 # DATA STRUCTURES & HASHING
@@ -49,7 +69,8 @@ xxhash>=3.4.0                    # Fast non-cryptographic hashing
 # ===============================================================================
 # USER INTERFACE
 # ===============================================================================
-# kivy>=2.3.0                      # Cross-platform UI framework (optional)
+# kivy REMOVED (H15/H11/H25): Flutter (Dart) is the canonical UI. The Kivy-based
+#   kernel/gui.py is legacy drift and must not gate installs on kivy.
 Pillow>=10.2.0                   # Image processing library
 yt-dlp>=2024.0.0                 # Video and Audio downloader
 python-vlc>=3.0.0                # VLC media player bindings
@@ -58,8 +79,8 @@ PyMuPDF>=1.23.0                  # PDF rendering library
 # ===============================================================================
 # NETWORKING & ASYNC
 # ===============================================================================
-aiohttp>=3.9.0                   # Async HTTP client/server
-dnspython>=2.6.0                 # DNS operations
+aiohttp>=3.9.0,<4.0.0            # Async HTTP client/server
+dnspython>=2.6.0                # DNS operations
 zeroconf>=0.131.0                # mDNS service discovery
 
 # ===============================================================================

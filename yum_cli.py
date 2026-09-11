@@ -1,48 +1,155 @@
 # yum_cli.py
 """Utility functions for interacting with YUM package manager.
 
-Provides simple wrappers to list installed packages and retrieve package
-information. Designed for use within the UmerOS project.
+Provides wrappers to list installed packages and retrieve package
+information using the UmerOS YumManager natively.
 """
 
-import subprocess
-from typing import List, Dict
+import sys
+from pathlib import Path
+from typing import List, Dict, Any, Optional
+
+# Add the project root to Python path for imports
+project_root = Path(__file__).parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from srv.yum_manager import YumManager
 
 
-def run_yum_command(args: List[str]) -> str:
-    """Execute a yum command and return its stdout as a string.
+def _get_manager() -> YumManager:
+    """Get a default YumManager instance."""
+    return YumManager()
+
+
+def run_yum_command(args: List[str]) -> Dict[str, Any]:
+    """Execute a yum-like command using YumManager.
 
     Parameters
     ----------
     args: List[str]
-        Arguments to pass to yum (e.g., ["list", "installed"]).
+        Arguments to pass (e.g., ["list", "installed"]).
 
     Returns
     -------
-    str
-        The stdout output of the command.
+    Dict[str, Any]
+        Dictionary with 'success', 'output', 'error', and 'return_code'.
     """
-    result = subprocess.run(["yum"] + args, capture_output=True, text=True, check=False)
-    return result.stdout
+    if not args:
+        return {
+            'success': False,
+            'output': '',
+            'error': 'No command specified',
+            'return_code': 1
+        }
+
+    cmd = args[0].lower()
+    manager = _get_manager()
+
+    try:
+        if cmd == 'list':
+            if len(args) > 1 and args[1].lower() == 'installed':
+                installed = manager.list_installed()
+                packages = [{'name': pkg.name, 'version': pkg.version, 'repo': pkg.repo}
+                           for pkg in installed]
+                return {
+                    'success': True,
+                    'output': packages,
+                    'error': '',
+                    'return_code': 0
+                }
+            else:
+                return {
+                    'success': False,
+                    'output': '',
+                    'error': 'Only "list installed" is supported',
+                    'return_code': 1
+                }
+
+        elif cmd == 'info':
+            if len(args) < 2:
+                return {
+                    'success': False,
+                    'output': '',
+                    'error': 'Package name required',
+                    'return_code': 1
+                }
+            package_name = args[1]
+            info = manager.info(package_name)
+            return {
+                'success': True,
+                'output': info.__dict__ if hasattr(info, '__dict__') else {},
+                'error': '',
+                'return_code': 0
+            }
+
+        elif cmd == 'install':
+            packages = args[1:]
+            if not packages:
+                return {
+                    'success': False,
+                    'output': '',
+                    'error': 'No packages specified',
+                    'return_code': 1
+                }
+            result = manager.install(packages)
+            return {
+                'success': result.success,
+                'output': result.messages,
+                'error': result.error or '',
+                'return_code': 0 if result.success else 1
+            }
+
+        elif cmd == 'remove':
+            packages = args[1:]
+            if not packages:
+                return {
+                    'success': False,
+                    'output': '',
+                    'error': 'No packages specified',
+                    'return_code': 1
+                }
+            result = manager.remove(packages)
+            return {
+                'success': result.success,
+                'output': result.messages,
+                'error': result.error or '',
+                'return_code': 0 if result.success else 1
+            }
+
+        else:
+            return {
+                'success': False,
+                'output': '',
+                'error': f'Unsupported command: {cmd}',
+                'return_code': 1
+            }
+
+    except Exception as e:
+        return {
+            'success': False,
+            'output': '',
+            'error': str(e),
+            'return_code': 1
+        }
 
 
 def list_installed_packages() -> List[Dict[str, str]]:
     """Return a list of installed packages.
 
-    The function runs ``yum list installed`` and parses the output into a list of
-    dictionaries with keys ``name``, ``version`` and ``repo``.
+    Returns a list of dictionaries with keys 'name', 'version' and 'repo'.
     """
-    raw = run_yum_command(["list", "installed", "--quiet"])
-    return parse_yum_list_output(raw)
+    manager = _get_manager()
+    installed = manager.list_installed()
+    return [{'name': pkg.name, 'version': pkg.version, 'repo': pkg.repo}
+            for pkg in installed]
 
 
 def parse_yum_list_output(output: str) -> List[Dict[str, str]]:
     """Parse the output of ``yum list installed``.
 
-    The typical format (skipping header lines) is:
-        <name>.<arch>   <version>   <repo>
-    This parser extracts the package name (without architecture), version and
-    repository.
+    Note: This function is kept for backward compatibility but is no longer
+    needed with YumManager. Use list_installed_packages() instead.
     """
     packages: List[Dict[str, str]] = []
     for line in output.splitlines():
@@ -59,19 +166,18 @@ def parse_yum_list_output(output: str) -> List[Dict[str, str]]:
 
 
 def get_package_info(package_name: str) -> Dict[str, str]:
-    """Retrieve detailed information about a specific package using ``yum info``.
+    """Retrieve detailed information about a specific package.
 
-    Returns a dictionary of key/value pairs extracted from the command output.
+    Returns a dictionary of key/value pairs for the package.
     """
-    raw = run_yum_command(["info", package_name])
-    info: Dict[str, str] = {}
-    for line in raw.splitlines():
-        if not line or ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        info[key.strip()] = value.strip()
-    return info
+    manager = _get_manager()
+    info = manager.info(package_name)
+    if hasattr(info, '__dict__'):
+        return info.__dict__
+    return {}
+
 
 if __name__ == "__main__":
     import json
-    print(json.dumps(list_installed_packages(), indent=2))
+    packages = list_installed_packages()
+    print(json.dumps(packages, indent=2))

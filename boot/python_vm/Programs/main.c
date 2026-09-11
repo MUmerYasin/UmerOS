@@ -58,13 +58,9 @@ static void RunREPL(void) {
     printf("UmerOS Python 3.x (UmerOS built-in interpreter)\n");
     printf("Type \"help\", \"copyright\", \"credits\" or \"license\" for more information.\n");
 
-    fprintf(stderr, "[REPL] creating globals dict\n"); fflush(stderr);
     PyObject *globals = PyDict_New();
-    fprintf(stderr, "[REPL] getting builtins dict\n"); fflush(stderr);
     PyObject *builtins = PyBuiltins_GetDict();
-    fprintf(stderr, "[REPL] setting __builtins__ in globals\n"); fflush(stderr);
     PyDict_SetItemString(globals, "__builtins__", builtins);
-    fprintf(stderr, "[REPL] globals setup complete\n"); fflush(stderr);
 
     char line[4096];
 
@@ -72,27 +68,21 @@ static void RunREPL(void) {
         printf(">>> ");
         fflush(stdout);
 
-        fprintf(stderr, "[REPL] waiting for fgets\n"); fflush(stderr);
         if (!fgets(line, sizeof(line), stdin)) {
-            fprintf(stderr, "[REPL] fgets returned NULL\n"); fflush(stderr);
             printf("\n");
             break;
         }
-        fprintf(stderr, "[REPL] got line: '%s'\n", line); fflush(stderr);
 
         /* Remove trailing newline */
         Py_ssize_t len = strlen(line);
         while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) {
             line[--len] = '\0';
         }
-        fprintf(stderr, "[REPL] stripped newline, len=%d\n", (int)len); fflush(stderr);
-
         /* Empty line */
-        if (len == 0) { fprintf(stderr, "[REPL] empty line, continue\n"); fflush(stderr); continue; }
+        if (len == 0) continue;
 
         /* Check for exit */
         if (strcmp(line, "exit()") == 0 || strcmp(line, "quit()") == 0) {
-            fprintf(stderr, "[REPL] exit/quit detected\n"); fflush(stderr);
             break;
         }
 
@@ -102,8 +92,6 @@ static void RunREPL(void) {
             if (line[i] == '(') paren_count++;
             else if (line[i] == ')') paren_count--;
         }
-        fprintf(stderr, "[REPL] paren_count=%d\n", paren_count); fflush(stderr);
-
         if (paren_count > 0) {
             /* Read continuation lines */
             while (paren_count > 0) {
@@ -134,13 +122,9 @@ static void RunREPL(void) {
         }
 
         /* Compile and execute */
-        fprintf(stderr, "[REPL] calling Py_CompileString\n"); fflush(stderr);
         PyCodeObject *code = (PyCodeObject *)Py_CompileString(line, "<stdin>");
-        fprintf(stderr, "[REPL] Py_CompileString returned %p\n", (void*)code); fflush(stderr);
         if (code) {
-            fprintf(stderr, "[REPL] calling PyEval_EvalCode\n"); fflush(stderr);
             PyObject *result = PyEval_EvalCode(code, globals, globals);
-            fprintf(stderr, "[REPL] PyEval_EvalCode returned %p\n", (void*)result); fflush(stderr);
             if (result) {
                 if (result != Py_None) {
                     PyObject *str = PyObject_Str(result);
@@ -254,18 +238,11 @@ static void PrintHelp(void) {
 }
 
 int main(int argc, char *argv[]) {
-    fprintf(stderr, "[MAIN] main() enter, argc=%d\n", argc);
-    fflush(stderr);
     /* Initialize the interpreter */
-    fprintf(stderr, "[MAIN] calling PyErrors_Init\n"); fflush(stderr);
     PyErrors_Init();
-    fprintf(stderr, "[MAIN] calling PyBool_Init\n"); fflush(stderr);
     PyBool_Init();
-    fprintf(stderr, "[MAIN] calling PyNone_Init\n"); fflush(stderr);
     PyNone_Init();
-    fprintf(stderr, "[MAIN] calling PyBuiltins_Init\n"); fflush(stderr);
     PyBuiltins_Init();
-    fprintf(stderr, "[MAIN] init complete\n"); fflush(stderr);
 
     /* Parse command line arguments */
     if (argc == 1) {

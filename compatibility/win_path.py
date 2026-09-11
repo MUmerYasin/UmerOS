@@ -156,15 +156,17 @@ class DosPathMapper:
         if m:
             guid, rest = m.group(1), m.group(2)
             rest = rest.replace("\\", "/")
-            return os.path.join(self.compat_root, "volumes", guid, rest)
+            out = os.path.join(self.compat_root, "volumes", guid, rest)
+            return out.replace("\\", "/")
 
         # 3. UNC: ``\\server\share\rest``
         m = _UNC_RE.match(p)
         if m:
             server, share, rest = m.group(1), m.group(2), m.group(3) or ""
-            rest = rest.replace("\\", "/")
-            return os.path.join(self.compat_root, "unc", server, share,
-                               rest.lstrip("\\/"))
+            rest = rest.replace("\\", "/").lstrip("\\/")
+            out = os.path.join(self.compat_root, "unc", server, share, rest) \
+                if rest else os.path.join(self.compat_root, "unc", server, share)
+            return out.replace("\\", "/")
 
         # 4. Drive-relative: ``C:foo`` means drive + working-dir + foo.
         # Compute the result directly (no recursion) to avoid
@@ -194,7 +196,8 @@ class DosPathMapper:
         # 6. Root-relative on default drive: ``\foo``
         if p.startswith("\\"):
             rest = p.lstrip("\\").replace("\\", "/")
-            return os.path.join(self.compat_root, self.default_drive, rest)
+            out = os.path.join(self.compat_root, self.default_drive, rest)
+            return out.replace("\\", "/")
 
         # 7. Relative path on the default drive.
         cwd = self._drive_cwd.get(self.default_drive, "\\")

@@ -61,27 +61,13 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
         return NULL;
     }
 
-    fprintf(stderr, "[VM] ENTRY: frame=%p code=%p\n", (void*)frame, (void*)frame->f_code);
-    fflush(stderr);
-
     uint8_t *bytecode = frame->f_code->code;
     Py_ssize_t code_len = frame->f_code->code_size;
     PyObject **consts = frame->f_code->consts;
     Py_ssize_t n_consts = frame->f_code->n_consts;
     PyObject ***stack = &frame->f_stacktop;
 
-    fprintf(stderr, "[VM] stack=%p stacktop=%p\n", (void*)stack, (void*)frame->f_stacktop);
-    fflush(stderr);
-
     frame->f_lasti = 0;
-
-    /* DEBUG: dump bytecode */
-    fprintf(stderr, "\n");
-    for (Py_ssize_t i = 0; i < n_consts; i++) {
-        if (consts[i] == Py_None) fprintf(stderr, "None");
-        else fprintf(stderr, "<object>");
-        fprintf(stderr, "\n");
-    }
 
     while (frame->f_lasti < code_len) {
         Py_ssize_t instr_off = frame->f_lasti;
@@ -95,11 +81,6 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                 arg = (arg << 8) | bytecode[frame->f_lasti++];
             }
         }
-
-
-
-        fprintf(stderr, "[VM] op=%d arg=%d stacktop=%p\n", op, arg, (void*)*stack);
-        fflush(stderr);
 
         switch (op) {
             case OP_LOAD_CONST: {
@@ -171,12 +152,8 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                     PyErr_SetString(PyExc_SystemError, "LOAD_GLOBAL: name is not a string");
                     return NULL;
                 }
-                fprintf(stderr, "[VM] LOAD_GLOBAL name='%s'\n", name);
-                fflush(stderr);
                 PyObject *value = VM_GetGlobal(frame, name);
                 if (value == NULL) {
-                    fprintf(stderr, "[VM] LOAD_GLOBAL: VM_GetGlobal returned NULL\n");
-                    fflush(stderr);
                     if (PyErr_ExceptionMatches(PyExc_NameError)) {
                         PyErr_Clear();
                         Py_INCREF(Py_None);
@@ -185,8 +162,6 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                         return NULL;
                     }
                 } else {
-                    fprintf(stderr, "[VM] LOAD_GLOBAL: found value=%p type=%p\n", (void*)value, (void*)Py_TYPE(value));
-                    fflush(stderr);
                     Stack_Push(stack, value);
                     Py_DECREF(value);
                 }
@@ -210,24 +185,18 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
             }
 
             case OP_CALL_FUNCTION: {
-                fprintf(stderr, "[VM] CALL_FUNCTION nargs=%d\n", arg);
-                fflush(stderr);
                 if (arg < 0) {
                     PyErr_SetString(PyExc_SystemError, "CALL_FUNCTION: bad argument");
                     return NULL;
                 }
                 PyObject *args = PyList_New(arg);
-                if (!args) { fprintf(stderr, "[VM] CALL_FUNCTION: PyList_New failed\n"); fflush(stderr); return NULL; }
+                if (!args) { return NULL; }
                 for (int i = arg - 1; i >= 0; i--) {
                     PyObject *item = Stack_Pop(stack);
                     PyList_SetItem(args, i, item);
                 }
                 PyObject *callable = Stack_Pop(stack);
-                fprintf(stderr, "[VM] CALL_FUNCTION: callable=%p type=%p\n", (void*)callable, callable ? (void*)Py_TYPE(callable) : NULL);
-                fflush(stderr);
                 PyObject *result = PyObject_Call(callable, args, NULL);
-                fprintf(stderr, "[VM] CALL_FUNCTION: result=%p\n", (void*)result);
-                fflush(stderr);
                 Py_DECREF(args);
                 Py_DECREF(callable);
                 if (!result) return NULL;

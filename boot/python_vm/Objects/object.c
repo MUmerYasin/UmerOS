@@ -615,29 +615,13 @@ typedef struct { PyObject ob_base; PyMethodDef *m_ml; PyObject *m_self; PyObject
 
 /* Trampoline: dispatches 2-arg vs 3-arg C functions based on ml_flags */
 static PyObject* cfunction_call(PyObject *callable, PyObject *args, PyObject *kwargs) {
-    fprintf(stderr, "[TRAMP] cfunction_call enter: callable=%p, args=%p, kwargs=%p\n", (void*)callable, (void*)args, (void*)kwargs);
-    fflush(stderr);
     PyCFunctionObject *mf = (PyCFunctionObject *)callable;
-    fprintf(stderr, "[TRAMP] mf=%p, m_ml=%p, m_self=%p, m_module=%p\n", (void*)mf, (void*)mf->m_ml, (void*)mf->m_self, (void*)mf->m_module);
-    fflush(stderr);
     PyMethodDef *ml = mf->m_ml;
-    fprintf(stderr, "[TRAMP] ml->ml_meth=%p, ml->ml_flags=%d, ml->ml_name=%s\n", (void*)ml->ml_meth, ml->ml_flags, ml->ml_name ? ml->ml_name : "(null)");
-    fflush(stderr);
     if (ml->ml_flags & METH_KEYWORDS) {
-        fprintf(stderr, "[TRAMP] calling METH_KEYWORDS: fn=%p, self=%p, args=%p, kwargs=%p\n", (void*)ml->ml_meth, (void*)mf->m_self, (void*)args, (void*)kwargs);
-        fflush(stderr);
         PyCFunctionWithKeywords fn = (PyCFunctionWithKeywords)ml->ml_meth;
-        PyObject *result = fn(mf->m_self, args, kwargs);
-        fprintf(stderr, "[TRAMP] METH_KEYWORDS returned: result=%p\n", (void*)result);
-        fflush(stderr);
-        return result;
+        return fn(mf->m_self, args, kwargs);
     }
-    fprintf(stderr, "[TRAMP] calling METH_VARARGS/METH_NOARGS: fn=%p, self=%p, args=%p\n", (void*)ml->ml_meth, (void*)mf->m_self, (void*)args);
-    fflush(stderr);
-    PyObject *result2 = ml->ml_meth(mf->m_self, args);
-    fprintf(stderr, "[TRAMP] non-KW call returned: result=%p\n", (void*)result2);
-    fflush(stderr);
-    return result2;
+    return ml->ml_meth(mf->m_self, args);
 }
 
 static PyTypeObject _PyCFunction_Type = {

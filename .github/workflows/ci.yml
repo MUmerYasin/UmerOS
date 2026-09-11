@@ -112,3 +112,16 @@ jobs:
         # TODO(H9): flip to blocking once the baseline is clean (tracked separately).
         continue-on-error: true
         uses: pre-commit/action@v3.0.1
+
+  # ── Job 6: README doc-drift (H14) ───────────────────────────────────────
+  doc-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check README module references
+        # H14: fail if README code examples import a module absent from the tree
+        # (phantom-module regression). Planned modules are allowlisted in the script.
+        run: python scripts/check_readme_drift.py

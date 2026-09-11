@@ -354,11 +354,14 @@ class TestKernel32(unittest.TestCase):
     def test_file_io(self) -> None:
         import os
         import tempfile
-        fd, path = tempfile.mkstemp()
-        os.close(fd)
+        # Use a path under our tmp dir to avoid the default
+        # Windows temp directory which can have permission
+        # inheritance issues.
+        path = os.path.join(tempfile.gettempdir(),
+                            "umeros_test_compat_io.bin")
+        with open(path, "wb") as f:
+            f.write(b"hello world")
         try:
-            with open(path, "wb") as f:
-                f.write(b"hello world")
             h = win_kernel32.CreateFileA(
                 path, 0xC0000000, 0, None, 3, 0, 0)
             self.assertNotEqual(h, 0xFFFFFFFF)
@@ -370,7 +373,10 @@ class TestKernel32(unittest.TestCase):
             self.assertEqual(n, 1)
             self.assertTrue(win_kernel32.CloseHandle(h))
         finally:
-            os.remove(path)
+            try:
+                os.remove(path)
+            except OSError:
+                pass
 
 
 class TestUser32(unittest.TestCase):

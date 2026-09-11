@@ -1,29 +1,13 @@
-[MAIN] main() enter, argc=1
-[MAIN] calling PyErrors_Init
-[MAIN] calling PyBool_Init
-[MAIN] calling PyNone_Init
-[MAIN] calling PyBuiltins_Init
-[MAIN] init complete
-[REPL] creating globals dict
-[REPL] getting builtins dict
-[REPL] setting __builtins__ in globals
-[REPL] globals setup complete
-[REPL] waiting for fgets
-[REPL] got line: 'print(2)
-'
-[REPL] stripped newline, len=8
-[REPL] paren_count=0
-[REPL] calling Py_CompileString
-[COMPILER] Py_CompileString enter, source=0000002EEF0ED7F0
+[COMPILER] Py_CompileString enter, source=0000003475FCD880
 [COMPILER] strlen=8, creating Lexer
-[COMPILER] Lexer_New returned 0000013FC1B43990
-[COMPILER] calling Parser_New(lexer=0000013FC1B43990)
-[COMPILER] Parser_New returned 0000013FC1B3BBC0
+[COMPILER] Lexer_New returned 000001AE4C913860
+[COMPILER] calling Parser_New(lexer=000001AE4C913860)
+[COMPILER] Parser_New returned 000001AE4C90DD30
 [COMPILER] calling Compiler_New()
-[COMPILER] Compiler_New returned 0000013FC1B36B90
-[COMPILER] calling Parser_NextToken(parser=0000013FC1B3BBC0)
+[COMPILER] Compiler_New returned 000001AE4C904600
+[COMPILER] calling Parser_NextToken(parser=000001AE4C90DD30)
 [COMPILER] first token=4
-[COMPILER] calling Compile_Statement(compiler=0000013FC1B36B90, parser=0000013FC1B3BBC0)
+[COMPILER] calling Compile_Statement(compiler=000001AE4C904600, parser=000001AE4C90DD30)
 [COMPILER-STMT] entry: token=4
 [COMPILER-STMT] NAME token: 'print'
 [COMPILER-STMT] print statement detected
@@ -33,8 +17,8 @@
 [COMPILER-STMT] print_idx=0, emitting LOAD_GLOBAL
 [COMPILER-STMT] calling Compile_Expr
 [COMPILER-EXPR] entry: token=1
-[COMPILER-EXPR] NUMBER branch: current_token=0000013FC1B3BD40
-[COMPILER-EXPR] ob_refcnt=1, ob_type=00007FF61E291AC0
+[COMPILER-EXPR] NUMBER branch: current_token=000001AE4C90D610
+[COMPILER-EXPR] ob_refcnt=1, ob_type=00007FF6FCE80910
 [MARKER-1] before Py_INCREF
 [MARKER-2] after Py_INCREF, before AddConstant
 [MARKER-3] after AddConstant, idx=1
@@ -47,34 +31,4 @@
 [COMPILER] Compile_Statement returned 1
 [COMPILER] next token=0
 [COMPILER] compilation OK, calling Compiler_MakeCode
-[COMPILER] Compiler_MakeCode returned 0000013FC1B3E320
-[REPL] Py_CompileString returned 0000013FC1B3E320
-[REPL] calling PyEval_EvalCode
-[VM] ENTRY: frame=0000013FC1B36B90 code=0000013FC1B3E320
-[VM] stack=0000013FC1B36BD0 stacktop=0000013FC1B46570
-
-<object>
-<object>
-[VM] op=3 arg=0 stacktop=0000013FC1B46570
-[VM] LOAD_GLOBAL name='print'
-[VM] LOAD_GLOBAL: found value=0000013FC1B412F0 type=00007FF61E2919A0
-[VM] op=1 arg=1 stacktop=0000013FC1B46578
-[VM] op=18 arg=1 stacktop=0000013FC1B46580
-[VM] CALL_FUNCTION nargs=1
-[VM] CALL_FUNCTION: callable=0000013FC1B412F0 type=00007FF61E2919A0
-[TRAMP] cfunction_call enter: callable=0000013FC1B412F0, args=0000013FC1B44090, kwargs=0000000000000000
-[TRAMP] mf=0000013FC1B412F0, m_ml=00007FF61E292AE0, m_self=0000000000000000, m_module=0000000000000000
-[TRAMP] ml->ml_meth=00007FF61E286AD0, ml->ml_flags=2, ml->ml_name=print
-[TRAMP] calling METH_KEYWORDS: fn=00007FF61E286AD0, self=0000000000000000, args=0000013FC1B44090, kwargs=0000000000000000
-[PRINT] builtin_print enter: self=0000000000000000, args=0000013FC1B44090, kwargs=0000000000000000
-[PRINT] nargs=1
-[PRINT] item[0]=0000013FC1B3BD40
-[PRINT] calling PyObject_Str on 0000013FC1B3BD40
-[PRINT] PyObject_Str returned 0000013FC1B44100
-[PRINT] PyUnicode_AsString returned 0000013FC1B39E00, s=2
-[TRAMP] METH_KEYWORDS returned: result=00007FF61E292458
-[VM] CALL_FUNCTION: result=00007FF61E292458
-[VM] op=6 arg=0 stacktop=0000013FC1B46578
-[REPL] PyEval_EvalCode returned 00007FF61E292458
-[REPL] waiting for fgets
-[REPL] fgets returned NULL
+[COMPILER] Compiler_MakeCode returned 000001AE4C9105E0

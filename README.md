@@ -222,6 +222,8 @@ Adaptive, context-aware user interfaces built with **Flutter (Dart)** — the ca
 
 ## 📁 Project Structure
 
+> 📌 **Documentation status.** This README describes the **target / aspirational** architecture of UmerOS. Some listed modules are **planned** and not yet present in the tree (marked 🚧 below), and the component/code examples are **illustrative** snippets that may not run verbatim against the current source. **The README is NOT a review oracle** — always verify module paths and APIs against the actual repository before relying on them. (See H14.)
+
 ```
 UmerOS/
 │
@@ -231,7 +233,7 @@ UmerOS/
 │
 ├── 📂 kernel/                        # Core microkernel (MOST IMPORTANT)
 │   ├── scheduler.py                  # Quantum-inspired task scheduler
-│   ├── ipc.py                        # Inter-process communication broker
+│   ├── ipc.py                        # 🚧 Inter-process communication broker (PLANNED — not yet in tree)
 │   ├── hal.py                        # Hardware abstraction layer (ctypes)
 │   └── requirements.txt              # Kernel dependencies
 │
@@ -246,12 +248,12 @@ UmerOS/
 │   └── self_healing.py               # Autonomous error recovery
 │
 ├── 📂 security/                      # Zero-trust security framework
-│   ├── crypto.py                     # Post-quantum cryptography (ML-KEM, SHA-3)
+│   ├── crypto.py                     # 🚧 Post-quantum cryptography (ML-KEM, SHA-3) (PLANNED)
 │   ├── capability_mgr.py             # Capability-based access control
 │   └── sandbox.py                    # Process isolation & policy enforcement
 │
 ├── 📂 fs/                            # Filesystem layer
-│   ├── quantum_fs.py                 # Content-addressable storage
+│   ├── quantum_fs.py                 # 🚧 Content-addressable storage (PLANNED)
 │   └── cas.py                        # Content-addressed storage implementation
 │
 ├── 📂 compatibility/                 # Legacy app support
@@ -259,7 +261,7 @@ UmerOS/
 │   └── syscall_shims.py              # System call translation
 │
 ├── 📂 ui/                            # User interface layer
-│   ├── shell.py                      # Terminal interface (legacy Kivy/Tkinter)
+│   ├── shell.py                      # 🚧 Terminal interface — RETIRED/legacy Kivy/Tkinter, not present (canonical UI is ui/flutter_ui/)
 │   ├── widgets/                      # Custom UI components
 │   └── themes/                       # Adaptive themes
 │
@@ -291,7 +293,7 @@ UmerOS/
 ├── 📂 tests/                         # Test suite
 │   ├── test_scheduler.py             # Scheduler tests
 │   ├── test_quantum.py               # Quantum simulator tests
-│   ├── test_ipc.py                   # IPC broker tests
+│   ├── test_ipc.py                   # 🚧 IPC broker tests (PLANNED)
 │   └── conftest.py                   # Pytest fixtures
 │
 ├── 📂 drivers/                       # Driver subsystems (33 modules)
@@ -410,6 +412,8 @@ UmerOS/
 
 ## 🔧 Component Details
 
+> ⚠️ The component summaries and code snippets below describe the **target design**. The referenced modules exist where noted, but example APIs are **illustrative** — check each module's source for the current interface. (See H14.)
+
 ### 1. **Scheduler** (`kernel/scheduler.py`)
 
 The scheduler uses a **quantum-inspired fairness algorithm**:
@@ -436,7 +440,7 @@ scheduler.start()
 
 ---
 
-### 2. **IPC Broker** (`kernel/ipc.py`)
+### 2. **IPC Broker** (`kernel/ipc.py`) 🚧 *planned — module not yet present*
 
 Asynchronous message-passing system for service communication.
 
@@ -579,6 +583,8 @@ pytest --cov=kernel --cov=quantum --cov=ai --cov-report=html
 ---
 
 ## 💻 Code Examples
+
+> ⚠️ These examples are **illustrative** of the intended developer experience and may not run verbatim against the current source (module names/APIs are still evolving). Verify against the live code. (See H14.)
 
 ### Example 1: Creating and Scheduling Tasks
 
@@ -872,14 +878,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 | Metric | Value |
 |--------|-------|
-| **Total Lines of Code** | ~3,500+ |
-| **Core Modules** | 12+ |
+| **Total Lines of Code** | ~270,000 (approx, active tree)* |
+| **Core Modules** | 825+ Python files (active tree)* |
 | **Test Coverage** | 85%+ |
 | **Python Version** | 3.12+ |
 | **External Dependencies** | 25+ |
 | **Documentation** | 100% |
 | **Status** | Pre-Alpha (v2.0.0) |
-| **Last Updated** | July 1, 2026 |
+| **Last Updated** | 2026-09-11 |
+
+\*Approximate, generated from the active tree (excludes `Old Linux Code/` reference and tooling). The README is illustrative — see H14.
 
 ---
 
