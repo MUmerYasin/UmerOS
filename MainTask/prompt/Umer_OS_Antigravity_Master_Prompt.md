@@ -869,7 +869,7 @@ UmerOS/
 |
 +-- requirements.txt
 +-- setup.py
-+-- LICENSE                        # GPL-3.0 (GNU General Public License Version 3)
++-- LICENSE                        # GPL-3.0 (GNU General Public License v3)
 +-- README.md
 ```
 
@@ -1082,7 +1082,7 @@ class QuantumDevice:
 | DevOps / CI-CD | DevOps Engineer | Docker, QEMU, pytest, GitHub Actions |
 | Drivers | Embedded Engineer | driver model, evdev, libusb, libdrm |
 | Compiler | Compiler Engineer | Cython, Numba, PyPy, ctypes |
-| Legal / Compliance | Legal Counsel | GPL-3.0 (GNU General Public License Version 3), LGPL, GDPR, EULA |
+| Legal / Compliance | Legal Counsel | GPL-3.0 (GNU General Public License v3), LGPL, GDPR, EULA |
 
 ---
 

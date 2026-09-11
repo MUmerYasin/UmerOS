@@ -1,6 +1,6 @@
 # Umer OS — Developer Guide
 
-**Version:** 0.1.0-alpha | **Python:** 3.12+ | **Licence:** GPL-3.0 (GNU General Public License Version 3)
+**Version:** 0.1.0-alpha | **Python:** 3.12+ | **License:** GPL-3.0 (GNU General Public License v3)
 
 ---
 

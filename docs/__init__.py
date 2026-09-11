@@ -14,7 +14,7 @@
 # screenshots - Hooks to refresh the UI screenshots in /docs/img.
 #
 # Author: UmerOS Project
-# License: GPL-3.0 (GNU General Public License Version 3)
+# License: GPL-3.0 (GNU General Public License v3)
 """
 UmerOS /docs — In-repo developer documentation toolkit.
 """

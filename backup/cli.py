@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-
+import json
 from .factory_reset import FactoryResetManager
 from .models import SnapshotLevel
 from .restore import RestoreEngine
@@ -51,6 +51,7 @@ def create_parser():
     
     parser.add_argument("--json", action="store_true", help="Output in JSON format for UI consumption")
     parser.add_argument("--parts", type=str, help="Comma-separated list of specific paths to backup/restore (partial mode)")
+    parser.add_argument("--grub-info", action="store_true", help="Parse grub.cfg and output its contents as JSON")
     
     # Internal dev overrides
     parser.add_argument("--backup-dir", type=str, help="Override backup destination directory")

@@ -14,14 +14,23 @@
 [REPL] stripped newline, len=8
 [REPL] paren_count=0
 [REPL] calling Py_CompileString
-[COMPILER] Py_CompileString enter, source=00000077836EDB50
+[COMPILER] Py_CompileString enter, source=000000473CDED920
 [COMPILER] strlen=8, creating Lexer
-[COMPILER] Lexer_New returned 000001AC028139C0
-[COMPILER] calling Parser_New(lexer=000001AC028139C0)
-[COMPILER] Parser_New returned 000001AC028106A0
+[COMPILER] Lexer_New returned 0000020181207A00
+[COMPILER] calling Parser_New(lexer=0000020181207A00)
+[COMPILER] Parser_New returned 0000020181201EE0
 [COMPILER] calling Compiler_New()
-[COMPILER] Compiler_New returned 000001AC02809D40
-[COMPILER] aborting here (Step 2)
-[REPL] Py_CompileString returned 0000000000000000
-[REPL] waiting for fgets
-[REPL] fgets returned NULL
+[COMPILER] Compiler_New returned 000002018120A8E0
+[COMPILER] calling Parser_NextToken(parser=0000020181201EE0)
+[COMPILER] first token=4
+[COMPILER] calling Compile_Statement(compiler=000002018120A8E0, parser=0000020181201EE0)
+[COMPILER-STMT] entry: token=4
+[COMPILER-STMT] NAME token: 'print'
+[COMPILER-STMT] print statement detected
+[COMPILER-STMT] after skip print: token=59
+[COMPILER-STMT] LPAREN found, parsing args
+[COMPILER-STMT] after skip '(': token=1
+[COMPILER-STMT] print_idx=0, emitting LOAD_GLOBAL
+[COMPILER-STMT] calling Compile_Expr
+[COMPILER-EXPR] entry: token=1
+[COMPILER-EXPR] NUMBER branch

@@ -5,7 +5,7 @@
 - Authoritative sources: `Skills/Context File/umer_os_skills.json` > `MainTask/prompt/*.md` > `MainTask/Raw Data/*.docx` > repo + LICENSE/setup.py.
 
 ## Decided
-- H7 → GPL-3.0 canonical (sweep Apache-2.0 strays to GPLv3).
+- H7 → GPL-3.0 canonical — **RESOLVED (session 39):** the "Apache-2.0 strays" premise was stale; doc-scope files already declared GPL-3.0, only `Licence`→`License` + `Version 3`→`v3` normalized to match README. Code-file `Licence` sweeps tracked under H20/H30/H50/H95/H104/H160/H176/H183/H200/H215/H223/H232/H236/H240/H254/H260/H275/H291/H299/H306.
 - H11 → Flutter (Dart) frontend canonical; backend = Python only; `ui/*.py` retired (H25); UI follows HCI Nielsen-10 (§4.8).
 
 ## Resumable remediation loop
@@ -19,7 +19,7 @@
 
 ## Remediation status
 - **RED blockers: ALL CLOSED (H1–H307).** Per-cluster detail + bookkeeping live in `remediation_progress.md` (sessions 1–33).
-- **YELLOW sweep in progress (session 36+):** H4, H5, H6, H8, H9 done (H55 root cause fixed; bin/* broad-except finalized + lint gate; CI gates implemented per §7). Next = **H7** (license consistency: Apache-2.0 strays in docs), then remaining YELLOW.
+- **YELLOW sweep in progress (session 36+):** H4, H5, H6, H8, H9, H7 done (H7 resolved session 39 — "Apache-2.0 strays" premise was stale drift; docs already GPL-3.0, normalized `Licence`→`License` + `Version 3`→`v3`). Next = **H11** (UI: Kivy-in-code vs decided Flutter/Dart canonical; retire `ui/*.py` per H25, drop `kivy` per H15), then remaining YELLOW.
 - Sessions 1–23 clusters: var/ boot/ path-traversal, fail-open + dummy-crypto, cap-gate (8/8), collection-error reconciliation, bin/proc, H7 GPL sweep, mount (media/mnt), legal/ GPL + consent, initrd/ eval + traversal, kernel/ managers + crypto + sandbox, proc/srv priv-write, installer/ priv-write + fail-open + dataloss, home tar-restore, etc/ priv-write. (Full per-session notes in the checkpoint file.)
 - Sessions 24–35 (carried RED + YELLOW): H3/H146/H147 (lib ssl/pam false-positive + cert-expiry), H157/H167/H168 (media/mnt auto-mount + symlink rmtree), H184/H187 (opt), H198 (packages), H215/H216/H217/H221 (quantum), H244/H245/H246 (security), H12/H18/H21/H42 (cross-cutting: API key, OnlineProvider, self-heal, code-signing), H4/H5 (bin host-subprocess sandbox), H6/H55 (core command base signature convergence).
 
@@ -62,3 +62,6 @@
 - tools/ 🟡 H288–H292; 💭 H293–H295
 - usr/ 🟢 H296; 🟡 H297,H298,H299,H300; 💭 H301,H302
 - var/ 🟢 H303,H304,H305,H306,H307
+
+## Tooling cautions
+- **Do NOT batch multiple `Edit` calls targeting the SAME file in one message.** They race and can silently drop some changes (observed Session 39: the standard's §9 H7 row and `MEMORY.md` Decided-H7 both reverted to old text until re-applied individually). Apply same-file edits one per message, or verify each with a Read afterward.
