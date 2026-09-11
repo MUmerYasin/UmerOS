@@ -42,6 +42,7 @@ import '../apps/settings_app.dart';
 import '../apps/system_monitor_app.dart';
 import '../apps/terminal_app.dart';
 import '../apps/text_editor_app.dart';
+import '../apps/python_interpreter_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -238,6 +239,15 @@ abstract final class AppRegistry {
       color: Colors.teal,
       category: AppCategory.development,
       builder: (_) => const TerminalApp(),
+    ),
+    AppDefinition(
+      id: 'python',
+      title: 'Python Interpreter',
+      description: 'Run Python scripts interactively.',
+      icon: Icons.code,
+      color: Colors.teal,
+      category: AppCategory.development,
+      builder: (_) => const PythonInterpreterApp(),
     ),
     AppDefinition(
       id: 'packages',

@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../core/app_state.dart';
+import 'python_interpreter_app.dart';
 
 class TerminalApp extends StatefulWidget {
   const TerminalApp({super.key});
@@ -96,6 +99,15 @@ class _TerminalAppState extends State<TerminalApp> {
         break;
       case 'memory':
         _memoryCommand(args);
+        break;
+      case 'python':
+        context.read<AppState>().openWindow(
+          id: 'python',
+          title: 'Python Interpreter',
+          icon: Icons.code,
+          child: const PythonInterpreterApp(),
+        );
+        _addOutput('Python Interpreter launched.');
         break;
       default:
         _addOutput('Command not found: $command\nType "help" for available commands.');
