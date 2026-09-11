@@ -324,26 +324,39 @@ static void Compiler_Emit(Compiler *compiler, Opcode op, int arg) {
 
 /* Emit opcode with argument from constant pool */
 static int Compiler_AddConstant(Compiler *compiler, PyObject *value) {
+    fprintf(stderr, "[ADDCONST-0] ENTER n_consts=%zd consts_size=%zd value=%p\n",
+            compiler->n_consts, compiler->consts_size, (void*)value);
     /* Check if constant already exists */
+    fprintf(stderr, "[ADDCONST-1] before loop (n_consts=%zd)\n", compiler->n_consts);
     for (Py_ssize_t i = 0; i < compiler->n_consts; i++) {
+        fprintf(stderr, "[ADDCONST-2] loop i=%zd comparing\n", i);
         if (compiler->consts[i] == NULL) {
             continue;
         }
+        fprintf(stderr, "[ADDCONST-3] calling PyObject_Compare\n");
         if (PyObject_Compare(compiler->consts[i], value) == 0) {
+            fprintf(stderr, "[ADDCONST-4] found duplicate at %zd\n", i);
             return (int)i;
         }
     }
+    fprintf(stderr, "[ADDCONST-5] loop done, no duplicate\n");
 
     /* Add new constant */
     if (compiler->n_consts >= compiler->consts_size) {
+        fprintf(stderr, "[ADDCONST-6] realloc from %zd to %zd\n",
+                compiler->consts_size, compiler->consts_size * 2);
         compiler->consts_size *= 2;
         compiler->consts = (PyObject **)realloc(compiler->consts,
                                                  compiler->consts_size * sizeof(PyObject *));
     }
 
+    fprintf(stderr, "[ADDCONST-7] before Py_INCREF value=%p\n", (void*)value);
     Py_INCREF(value);
+    fprintf(stderr, "[ADDCONST-8] storing at n_consts=%zd\n", compiler->n_consts);
     compiler->consts[compiler->n_consts] = value;
-    return (int)(compiler->n_consts++);
+    compiler->n_consts++;
+    fprintf(stderr, "[ADDCONST-9] DONE n_consts=%zd\n", compiler->n_consts);
+    return (int)(compiler->n_consts - 1);
 }
 
 static Parser* Parser_New(Lexer *lexer) {
@@ -477,17 +490,35 @@ static void Compile_Expr(Compiler *compiler, Parser *parser) {
     fflush(stderr);
 
     if (token == TOKEN_NUMBER) {
-        fprintf(stderr, "[COMPILER-EXPR] NUMBER branch\n");
+        fprintf(stderr, "[COMPILER-EXPR] NUMBER branch: current_token=%p\n", (void*)parser->current_token);
         fflush(stderr);
+        if (!parser->current_token) {
+            fprintf(stderr, "[COMPILER-EXPR] ERROR: current_token is NULL!\n");
+            fflush(stderr);
+            return;
+        }
+        fprintf(stderr, "[COMPILER-EXPR] ob_refcnt=%zd, ob_type=%p\n",
+            parser->current_token->ob_refcnt, (void*)parser->current_token->ob_type);
+        fflush(stderr);
+        /* MARKER 1: before Py_INCREF */
+        fprintf(stderr, "[MARKER-1] before Py_INCREF\n"); fflush(stderr);
         Py_INCREF(parser->current_token);
+        /* MARKER 2: after Py_INCREF, before AddConstant */
+        fprintf(stderr, "[MARKER-2] after Py_INCREF, before AddConstant\n"); fflush(stderr);
         int idx = Compiler_AddConstant(compiler, parser->current_token);
-        fprintf(stderr, "[COMPILER-EXPR] LOAD_CONST idx=%d\n", idx);
-        fflush(stderr);
+        /* MARKER 3: after AddConstant */
+        fprintf(stderr, "[MARKER-3] after AddConstant, idx=%d\n", idx); fflush(stderr);
         Compiler_Emit(compiler, OP_LOAD_CONST, idx);
+        /* MARKER 4: after Emit */
+        fprintf(stderr, "[MARKER-4] after Emit\n"); fflush(stderr);
         Py_DECREF(parser->current_token);
+        /* MARKER 5: after Py_DECREF */
+        fprintf(stderr, "[MARKER-5] after Py_DECREF\n"); fflush(stderr);
         parser->current_token = NULL;
+        /* MARKER 6: before Parser_NextToken */
+        fprintf(stderr, "[MARKER-6] before NextToken\n"); fflush(stderr);
         Parser_NextToken(parser);  /* consume the token we just read */
-        fprintf(stderr, "[COMPILER-EXPR] after NUMBER parse, token=%d\n", parser->token_type);
+        fprintf(stderr, "[MARKER-7] after NextToken, token=%d\n", parser->token_type);
         fflush(stderr);
         goto parse_binop;
     }

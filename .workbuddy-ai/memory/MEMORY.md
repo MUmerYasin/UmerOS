@@ -6,7 +6,7 @@
 
 ## Decided
 - H7 → GPL-3.0 canonical — **RESOLVED (session 39):** the "Apache-2.0 strays" premise was stale; doc-scope files already declared GPL-3.0, only `Licence`→`License` + `Version 3`→`v3` normalized to match README. Code-file `Licence` sweeps tracked under H20/H30/H50/H95/H104/H160/H176/H183/H200/H215/H223/H232/H236/H240/H254/H260/H275/H291/H299/H306.
-- H11 → Flutter (Dart) frontend canonical; backend = Python only; `ui/*.py` retired (H25); UI follows HCI Nielsen-10 (§4.8).
+- H11 → Flutter (Dart) frontend canonical; backend = Python only; `ui/*.py` retired (H25); UI follows HCI Nielsen-10 (§4.8). **RESOLVED (session 40):** Kivy drift reconciled across `setup.py` (extras legacy note), `kernel/requirements.txt` (kivy commented), `kernel/gui.py` (retired banner), `kernel/umer_kernel.start_gui_shell` (docstring/comment reconciled), and 7 README Kivy refs; H22/H25/H122/H125 closed.
 
 ## Resumable remediation loop
 - Goal: fix all H1–H307; tests in `tests/`; `# [FIX Hxxx]` comments; resumable via checkpoint.
@@ -19,7 +19,7 @@
 
 ## Remediation status
 - **RED blockers: ALL CLOSED (H1–H307).** Per-cluster detail + bookkeeping live in `remediation_progress.md` (sessions 1–33).
-- **YELLOW sweep in progress (session 36+):** H4, H5, H6, H8, H9, H7 done (H7 resolved session 39 — "Apache-2.0 strays" premise was stale drift; docs already GPL-3.0, normalized `Licence`→`License` + `Version 3`→`v3`). Next = **H11** (UI: Kivy-in-code vs decided Flutter/Dart canonical; retire `ui/*.py` per H25, drop `kivy` per H15), then remaining YELLOW.
+- **YELLOW sweep in progress (session 36+):** H4, H5, H6, H8, H9, H7, H11 done (H7 resolved session 39 — "Apache-2.0 strays" premise was stale drift; docs already GPL-3.0, normalized `Licence`→`License` + `Version 3`→`v3`. H11 resolved session 40 — Flutter/Dart canonical confirmed live in `ui/flutter_ui/`; Kivy drift fixed across `setup.py`/`kernel/requirements.txt`/`kernel/gui.py`/`start_gui_shell`/README; H22/H25/H122/H125 closed). Next = **H13** (security/package signing), then remaining YELLOW.
 - Sessions 1–23 clusters: var/ boot/ path-traversal, fail-open + dummy-crypto, cap-gate (8/8), collection-error reconciliation, bin/proc, H7 GPL sweep, mount (media/mnt), legal/ GPL + consent, initrd/ eval + traversal, kernel/ managers + crypto + sandbox, proc/srv priv-write, installer/ priv-write + fail-open + dataloss, home tar-restore, etc/ priv-write. (Full per-session notes in the checkpoint file.)
 - Sessions 24–35 (carried RED + YELLOW): H3/H146/H147 (lib ssl/pam false-positive + cert-expiry), H157/H167/H168 (media/mnt auto-mount + symlink rmtree), H184/H187 (opt), H198 (packages), H215/H216/H217/H221 (quantum), H244/H245/H246 (security), H12/H18/H21/H42 (cross-cutting: API key, OnlineProvider, self-heal, code-signing), H4/H5 (bin host-subprocess sandbox), H6/H55 (core command base signature convergence).
 

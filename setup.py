@@ -107,7 +107,7 @@ setup(
             "onnxruntime>=1.17.0", "transformers>=4.40.0",
             "sentence-transformers>=2.7.0", "torch>=2.2.0",
             "llama-cpp-python>=0.2.0", "scikit-learn>=1.4.0",
-            "scipy>=1.11.0", "kivy>=2.3.0", "Pillow>=10.2.0",
+            "scipy>=1.11.0", "kivy>=2.3.0", "Pillow>=10.2.0",  # legacy UI; Flutter is the canonical frontend (H11/H25)
             "aiohttp>=3.9.0", "dnspython>=2.6.0", "httpx>0.27.0",
             "fastapi>0.110.0", "uvicorn[standard]>0.30.0",
             "liboqs-python>=0.9.0", "PyNaCl>=1.5.0",

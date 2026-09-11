@@ -14,16 +14,16 @@
 [REPL] stripped newline, len=8
 [REPL] paren_count=0
 [REPL] calling Py_CompileString
-[COMPILER] Py_CompileString enter, source=000000473CDED920
+[COMPILER] Py_CompileString enter, source=000000F05477DD40
 [COMPILER] strlen=8, creating Lexer
-[COMPILER] Lexer_New returned 0000020181207A00
-[COMPILER] calling Parser_New(lexer=0000020181207A00)
-[COMPILER] Parser_New returned 0000020181201EE0
+[COMPILER] Lexer_New returned 000002833A5A3BC0
+[COMPILER] calling Parser_New(lexer=000002833A5A3BC0)
+[COMPILER] Parser_New returned 000002833A59BB80
 [COMPILER] calling Compiler_New()
-[COMPILER] Compiler_New returned 000002018120A8E0
-[COMPILER] calling Parser_NextToken(parser=0000020181201EE0)
+[COMPILER] Compiler_New returned 000002833A599CF0
+[COMPILER] calling Parser_NextToken(parser=000002833A59BB80)
 [COMPILER] first token=4
-[COMPILER] calling Compile_Statement(compiler=000002018120A8E0, parser=0000020181201EE0)
+[COMPILER] calling Compile_Statement(compiler=000002833A599CF0, parser=000002833A59BB80)
 [COMPILER-STMT] entry: token=4
 [COMPILER-STMT] NAME token: 'print'
 [COMPILER-STMT] print statement detected
@@ -33,4 +33,7 @@
 [COMPILER-STMT] print_idx=0, emitting LOAD_GLOBAL
 [COMPILER-STMT] calling Compile_Expr
 [COMPILER-EXPR] entry: token=1
-[COMPILER-EXPR] NUMBER branch
+[COMPILER-EXPR] NUMBER branch: current_token=000002833A59B940
+[COMPILER-EXPR] ob_refcnt=1, ob_type=00007FF713291AC0
+[MARKER-1] before Py_INCREF
+[MARKER-2] after Py_INCREF, before AddConstant

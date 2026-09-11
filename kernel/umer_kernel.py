@@ -1144,8 +1144,18 @@ class UmerKernel:
 
         log.info("=== UmerKernel shut down cleanly ===")
     
+    # [FIX H11] [FIX H116] Canonical frontend = Flutter (Dart) shell in ui/flutter_ui/
+    # (decided 2026-08-20). This method currently launches the *retired* Tkinter
+    # fallback (ui/launch_gui.py) as a headless compatibility path; it is NOT the
+    # production UX and must be gated behind a capability check before launch (H116).
+    # TODO: repoint at the built Flutter executable once ui/flutter_ui/ ships a binary.
     async def start_gui_shell(self, mode='desktop'): # Default to desktop
-        """Attempts to launch the Flutter-based GUI shell."""
+        """Launches the GUI shell.
+
+        Today this starts the *legacy* Tkinter launcher (ui/launch_gui.py) as a
+        headless fallback. The canonical frontend is the Flutter/Dart shell in
+        ``ui/flutter_ui/`` (H11/H25). See the [FIX H116] note above.
+        """
         print("[KERNEL] Attempting to launch UmerOS GUI Shell...")
         # Import the launcher script
         try:

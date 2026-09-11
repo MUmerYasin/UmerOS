@@ -143,7 +143,7 @@ Modern security framework with post-quantum cryptography.
 ---
 
 ### 6️⃣ **Fluidic UI**
-Adaptive, context-aware user interfaces built with Kivy.
+Adaptive, context-aware user interfaces built with **Flutter (Dart)** — the canonical frontend in `ui/flutter_ui/`. The earlier Kivy/Tkinter prototypes in `ui/*.py` and `kernel/gui.py` are **retired** (H11/H25).
 
 | Mode | Interface |
 |------|-----------|
@@ -164,7 +164,7 @@ Adaptive, context-aware user interfaces built with Kivy.
 | 🔜 **AI Resource Manager** | Predictive task scheduling | 🏗️ In Progress |
 | 🔜 **Post-Quantum Crypto** | Future-proof security | 🏗️ In Progress |
 | 🔜 **Containerization Layer** | Legacy app support | 🏗️ Planned |
-| 🔜 **Kivy-Based Shell** | Adaptive UI framework | 🏗️ Planned |
+| 🔜 **Flutter-Based Shell** | Adaptive UI framework (canonical; `ui/flutter_ui/`) | 🏗️ In Progress |
 | 🔜 **Content-Addressed FS** | Quantum-inspired filesystem | 🏗️ Planned |
 
 ---
@@ -203,7 +203,7 @@ Adaptive, context-aware user interfaces built with Kivy.
 │   • dnspython 2.6+         → DNS operations                 │
 ├─────────────────────────────────────────────────────────────┤
 │ USER INTERFACE:                                             │
-│   • kivy 2.3+              → Cross-platform UI              │
+│   • flutter (Dart)         → Canonical UI (ui/flutter_ui/)      │
 │   • Pillow 10.2+           → Image processing               │
 ├─────────────────────────────────────────────────────────────┤
 │ PERFORMANCE:                                                │
@@ -259,7 +259,7 @@ UmerOS/
 │   └── syscall_shims.py              # System call translation
 │
 ├── 📂 ui/                            # User interface layer
-│   ├── shell.py                      # Terminal interface (Kivy)
+│   ├── shell.py                      # Terminal interface (legacy Kivy/Tkinter)
 │   ├── widgets/                      # Custom UI components
 │   └── themes/                       # Adaptive themes
 │
@@ -359,7 +359,7 @@ UmerOS/
 
                           ┌─────────────────────┐
                           │    User Interface   │
-                          │  (Kivy Shell, GUI)  │
+                          │  (Legacy Kivy/Tkinter GUI)  │
                           └──────────┬──────────┘
                                      │
         ┌────────────────────────────┼────────────────────────────┐
@@ -745,7 +745,7 @@ Quantum State: Exponential (2^20 = 1M amplitudes ≈ 8MB)
 - [ ] Process sandbox isolation
 
 ### 🚀 Phase 4: User Experience (Q1 2027)
-- [ ] Kivy-based shell UI
+- [ ] Flutter-based shell UI (the prior Kivy/Tkinter prototypes in `ui/*.py` are retired, H25)
 - [ ] Adaptive responsive interface
 - [ ] Mobile device support
 - [ ] Cloud synchronization
@@ -859,7 +859,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 - [Qiskit Documentation](https://qiskit.org/documentation/)
 - [Cirq Documentation](https://quantumai.google/cirq)
 - [Python AsyncIO](https://docs.python.org/3/library/asyncio.html)
-- [Kivy Framework](https://kivy.org/doc/stable/)
+- [Kivy Framework (retired UI prototype)](https://kivy.org/doc/stable/)
 
 ### Communities
 - [Quantum Computing Stack Exchange](https://quantumcomputing.stackexchange.com/)

@@ -13,9 +13,14 @@
 
 #!/usr/bin/env python3
 """
-Umer OS – Fluidic GUI (Kivy prototype)
-Demonstrates an adaptive cross-platform window with AI assistant integration.
-Requires: pip install kivy
+Umer OS – Fluidic GUI (Kivy prototype) — **RETIRED / LEGACY**
+
+.. warning:: This module is a retired prototype. The canonical UmerOS frontend is the
+   Flutter (Dart) desktop shell in ``ui/flutter_ui/`` (decided 2026-08-20, H11/H25).
+   New UI work must go there; this Kivy prototype is kept only for reference and is
+   NOT part of the supported UX path. It still ``from kivy ... import`` and requires
+   ``pip install kivy``, but the kernel must not launch it (see
+   ``kernel/umer_kernel.start_gui_shell``, H116).
 """
 
 from kivy.app import App
