@@ -279,26 +279,27 @@ static PyObject* builtin_max(PyObject *self, PyObject *args) {
     return result;
 }
 
-/* Builtin function descriptor */
+/* Builtin function descriptor — embeds PyMethodDef so it lives for program lifetime */
 typedef struct {
     const char *name;
     PyCFunction func;
     int flags;
     const char *doc;
+    PyMethodDef ml;              /* persistent; address stored in PyCFunctionObject.m_ml */
 } BuiltinDef;
 
 static BuiltinDef builtin_functions[] = {
-    { "print", (PyCFunction)builtin_print, METH_KEYWORDS, "print(*args, sep=' ', end='\\n', file=sys.stdout)" },
-    { "len",   (PyCFunction)builtin_len,   METH_NOARGS,   "len(s)" },
-    { "type",  (PyCFunction)builtin_type,  METH_O,        "type(object)" },
-    { "int",   (PyCFunction)builtin_int,   METH_O,        "int(x=0)" },
-    { "float", (PyCFunction)builtin_float, METH_O,        "float(x=0.0)" },
-    { "str",   (PyCFunction)builtin_str,   METH_O,        "str(object='')" },
-    { "bool",  (PyCFunction)builtin_bool,  METH_O,        "bool(x)" },
-    { "abs",   (PyCFunction)builtin_abs,   METH_O,        "abs(x)" },
-    { "min",   (PyCFunction)builtin_min,   METH_VARARGS,  "min(s, *args)" },
-    { "max",   (PyCFunction)builtin_max,   METH_VARARGS,  "max(s, *args)" },
-    { NULL, NULL, 0, NULL }
+    { "print", (PyCFunction)builtin_print, METH_KEYWORDS, "print(*args, sep=' ', end='\\n', file=sys.stdout)", { 0 } },
+    { "len",   (PyCFunction)builtin_len,   METH_NOARGS,   "len(s)",                                        { 0 } },
+    { "type",  (PyCFunction)builtin_type,  METH_O,        "type(object)",                                   { 0 } },
+    { "int",   (PyCFunction)builtin_int,   METH_O,        "int(x=0)",                                      { 0 } },
+    { "float", (PyCFunction)builtin_float, METH_O,        "float(x=0.0)",                                  { 0 } },
+    { "str",   (PyCFunction)builtin_str,   METH_O,        "str(object='')" ,                               { 0 } },
+    { "bool",  (PyCFunction)builtin_bool,  METH_O,        "bool(x)",                                       { 0 } },
+    { "abs",   (PyCFunction)builtin_abs,   METH_O,        "abs(x)",                                        { 0 } },
+    { "min",   (PyCFunction)builtin_min,   METH_VARARGS,  "min(s, *args)",                                 { 0 } },
+    { "max",   (PyCFunction)builtin_max,   METH_VARARGS,  "max(s, *args)",                                 { 0 } },
+    { NULL, NULL, 0, NULL, { 0 } }
 };
 
 /* Initialize builtins module */
@@ -309,13 +310,13 @@ void PyBuiltins_Init(void) {
     if (builtin_module == NULL) return;
 
     for (BuiltinDef *def = builtin_functions; def->name != NULL; def++) {
-        PyMethodDef ml;
-        ml.ml_name = def->name;
-        ml.ml_meth = def->func;
-        ml.ml_flags = def->flags;
-        ml.ml_doc = def->doc;
+        /* Fill the persistent embedded PyMethodDef */
+        def->ml.ml_name = (char *)def->name;
+        def->ml.ml_meth = def->func;
+        def->ml.ml_flags = def->flags;
+        def->ml.ml_doc  = (char *)def->doc;
 
-        PyObject *func = PyCFunction_New(&ml, NULL);
+        PyObject *func = PyCFunction_New(&def->ml, NULL);
         if (func) {
             PyDict_SetItemString(builtin_module, def->name, func);
         }
