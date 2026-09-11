@@ -27,6 +27,7 @@ from .factory_reset import FactoryResetManager
 from .models import SnapshotLevel
 from .restore import RestoreEngine
 from .snapshot_engine import SnapshotEngine
+from .grub_cli import parse_grub_cfg
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger("backup_cli")
@@ -102,7 +103,12 @@ def main(argv=None):
     if args.list:
         print_list(backup_dir, as_json=args.json)
         return 0
-        
+
+    if args.grub_info:
+        data = parse_grub_cfg(str(source_root))
+        print(json.dumps(data, indent=2))
+        return 0
+
     if args.create:
         engine = SnapshotEngine(backup_dir, source_root)
         if args.parts:
