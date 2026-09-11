@@ -14,23 +14,23 @@ def test_parse_grub_cfg():
     root = str(project_root)
     result = parse_grub_cfg(root)
     expected = {
-        default_entry: None,
-        timeout: 5,
-        entries: [
+        "default_entry": None,
+        "timeout": 5,
+        "entries": [
             {
-                name: Ubuntu,
-                linux: /boot/vmlinuz-5.15.0-50-generic,
-                initrd: /boot/initrd.img-5.15.0-50-generic,
-                options: root=UUID=xxxx ro quiet splash,
+                "name": "Ubuntu",
+                "linux": "/boot/vmlinuz-5.15.0-50-generic",
+                "initrd": "/boot/initrd.img-5.15.0-50-generic",
+                "options": "root=UUID=xxxx ro quiet splash",
             },
             {
-                name: Advanced options for Ubuntu,
-                linux: /boot/vmlinuz-5.15.0-50-generic,
-                initrd: /boot/initrd.img-5.15.0-50-generic,
-                options: root=UUID=xxxx ro quiet splash,
+                "name": "Advanced options for Ubuntu",
+                "linux": "/boot/vmlinuz-5.15.0-50-generic",
+                "initrd": "/boot/initrd.img-5.15.0-50-generic",
+                "options": "root=UUID=xxxx ro quiet splash",
             },
         ],
     }
-    assert result[timeout] == expected[timeout]
-    assert result[entries] == expected[entries]
-    assert default_entry in result
+    assert result["timeout"] == expected["timeout"]
+    assert result["entries"] == expected["entries"]
+    assert "default_entry" in result

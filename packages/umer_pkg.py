@@ -4,7 +4,13 @@ Umer OS Package Manager (umer-pkg)  [TODAY]
 Secure, atomic package management for Umer OS.
 
 Features:
-  - Signed .umerpkg archives (JSON manifest + SHA3-256 hash verification).
+  # [FIX H13] Previously claimed "Signed .umerpkg" but only computed a SHA3-256
+  # *integrity* hash — no signature, no trusted key (overstated crypto, H13 /
+  # H132 / H138 / H154 family).  Now archives carry a real Ed25519 signature
+  # verified against a pinned chain-of-trust, fail-closed.
+  - Ed25519-signed .umerpkg archives (JSON manifest + SHA3-256 integrity hash
+    + signature verified against a pinned chain-of-trust; unsigned / untrusted
+    packages are refused on install).
   - SAT-inspired dependency resolver (no conflicts).
   - Atomic upgrades: filesystem snapshot before install; auto-rollback on failure.
   - Sandboxed installs: user-space by default, system-wide requires admin grant.
@@ -12,9 +18,15 @@ Features:
 
 Package format (.umerpkg):
   A tar.gz archive containing:
-    manifest.json  — name, version, description, dependencies, entry_point
+    manifest.json  — name, version, description, dependencies, entry_point,
+                     and (when signed) a "signature" object {key_id, algo}.
     files/         — package files
-    HASH           — SHA3-256 of manifest.json + files/ tree
+    HASH           — SHA3-256 integrity hash of manifest.json + files/ tree
+                     (defense-in-depth; recomputed on every verify).
+    SIGNATURE      — base64 Ed25519 signature over the HASH digest, produced
+                     by a trusted signer (chain-of-trust anchor in
+                     packages/trusted_keys.py).  Missing/invalid/untrusted
+                     SIGNATURE => install is REFUSED (fail-closed).
 
 Author:  Umer OS Project
 License: GPL-3.0
@@ -24,6 +36,7 @@ License: GPL-3.0
 # "GNU General Public License Version 3" parenthetical; repo is GPL-3.0 per LICENSE/setup.py/README).
 from __future__ import annotations
 
+import base64  # [FIX H13] Ed25519 signature (de)serialisation
 import hashlib
 import hmac  # [FIX H196] constant-time hash compare
 import json
@@ -34,7 +47,7 @@ import sys
 import tarfile
 import tempfile
 import time
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Union
 
 # [FIX H194/H195] Guard against path traversal (CWE-22) in package install /
 # build paths derived from the (attacker-controlled) manifest name/version.
@@ -61,6 +74,36 @@ except Exception:  # pragma: no cover - standalone fallback
 # extractall(); on those interpreters we fall back to no filter (still unsafe,
 # but matching the documented >=3.12 support target of UmerOS).
 _FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
+
+# [FIX H13] Real Ed25519 signing + pinned chain-of-trust.  `cryptography` is a
+# hard dependency for package authenticity; fall back to a clear error only if
+# it is genuinely unavailable (should never happen in the managed venv).
+try:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+        Ed25519PrivateKey,
+        Ed25519PublicKey,
+    )
+    from packages.trusted_keys import (
+        TRUSTED_PUBLIC_KEYS,
+        pin_trusted_key,
+    )
+except Exception as _exc:  # pragma: no cover - cryptography is always present
+    raise RuntimeError(
+        "umer_pkg requires the 'cryptography' package for .umerpkg signing: "
+        f"{_exc}"
+    ) from _exc
+
+# Archive member / manifest keys for the signature envelope.
+SIGNATURE_MEMBER = "SIGNATURE"
+SIGNATURE_ALGO = "ed25519"
+DEFAULT_SIGNER_ID = "umer-release"
+
+
+def _coerce_signing_key(key):
+    """Coerce raw private bytes (or an existing object) into Ed25519PrivateKey."""
+    if isinstance(key, Ed25519PrivateKey):
+        return key
+    return Ed25519PrivateKey.from_private_bytes(bytes(key))
 
 
 # [FIX H196/H197] Deterministic integrity hash over the manifest + full payload.
@@ -218,6 +261,10 @@ class UmerPackageManager:
         self._db: Dict[str, dict] = {}
         # Local registry: name → PackageManifest
         self._registry: Dict[str, PackageManifest] = {}
+        # [FIX H13] Snapshot of the chain-of-trust anchor at construction time.
+        # Keyed by signer id; only keys present here may authentically sign
+        # packages this manager installs.
+        self._trusted_keys: Dict[str, bytes] = dict(TRUSTED_PUBLIC_KEYS)
 
         for d in (install_dir, registry_dir, cache_dir):
             os.makedirs(d, exist_ok=True)
@@ -228,6 +275,32 @@ class UmerPackageManager:
             "UmerPkg initialised: %d installed, %d in registry.",
             len(self._db), len(self._registry),
         )
+
+    # ── Chain-of-trust (H13) ──────────────────────────────────────────────────
+
+    def trust_key(self, key_id: str, public_key) -> None:
+        """Pin an additional trusted signing key into this manager AND the
+        process-wide trust store (so managers built later also inherit it).
+
+        Args:
+            key_id:      Stable signer identifier (e.g. ``"umer-staging"``).
+            public_key:  ``Ed25519PublicKey`` or raw 32-byte public key material.
+        """
+        # Store raw bytes in our snapshot.
+        raw = (
+            public_key.public_bytes_raw()
+            if isinstance(public_key, Ed25519PublicKey)
+            else bytes(public_key)
+        )
+        pin_trusted_key(key_id, raw)  # also updates the module-wide store
+        self._trusted_keys[key_id] = raw
+
+    def verify_package(self, pkg_path: str) -> bool:
+        """[FIX H13] Public authenticity gate: integrity hash AND Ed25519
+        signature against the pinned chain-of-trust.  Fail-closed — returns
+        ``False`` for unsigned, tampered, or signed-by-untrusted packages.
+        """
+        return self._verify_package(pkg_path)
 
     # ── Database ─────────────────────────────────────────────────────────────
 
@@ -339,6 +412,72 @@ class UmerPackageManager:
             log.error("Package hash MISMATCH for '%s' — refusing install.", pkg_path)
         return ok
 
+    # [FIX H13] Real signature verification against the pinned chain-of-trust.
+    def _verify_package(self, pkg_path: str) -> bool:
+        """Verify BOTH the integrity hash AND the Ed25519 signature.
+
+        Fail-closed:
+          * missing HASH or manifest.json     -> False
+          * integrity hash mismatch           -> False
+          * missing SIGNATURE member          -> False (unsigned packages refused)
+          * manifest has no signer ``key_id``  -> False
+          * signer ``key_id`` not in trust store -> False (chain-of-trust)
+          * signature invalid / unverifiable   -> False
+
+        Returns ``True`` only when the package is intact AND authentically
+        signed by a key present in this manager's trust store.
+        """
+        try:
+            with tarfile.open(pkg_path, "r:gz") as tar:
+                members = {m.name: m for m in tar.getmembers()}
+                if "HASH" not in members or "manifest.json" not in members:
+                    log.error("Refusing '%s': missing HASH/manifest.", pkg_path)
+                    return False
+                with tar.extractfile(members["manifest.json"]) as fh:  # type: ignore
+                    manifest_bytes = fh.read()
+                with tar.extractfile(members["HASH"]) as fh:  # type: ignore
+                    expected_hash = fh.read().decode().strip()
+                # SIGNATURE is mandatory for a trusted package.
+                if SIGNATURE_MEMBER not in members:
+                    log.error("Refusing '%s': no SIGNATURE (unsigned).", pkg_path)
+                    return False
+                with tar.extractfile(members[SIGNATURE_MEMBER]) as fh:  # type: ignore
+                    sig_b64 = fh.read().decode().strip()
+                file_items = []
+                for name, member in members.items():
+                    if name.startswith("files/") and member.isfile():
+                        with tar.extractfile(member) as fh:  # type: ignore
+                            file_items.append((name, fh.read()))
+        except Exception as exc:  # noqa: BLE001
+            log.error("Signature verification I/O error: %s", exc)
+            return False
+
+        # 1) Integrity (defense-in-depth; also binds the signed message).
+        computed_hash = _package_integrity_hash(manifest_bytes, file_items)
+        if not hmac.compare_digest(computed_hash, expected_hash):
+            log.error("Package hash MISMATCH for '%s' — refusing install.", pkg_path)
+            return False
+
+        # 2) Authenticity: verify the signature over the integrity hash.
+        try:
+            manifest = json.loads(manifest_bytes)
+            sig_info = manifest.get("signature") or {}
+            key_id = sig_info.get("key_id")
+            if not key_id:
+                log.error("Refusing '%s': manifest has no signer key_id.", pkg_path)
+                return False
+            if key_id not in self._trusted_keys:
+                log.error("Refusing '%s': signer '%s' is NOT trusted.", pkg_path, key_id)
+                return False
+            pub = Ed25519PublicKey.from_public_bytes(self._trusted_keys[key_id])
+            sig = base64.b64decode(sig_b64)
+            pub.verify(sig, computed_hash.encode("utf-8"))  # raises on invalid
+        except Exception as exc:  # noqa: BLE001  (InvalidSignature / binascii / KeyError)
+            log.error("Package SIGNATURE INVALID for '%s': %s", pkg_path, exc)
+            return False
+
+        return True
+
     # ── Install ───────────────────────────────────────────────────────────────
 
     def install(self, package_name: str, pkg_path: Optional[str] = None) -> bool:
@@ -399,8 +538,11 @@ class UmerPackageManager:
         """
         log.info("Installing '%s' from '%s'…", name, pkg_path)
 
-        if not self._verify_hash(pkg_path):
-            log.error("Refusing to install '%s': hash verification failed.", name)
+        if not self._verify_package(pkg_path):
+            log.error(
+                "Refusing to install '%s': signature/hash verification failed.",
+                name,
+            )
             return False
 
         manifest = self._read_manifest(pkg_path)
@@ -575,13 +717,23 @@ class UmerPackageManager:
         source_dir: str,
         manifest:   dict,
         output_dir: str = ".",
+        signing_key: Optional[Union[bytes, Ed25519PrivateKey]] = None,
+        key_id: Optional[str] = None,
     ) -> str:
         """Create a .umerpkg archive from a source directory.
 
         Args:
-            source_dir: Directory containing the package files.
-            manifest:   Package manifest dict (name, version, description, …).
-            output_dir: Where to write the .umerpkg file.
+            source_dir:  Directory containing the package files.
+            manifest:    Package manifest dict (name, version, description, …).
+            output_dir:  Where to write the .umerpkg file.
+            signing_key: Optional Ed25519 private key (raw 32 bytes or
+                         ``Ed25519PrivateKey``). When provided, the archive is
+                         signed and carries a ``SIGNATURE`` member; installs will
+                         then require that signature to verify against a trusted
+                         key (H13 chain-of-trust). When omitted the package is
+                         UNSIGNED and will be refused on install.
+            key_id:      Signer id recorded in the manifest (defaults to
+                         ``"umer-release"``). Must match a key in the trust store.
 
         Returns:
             Path to the created .umerpkg file.
@@ -596,7 +748,18 @@ class UmerPackageManager:
         except PathTraversalError as exc:
             raise ValueError(f"Refusing unsafe .umerpkg output path: {exc}")
 
-        manifest_bytes = json.dumps(pm.to_dict(), indent=2).encode()
+        # [FIX H13] Build the embedded manifest WITH the signature metadata so
+        # the integrity hash (and therefore the verify path) is byte-stable
+        # across build and install.  The signature authenticates the integrity
+        # hash, so the manifest contents are what get bound by the signature.
+        embed_manifest = pm.to_dict()
+        signed = signing_key is not None
+        if signed:
+            embed_manifest["signature"] = {
+                "key_id": key_id or DEFAULT_SIGNER_ID,
+                "algo": SIGNATURE_ALGO,
+            }
+        manifest_bytes = json.dumps(embed_manifest, indent=2).encode()
 
         # [FIX H196/H197] Collect the full payload and compute a deterministic,
         # full-payload integrity hash (manifest + every files/ entry).
@@ -618,8 +781,15 @@ class UmerPackageManager:
             manifest_bytes, [(a, d) for a, d, _ in file_items]
         )
 
+        # [FIX H13] Produce the Ed25519 signature over the integrity hash.
+        sig_b64 = None
+        if signed:
+            priv = _coerce_signing_key(signing_key)
+            sig = priv.sign(integrity_hash.encode("utf-8"))
+            sig_b64 = base64.b64encode(sig).decode("ascii")
+
         with tarfile.open(pkg_path, "w:gz") as tar:
-            # Add manifest.json
+            # Add manifest.json (carries the signature metadata when signed).
             with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as tmp:
                 tmp.write(manifest_bytes)
                 tmp_name = tmp.name
@@ -633,11 +803,23 @@ class UmerPackageManager:
             tar.add(tmp_name, arcname="HASH")
             os.unlink(tmp_name)
 
+            # [FIX H13] Add SIGNATURE member when signed (base64 Ed25519 sig).
+            if sig_b64 is not None:
+                with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                    tmp.write(sig_b64.encode())
+                    tmp_name = tmp.name
+                tar.add(tmp_name, arcname=SIGNATURE_MEMBER)
+                os.unlink(tmp_name)
+
             # Add source files under files/ (sorted for deterministic hashing)
             for arcname, _data, full in sorted(file_items, key=lambda x: x[0]):
                 tar.add(full, arcname=arcname)
 
-        log.info("Built '%s'.", pkg_path)
+        if signed:
+            log.info("Built + signed '%s' (signer '%s').",
+                     pkg_path, key_id or DEFAULT_SIGNER_ID)
+        else:
+            log.info("Built UNSIGNED '%s' (will be refused on install).", pkg_path)
 
         # Register in local registry
         self._registry[pm.name] = pm

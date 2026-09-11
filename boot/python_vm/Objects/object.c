@@ -453,9 +453,16 @@ PyObject* PyObject_RichCompare(PyObject *v, PyObject *w, int op) {
 }
 
 int PyObject_Compare(PyObject *a, PyObject *b) {
+    if (a == b) return 0;
     if (Py_TYPE(a)->tp_richcompare) {
         PyObject *r = Py_TYPE(a)->tp_richcompare(a, b, Py_EQ);
-        if (r) { int ok = PyObject_IsTrue(r); Py_DECREF(r); return ok ? 0 : -1; }
+        if (r == Py_NotImplemented) {
+            Py_DECREF(r);
+        } else if (r) {
+            int ok = PyObject_IsTrue(r);
+            Py_DECREF(r);
+            return ok ? 0 : -1;
+        }
     }
     const char *n1 = Py_TYPE(a)->tp_name ? Py_TYPE(a)->tp_name : "";
     const char *n2 = Py_TYPE(b)->tp_name ? Py_TYPE(b)->tp_name : "";

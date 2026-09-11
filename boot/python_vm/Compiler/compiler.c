@@ -324,38 +324,30 @@ static void Compiler_Emit(Compiler *compiler, Opcode op, int arg) {
 
 /* Emit opcode with argument from constant pool */
 static int Compiler_AddConstant(Compiler *compiler, PyObject *value) {
-    fprintf(stderr, "[ADDCONST-0] ENTER n_consts=%zd consts_size=%zd value=%p\n",
-            compiler->n_consts, compiler->consts_size, (void*)value);
     /* Check if constant already exists */
-    fprintf(stderr, "[ADDCONST-1] before loop (n_consts=%zd)\n", compiler->n_consts);
     for (Py_ssize_t i = 0; i < compiler->n_consts; i++) {
-        fprintf(stderr, "[ADDCONST-2] loop i=%zd comparing\n", i);
         if (compiler->consts[i] == NULL) {
             continue;
         }
-        fprintf(stderr, "[ADDCONST-3] calling PyObject_Compare\n");
+        /* Different types can never be duplicates */
+        if (Py_TYPE(compiler->consts[i]) != Py_TYPE(value)) {
+            continue;
+        }
         if (PyObject_Compare(compiler->consts[i], value) == 0) {
-            fprintf(stderr, "[ADDCONST-4] found duplicate at %zd\n", i);
             return (int)i;
         }
     }
-    fprintf(stderr, "[ADDCONST-5] loop done, no duplicate\n");
 
     /* Add new constant */
     if (compiler->n_consts >= compiler->consts_size) {
-        fprintf(stderr, "[ADDCONST-6] realloc from %zd to %zd\n",
-                compiler->consts_size, compiler->consts_size * 2);
         compiler->consts_size *= 2;
         compiler->consts = (PyObject **)realloc(compiler->consts,
                                                  compiler->consts_size * sizeof(PyObject *));
     }
 
-    fprintf(stderr, "[ADDCONST-7] before Py_INCREF value=%p\n", (void*)value);
     Py_INCREF(value);
-    fprintf(stderr, "[ADDCONST-8] storing at n_consts=%zd\n", compiler->n_consts);
     compiler->consts[compiler->n_consts] = value;
     compiler->n_consts++;
-    fprintf(stderr, "[ADDCONST-9] DONE n_consts=%zd\n", compiler->n_consts);
     return (int)(compiler->n_consts - 1);
 }
 
@@ -780,12 +772,15 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
         fflush(stderr);
     }
 
-    fprintf(stderr, "[COMPILER] aborting here (Step 3)\n");
+    fprintf(stderr, "[COMPILER] compilation OK, calling Compiler_MakeCode\n");
+    fflush(stderr);
+    PyObject *code = Compiler_MakeCode(compiler);
+    fprintf(stderr, "[COMPILER] Compiler_MakeCode returned %p\n", (void*)code);
     fflush(stderr);
     Compiler_Free(compiler);
     Parser_Free(parser);
     Lexer_Free(lexer);
-    return NULL;
+    return code;
 }
 
 /* Test function: can ANY compiler.c code be called from main.c? */

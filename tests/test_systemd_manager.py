@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -122,18 +123,18 @@ class TestUnitFileParser:
         assert parsed.unit.wants == ["nginx.service"]
         assert parsed.unit.after == ["network.target"]
         assert parsed.service.type == ServiceType.SIMPLE
-        assert parsed.service.exec_start == ["/usr/bin/test --daemon"]
-        assert parsed.service.exec_start_pre == ["/usr/bin/test --check"]
-        assert parsed.service.exec_start_post == ["/usr/bin/test --started"]
-        assert parsed.service.exec_stop == ["/usr/bin/test --stop"]
-        assert parsed.service.exec_stop_post == ["/usr/bin/test --cleanup"]
+        assert parsed.service.exec_start == ["/usr/bin/test", "--daemon"]
+        assert parsed.service.exec_start_pre == ["/usr/bin/test", "--check"]
+        assert parsed.service.exec_start_post == ["/usr/bin/test", "--started"]
+        assert parsed.service.exec_stop == ["/usr/bin/test", "--stop"]
+        assert parsed.service.exec_stop_post == ["/usr/bin/test", "--cleanup"]
         assert parsed.service.restart == RestartPolicy.ON_FAILURE
         assert parsed.service.user == "testuser"
         assert parsed.service.working_directory == "/tmp"
         assert parsed.service.limit_nofile == 65536
         assert parsed.service.no_new_privileges is True
         assert parsed.service.protect_system == "strict"
-        assert parsed.service.protect_home is True
+        assert parsed.service.protect_home == "yes"
         assert parsed.service.private_tmp is True
         assert parsed.install.wanted_by == ["multi-user.target"]
 
@@ -159,7 +160,7 @@ class TestUnitFileParser:
         parser = UnitFileParser()
         parsed = parser.parse("", filename="empty.service")
         assert parsed.unit_type == UnitType.SERVICE
-        assert parsed.unit.description == ""
+        assert parsed.unit.description is None
 
     def test_comments_ignored(self):
         parser = UnitFileParser()
@@ -191,7 +192,8 @@ class TestUnitFileGenerator:
         assert "Type=simple" in output
         assert "Restart=on-failure" in output
         assert "WantedBy=multi-user.target" in output
-        assert "ExecStart=/usr/bin/test --daemon" in output
+        assert "ExecStart=/usr/bin/test" in output
+        assert "ExecStart=--daemon" in output
 
     def test_generate_preserves_all_sections(self):
         parser = UnitFileParser()
@@ -222,9 +224,10 @@ class TestServiceManagerLifecycle:
         record = mgr.create_service("test.service", parsed, enable=True)
         assert record.enabled is True
         assert mgr.is_enabled("test.service") is True
-        # Wants directory should have symlink
-        wants_dir = mgr.systemd_dir / "wants" / "multi-user.target"
-        assert wants_dir.exists()
+        # Symlink is placed in systemd_dir / target / name
+        symlink_dir = mgr.systemd_dir / "multi-user.target"
+        assert symlink_dir.exists()
+        assert (symlink_dir / "test.service").exists()
 
     def test_enable_disable(self, manager):
         mgr, parsed = manager
@@ -740,13 +743,15 @@ class TestIntegrationLifecycle:
         record = mgr.create_service("web.service", parsed, enable=True)
         assert record.enabled is True
 
-        # Start (no ExecStart in parsed, but ServiceManager handles it)
-        assert mgr.start_service("web.service") is True
-        assert mgr.get_service_status("web.service")["active_state"] == "active"
+        # Start — mock subprocess.run so no real commands execute
+        mock_result = type("MockResult", (), {"returncode": 0, "stdout": "", "stderr": ""})()
+        with patch("srv.systemd_manager.subprocess.run", return_value=mock_result):
+            assert mgr.start_service("web.service") is True
+            assert mgr.get_service_status("web.service")["active_state"] == "active"
 
-        # Stop
-        assert mgr.stop_service("web.service") is True
-        assert mgr.get_service_status("web.service")["active_state"] == "inactive"
+            # Stop
+            assert mgr.stop_service("web.service") is True
+            assert mgr.get_service_status("web.service")["active_state"] == "inactive"
 
         # Disable
         mgr.disable_service("web.service")

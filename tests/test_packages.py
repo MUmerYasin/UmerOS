@@ -23,6 +23,7 @@ Covers:
       - build() with a traversal manifest name must be refused.
 """
 
+import base64
 import os
 import sys
 import tarfile
@@ -37,14 +38,36 @@ if _root_dir not in sys.path:
 
 from packages.umer_pkg import UmerPackageManager  # noqa: E402
 
+# [FIX H13] Throwaway dev signing key, generated at import and pinned into the
+# process-wide trust store so every UmerPackageManager() built afterwards trusts
+# it.  This lets the suite exercise the REAL Ed25519 chain-of-trust end-to-end;
+# the matching private key is intentionally never committed.
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from packages.trusted_keys import pin_trusted_key  # noqa: E402
 
-def _make_pkg(source_dir: Path, name: str, version: str = "1.0.0") -> Path:
-    """Build a minimal .umerpkg archive (manifest.json + files/) for `name`."""
+_TEST_KEY = Ed25519PrivateKey.generate()
+pin_trusted_key("umer-test-dev", _TEST_KEY.public_key().public_bytes_raw())
+
+
+def _make_pkg(
+    source_dir: Path,
+    name: str,
+    version: str = "1.0.0",
+    signed: bool = True,
+) -> Path:
+    """Build a minimal .umerpkg archive (manifest.json + files/) for `name`.
+
+    Signed by default with the throwaway ``umer-test-dev`` key (H13) so the
+    install path's fail-closed signature gate passes.  Pass ``signed=False`` to
+    build an UNSIGNED package (which ``verify_package`` must refuse).
+    """
     mgr = UmerPackageManager()
     archive = mgr.build(
         source_dir=str(source_dir),
         manifest={"name": name, "version": version, "description": "test"},
         output_dir=str(source_dir.parent),
+        signing_key=_TEST_KEY if signed else None,
+        key_id="umer-test-dev" if signed else None,
     )
     return Path(archive)
 
@@ -200,3 +223,78 @@ def test_verify_hash_detects_tampered_payload(pkg_env):
         cache_dir=str(pkg_env["cache"]),
     )
     assert mgr._verify_hash(str(bad)) is False
+
+
+# ── H13: Ed25519 signature + chain-of-trust regression tests ──────────────────
+
+def test_verify_package_passes_for_signed_build(pkg_env):
+    """H13: a properly built + signed package verifies its signature."""
+    archive = _make_pkg(pkg_env["src"], "demo")
+    mgr = UmerPackageManager(
+        install_dir=str(pkg_env["install_dir"]),
+        registry_dir=str(pkg_env["registry"]),
+        cache_dir=str(pkg_env["cache"]),
+    )
+    assert mgr.verify_package(str(archive)) is True
+    # Integrity hash must still hold as defense-in-depth.
+    assert mgr._verify_hash(str(archive)) is True
+
+
+def test_verify_package_fails_when_unsigned(pkg_env):
+    """H13: an UNSIGNED package must be REFUSED by the fail-closed signature gate."""
+    archive = _make_pkg(pkg_env["src"], "demo", signed=False)
+    mgr = UmerPackageManager(
+        install_dir=str(pkg_env["install_dir"]),
+        registry_dir=str(pkg_env["registry"]),
+        cache_dir=str(pkg_env["cache"]),
+    )
+    # Hash is present (integrity OK) but there is no signature -> fail-closed.
+    assert mgr._verify_hash(str(archive)) is True
+    assert mgr.verify_package(str(archive)) is False
+    # The install path must also refuse it.
+    import shutil
+    shutil.copy(archive, pkg_env["registry"])
+    mgr._scan_registry()
+    assert mgr.install("demo") is False
+
+
+def test_verify_package_fails_when_untrusted_key(pkg_env):
+    """H13: a package signed by an UNTRUSTED key must be refused (chain-of-trust)."""
+    rogue = Ed25519PrivateKey.generate()  # never pinned into the trust store
+    mgr = UmerPackageManager()
+    archive = mgr.build(
+        source_dir=str(pkg_env["src"]),
+        manifest={"name": "rogue", "version": "1.0.0", "description": "evil"},
+        output_dir=str(pkg_env["src"].parent),
+        signing_key=rogue,
+        key_id="rogue-ca",
+    )
+    v = UmerPackageManager(
+        install_dir=str(pkg_env["install_dir"]),
+        registry_dir=str(pkg_env["registry"]),
+        cache_dir=str(pkg_env["cache"]),
+    )
+    assert v.verify_package(str(archive)) is False
+
+
+def test_verify_package_fails_when_signature_tampered(pkg_env):
+    """H13: a tampered SIGNATURE member must FAIL closed (forge resisted)."""
+    import io
+    good = _make_pkg(pkg_env["src"], "demo")
+    bad = pkg_env["tmp"] / "forged.umerpkg"
+    with tarfile.open(good, "r:gz") as src, tarfile.open(bad, "w:gz") as dst:
+        for m in src.getmembers():
+            if m.name == "SIGNATURE":
+                # Replace the genuine signature with garbage (attacker forgery).
+                forged = base64.b64encode(b"\x00" * 64)
+                mi = tarfile.TarInfo("SIGNATURE")
+                mi.size = len(forged)
+                dst.addfile(mi, io.BytesIO(forged))
+            else:
+                dst.addfile(m, src.extractfile(m))
+    mgr = UmerPackageManager(
+        install_dir=str(pkg_env["install_dir"]),
+        registry_dir=str(pkg_env["registry"]),
+        cache_dir=str(pkg_env["cache"]),
+    )
+    assert mgr.verify_package(str(bad)) is False
