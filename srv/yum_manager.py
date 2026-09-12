@@ -359,6 +359,7 @@ class TransactionResult:
     return_code: int = 0
     errors: List[str] = field(default_factory=list)
     rpmdb_free_bytes: int = 0
+    runtime: float = 0.0
 
     @property
     def success(self) -> bool:

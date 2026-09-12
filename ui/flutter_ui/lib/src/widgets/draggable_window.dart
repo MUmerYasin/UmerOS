@@ -35,7 +35,10 @@ class _DraggableWindowState extends State<DraggableWindow> {
     // Maximized state — stretches over the entire desktop.
     if (widget.window.isMaximized) {
       return Positioned.fill(
-        child: GestureDetector(
+        child: Semantics(
+          label: widget.window.title,
+          container: true,
+          child: GestureDetector(
           onTapDown: (_) => appState.focusWindow(widget.window.id),
           onDoubleTap: () => appState.maximizeWindow(widget.window.id),
           child: Material(
@@ -60,6 +63,7 @@ class _DraggableWindowState extends State<DraggableWindow> {
               ],
             ),
           ),
+        ),
         ),
       );
     }
@@ -102,7 +106,10 @@ class _DraggableWindowState extends State<DraggableWindow> {
                 Column(
                   children: [
                     // Header Drag Zone ONLY
-                    GestureDetector(
+                    Semantics(
+                      label:
+                          '${widget.window.title} window header — drag to move, double-tap to maximize',
+                      child: GestureDetector(
                       onDoubleTap: () => appState.maximizeWindow(widget.window.id),
                       onPanStart: (details) {
                         _isDraggingHeader = true;
@@ -175,6 +182,7 @@ class _DraggableWindowState extends State<DraggableWindow> {
                         windowId: widget.window.id,
                         isActive: isActive,
                       ),
+                    ),
                     ),
 
                     // Window Body (Fully Interactive)
@@ -366,9 +374,12 @@ class _ResizeHandle extends StatelessWidget {
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: cursor,
-      child: GestureDetector(
+      child: Semantics(
+        label: 'Resize window',
+        child: GestureDetector(
         onPanUpdate: (details) => onDrag(details.delta.dx, details.delta.dy),
         child: Container(color: Colors.transparent),
+      ),
       ),
     );
   }

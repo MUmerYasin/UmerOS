@@ -39,7 +39,9 @@ class _DockState extends State<Dock> {
       builder: (context, candidateData, rejectedData) {
         final isHoveringDrag = candidateData.isNotEmpty;
 
-        return Container(
+        return Semantics(
+          label: 'Application Dock',
+          child: Container(
           height: 76,
           margin: const EdgeInsets.only(bottom: 8),
           child: Center(
@@ -176,7 +178,9 @@ class _DockState extends State<Dock> {
                                 ]),
                               ),
                           ],
-                          child: GestureDetector(
+                          child: Semantics(
+                            label: label,
+                            child: GestureDetector(
                             onTap: () => _handleTap(appState, appId, window),
                             child: AnimatedContainer(
                               duration: const Duration(milliseconds: 200),
@@ -249,6 +253,7 @@ class _DockState extends State<Dock> {
                               ),
                             ),
                           ),
+                          ),
                         ),
                       ),
                     );
@@ -256,6 +261,8 @@ class _DockState extends State<Dock> {
                 ),
               ),
             ),
+          ),
+          ),
           ),
         );
       },
@@ -523,7 +530,10 @@ class _WindowButtonState extends State<_WindowButton> {
     final btn = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
+      child: Semantics(
+        label: widget.tooltip ?? 'Window control',
+        button: true,
+        child: GestureDetector(
         onTap: widget.onTap,
         child: Container(
           width: 24,
@@ -543,6 +553,7 @@ class _WindowButtonState extends State<_WindowButton> {
                     .onSurface
                     .withValues(alpha: 0.7),
           ),
+        ),
         ),
       ),
     );

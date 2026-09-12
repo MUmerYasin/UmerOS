@@ -6,10 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Interactive Python interpreter that launches `umeros_python.exe` and
-/// communicates via stdin/stdout streams.  Designed with VS Code–style
-/// UI patterns: toolbar, debug toolbar, status bar with interpreter
-/// selector, terminal tabs, command palette, and keyboard shortcuts.
+/// Python interpreter with VS Code–style dual-panel layout:
+/// top area = multi-line code editor, bottom = collapsible terminal output panel.
+/// Press F5 or click Run to execute editor content.
 class PythonInterpreterApp extends StatefulWidget {
   const PythonInterpreterApp({super.key});
 
@@ -18,67 +17,65 @@ class PythonInterpreterApp extends StatefulWidget {
 }
 
 class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
-  // ── Controllers ───────────────────────────────────────────────
-  final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final FocusNode _inputFocus = FocusNode();
+  // ── Editor ──────────────────────────────────────────────────
+  final TextEditingController _editorController = TextEditingController(
+    text: 'print("Hello from UmerOS Python!")\n',
+  );
+  final FocusNode _editorFocus = FocusNode();
 
-  // ── Session management (VS Code terminal tabs) ────────────────
-  final List<_TerminalSession> _sessions = [];
-  int _activeSessionIndex = 0;
+  // ── Terminal output ─────────────────────────────────────────
+  final TextEditingController _terminalInput = TextEditingController();
+  final FocusNode _terminalFocus = FocusNode();
+  final ScrollController _terminalScrollController = ScrollController();
+  final List<_LogEntry> _outputLines = [];
+  bool _showTerminal = true;
 
-  // ── Debug mode ────────────────────────────────────────────────
+  // ── Settings ────────────────────────────────────────────────
+  double _fontSize = 13;
+  bool _wordWrap = false;
+  bool _showLineNumbers = true;
+
+  // ── Process ─────────────────────────────────────────────────
+  Process? _process;
+  bool _running = false;
+  int _exitCode = 0;
+  String _pendingLine = '';
   bool _debugMode = false;
 
-  // ── Command palette ───────────────────────────────────────────
+  // ── History ─────────────────────────────────────────────────
+  final List<String> _inputHistory = [];
+
+
+  // ── Command palette ─────────────────────────────────────────
   bool _showCommandPalette = false;
   final TextEditingController _paletteController = TextEditingController();
   final FocusNode _paletteFocus = FocusNode();
 
-  // ── Interpreter selector ──────────────────────────────────────
+  // ── Interpreter picker ──────────────────────────────────────
   bool _showInterpreterPicker = false;
 
-  // ── Output settings ───────────────────────────────────────────
-  bool _wordWrap = true;
-  bool _showLineNumbers = true;
-  double _fontSize = 13;
-
-  // ── History for Up/Down arrow recall ───────────────────────────
-  final List<String> _inputHistory = [];
-  int _inputHistoryIndex = -1;
-
   static const String _exeName = 'umeros_python.exe';
-
-  _TerminalSession get _active => _sessions[_activeSessionIndex];
 
   @override
   void initState() {
     super.initState();
-    _sessions.add(_TerminalSession(name: 'Python 1'));
-    _active.history.add(const _LogEntry(
-      type: _EntryType.system,
-      text: 'UmerOS Python Interpreter\n'
-          'Toolbar: Run ▶  Stop ■  Debug 🐛  Restart ↻\n'
-          'Status bar: click interpreter to switch | F5 run | Shift+F5 stop\n'
-          'Ctrl+Shift+P: command palette | Ctrl+L: clear | Ctrl+F: search\n',
-    ));
     _startProcess();
   }
 
   @override
   void dispose() {
-    for (final s in _sessions) {
-      s.process?.kill();
-    }
-    _controller.dispose();
-    _scrollController.dispose();
-    _inputFocus.dispose();
+    _process?.kill();
+    _editorController.dispose();
+    _editorFocus.dispose();
+    _terminalInput.dispose();
+    _terminalFocus.dispose();
+    _terminalScrollController.dispose();
     _paletteController.dispose();
     _paletteFocus.dispose();
     super.dispose();
   }
 
-  // ── Process management ────────────────────────────────────────
+  // ── Process management ──────────────────────────────────────
 
   String _findInterpreter() {
     final exeDir = Platform.resolvedExecutable;
@@ -95,19 +92,10 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
     return _exeName;
   }
 
-  String _interpreterPath() {
-    final exeDir = Platform.resolvedExecutable;
-    final localPath =
-        '${File(exeDir).parent.path}${Platform.pathSeparator}$_exeName';
-    if (File(localPath).existsSync()) return localPath;
-
-    final bootPath =
-        '${File(exeDir).parent.parent.path}${Platform.pathSeparator}'
-        'boot${Platform.pathSeparator}python_vm${Platform.pathSeparator}'
-        'build${Platform.pathSeparator}$_exeName';
-    if (File(bootPath).existsSync()) return bootPath;
-
-    return _exeName;
+  String _workingDir() {
+    return Platform.environment['HOME'] ??
+        Platform.environment['USERPROFILE'] ??
+        '.';
   }
 
   Future<void> _startProcess() async {
@@ -118,9 +106,18 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
         [],
         workingDirectory: _workingDir(),
       );
-      _active.process = proc;
-      _active.running = true;
-      _active.exitCode = 0;
+      _process = proc;
+      _running = true;
+      _exitCode = 0;
+
+      setState(() {
+        _outputLines.add(const _LogEntry(
+          type: _EntryType.system,
+          text: '── UmerOS Python Interpreter ──\n'
+              'F5 Run | Shift+F5 Stop | Ctrl+L Clear\n'
+              'Type code in the editor, press Run to execute.',
+        ));
+      });
 
       proc.stdout
           .transform(const SystemEncoding().decoder)
@@ -135,9 +132,9 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
       proc.exitCode.then((code) {
         if (mounted) {
           setState(() {
-            _active.running = false;
-            _active.exitCode = code;
-            _active.history.add(_LogEntry(
+            _running = false;
+            _exitCode = code;
+            _outputLines.add(_LogEntry(
               type: _EntryType.system,
               text: '[Process exited with code $code]',
             ));
@@ -145,76 +142,104 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
         }
       });
     } catch (e) {
-      _active.history.add(_LogEntry(
-        type: _EntryType.error,
-        text: 'Failed to start Python interpreter: $e',
-      ));
+      setState(() {
+        _outputLines.add(_LogEntry(
+          type: _EntryType.error,
+          text: 'Failed to start interpreter: $e',
+        ));
+      });
     }
   }
 
   void _killProcess() {
-    _active.process?.kill();
-    _active.process = null;
-    _active.running = false;
+    _process?.kill();
+    _process = null;
+    _running = false;
   }
 
   void _restartProcess() {
     _killProcess();
     setState(() {
-      _active.history.clear();
-      _debugMode = false;
-      _active.history.add(const _LogEntry(
-        type: _EntryType.system,
-        text: 'UmerOS Python Interpreter (restarted)\n'
-            'Toolbar: Run ▶  Stop ■  Debug 🐛  Restart ↻\n',
-      ));
+      _outputLines.clear();
     });
     _startProcess();
   }
 
-  String _workingDir() {
-    final home = Platform.environment['HOME'] ??
-        Platform.environment['USERPROFILE'] ??
-        '.';
-    return home;
-  }
-
-  // ── Stream handlers ───────────────────────────────────────────
+  // ── Stream handlers ─────────────────────────────────────────
 
   void _onStdout(String line) {
     if (!mounted) return;
     setState(() {
-      if (_active.pendingLine.isNotEmpty) {
-        _active.history
-            .add(_LogEntry(type: _EntryType.input, text: _active.pendingLine));
-        _active.pendingLine = '';
+      if (_pendingLine.isNotEmpty) {
+        _outputLines
+            .add(_LogEntry(type: _EntryType.input, text: _pendingLine));
+        _pendingLine = '';
       }
-      _active.history.add(_LogEntry(type: _EntryType.output, text: line));
+      _outputLines.add(_LogEntry(type: _EntryType.output, text: line));
     });
-    _scrollToBottom();
+    _scrollTerminalToBottom();
   }
 
   void _onStderr(String line) {
     if (!mounted) return;
     setState(() {
-      if (_active.pendingLine.isNotEmpty) {
-        _active.history
-            .add(_LogEntry(type: _EntryType.input, text: _active.pendingLine));
-        _active.pendingLine = '';
+      if (_pendingLine.isNotEmpty) {
+        _outputLines
+            .add(_LogEntry(type: _EntryType.input, text: _pendingLine));
+        _pendingLine = '';
       }
-      _active.history.add(_LogEntry(type: _EntryType.error, text: line));
+      _outputLines.add(_LogEntry(type: _EntryType.error, text: line));
     });
-    _scrollToBottom();
+    _scrollTerminalToBottom();
   }
 
-  // ── User input ────────────────────────────────────────────────
+  void _scrollTerminalToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_terminalScrollController.hasClients) {
+        _terminalScrollController.animateTo(
+          _terminalScrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 80),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
-  void _submitCode(String text) {
-    _controller.clear();
+  // ── Actions ─────────────────────────────────────────────────
+
+  /// Run entire editor content line-by-line via REPL stdin.
+  void _runEditorCode() {
+    if (!_running) {
+      _restartProcess();
+      return;
+    }
+    final code = _editorController.text;
+    if (code.trim().isEmpty) return;
+
+    final lines = code.split('\n');
+    setState(() {
+      _outputLines.add(_LogEntry(
+        type: _EntryType.system,
+        text: '── Run ──',
+      ));
+    });
+    for (final line in lines) {
+      if (line.trim().isNotEmpty) {
+        _process?.stdin.writeln(line);
+      }
+    }
+    _editorFocus.requestFocus();
+  }
+
+  /// Submit single line from terminal REPL input bar.
+  void _submitTerminalLine(String text) {
+    _terminalInput.clear();
+    if (text.trim().isEmpty || !_running) return;
+
     if (text.trim().toLowerCase() == 'exit') {
       _killProcess();
       setState(() {
-        _active.history.add(const _LogEntry(
+        _outputLines.add(const _LogEntry(
           type: _EntryType.system,
           text: '[Interpreter exited]',
         ));
@@ -222,89 +247,31 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
       return;
     }
 
-    if (text.trim().isEmpty || !_active.running) return;
-
     _inputHistory.add(text);
-    _inputHistoryIndex = _inputHistory.length;
 
     setState(() {
-      _active.pendingLine = '>>> $text';
+      _pendingLine = '>>> $text';
     });
-
-    _active.process?.stdin.writeln(text);
-  }
-
-  void _runButton() {
-    if (_active.running) {
-      final text = _controller.text;
-      if (text.trim().isNotEmpty) {
-        _submitCode(text);
-      }
-    } else {
-      _restartProcess();
-    }
-    _inputFocus.requestFocus();
+    _process?.stdin.writeln(text);
   }
 
   void _stopButton() {
-    if (_active.running) {
+    if (_running) {
       _killProcess();
       setState(() {
-        _active.history.add(const _LogEntry(
+        _outputLines.add(const _LogEntry(
           type: _EntryType.system,
           text: '[Process stopped by user]',
         ));
       });
     }
-    _inputFocus.requestFocus();
   }
 
-  void _debugButton() {
-    setState(() {
-      _debugMode = !_debugMode;
-      _active.history.add(_LogEntry(
-        type: _EntryType.system,
-        text: _debugMode
-            ? '[Debug mode enabled — step/continue available]'
-            : '[Debug mode disabled]',
-      ));
-    });
-    _inputFocus.requestFocus();
+  void _clearOutput() {
+    setState(() => _outputLines.clear());
   }
 
-  // ── Terminal tab management ───────────────────────────────────
-
-  void _newSession() {
-    setState(() {
-      final idx = _sessions.length + 1;
-      _sessions.add(_TerminalSession(name: 'Python $idx'));
-      _activeSessionIndex = _sessions.length - 1;
-    });
-    _startProcess();
-    _inputFocus.requestFocus();
-  }
-
-  void _closeSession(int index) {
-    if (_sessions.length <= 1) return;
-    final session = _sessions[index];
-    session.process?.kill();
-    setState(() {
-      _sessions.removeAt(index);
-      if (_activeSessionIndex >= _sessions.length) {
-        _activeSessionIndex = _sessions.length - 1;
-      }
-    });
-  }
-
-  void _switchSession(int index) {
-    if (index == _activeSessionIndex) return;
-    setState(() {
-      _activeSessionIndex = index;
-    });
-    _inputFocus.requestFocus();
-  }
-
-  // ── Command palette ───────────────────────────────────────────
+  // ── Command palette ─────────────────────────────────────────
 
   void _toggleCommandPalette() {
     setState(() {
@@ -320,42 +287,42 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
 
   List<_PaletteCommand> _paletteCommands() => [
         _PaletteCommand(
-          label: 'Python Interpreter: Select Interpreter',
-          icon: Icons.code,
+          label: 'Run (F5)',
+          icon: Icons.play_arrow_rounded,
           action: () {
-            setState(() => _showInterpreterPicker = true);
+            _runEditorCode();
             _showCommandPalette = false;
           },
         ),
         _PaletteCommand(
-          label: 'Terminal: New Session',
-          icon: Icons.add,
+          label: 'Stop (Shift+F5)',
+          icon: Icons.stop_rounded,
           action: () {
-            _newSession();
+            _stopButton();
             _showCommandPalette = false;
           },
         ),
         _PaletteCommand(
-          label: 'Terminal: Restart',
-          icon: Icons.refresh,
+          label: 'Restart Interpreter',
+          icon: Icons.refresh_rounded,
           action: () {
             _restartProcess();
             _showCommandPalette = false;
           },
         ),
         _PaletteCommand(
-          label: 'Terminal: Clear',
-          icon: Icons.delete_sweep,
+          label: 'Clear Output (Ctrl+L)',
+          icon: Icons.delete_sweep_rounded,
           action: () {
-            setState(() => _active.history.clear());
+            _clearOutput();
             _showCommandPalette = false;
           },
         ),
         _PaletteCommand(
-          label: 'Toggle Debug Mode',
-          icon: Icons.bug_report,
+          label: 'Toggle Terminal Panel',
+          icon: Icons.terminal,
           action: () {
-            _debugButton();
+            setState(() => _showTerminal = !_showTerminal);
             _showCommandPalette = false;
           },
         ),
@@ -391,6 +358,22 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
             _showCommandPalette = false;
           },
         ),
+        _PaletteCommand(
+          label: 'Toggle Debug Mode',
+          icon: Icons.bug_report_rounded,
+          action: () {
+            setState(() => _debugMode = !_debugMode);
+            _showCommandPalette = false;
+          },
+        ),
+        _PaletteCommand(
+          label: 'Select Interpreter',
+          icon: Icons.code,
+          action: () {
+            setState(() => _showInterpreterPicker = true);
+            _showCommandPalette = false;
+          },
+        ),
       ];
 
   List<_PaletteCommand> get _filteredCommands {
@@ -401,7 +384,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
         .toList();
   }
 
-  // ── Keyboard shortcuts ────────────────────────────────────────
+  // ── Keyboard shortcuts ──────────────────────────────────────
 
   void _handleKeyDown(KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return;
@@ -416,9 +399,9 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
       return;
     }
 
-    // Ctrl+Enter → Run current line
-    if (hw.isControlPressed && logical == LogicalKeyboardKey.enter) {
-      _runButton();
+    // F5 → Run
+    if (logical == LogicalKeyboardKey.f5) {
+      _runEditorCode();
       return;
     }
 
@@ -428,15 +411,9 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
       return;
     }
 
-    // F5 → Run
-    if (logical == LogicalKeyboardKey.f5) {
-      _runButton();
-      return;
-    }
-
     // Ctrl+L → Clear
     if (hw.isControlPressed && logical == LogicalKeyboardKey.keyL) {
-      setState(() => _active.history.clear());
+      _clearOutput();
       return;
     }
 
@@ -458,45 +435,14 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
       return;
     }
 
-    // Up arrow → history previous
-    if (logical == LogicalKeyboardKey.arrowUp && _inputHistory.isNotEmpty) {
-      if (_inputHistoryIndex > 0) {
-        _inputHistoryIndex--;
-        _controller.text = _inputHistory[_inputHistoryIndex];
-        _controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: _controller.text.length),
-        );
-      }
-    }
-
-    // Down arrow → history next
-    if (logical == LogicalKeyboardKey.arrowDown && _inputHistory.isNotEmpty) {
-      if (_inputHistoryIndex < _inputHistory.length - 1) {
-        _inputHistoryIndex++;
-        _controller.text = _inputHistory[_inputHistoryIndex];
-        _controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: _controller.text.length),
-        );
-      } else {
-        _inputHistoryIndex = _inputHistory.length;
-        _controller.clear();
-      }
+    // Ctrl+Enter → Run from editor
+    if (hw.isControlPressed && logical == LogicalKeyboardKey.enter) {
+      _runEditorCode();
+      return;
     }
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 80),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-  }
-
-  // ── Build ─────────────────────────────────────────────────────
+  // ── Build ───────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -512,35 +458,30 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
           children: [
             Column(
               children: [
-                // ── Terminal tabs (VS Code tab bar) ──────────────
-                _buildTabBar(smallStyle),
-
-                // ── VS Code–style toolbar ───────────────────────
+                // ── Toolbar ─────────────────────────────────────
                 _buildToolbar(smallStyle),
-
-                // ── Debug toolbar ───────────────────────────────
-                if (_debugMode) _buildDebugToolbar(smallStyle),
-
-                // ── Output area ─────────────────────────────────
+                // ── Editor (top area) ───────────────────────────
                 Expanded(
-                  child: Container(
-                    color: const Color(0xFF1E1E2E),
-                    child: _buildOutput(codeStyle),
-                  ),
+                  flex: _showTerminal ? 65 : 100,
+                  child: _buildEditor(codeStyle),
                 ),
-
-                // ── Input area ──────────────────────────────────
-                _buildInputArea(codeStyle),
-
-                // ── VS Code–style status bar ────────────────────
+                // ── Terminal panel (bottom, collapsible) ────────
+                if (_showTerminal) ...[
+                  _buildTerminalDivider(),
+                  Expanded(
+                    flex: 35,
+                    child: _buildTerminalPanel(codeStyle, smallStyle),
+                  ),
+                ],
+                // ── Status bar ─────────────────────────────────
                 _buildStatusBar(smallStyle),
               ],
             ),
 
-            // ── Command palette overlay ─────────────────────────
+            // ── Command palette overlay ────────────────────────
             if (_showCommandPalette) _buildCommandPalette(),
 
-            // ── Interpreter picker overlay ──────────────────────
+            // ── Interpreter picker overlay ─────────────────────
             if (_showInterpreterPicker) _buildInterpreterPicker(),
           ],
         ),
@@ -548,91 +489,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
     );
   }
 
-  // ── Tab bar ─────────────────────────────────────────────────
-
-  Widget _buildTabBar(TextStyle smallStyle) {
-    return Container(
-      height: 32,
-      color: const Color(0xFF11111B),
-      child: Row(
-        children: [
-          // New tab button
-          InkWell(
-            onTap: _newSession,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Icon(Icons.add, size: 14, color: Colors.white54),
-            ),
-          ),
-          const VerticalDivider(width: 1, color: Colors.white12),
-
-          // Tabs
-          Expanded(
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _sessions.length,
-              itemBuilder: (context, index) {
-                final s = _sessions[index];
-                final isActive = index == _activeSessionIndex;
-                return GestureDetector(
-                  onTap: () => _switchSession(index),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFF1E1E2E)
-                          : Colors.transparent,
-                      border: Border(
-                        right: BorderSide(color: Colors.white12),
-                        bottom: BorderSide(
-                          color: isActive
-                              ? Colors.yellowAccent
-                              : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.code,
-                          size: 12,
-                          color: isActive
-                              ? Colors.yellowAccent
-                              : Colors.white38,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          s.name,
-                          style: smallStyle.copyWith(
-                            color:
-                                isActive ? Colors.white : Colors.white54,
-                            fontSize: 11,
-                          ),
-                        ),
-                        if (_sessions.length > 1) ...[
-                          const SizedBox(width: 6),
-                          InkWell(
-                            onTap: () => _closeSession(index),
-                            child: Icon(Icons.close,
-                                size: 10, color: Colors.white38),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ── Toolbar ─────────────────────────────────────────────────
+  // ── Toolbar ───────────────────────────────────────────────
 
   Widget _buildToolbar(TextStyle smallStyle) {
     return Container(
@@ -642,39 +499,30 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
         children: [
           const Icon(Icons.code, size: 16, color: Colors.yellowAccent),
           const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              _active.name,
-              style: smallStyle.copyWith(color: Colors.white70),
-              maxLines: 1,
-            ),
+          Text(
+            'Python Interpreter',
+            style: smallStyle.copyWith(color: Colors.white70),
           ),
+          const Spacer(),
+          // Run button
           _ToolbarIconButton(
             icon: Icons.play_arrow_rounded,
             tooltip: 'Run (F5)',
             color: Colors.greenAccent,
             enabled: true,
-            onPressed: _runButton,
+            onPressed: _runEditorCode,
           ),
           const SizedBox(width: 2),
+          // Stop button
           _ToolbarIconButton(
             icon: Icons.stop_rounded,
             tooltip: 'Stop (Shift+F5)',
             color: Colors.redAccent,
-            enabled: _active.running,
+            enabled: _running,
             onPressed: _stopButton,
           ),
           const SizedBox(width: 2),
-          _ToolbarIconButton(
-            icon: Icons.bug_report_rounded,
-            tooltip: 'Toggle Debug Mode',
-            color: _debugMode ? Colors.orangeAccent : Colors.white54,
-            enabled: true,
-            onPressed: _debugButton,
-          ),
-          const SizedBox(width: 8),
-          _StatusChip(running: _active.running),
-          const SizedBox(width: 8),
+          // Restart
           _ToolbarIconButton(
             icon: Icons.refresh_rounded,
             tooltip: 'Restart',
@@ -683,14 +531,39 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
             onPressed: _restartProcess,
           ),
           const SizedBox(width: 2),
+          // Debug toggle
+          _ToolbarIconButton(
+            icon: Icons.bug_report_rounded,
+            tooltip: 'Toggle Debug Mode',
+            color: _debugMode ? Colors.orangeAccent : Colors.white54,
+            enabled: true,
+            onPressed: () => setState(() => _debugMode = !_debugMode),
+          ),
+          const SizedBox(width: 8),
+          // Status chip
+          _StatusChip(running: _running),
+          const SizedBox(width: 8),
+          // Clear output
           _ToolbarIconButton(
             icon: Icons.delete_sweep_rounded,
-            tooltip: 'Clear (Ctrl+L)',
+            tooltip: 'Clear Output (Ctrl+L)',
             color: Colors.orangeAccent,
             enabled: true,
-            onPressed: () => setState(() => _active.history.clear()),
+            onPressed: _clearOutput,
           ),
           const SizedBox(width: 2),
+          // Toggle terminal
+          _ToolbarIconButton(
+            icon: _showTerminal
+                ? Icons.terminal
+                : Icons.terminal_rounded,
+            tooltip: _showTerminal ? 'Hide Terminal' : 'Show Terminal',
+            color: _showTerminal ? Colors.cyanAccent : Colors.white38,
+            enabled: true,
+            onPressed: () => setState(() => _showTerminal = !_showTerminal),
+          ),
+          const SizedBox(width: 2),
+          // Word wrap
           _ToolbarIconButton(
             icon: _wordWrap ? Icons.wrap_text : Icons.short_text_rounded,
             tooltip: _wordWrap ? 'Word Wrap: ON' : 'Word Wrap: OFF',
@@ -699,13 +572,11 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
             onPressed: () => setState(() => _wordWrap = !_wordWrap),
           ),
           const SizedBox(width: 2),
+          // Line numbers
           _ToolbarIconButton(
-            icon: _showLineNumbers
-                ? Icons.format_list_numbered
-                : Icons.format_list_numbered_sharp,
-            tooltip: _showLineNumbers
-                ? 'Line Numbers: ON'
-                : 'Line Numbers: OFF',
+            icon: Icons.format_list_numbered,
+            tooltip:
+                _showLineNumbers ? 'Line Numbers: ON' : 'Line Numbers: OFF',
             color: _showLineNumbers ? Colors.cyanAccent : Colors.white38,
             enabled: true,
             onPressed: () =>
@@ -716,108 +587,147 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
     );
   }
 
-  // ── Debug toolbar ───────────────────────────────────────────
+  // ── Editor panel ─────────────────────────────────────────
 
-  Widget _buildDebugToolbar(TextStyle smallStyle) {
+  Widget _buildEditor(TextStyle codeStyle) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       color: const Color(0xFF1E1E2E),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.bug_report,
-              size: 12, color: Colors.orangeAccent.shade200),
-          const SizedBox(width: 4),
-          Text('DEBUG',
-              style: smallStyle.copyWith(
-                  color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
-          const SizedBox(width: 12),
-          _DebugAction(
-              icon: Icons.skip_next_rounded,
-              label: 'Step Over',
-              shortcut: 'F10',
-              enabled: _active.running),
-          const SizedBox(width: 8),
-          _DebugAction(
-              icon: Icons.arrow_downward_rounded,
-              label: 'Step Into',
-              shortcut: 'F11',
-              enabled: _active.running),
-          const SizedBox(width: 8),
-          _DebugAction(
-              icon: Icons.arrow_upward_rounded,
-              label: 'Step Out',
-              shortcut: 'Shift+F11',
-              enabled: _active.running),
-          const SizedBox(width: 8),
-          _DebugAction(
-              icon: Icons.play_circle_outline_rounded,
-              label: 'Continue',
-              shortcut: 'F5',
-              enabled: _active.running),
-          const SizedBox(width: 8),
-          _DebugAction(
-              icon: Icons.restart_alt_rounded,
-              label: 'Restart',
-              shortcut: 'Ctrl+Shift+F5',
-              enabled: true),
-          const SizedBox(width: 8),
-          _DebugAction(
-              icon: Icons.stop_circle_rounded,
-              label: 'Stop',
-              shortcut: 'Shift+F5',
-              enabled: _active.running),
+          // Line numbers
+          if (_showLineNumbers) ...[
+            _EditorLineNumbers(
+              controller: _editorController,
+              fontSize: _fontSize,
+              codeStyle: codeStyle,
+            ),
+            const VerticalDivider(width: 1, color: Colors.white10),
+          ],
+          // Text editor
+          Expanded(
+            child: TextField(
+              controller: _editorController,
+              focusNode: _editorFocus,
+              style: codeStyle.copyWith(color: Colors.white),
+              maxLines: null,
+              expands: true,
+              keyboardType: TextInputType.multiline,
+              textAlignVertical: TextAlignVertical.top,
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.all(12),
+                hintText: '# Write Python code here...\n# Press F5 or Ctrl+Enter to run',
+                hintStyle: codeStyle.copyWith(
+                  color: Colors.white24,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              onChanged: (_) => setState(() {}),
+              onTapOutside: (_) {},
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ── Output ──────────────────────────────────────────────────
+  // ── Terminal panel ───────────────────────────────────────
 
-  Widget _buildOutput(TextStyle codeStyle) {
-    if (_showLineNumbers) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Line numbers
-          Container(
-            width: 44,
-            padding: const EdgeInsets.only(top: 12, right: 8),
-            child: ListView.builder(
-              controller: _scrollController,
-              itemCount: _active.history.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 1),
-                  child: Text(
-                    '${index + 1}',
-                    style: codeStyle.copyWith(
-                      color: Colors.white24,
-                      fontSize: _fontSize - 1,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                );
-              },
+  Widget _buildTerminalDivider() {
+    return GestureDetector(
+      onVerticalDragUpdate: (details) {
+        // Could implement resize here if needed
+      },
+      child: Container(
+        height: 4,
+        color: const Color(0xFF11111B),
+        child: Center(
+          child: Container(
+            width: 40,
+            height: 2,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(1),
             ),
           ),
-          const VerticalDivider(width: 1, color: Colors.white10),
-          // Content
-          Expanded(
-            child: _buildLogView(codeStyle),
-          ),
-        ],
-      );
-    }
-    return _buildLogView(codeStyle);
+        ),
+      ),
+    );
   }
 
-  Widget _buildLogView(TextStyle codeStyle) {
+  Widget _buildTerminalPanel(TextStyle codeStyle, TextStyle smallStyle) {
+    return Column(
+      children: [
+        // Terminal header
+        _buildTerminalHeader(smallStyle),
+        // Terminal output
+        Expanded(
+          child: Container(
+            color: const Color(0xFF11111B),
+            child: _buildTerminalOutput(codeStyle),
+          ),
+        ),
+        // Terminal REPL input
+        if (_running) _buildTerminalInput(codeStyle),
+      ],
+    );
+  }
+
+  Widget _buildTerminalHeader(TextStyle smallStyle) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      color: const Color(0xFF11111B),
+      child: Row(
+        children: [
+          Icon(Icons.terminal, size: 12, color: Colors.cyanAccent),
+          const SizedBox(width: 6),
+          Text(
+            'OUTPUT',
+            style: smallStyle.copyWith(
+              color: Colors.cyanAccent,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '${_outputLines.length} lines',
+            style: smallStyle.copyWith(color: Colors.white38, fontSize: 10),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: _clearOutput,
+            child: Icon(Icons.delete_sweep, size: 12, color: Colors.white38),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: () => setState(() => _showTerminal = false),
+            child: Icon(Icons.close, size: 12, color: Colors.white38),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTerminalOutput(TextStyle codeStyle) {
+    if (_outputLines.isEmpty) {
+      return Center(
+        child: Text(
+          'No output yet. Press F5 to run your code.',
+          style: codeStyle.copyWith(
+            color: Colors.white24,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      );
+    }
+
     return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(12),
-      itemCount: _active.history.length,
+      controller: _terminalScrollController,
+      padding: const EdgeInsets.all(8),
+      itemCount: _outputLines.length,
       itemBuilder: (context, index) {
-        final entry = _active.history[index];
+        final entry = _outputLines[index];
         Color color;
         switch (entry.type) {
           case _EntryType.system:
@@ -833,7 +743,10 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
           padding: const EdgeInsets.symmetric(vertical: 1),
           child: SelectableText(
             entry.text,
-            style: codeStyle.copyWith(color: color, fontSize: _fontSize),
+            style: codeStyle.copyWith(
+              color: color,
+              fontSize: (_fontSize - 1).clamp(10.0, 22.0),
+            ),
             maxLines: _wordWrap ? null : 1,
           ),
         );
@@ -841,60 +754,47 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
     );
   }
 
-  // ── Input area ──────────────────────────────────────────────
-
-  Widget _buildInputArea(TextStyle codeStyle) {
+  Widget _buildTerminalInput(TextStyle codeStyle) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      color: const Color(0xFF11111B),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      color: const Color(0xFF181825),
       child: Row(
         children: [
           Text(
             '>>> ',
-            style: codeStyle.copyWith(color: Colors.yellowAccent),
+            style: codeStyle.copyWith(
+              color: Colors.yellowAccent,
+              fontSize: _fontSize - 1,
+            ),
           ),
           Expanded(
             child: TextField(
-              controller: _controller,
-              focusNode: _inputFocus,
-              style: codeStyle.copyWith(color: Colors.white),
+              controller: _terminalInput,
+              focusNode: _terminalFocus,
+              style: codeStyle.copyWith(
+                color: Colors.white,
+                fontSize: _fontSize - 1,
+              ),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 isDense: true,
                 contentPadding: EdgeInsets.zero,
-                hintText: _active.running
-                    ? 'Enter Python code… (F5 run, ↑↓ history, Ctrl+Shift+P palette)'
-                    : 'Interpreter stopped — press ▶ to restart',
+                hintText: 'REPL input...',
                 hintStyle: codeStyle.copyWith(
                   color: Colors.white24,
                   fontStyle: FontStyle.italic,
+                  fontSize: _fontSize - 1,
                 ),
               ),
-              onSubmitted: _submitCode,
-              enabled: _active.running,
-              autofocus: true,
+              onSubmitted: _submitTerminalLine,
             ),
           ),
-          if (_active.running)
-            IconButton(
-              onPressed: () {
-                final text = _controller.text;
-                if (text.trim().isNotEmpty) {
-                  _submitCode(text);
-                }
-              },
-              icon: const Icon(Icons.play_circle_fill_rounded,
-                  color: Colors.greenAccent, size: 20),
-              tooltip: 'Run line',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
         ],
       ),
     );
   }
 
-  // ── Status bar ──────────────────────────────────────────────
+  // ── Status bar ───────────────────────────────────────────
 
   Widget _buildStatusBar(TextStyle smallStyle) {
     return GestureDetector(
@@ -907,7 +807,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
             Icon(Icons.terminal,
                 size: 11, color: Colors.white.withValues(alpha: 0.9)),
             const SizedBox(width: 4),
-            // Interpreter path (clickable — like VS Code Python selector)
+            // Interpreter selector
             Tooltip(
               message: 'Click to select interpreter',
               child: Container(
@@ -937,23 +837,30 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
               ),
             ),
             const SizedBox(width: 10),
-            // Session info
+            // Editor line count
             Text(
-              '${_sessions.length} session${_sessions.length > 1 ? 's' : ''}',
+              'Ln ${_editorController.text.split('\n').length}',
+              style:
+                  smallStyle.copyWith(color: Colors.white70, fontSize: 10),
+            ),
+            const SizedBox(width: 10),
+            // Char count
+            Text(
+              '${_editorController.text.length} chars',
               style:
                   smallStyle.copyWith(color: Colors.white70, fontSize: 10),
             ),
             const Spacer(),
-            // Line count
+            // Output lines
             Text(
-              '${_active.history.length} lines',
+              '${_outputLines.length} lines output',
               style:
                   smallStyle.copyWith(color: Colors.white, fontSize: 10),
             ),
             const SizedBox(width: 10),
             // Exit code
             Text(
-              'exit: ${_active.exitCode}',
+              'exit: $_exitCode',
               style:
                   smallStyle.copyWith(color: Colors.white, fontSize: 10),
             ),
@@ -971,9 +878,9 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
               style:
                   smallStyle.copyWith(color: Colors.white70, fontSize: 10),
             ),
-            const SizedBox(width: 10),
             // Debug indicator
-            if (_debugMode)
+            if (_debugMode) ...[
+              const SizedBox(width: 10),
               Row(
                 children: [
                   Icon(Icons.bug_report,
@@ -986,13 +893,14 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
                           fontWeight: FontWeight.bold)),
                 ],
               ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  // ── Command palette overlay ─────────────────────────────────
+  // ── Command palette overlay ───────────────────────────────
 
   Widget _buildCommandPalette() {
     return Positioned(
@@ -1035,7 +943,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
                     decoration: InputDecoration(
                       border: InputBorder.none,
                       isDense: true,
-                      hintText: 'Type a command…',
+                      hintText: 'Type a command...',
                       hintStyle: GoogleFonts.firaCode(
                           fontSize: 13, color: Colors.white38),
                       prefixIcon: Icon(Icons.search,
@@ -1089,13 +997,13 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
     );
   }
 
-  // ── Interpreter picker overlay ──────────────────────────────
+  // ── Interpreter picker overlay ────────────────────────────
 
   Widget _buildInterpreterPicker() {
     final interpreters = [
       _InterpreterInfo(
         name: 'UmerOS Python (recommended)',
-        path: _interpreterPath(),
+        path: _findInterpreter(),
         version: '3.x',
       ),
       _InterpreterInfo(
@@ -1122,7 +1030,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
           color: Colors.black54,
           child: Center(
             child: GestureDetector(
-              onTap: () {}, // absorb taps
+              onTap: () {},
               child: Container(
                 width: 460,
                 decoration: BoxDecoration(
@@ -1173,10 +1081,12 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
                     // Interpreter list
                     ...interpreters.map((interp) {
                       final isCurrent =
-                          interp.path == _interpreterPath();
+                          interp.path == _findInterpreter();
                       return ListTile(
                         leading: Icon(
-                          isCurrent ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                          isCurrent
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
                           size: 16,
                           color: isCurrent
                               ? Colors.yellowAccent
@@ -1216,7 +1126,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
   }
 }
 
-// ── Helpers ─────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────
 
 enum _EntryType { system, input, output, error }
 
@@ -1224,17 +1134,6 @@ class _LogEntry {
   final _EntryType type;
   final String text;
   const _LogEntry({required this.type, required this.text});
-}
-
-class _TerminalSession {
-  final String name;
-  Process? process;
-  bool running = false;
-  int exitCode = 0;
-  String pendingLine = '';
-  final List<_LogEntry> history = [];
-
-  _TerminalSession({required this.name});
 }
 
 class _PaletteCommand {
@@ -1257,6 +1156,44 @@ class _InterpreterInfo {
     required this.path,
     required this.version,
   });
+}
+
+/// Line numbers gutter for the code editor.
+class _EditorLineNumbers extends StatelessWidget {
+  final TextEditingController controller;
+  final double fontSize;
+  final TextStyle codeStyle;
+
+  const _EditorLineNumbers({
+    required this.controller,
+    required this.fontSize,
+    required this.codeStyle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final lineCount = controller.text.split('\n').length;
+    return Container(
+      width: 44,
+      padding: const EdgeInsets.only(top: 12, right: 8),
+      child: ListView.builder(
+        itemCount: lineCount,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 1),
+            child: Text(
+              '${index + 1}',
+              style: codeStyle.copyWith(
+                color: Colors.white24,
+                fontSize: fontSize - 1,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// VS Code–style toolbar icon button.
@@ -1288,57 +1225,6 @@ class _ToolbarIconButton extends StatelessWidget {
             icon,
             size: 18,
             color: enabled ? color : color.withValues(alpha: 0.3),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// VS Code–style debug action button.
-class _DebugAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String shortcut;
-  final bool enabled;
-
-  const _DebugAction({
-    required this.icon,
-    required this.label,
-    required this.shortcut,
-    required this.enabled,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: '$label ($shortcut)',
-      child: InkWell(
-        onTap: enabled ? () {} : null,
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 14,
-                color: enabled
-                    ? Colors.white70
-                    : Colors.white.withValues(alpha: 0.2),
-              ),
-              const SizedBox(width: 3),
-              Text(
-                label,
-                style: GoogleFonts.firaCode(
-                  fontSize: 10,
-                  color: enabled
-                      ? Colors.white60
-                      : Colors.white.withValues(alpha: 0.2),
-                ),
-              ),
-            ],
           ),
         ),
       ),
