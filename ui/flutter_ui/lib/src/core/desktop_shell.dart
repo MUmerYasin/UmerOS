@@ -157,7 +157,6 @@ class _DesktopShellState extends State<DesktopShell> {
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -212,9 +211,12 @@ class _DesktopShellState extends State<DesktopShell> {
           ),
         ),
       ),
-    )
+    );
+
+      }
+
   }
-}
+
 
 class _MenuBar extends StatelessWidget {
   final String currentTime;
@@ -290,9 +292,8 @@ class _MenuBar extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                     color: colorScheme.primary,
-                  ),
-                ),
-              ],
+                      ),
+                ),],
             ),
             onSelected: (value) {
               switch (value) {
@@ -1257,7 +1258,7 @@ class _LaunchPad extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          );
+                          ), );
                         },
                     ),
                   ),

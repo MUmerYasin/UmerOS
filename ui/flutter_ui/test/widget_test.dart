@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_ui/main.dart';
 import 'package:flutter_ui/src/core/app_state.dart';
-import 'package:flutter_ui/src/core/app_registry.dart';
 import 'package:flutter_ui/src/core/theme_provider.dart';
 import 'package:flutter_ui/src/services/prefs_service.dart';
 import 'package:flutter_ui/src/widgets/dock.dart';
