@@ -205,7 +205,7 @@ class TestTransactionAction:
         assert TransactionAction.REINSTALL.value == "reinstall"
 
     def test_all_values(self):
-        expected = {"install", "remove", "update", "reinstall"}
+        expected = {"install", "remove", "update", "reinstall", "downgrade", "erase", "obsolete", "verify", "sync"}
         actual = {a.value for a in TransactionAction}
         assert expected == actual
 
