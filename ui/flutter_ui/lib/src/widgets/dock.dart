@@ -261,13 +261,12 @@ class _DockState extends State<Dock> {
                 ),
               ),
             ),
-          ),
-          ),
-          ),
-        );
-      },
-    );
-  }
+           ),
+         ),
+         );
+       },
+     );
+   }
 
   void _handleTap(AppState appState, String appId, WindowData? window) {
     final meta = AppRegistry.byId(appId);

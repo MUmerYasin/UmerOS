@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'src/core/desktop_shell.dart';
+import 'context_menu.dart';
 import 'src/core/app_state.dart';
 import 'src/core/theme_provider.dart';
 import 'src/animations/animations.dart';
@@ -98,7 +99,7 @@ class UmerOSApp extends StatelessWidget {
             // NOW" expectation while still feeling animated.
             home: FadeInOnMount(
               duration: UmerDurations.medium2,
-              child: DesktopShell(),
+              child: RightClickArea(child: DesktopShell()),
             ),
           );
         },

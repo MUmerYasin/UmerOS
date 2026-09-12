@@ -22,11 +22,13 @@ class DataSourceBadge extends StatelessWidget {
     final color = simulated ? Colors.amber.shade700 : Colors.green.shade600;
     final label = simulated ? 'Simulated' : 'Live';
 
-    return Tooltip(
-      message: simulated
-          ? 'Backend unreachable — showing locally generated demo data.'
-          : 'Connected to the UmerOS backend.',
-      child: Container(
+    return Semantics(
+      label: 'Data source: $label',
+      child: Tooltip(
+        message: simulated
+            ? 'Backend unreachable — showing locally generated demo data.'
+            : 'Connected to the UmerOS backend.',
+        child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.15),

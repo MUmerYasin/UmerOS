@@ -71,7 +71,10 @@ class _DraggableWindowState extends State<DraggableWindow> {
     return Positioned(
       left: widget.window.position.dx,
       top: widget.window.position.dy,
-      child: GestureDetector(
+      child: Semantics(
+        label: widget.window.title,
+        container: true,
+        child: GestureDetector(
         onTapDown: (_) => appState.focusWindow(widget.window.id),
         child: AnimatedContainer(
           duration: _isDraggingHeader ? Duration.zero : const Duration(milliseconds: 150),
@@ -201,6 +204,7 @@ class _DraggableWindowState extends State<DraggableWindow> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

@@ -154,9 +154,11 @@ class _DesktopShellState extends State<DesktopShell> {
                                   Theme.of(context).colorScheme.primary,
                               width: 2,
                             ),
+                                                       ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -211,7 +213,7 @@ class _DesktopShellState extends State<DesktopShell> {
           ),
         ),
       ),
-    );
+    )
   }
 }
 
@@ -234,7 +236,10 @@ class _MenuBar extends StatelessWidget {
     final app = AppRegistry.byId(id)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: InkWell(
+      child: Semantics(
+        label: app.title,
+        button: true,
+        child: InkWell(
         borderRadius: BorderRadius.circular(6),
         onTap: () => onOpenApp(app),
         child: Padding(
@@ -248,6 +253,7 @@ class _MenuBar extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -425,7 +431,10 @@ class _MenuBar extends StatelessWidget {
           // Date & Time Status
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: Semantics(
+              label: 'Date and time — open Calendar',
+              button: true,
+              child: GestureDetector(
               onTap: () => onOpenApp(AppRegistry.byId('calendar')!),
               child: Container(
                 padding:
@@ -456,6 +465,7 @@ class _MenuBar extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
             ),
           ),
         ],
@@ -1206,9 +1216,11 @@ class _LaunchPad extends StatelessWidget {
                             cursor: SystemMouseCursors.click,
                               child: Tooltip(
                                message: app.description,
-                               child: GestureDetector(
-                                 onTap: () => onOpenApp(app),
-                                 child: Center(
+                                child: Semantics(
+                                  label: app.title,
+                                  child: GestureDetector(
+                                  onTap: () => onOpenApp(app),
+                                  child: Center(
                                    child: FittedBox(
                                      fit: BoxFit.scaleDown,
                                      child: ConstrainedBox(
