@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_ui/main.dart';
 import 'package:flutter_ui/src/core/app_state.dart';
+import 'package:flutter_ui/src/core/app_registry.dart';
 import 'package:flutter_ui/src/core/theme_provider.dart';
 import 'package:flutter_ui/src/services/prefs_service.dart';
+import 'package:flutter_ui/src/widgets/dock.dart';
+import 'package:flutter_ui/src/widgets/data_source_badge.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -23,5 +27,60 @@ void main() {
     // test ends with no pending timers.
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  // ─── Accessibility (a11y) tests ────────────────────────────────────
+
+  group('a11y semantics', () {
+    testWidgets('Dock exposes semantic label', (WidgetTester tester) async {
+      final appState = AppState()..restore();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChangeNotifierProvider<AppState>.value(
+            value: appState,
+            child: Dock(onOpenApp: (_) {}),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.bySemanticsLabel('Application Dock'),
+        findsOneWidget,
+        reason: 'Dock wrapper must carry Semantics(label: \'Application Dock\')',
+      );
+    });
+
+    testWidgets('DataSourceBadge Simulated exposes semantic label',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: DataSourceBadge(simulated: true)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.bySemanticsLabel('Data source: Simulated'),
+        findsOneWidget,
+        reason: 'Simulated badge must carry Semantics(label: \'Data source: Simulated\')',
+      );
+    });
+
+    testWidgets('DataSourceBadge Live exposes semantic label',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: DataSourceBadge(simulated: false)),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.bySemanticsLabel('Data source: Live'),
+        findsOneWidget,
+        reason: 'Live badge must carry Semantics(label: \'Data source: Live\')',
+      );
+    });
   });
 }
