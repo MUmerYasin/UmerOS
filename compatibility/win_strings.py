@@ -49,11 +49,24 @@ def wide_str(s: str) -> bytes:
 
 
 def from_wide(blob: bytes) -> str:
-    """Decode a *null-terminated* UTF-16LE string."""
-    end = blob.find(b"\x00\x00")
-    if end < 0:
-        end = len(blob)
-    return blob[:end].decode("utf-16-le", errors="replace")
+    """Decode a *null-terminated* UTF-16LE string.
+
+    We look for the first ``\\x00\\x00`` at an *even* offset, since each
+    UTF-16LE character is 2 bytes long and the terminator must start
+    on a character boundary.  This correctly handles strings whose
+    final character is also a ``\\x00`` (the terminator would
+    otherwise be detected one byte early).
+    """
+    # Walk the bytes looking for a `\x00\x00` pair starting at an
+    # even offset.
+    limit = len(blob) - 1
+    i = 0
+    while i < limit:
+        if blob[i] == 0 and blob[i + 1] == 0:
+            return blob[:i].decode("utf-16-le", errors="replace")
+        i += 2
+    # No terminator found -- treat the whole buffer as the string.
+    return blob.decode("utf-16-le", errors="replace")
 
 
 @dataclass

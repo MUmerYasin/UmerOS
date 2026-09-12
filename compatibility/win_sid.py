@@ -37,9 +37,23 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
 
-_SID_RE = re.compile(
-    r"^S-(\d+)-(\d+)(?:-(\d+))+$"
-)
+_SID_RE = re.compile(r"^S-(\d+)-(\d+)(?:-(\d+))+$")
+
+#: Match a textual SID and return *all* subauthorities as a list of
+#: groups.  The standard format is ``S-R-A-S1-S2-...-SN``; the first
+#: two captures are revision and authority, the rest are subauthorities.
+_SID_FULL_RE = re.compile(r"^S-(\d+)-(\d+)((?:-\d+)+)$")
+
+
+def _parse_full_sid(s: str) -> Optional[Tuple[int, int, Tuple[int, ...]]]:
+    """Parse a textual SID and return ``(revision, authority, subs)``."""
+    m = _SID_FULL_RE.match(s)
+    if not m:
+        return None
+    rev = int(m.group(1))
+    auth = int(m.group(2))
+    subs = tuple(int(p.lstrip("-")) for p in m.group(3).split("-") if p)
+    return rev, auth, subs
 
 #: S-1-5-18 = NT AUTHORITY\SYSTEM
 SECURITY_LOCAL_SYSTEM_RID = (18,)
@@ -146,12 +160,10 @@ class Sid:
         if not isinstance(s, str):
             raise TypeError("Sid.from_string expects str")
         s = s.strip()
-        m = _SID_RE.match(s)
-        if not m:
+        parsed = _parse_full_sid(s)
+        if not parsed:
             raise ValueError(f"not a textual SID: {s!r}")
-        rev = int(m.group(1))
-        auth = int(m.group(2))
-        subs = tuple(int(x) for x in m.group(3).split("-"))
+        rev, auth, subs = parsed
         return cls(revision=rev, authority=auth, subauthorities=subs)
 
     def __str__(self) -> str:

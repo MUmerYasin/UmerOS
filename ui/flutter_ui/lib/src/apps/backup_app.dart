@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../screens/backup_screen.dart';
 
 class BackupApp extends StatelessWidget {
-  const BackupApp({Key? key}) : super(key: key);
+  const BackupApp({super.key});
 
   @override
   Widget build(BuildContext context) {
