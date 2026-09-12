@@ -13,6 +13,13 @@
 
 """AI self-healing service  [TODAY] (monitoring) / [FUTURE] (auto-patch).
 
+[H19 CONSOLIDATION] This is the canonical, capability-gated public healing
+service. The lower-level crash monitor lives in ``ai.umer_ai.SelfHealingEngine``;
+this module layers the H12/H21 zero-trust gate on top of it (it does not
+duplicate the engine's logic).  H19 selected ``SelfHealingEngine`` as the one
+canonical healing engine and kept ``SelfHealingService`` as the audited,
+privilege-scoped wrapper.
+
 [H12 GATE] Design mandate: any path that *executes* generated patches must be
 capability-scoped, sandbox-executed, audit-logged and rollback-tested. The
 current service deliberately does NOT execute anything: ``mitigate`` only

@@ -8,8 +8,10 @@
 #   * ``model_manager``    - ModelManager (download, cache, load)
 #   * ``providers``        - ProviderRegistry + adapters (OpenAI, Anthropic, Gemini, Ollama, llama.cpp)
 #   * ``self_healing``     - SelfHealingService / Engine (H21 H12-gated)
-#   * ``resource_predictor``- ResourcePredictor (EWMA + z-score)
+#   * ``resource_predictor``- ResourcePredictor (DEPRECATED alias for
+#                              ai.umer_ai.AIResourceManager — see H19)
 #   * ``umer_ai``          - The full LocalAIAssistant implementation
+#                              + canonical AIResourceManager / SelfHealingEngine
 #
 # Author: UmerOS Project
 # License: GPL-3.0 (GNU General Public License Version 3)
