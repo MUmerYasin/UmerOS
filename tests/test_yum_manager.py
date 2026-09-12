@@ -27,6 +27,7 @@ import pytest
 # Import all public symbols from the module under test.
 # ---------------------------------------------------------------------------
 from srv.yum_manager import (
+    CacheManager,
     CleanType,
     DepSolveResult,
     GroupManager,

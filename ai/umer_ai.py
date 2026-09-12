@@ -33,7 +33,7 @@ Privacy guarantee: NO user data leaves the device by default.
 All AI training is opt-in only (see ``AIGovernance``).
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPLv3
 """
 
 from __future__ import annotations

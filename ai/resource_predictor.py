@@ -31,7 +31,7 @@ name so any old importer keeps working, but new code should depend on
 that lived here was removed because it had no callers in the tree.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPLv3
 """
 
 # [FIX H19] Consolidate the duplicated predictor into the canonical

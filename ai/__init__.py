@@ -14,7 +14,7 @@
 #                              + canonical AIResourceManager / SelfHealingEngine
 #
 # Author: UmerOS Project
-# License: GPL-3.0 (GNU General Public License Version 3)
+# License: GPLv3
 """
 UmerOS /ai — Local AI assistant, providers, governance.
 """
