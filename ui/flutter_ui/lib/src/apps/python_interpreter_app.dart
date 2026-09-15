@@ -400,7 +400,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
   // ── File operations ─────────────────────────────────────────
 
   Future<void> _openFile() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.instance.pickFiles(
       dialogTitle: 'Open Python File',
       allowedExtensions: ['py', 'pyw', 'txt'],
       type: FileType.custom,
@@ -425,7 +425,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
   }
 
   Future<void> _saveFileAs() async {
-    final path = await FilePicker.platform.saveFile(
+    final path = await FilePicker.instance.saveFile(
       dialogTitle: 'Save Python File',
       fileName: _currentFileName,
       allowedExtensions: ['py', 'pyw'],

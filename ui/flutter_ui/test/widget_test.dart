@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_ui/main.dart';
 import 'package:flutter_ui/src/core/app_state.dart';
+import 'package:flutter_ui/src/core/desktop_shell.dart';
 import 'package:flutter_ui/src/core/theme_provider.dart';
 import 'package:flutter_ui/src/services/prefs_service.dart';
 import 'package:flutter_ui/src/widgets/dock.dart';
@@ -28,16 +29,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
   });
 
-  // ─── Accessibility (a11y) tests ────────────────────────────────────
+  // --- Accessibility (a11y) tests ---
 
   group('a11y semantics', () {
     testWidgets('Dock exposes semantic label', (WidgetTester tester) async {
       final appState = AppState()..restore();
       await tester.pumpWidget(
         MaterialApp(
-          home: ChangeNotifierProvider<AppState>.value(
-            value: appState,
-            child: Dock(onOpenApp: (_) {}),
+          home: Scaffold(
+            body: ChangeNotifierProvider<AppState>.value(
+              value: appState,
+              child: Dock(onOpenApp: (_) {}),
+            ),
           ),
         ),
       );
@@ -60,7 +63,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.bySemanticsLabel('Data source: Simulated'),
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              (widget.properties as dynamic).label == 'Data source: Simulated',
+        ),
         findsOneWidget,
         reason: 'Simulated badge must carry Semantics(label: \'Data source: Simulated\')',
       );
@@ -76,7 +83,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.bySemanticsLabel('Data source: Live'),
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              (widget.properties as dynamic).label == 'Data source: Live',
+        ),
         findsOneWidget,
         reason: 'Live badge must carry Semantics(label: \'Data source: Live\')',
       );
@@ -84,21 +95,28 @@ void main() {
 
     testWidgets('Menu bar date/time exposes semantic label',
         (WidgetTester tester) async {
-      SharedPreferences.setMockInitialValues(const {});
-      await PrefsService.instance.init();
-      await tester.pumpWidget(UmerOSApp(
-        themeProvider: ThemeProvider()..restore(),
-        appState: AppState()..restore(),
-      ));
-      // The shell runs a 1-second clock Timer; advance past it instead of
-      // pumpAndSettle so the test does not hang on a pending timer.
-      await tester.pump(const Duration(seconds: 1));
+      final appState = AppState()..restore();
+      final themeProvider = ThemeProvider()..restore();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MultiProvider(
+              providers: [
+                ChangeNotifierProvider<AppState>.value(value: appState),
+                ChangeNotifierProvider<ThemeProvider>.value(value: themeProvider),
+              ],
+              child: const DesktopShell(),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(seconds: 3));
 
       expect(
-        find.bySemanticsLabel('Date and time — open Calendar'),
+        find.bySemanticsLabel('Date and time \u2014 open Calendar'),
         findsOneWidget,
         reason: 'Date/time status must carry '
-            'Semantics(label: \'Date and time — open Calendar\')',
+            'Semantics(label: \'Date and time \u2014 open Calendar\')',
       );
 
       // Unmount so the shell's clock Timer is cancelled.

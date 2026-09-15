@@ -101,7 +101,7 @@ class BootComponent:
     path: str
     status: BootStatus = BootStatus.PRESENT
     size_bytes: int = 0
-    hash_sha256: Optional[str] = None
+    hash_sha3_512: Optional[str] = None
     version: Optional[str] = None
     arch: Optional[KernelArch] = None
     description: str = ""
@@ -441,7 +441,7 @@ class BootManager:
 
         Args:
             name: Component name
-            expected_hash: Expected SHA-256 hash (None to skip verification)
+            expected_hash: Expected SHA3-512 hash (None to skip verification)
 
         Returns:
             True if verification passes
@@ -459,7 +459,7 @@ class BootManager:
         # Compute hash if expected
         if expected_hash:
             try:
-                computed_hash = self._compute_sha256(component.path)
+                computed_hash = self._compute_sha3_512(component.path)
                 if computed_hash.lower() != expected_hash.lower():
                     component.status = BootStatus.CORRUPTED
                     log.error(
@@ -475,17 +475,17 @@ class BootManager:
         log.info("Component verified: %s", name)
         return True
 
-    def _compute_sha256(self, file_path: str) -> str:
-        """Compute SHA-256 hash of a file."""
-        sha256_hash = hashlib.sha256()
+    def _compute_sha3_512(self, file_path: str) -> str:
+        """Compute SHA3-512 hash of a file."""
+        sha3_512_hash = hashlib.sha3_512()
         with open(file_path, "rb") as f:
             for chunk in iter(lambda: f.read(8192), b""):
-                sha256_hash.update(chunk)
-        return sha256_hash.hexdigest()
+                sha3_512_hash.update(chunk)
+        return sha3_512_hash.hexdigest()
 
     def compute_component_hash(self, name: str) -> Optional[str]:
         """
-        Compute SHA-256 hash of a component.
+        Compute SHA3-512 hash of a component.
 
         Args:
             name: Component name
@@ -496,7 +496,7 @@ class BootManager:
         component = self.components.get(name)
         if not component or not os.path.isfile(component.path):
             return None
-        return self._compute_sha256(component.path)
+        return self._compute_sha3_512(component.path)
 
     # ── Boot Configuration ────────────────────────────────────────────────
 

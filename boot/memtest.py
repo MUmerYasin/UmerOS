@@ -185,7 +185,7 @@ class MemtestDetector:
         )
 
     def _checksum(self, path: Path) -> str:
-        h = hashlib.sha256()
+        h = hashlib.sha3_512()
         try:
             with open(path, "rb") as f:
                 for chunk in iter(lambda: f.read(8192), b""):

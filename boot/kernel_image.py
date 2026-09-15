@@ -136,7 +136,7 @@ class KernelImage:
     def vmlinuz_hash(self) -> str:
         if not self.vmlinuz_path.exists():
             return ""
-        h = hashlib.sha256()
+        h = hashlib.sha3_512()
         with open(self.vmlinuz_path, "rb") as f:
             while chunk := f.read(8192):
                 h.update(chunk)

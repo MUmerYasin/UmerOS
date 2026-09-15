@@ -19,7 +19,7 @@ Simulates the Umer OS boot sequence on classical hardware.
 TODAY (this file):
   - System compatibility check (Python version, platform, RAM).
   - Condensed legal warning display.
-  - Kernel image integrity verification via SHA3-256.
+  - Kernel image integrity verification via SHA3-512.
   - Loads and initialises UmerKernel.
 
 FUTURE (bare-metal, see boot/uefi_stub.c pseudocode):
@@ -147,7 +147,7 @@ def verify_kernel(
     expected_hash: Optional[str] = None,
     required: bool = False,
 ) -> bool:
-    """Verify the kernel image SHA3-256 hash.
+    """Verify the kernel image SHA3-512 hash.
 
     **[TODAY]** - Fail-closed per §4.2 H27:
     - If the kernel file is missing: returns ``False`` (never silently skips).
@@ -160,7 +160,7 @@ def verify_kernel(
 
     Args:
         path:           Filesystem path to the kernel module/image.
-        expected_hash:  Expected 64-char hex SHA3-256 digest, or None to skip.
+        expected_hash:  Expected 128-char hex SHA3-512 digest, or None to skip.
         required:       If True, a missing hash or file always returns False
                         regardless of development-mode shortcut.
 
@@ -185,7 +185,7 @@ def verify_kernel(
         )
         return True
 
-    h = hashlib.sha3_256()
+    h = hashlib.sha3_512()
     try:
         with open(path, "rb") as fh:
             for chunk in iter(lambda: fh.read(65536), b""):
@@ -278,7 +278,7 @@ def main(
 
     Args:
         kernel_path:   Path to kernel module for hash check (None = skip).
-        expected_hash: Expected kernel SHA3-256 hash (None = skip).
+        expected_hash: Expected kernel SHA3-512 hash (None = skip).
         ram_mb:        Simulated RAM in MiB to give the kernel.
 
     Returns:
@@ -370,7 +370,7 @@ def _selftest() -> bool:
     try:
         kfile = Path(td) / "test_kernel"
         kfile.write_bytes(b"fake kernel image content for testing")
-        h = hashlib.sha3_256()
+        h = hashlib.sha3_512()
         h.update(b"fake kernel image content for testing")
         correct_hash = h.hexdigest()
         if verify_kernel(str(kfile), expected_hash=correct_hash) is not True:

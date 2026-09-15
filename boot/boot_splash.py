@@ -69,17 +69,17 @@ class SplashImage:
     height: int = 0
     format: str = "png"  # png, jpg, tga, ppm
     file_size: int = 0
-    hash_sha256: str = ""
+    hash_sha3_512: str = ""
 
     def compute_hash(self) -> str:
         if not self.path.exists():
             return ""
-        h = hashlib.sha256()
+        h = hashlib.sha3_512()
         with open(self.path, "rb") as f:
             while chunk := f.read(8192):
                 h.update(chunk)
-        self.hash_sha256 = h.hexdigest()
-        return self.hash_sha256
+        self.hash_sha3_512 = h.hexdigest()
+        return self.hash_sha3_512
 
 
 @dataclass

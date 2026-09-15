@@ -72,7 +72,7 @@ class MicrocodeUpdate:
     cve_fixes: List[str] = field(default_factory=list)
     file_path: Optional[Path] = None
     file_size: int = 0
-    hash_sha256: str = ""
+    hash_sha3_512: str = ""
     is_loaded: bool = False
 
     def to_dict(self) -> Dict[str, Any]:

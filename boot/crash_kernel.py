@@ -106,7 +106,7 @@ class VmcoreInfo:
     crash_type: str  # panic, oops, hung_task, etc.
     file_path: Path
     file_size: int = 0
-    hash_sha256: str = ""
+    hash_sha3_512: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
