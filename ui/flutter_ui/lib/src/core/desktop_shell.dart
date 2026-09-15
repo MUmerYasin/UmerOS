@@ -507,7 +507,10 @@ class _DesktopGrid extends StatelessWidget {
               ),
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
-                child: GestureDetector(
+                child: Semantics(
+                  label: app.title,
+                  button: true,
+                  child: GestureDetector(
                   onTap: () => onOpenApp(app),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -553,6 +556,7 @@ class _DesktopGrid extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
                 ),
               ),
             ),
@@ -813,7 +817,10 @@ class _QuickToggleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return InkWell(
+    return Semantics(
+      label: label,
+      button: true,
+      child: InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Container(
@@ -877,6 +884,7 @@ class _QuickToggleTile extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }
@@ -1026,7 +1034,10 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
             a.description.toLowerCase().contains(_query.toLowerCase()))
         .toList();
 
-    return GestureDetector(
+    return Semantics(
+      label: 'Close search',
+      button: true,
+      child: GestureDetector(
       onTap: () => appState.toggleSearch(show: false),
       child: Container(
         color: Colors.black.withValues(alpha: 0.5),
@@ -1132,6 +1143,7 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
               ),
         ),
       ),
+    ),
     ).animate().fadeIn(duration: 150.ms);
   }
 }
@@ -1148,7 +1160,10 @@ class _LaunchPad extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final apps = AppRegistry.apps;
 
-    return GestureDetector(
+    return Semantics(
+      label: 'Close LaunchPad',
+      button: true,
+      child: GestureDetector(
       onTap: onClose,
       child: Container(
         color: Colors.black.withValues(alpha: 0.65),
@@ -1257,8 +1272,8 @@ class _LaunchPad extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                            ),
-                          ), );
+                              ),
+                           );
                         },
                     ),
                   ),
@@ -1272,6 +1287,7 @@ class _LaunchPad extends StatelessWidget {
               ),
         ),
       ),
+    ),
     ).animate().fadeIn(duration: 200.ms);
   }
 }

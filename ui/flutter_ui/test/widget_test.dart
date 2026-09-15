@@ -81,5 +81,29 @@ void main() {
         reason: 'Live badge must carry Semantics(label: \'Data source: Live\')',
       );
     });
+
+    testWidgets('Menu bar date/time exposes semantic label',
+        (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(const {});
+      await PrefsService.instance.init();
+      await tester.pumpWidget(UmerOSApp(
+        themeProvider: ThemeProvider()..restore(),
+        appState: AppState()..restore(),
+      ));
+      // The shell runs a 1-second clock Timer; advance past it instead of
+      // pumpAndSettle so the test does not hang on a pending timer.
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(
+        find.bySemanticsLabel('Date and time — open Calendar'),
+        findsOneWidget,
+        reason: 'Date/time status must carry '
+            'Semantics(label: \'Date and time — open Calendar\')',
+      );
+
+      // Unmount so the shell's clock Timer is cancelled.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 100));
+    });
   });
 }
