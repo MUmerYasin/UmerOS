@@ -27,6 +27,7 @@ Subdirectories include:
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -39,7 +40,7 @@ class SgmlDirCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/sgml/ - SGML/XML architecture-independent data\n"
             "  docbook/    - DocBook DTD and stylesheets\n"
@@ -60,7 +61,7 @@ class SgmlCatalogCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "SGML Catalog Files:\n"
             "  /etc/sgml/catalog         - System-wide catalog\n"
@@ -79,7 +80,7 @@ class DocbookCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "DocBook Documentation System:\n"
             "  /usr/share/sgml/docbook/sgml-dtd/  - SGML DTDs\n"
@@ -98,7 +99,7 @@ class SgmlEntitiesCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "SGML Entity Files:\n"
             "  /usr/share/sgml/iso8879/ - ISO 8879 character entities\n"

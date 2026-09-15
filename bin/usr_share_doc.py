@@ -22,6 +22,7 @@ CHANGES, LICENSE, and other documentation files.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -37,7 +38,7 @@ class DOCDIRCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: doc-dir [options]\n"
@@ -94,7 +95,7 @@ class LSCOMMAND(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: doc-list [options] [package]\n"
@@ -128,7 +129,7 @@ class PKGDOCCOMMAND(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args or args[0] in ("-h", "--help"):
             return (
                 "Usage: pkg-doc <package> [file]\n"
@@ -163,7 +164,7 @@ class PKGCHANGESCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args or args[0] in ("-h", "--help"):
             return (
                 "Usage: pkg-changes <package> [--format fmt]\n"

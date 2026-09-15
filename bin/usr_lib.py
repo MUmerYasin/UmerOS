@@ -19,6 +19,7 @@ used program routines. Also includes modules and architecture-specific libs.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -31,7 +32,7 @@ class LibDirCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/lib/ - Shared libraries and modules\n"
             "  libm.so, libpthread.so, libc.so, ...\n"
@@ -49,7 +50,7 @@ class LdConfigCommand(Command):
     category = "usr"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] == "-p":
             return (
                 "/usr/lib/ (0 files):\n"
@@ -70,7 +71,7 @@ class LdLinuxCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "ld: dynamic linker (used internally by ELF loader)\n"
 
 
@@ -82,7 +83,7 @@ class LdPreloadCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "LD_PRELOAD - shared library preloading\n"
             "  Allows overriding functions in shared libraries.\n"
@@ -98,7 +99,7 @@ class PkgConfigLibCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/lib/pkgconfig/ - .pc files\n"
             "  Contains compile/link flags for pkg-config.\n"
@@ -114,7 +115,7 @@ class UsrLibModulesCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/lib/modules/ - Kernel modules\n"
             "  Organized by kernel version.\n"

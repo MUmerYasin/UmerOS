@@ -19,6 +19,7 @@ Now located at /usr/share/man, symlinked from /usr/man.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -31,7 +32,7 @@ class ManCmdCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: man [section] command\n"
         cmd = args[-1]
@@ -52,7 +53,7 @@ class ManDirCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/man/ - Manual pages by section:\n"
             "  man1/ - User programs (ls, cat, echo, ...)\n"
@@ -74,7 +75,7 @@ class ManPathCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "MANPATH=/usr/local/man:/usr/share/man:/usr/man\n"
             "Sections searched in order: 1 8 3 2 4 5 6 7 9 0 l n\n"
@@ -89,7 +90,7 @@ class UsrAproposCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: apropos keyword\n"
         keyword = args[0]
@@ -107,7 +108,7 @@ class UsrWhatisCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: whatis command\n"
         return f"{args[0]} - {args[0]} command in UmerOS\n"
@@ -124,7 +125,7 @@ class ManConfCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/etc/man_db.conf - Manual page configuration\n"
             "  MANDB_MAP /usr/local/man /usr/local/share/man\n"
@@ -147,7 +148,7 @@ class ManGlobCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "Man page glob patterns:\n"
             "  /usr/share/man/man{1..8}/{cmd}.{1..8}.gz\n"
@@ -168,7 +169,7 @@ class ManLocalCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/etc/man.local - Local man page configuration\n"
             "  Defines site-specific manual page sections and paths.\n"
@@ -190,7 +191,7 @@ class ManNlsCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/man/NLS/ - Localized manual pages\n"
             "  NLS man pages organized by locale:\n"
@@ -214,7 +215,7 @@ class ManGroffTmacCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/groff/<ver>/tmac/ - Groff macro packages\n"
             "  man.tmac        - Man page macros (man(7) interface)\n"
@@ -237,7 +238,7 @@ class ManGroffCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/bin/groff - GNU troff document formatting system\n"
             "  Used to render man pages from source to terminal/PostScript/PDF\n"

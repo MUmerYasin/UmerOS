@@ -19,6 +19,7 @@ user space source code. Package-specific headers go in /usr/include/<pkg>.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -31,7 +32,7 @@ class IncludeDirCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/ - C/C++ header files\n"
             "  stdio.h, stdlib.h, string.h, math.h, ...\n"
@@ -51,7 +52,7 @@ class PkgConfigCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: pkg-config [options] [packages]\n"
         pkg = args[0]
@@ -71,7 +72,7 @@ class PkgConfigLibCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/lib/pkgconfig/ - .pc files for pkg-config\n"
             "  Contains compile/link metadata for installed libraries.\n"
@@ -86,7 +87,7 @@ class GnuStubsCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/gnu/ - GNU-specific stubs\n"
             "  stubs.h, versions.h\n"
@@ -101,7 +102,7 @@ class CpuConfigCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/x86_64-gnu/ - x86_64 headers\n"
             "  Architecture-specific system headers.\n"
@@ -116,7 +117,7 @@ class LinuxAsmCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/asm/ - Architecture-specific kernel headers\n"
             "  FHS 3.0 §6.1.8: /usr/include/asm/ is a symlink to\n"
@@ -142,7 +143,7 @@ class DrmHeadersCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/drm/ - Direct Rendering Manager headers\n"
             "  FHS 3.0 §6.1.8: specific\n"
@@ -160,7 +161,7 @@ class MtdHeadersCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/mtd/ - Memory Technology Device headers\n"
             "  FHS 3.0 UmerOS-specific\n"
@@ -178,7 +179,7 @@ class RdmaHeadersCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/rdma/ - RDMA subsystem headers\n"
             "  FHS 3.0 UmerOS-specific\n"
@@ -196,7 +197,7 @@ class SoundHeadersCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/sound/ - ALSA sound system headers\n"
             "  FHS 3.0 §6.1.8: Linux-specific\n"
@@ -214,7 +215,7 @@ class VideoHeadersCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/include/video/ - Video device headers\n"
             "  FHS 3.0 §6.1.8: \n"

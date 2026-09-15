@@ -18,6 +18,7 @@ UmerOS /usr/etc - System Configuration Hierarchy
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -30,7 +31,7 @@ class UsrEtcCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/etc/ - System-wide configuration\n"
             "  Theoretically for configuration files shared across hosts.\n"
@@ -48,7 +49,7 @@ class UsrEtcDefaultCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/etc/default/ - Default configuration values\n"
             "  Used to store default settings for programs.\n"
@@ -64,7 +65,7 @@ class UsrEtcProfileCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/etc/profile.d/ - System-wide shell initialization\n"
             "  Scripts executed by login shells.\n"

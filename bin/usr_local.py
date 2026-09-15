@@ -24,6 +24,7 @@ This includes:
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -39,7 +40,7 @@ class LOCALBINCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/bin:\n"
             "  Locally installed binaries\n"
@@ -59,7 +60,7 @@ class LOCALETCCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/etc:\n"
             "  Locally installed configuration files\n"
@@ -79,7 +80,7 @@ class LOCALLIBCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/lib:\n"
             "  Locally installed libraries\n"
@@ -99,7 +100,7 @@ class LOCALSHARECommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/share:\n"
             "  Architecture-independent local data\n"
@@ -119,7 +120,7 @@ class LOCALSBINCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/sbin:\n"
             "  Locally installed system administration binaries\n"
@@ -139,7 +140,7 @@ class LOCALINCLUDECommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/include:\n"
             "  C/C++ header files for local software\n"
@@ -159,7 +160,7 @@ class LOCALMANCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/man:\n"
             "  Man pages for locally installed software\n"
@@ -179,7 +180,7 @@ class LOCALDOCCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/doc:\n"
             "  Documentation for locally installed software\n"
@@ -199,7 +200,7 @@ class LOCALSRCCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/src:\n"
             "  Source code for locally compiled software\n"
@@ -219,7 +220,7 @@ class LOCALSHARECOLORCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/share/color/\n"
             "  FHS 3.0 §4.11.3: Required if /usr/share/color exists\n"
@@ -241,7 +242,7 @@ class LOCALSHARESGMLCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/share/sgml/\n"
             "  FHS 3.0 §4.11.11: Local SGML data files\n"
@@ -263,7 +264,7 @@ class LOCALSHAREXMLCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/share/xml/\n"
             "  FHS 3.0 §4.11.12: Local XML data files\n"
@@ -285,7 +286,7 @@ class LOCALSHARETEMPLATESCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/share/templates/\n"
             "  FHS 3.0 §4.11.13: Local default configuration templates\n"

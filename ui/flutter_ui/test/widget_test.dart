@@ -110,10 +110,16 @@ void main() {
           ),
         ),
       );
-      await tester.pump(const Duration(seconds: 3));
+      // pumpAndSettle lets the 1-second clock Timer fire and the tree settle.
+      await tester.pumpAndSettle();
 
       expect(
-        find.bySemanticsLabel('Date and time \u2014 open Calendar'),
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics &&
+              (widget.properties as dynamic).label ==
+                  'Date and time \u2014 open Calendar',
+        ),
         findsOneWidget,
         reason: 'Date/time status must carry '
             'Semantics(label: \'Date and time \u2014 open Calendar\')',

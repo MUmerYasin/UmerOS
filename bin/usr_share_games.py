@@ -22,6 +22,7 @@ belongs here.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -37,7 +38,7 @@ class GAMEDATADIRCommand(Command):
     category = "games"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/games:\n"
             "  Architecture-independent game data\n"
@@ -55,7 +56,7 @@ class NETHACKCommand(Command):
     category = "games"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "NetHack data:\n"
             "  /usr/share/games/nethack/\n"
@@ -74,5 +75,5 @@ class MAHJOCommand(Command):
     category = "games"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "mahjongg-data: Tile images for Mahjongg (simulated)\n"

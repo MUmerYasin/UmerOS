@@ -18,6 +18,7 @@ UmerOS /usr/src - Source Code Hierarchy
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -30,7 +31,7 @@ class SrcDirCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/        - Source code\n"
             "  /              -  kernel source\n"
@@ -47,7 +48,7 @@ class SrcLinuxCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/         - kernel source\n"
             "  .config         - Kernel configuration\n"
@@ -74,7 +75,7 @@ class SrcKernelHeadersCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/headers-$(uname -r)/\n"
             "  Kconfig, Makefile, Module.symvers\n"
@@ -92,7 +93,7 @@ class SrcRPMBuildCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/RPM/\n"
             "  BUILD/      - Temporary build files\n"
@@ -114,7 +115,7 @@ class SrcNetCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/net/ - Networking subsystem\n"
             "  ipv4/        - IPv4 stack (TCP, UDP, ICMP, IP)\n"
@@ -139,7 +140,7 @@ class SrcDriversCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/drivers/ - Device drivers\n"
             "  net/         - Network interface drivers\n"
@@ -167,7 +168,7 @@ class SrcFsCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/fs/ - Filesystem implementations\n"
             "  ext4/        - ext4 filesystem\n"
@@ -194,7 +195,7 @@ class SrcMmCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/mm/ - Memory management\n"
             "  page_alloc.c - Page frame allocator\n"
@@ -218,7 +219,7 @@ class SrcIpcCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/ipc/ - IPC subsystem\n"
             "  msg.c        - System V message queues\n"
@@ -237,7 +238,7 @@ class SrcSecurityCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/security/ - Security module framework\n"
             "  commoncap.c  - Common capabilities logic\n"
@@ -259,7 +260,7 @@ class SrcCryptoCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/crypto/ - Cryptographic API\n"
             "  aes.c        - AES symmetric cipher\n"
@@ -281,7 +282,7 @@ class SrcBlockCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/block/ - Block I/O layer\n"
             "  blk-core.c   - Block layer core (I/O submission)\n"
@@ -300,7 +301,7 @@ class SrcInitCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/init/ - Kernel boot and initialization\n"
             "  main.c       - start_kernel() - primary init entry\n"
@@ -318,7 +319,7 @@ class SrcSoundCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/sound/ - ALSA sound subsystem\n"
             "  core/        - ALSA core (PCM, control, timer)\n"
@@ -339,7 +340,7 @@ class SrcLibCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/lib/ - Kernel-space library routines\n"
             "  string.c     - String manipulation functions\n"
@@ -363,7 +364,7 @@ class SrcScriptsCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/scripts/ - Build system scripts\n"
             "  Makefile.build  - Recursive make infrastructure\n"
@@ -384,7 +385,7 @@ class SrcArchCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/src/arch/ - Architecture-specific code\n"
             "  x86/         - x86/x86_64 (most common)\n"

@@ -21,6 +21,7 @@ used by older libc5 systems. Modern systems use /usr/share/locale.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -36,7 +37,7 @@ class NLSCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/nls:\n"
             "  Native Language Support catalogs\n"
@@ -55,7 +56,7 @@ class NLSLISTCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "NLS catalogs:\n"
             "  en.cat    - English\n"

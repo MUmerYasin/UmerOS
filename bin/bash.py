@@ -31,6 +31,7 @@ Bash provides:
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -43,7 +44,7 @@ class BashCommand(Command):
     category = "shell"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] == "--version":
             return (
                 "UmerOS bash, version 5.2.15(1)-release\n"
@@ -73,7 +74,7 @@ class ZshCommand(Command):
     category = "shell"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] == "--version":
             return "zsh 5.9 (x86_64-pc-gnu)\n"
         return "zsh: interactive shell not available in UmerOS (simulated)\n"
@@ -87,7 +88,7 @@ class KshCommand(Command):
     category = "shell"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] == "--version":
             return "ksh 93u+ 2012-08-01\n"
         return "ksh: interactive shell not available in UmerOS (simulated)\n"
@@ -101,7 +102,7 @@ class TcshCommand(Command):
     category = "shell"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] == "--version":
             return "tcsh 6.24.01 (Astron) 2022-07-01\n"
         return "tcsh: interactive shell not available in UmerOS (simulated)\n"
@@ -115,7 +116,7 @@ class DashCommand(Command):
     category = "shell"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "dash: POSIX shell not available in UmerOS (simulated)\n"
 
 
@@ -127,7 +128,7 @@ class FishCommand(Command):
     category = "shell"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] == "--version":
             return "fish, version 3.6.0\n"
         return "fish: interactive shell not available in UmerOS (simulated)\n"
@@ -141,7 +142,7 @@ class MkshCommand(Command):
     category = "shell"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "mksh: shell not available in UmerOS (simulated)\n"
 
 
@@ -153,7 +154,7 @@ class BusyboxCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args or args[0] in ("--help", "--usage"):
             return (
                 "BusyBox v1.36.0 (2023-01-01 00:00:00 UTC) multi-call binary.\n"

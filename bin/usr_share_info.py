@@ -21,6 +21,7 @@ Info pages are typically generated from Texinfo source.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -36,7 +37,7 @@ class INFODIRCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/info:\n"
             "  GNU Info documentation pages\n"
@@ -55,7 +56,7 @@ class INFODIR2Command(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "Installed Info pages:\n"
             "  autoconf.info    - GNU Autoconf\n"
@@ -77,7 +78,7 @@ class MAKEINFOCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: makeinfo <file.texi>\n"
         return f"makeinfo: Converting {args[0]} to Info format (simulated)\n"

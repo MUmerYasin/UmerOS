@@ -22,6 +22,7 @@ catalog and related utilities.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -34,7 +35,7 @@ class XmlDirCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/xml/ - XML architecture-independent data\n"
             "  docbook/    - DocBook XML catalogs and DTDs\n"
@@ -52,7 +53,7 @@ class XmlCatalogCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return (
                 "Usage: xmlcatalog [options] XML_CATALOG_FILE [XML_CATALOG_FILE...] [COMMAND]\n"
@@ -75,7 +76,7 @@ class XmlCoreCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "XML Core Package:\n"
             "  Provides: /usr/share/xml/xmlcore.xml\n"
@@ -95,7 +96,7 @@ class XmlDocBookCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "DocBook XML:\n"
             "  /usr/share/xml/docbook/ - DocBook XML resources\n"

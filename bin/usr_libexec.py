@@ -22,6 +22,7 @@ internally by programs and are not typically invoked directly.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -37,7 +38,7 @@ class LIBEXECCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/libexec:\n"
             "  Binaries executed internally by other programs\n"
@@ -55,7 +56,7 @@ class PPPODCommand(Command):
     category = "network"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "pppoe-discovery: PPPoE discovery helper (simulated)\n"
 
 
@@ -67,7 +68,7 @@ class SENDMAILCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "sendmail: Mail transfer agent (internal binary, simulated)\n"
 
 
@@ -79,7 +80,7 @@ class LPDCCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "lpd.conf: Printer spooler helper (simulated)\n"
 
 
@@ -91,5 +92,5 @@ class MINIUPNPCCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "miniupnpd: UPnP port mapping helper (simulated)\n"

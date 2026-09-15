@@ -18,6 +18,7 @@ UmerOS /usr/games - Games Hierarchy
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -30,7 +31,7 @@ class FortuneCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         import random
         fortunes = [
             "The best way to predict the future is to invent it.",
@@ -53,7 +54,7 @@ class CowsayCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         msg = " ".join(args) if args else "Moo!"
         border = "-" * (len(msg) + 2)
         return (
@@ -76,7 +77,7 @@ class SlCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "   (@@) (  @(@)\n"
             "   /    o  @ ( (  /---)____\n"
@@ -97,7 +98,7 @@ class XeyesCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-version", "--version", "-v"):
             return "xeyes 1.2.1 (UmerOS ASCII fallback)\n"
         eyes = r"""
@@ -120,7 +121,7 @@ class XclockCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-version", "--version", "-v"):
             return "xclock 1.1.1 (UmerOS ASCII fallback)\n"
         from datetime import datetime
@@ -146,7 +147,7 @@ class XtermCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-version", "--version", "-v"):
             return "xterm 388 (UmerOS stub)\n"
         return "xterm: X display not available in headless UmerOS\n"
@@ -160,7 +161,7 @@ class NcursesDemoCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-version", "--version", "-v"):
             return "ncurses-demo 6.4 (UmerOS ASCII demo)\n"
         demo = (

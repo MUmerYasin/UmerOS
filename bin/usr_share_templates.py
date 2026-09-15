@@ -23,6 +23,7 @@ include this directory.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -35,7 +36,7 @@ class TemplatesDirCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/templates/ - Default configuration templates\n"
             "  Contains default templates for applications\n"
@@ -56,7 +57,7 @@ class TemplateListCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "Template Categories:\n"
             "  email/        - Email message templates\n"
@@ -76,7 +77,7 @@ class TemplateShowCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: template-show <template-name>\n"
         template = args[0]

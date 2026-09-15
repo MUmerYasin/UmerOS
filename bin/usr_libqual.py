@@ -22,6 +22,7 @@ These directories are not present on non-multilib systems.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -37,7 +38,7 @@ class LIB64Command(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/lib64:\n"
             "  64-bit shared libraries\n"
@@ -59,7 +60,7 @@ class LIB32Command(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/lib32:\n"
             "  32-bit compatibility libraries on 64-bit systems\n"
@@ -80,7 +81,7 @@ class LIBX32Command(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/libx32:\n"
             "  x32 ABI libraries (ILP32 on x86_64)\n"

@@ -22,6 +22,7 @@ locally installed software and should not be invoked directly by users.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -34,7 +35,7 @@ class LocalLibexecCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/libexec:\n"
             "  Internal binaries for locally installed software\n"
@@ -53,7 +54,7 @@ class LocalLibexecPluginCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/libexec/plugins/\n"
             "  Plugin helper binaries for locally installed software\n"
@@ -75,7 +76,7 @@ class LocalLibexecMailCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/libexec/mail/\n"
             "  Mail subsystem internal binaries (if locally compiled)\n"
@@ -96,7 +97,7 @@ class LocalLibexecNetworkCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/local/libexec/network/\n"
             "  Network service internal helpers (locally compiled)\n"

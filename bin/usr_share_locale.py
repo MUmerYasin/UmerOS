@@ -21,6 +21,7 @@ represents a locale, containing LC_* category data.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -36,7 +37,7 @@ class LOCALEDIRCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/locale:\n"
             "  Per-locale data directories\n"
@@ -54,7 +55,7 @@ class LOCALELISTCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "Installed locales:\n"
             "  en_US.UTF-8  - English (United States)\n"
@@ -76,7 +77,7 @@ class GETTEXTCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: gettext <domain> <message>\n"
         return f"gettext: Translating message from /usr/share/locale (simulated)\n"
@@ -90,7 +91,7 @@ class MSGFMTCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: msgfmt <input.po> -o <output.mo>\n"
         return f"msgfmt: Compiling message catalog (simulated)\n"
@@ -104,7 +105,7 @@ class MSGUNFMTCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: msgunfmt <input.mo>\n"
         return f"msgunfmt: Decompiling message catalog (simulated)\n"

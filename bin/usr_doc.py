@@ -19,6 +19,7 @@ Now located at /usr/share/doc, symlinked from /usr/doc.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -31,7 +32,7 @@ class DocCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/doc/ -> /usr/share/doc/\n"
             "  Package-specific documentation directories.\n"
@@ -48,7 +49,7 @@ class PkgDocCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/doc/ contents:\n"
             "  bash/          - Bash documentation\n"
@@ -68,7 +69,7 @@ class UsrInfoCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return (
                 "Usage: info [menu-item]\n"
@@ -86,7 +87,7 @@ class InfoDirCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/info/ - GNU Info documentation pages\n"
             "  dir       - Top-level directory\n"

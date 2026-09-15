@@ -21,6 +21,7 @@ Used by spell-checkers and word games.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -36,7 +37,7 @@ class DICTCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: look <string>\n"
         word = args[0].upper()
@@ -51,7 +52,7 @@ class DICLSCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/dict:\n"
             "  words    - Common English words (72,000+)\n"
@@ -70,7 +71,7 @@ class ISpellCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: ispell <file>\n"
         return f"ispell: Checking {args[0]} against /usr/share/dict/words (simulated)\n"
@@ -84,7 +85,7 @@ class ASpellCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: aspell <command> [options]\n"
         return f"aspell: Spell checking with /usr/share/dict/words (simulated)\n"
@@ -98,7 +99,7 @@ class HUNSPELLCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: hunspell [options] [file]\n"
         return f"hunspell: Spell checking with dictionary (simulated)\n"

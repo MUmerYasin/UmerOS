@@ -3059,19 +3059,6 @@ class ChshCommand:
         return "chsh - change login shell"
 
 
-class ChageCommand:
-    """Change user password expiry information (chage)."""
-
-    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
-        if args is None:
-            args = []
-        print("chage: changing password expiry (stub)")
-        return 0
-
-    def help(self) -> str:
-        return "chage - change user password expiry information"
-
-
 class GpasswdCommand:
     """Administer the /etc/group file (gpasswd)."""
 

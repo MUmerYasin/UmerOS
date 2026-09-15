@@ -22,6 +22,7 @@ Symbolic links expected:
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -34,7 +35,7 @@ class X11R6BinCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: x11r6-bin [options]\n"
@@ -90,7 +91,7 @@ class X11R6LibCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: x11r6-lib [options]\n"
@@ -152,7 +153,7 @@ class X11R6IncludeCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: x11r6-include [options]\n"
@@ -211,7 +212,7 @@ class X11R6LibModulesCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: x11r6-lib-modules [options]\n"
@@ -257,7 +258,7 @@ class X11R6FontsCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: x11r6-fonts [options]\n"
@@ -317,7 +318,7 @@ class X11R6DocCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: x11r6-doc [options]\n"
@@ -377,7 +378,7 @@ class XorgCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in ("-h", "--help"):
             return (
                 "Usage: xorg [options]\n"

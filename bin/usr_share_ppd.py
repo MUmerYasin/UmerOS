@@ -21,6 +21,7 @@ files used by printing systems to configure printers.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -36,7 +37,7 @@ class PPDDIRCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/ppd:\n"
             "  PostScript Printer Description (PPD) files\n"
@@ -54,7 +55,7 @@ class LPADMINCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: lpadmin [options]\n"
         return f"lpadmin: Configuring printer with PPD (simulated)\n"
@@ -68,7 +69,7 @@ class LPINFOCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "Available PPDs:\n"
             "  generic/PPD\n"
@@ -86,7 +87,7 @@ class FOOMATICCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "Foomatic printer database:\n"
             "  Drivers: /usr/share/ppd/foomatic/\n"

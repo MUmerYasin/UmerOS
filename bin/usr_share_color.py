@@ -21,6 +21,7 @@ for color management systems like Oy-Color Management.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -36,7 +37,7 @@ class COLORPROFILESCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/share/color/icc:\n"
             "  ICC (International Color Consortium) color profiles\n"
@@ -54,7 +55,7 @@ class COLORMANAGERCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "Color Management:\n"
             "  Profile dir: /usr/share/color/icc/\n"
@@ -72,5 +73,5 @@ class OYRANOSCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "oyranos-monitor: Color profile for monitor (simulated)\n"

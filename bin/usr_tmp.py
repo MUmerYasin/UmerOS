@@ -19,6 +19,7 @@ Was created as a consequence of UNIX heritage.
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -31,7 +32,7 @@ class UsrTmpCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/tmp/ - User space temporary files\n"
             "  Legacy location, rarely used on modern systems.\n"
@@ -48,7 +49,7 @@ class UsrTmpLinkCommand(Command):
     category = "usr"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return (
             "/usr/tmp -> /var/tmp (symlink)\n"
             "  On modern systems, /usr/tmp is typically a symlink\n"

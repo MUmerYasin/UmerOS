@@ -26,6 +26,7 @@ These include:
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 from core.command import Command
 
@@ -41,7 +42,7 @@ class CRONDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "crond: Cron daemon running (simulated)\n"
 
 
@@ -53,7 +54,7 @@ class CRONCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "cron: Cron daemon running (simulated)\n"
 
 
@@ -65,7 +66,7 @@ class ATDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "atd: AT daemon running (simulated)\n"
 
 
@@ -77,7 +78,7 @@ class CRONTABDaemonCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "crontab-daemon: Crontab daemon running (simulated)\n"
 
 
@@ -92,7 +93,7 @@ class INETDCOMMAND(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "inetd: Internet superserver daemon running (simulated)\n"
 
 
@@ -104,7 +105,7 @@ class XINETDCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "xinetd: Extended Internet services daemon running (simulated)\n"
 
 
@@ -116,7 +117,7 @@ class CHRONYCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "chronyd: Chrony NTP daemon running (simulated)\n"
 
 
@@ -128,7 +129,7 @@ class NTDPCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "ntpd: NTP daemon running (simulated)\n"
 
 
@@ -140,7 +141,7 @@ class SSHDCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "sshd: SSH daemon running (simulated)\n"
 
 
@@ -152,7 +153,7 @@ class HTTPDCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "httpd: HTTP daemon running (simulated)\n"
 
 
@@ -164,7 +165,7 @@ class NGINXCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "nginx: Nginx web server daemon running (simulated)\n"
 
 
@@ -176,7 +177,7 @@ class MYSQLDCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "mysqld: MySQL database daemon running (simulated)\n"
 
 
@@ -188,7 +189,7 @@ class POSTGRESQLCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "postgresql: PostgreSQL daemon running (simulated)\n"
 
 
@@ -200,7 +201,7 @@ class REDISCommand(Command):
     category = "network"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "redis-server: Redis daemon running (simulated)\n"
 
 
@@ -215,7 +216,7 @@ class SYSLOGDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "syslogd: System log daemon running (simulated)\n"
 
 
@@ -227,7 +228,7 @@ class KLOGDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "klogd: Kernel log daemon running (simulated)\n"
 
 
@@ -239,7 +240,7 @@ class RSYSLOGDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "rsyslogd: Rsyslog daemon running (simulated)\n"
 
 
@@ -251,7 +252,7 @@ class SYSTEMDJOURNALCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "systemd-journald: Journal daemon running (simulated)\n"
 
 
@@ -263,7 +264,7 @@ class MONITORDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "monitord: System monitoring daemon running (simulated)\n"
 
 
@@ -278,7 +279,7 @@ class DPKGDAEMONCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "dpkg-daemon: DPKG daemon running (simulated)\n"
 
 
@@ -290,7 +291,7 @@ class APTDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "aptd: APT daemon running (simulated)\n"
 
 
@@ -302,7 +303,7 @@ class YUMDAEMONCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "yum-daemon: YUM daemon running (simulated)\n"
 
 
@@ -314,7 +315,7 @@ class DNFDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "dnfd: DNF daemon running (simulated)\n"
 
 
@@ -326,7 +327,7 @@ class SNAPPYDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "snapd: Snap daemon running (simulated)\n"
 
 
@@ -341,7 +342,7 @@ class LDAPDAEMONCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "slapd: LDAP daemon running (simulated)\n"
 
 
@@ -353,7 +354,7 @@ class NSSDAEMONCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "nss-daemon: NSS daemon running (simulated)\n"
 
 
@@ -368,7 +369,7 @@ class SYSTEMDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "systemd: Init system daemon running (simulated)\n"
 
 
@@ -380,7 +381,7 @@ class UDEVDDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "udevd: Device manager daemon running (simulated)\n"
 
 
@@ -395,7 +396,7 @@ class LIBVIRTDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "libvirtd: Virtualization daemon running (simulated)\n"
 
 
@@ -407,7 +408,7 @@ class DOCKERDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "dockerd: Docker daemon running (simulated)\n"
 
 
@@ -422,7 +423,7 @@ class KUBELETCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "kubelet: Kubernetes kubelet daemon running (simulated)\n"
 
 
@@ -434,5 +435,5 @@ class CONTAINERDCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         return "containerd: Containerd daemon running (simulated)\n"

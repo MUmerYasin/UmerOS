@@ -26,6 +26,7 @@ This includes:
 """
 
 from __future__ import annotations
+from typing import Any, List, Optional
 
 import os
 import datetime
@@ -46,7 +47,7 @@ class PAGERCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         page_size = 24
         text = ""
         if args:
@@ -99,7 +100,7 @@ class NROFFCommand(Command):
         ".sp": "",
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         text = ""
         if args:
             try:
@@ -151,8 +152,8 @@ class TROFFCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
-        return NROFFCommand().execute(*args)
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
+        return NROFFCommand().execute(args)
 
 
 class GROFFCommand(Command):
@@ -173,7 +174,7 @@ class GROFFCommand(Command):
         "-T png": "PNG output (requires groff-png)",
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: groff [-T format] [-man | -mandoc] <files...>\n"
         fmt = "-T utf8"
@@ -208,7 +209,7 @@ class COLCommand(Command):
 
     REVERSE_CHARS = set("\x8e\x8f\x9a\x9b")
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         text = ""
         if not os.isatty(0):
             text = os.read(0, 65536).decode("utf-8", errors="replace")
@@ -240,7 +241,7 @@ class COLRMCommand(Command):
     category = "text"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if len(args) < 1:
             return "Usage: colrm [start [stop]]\n"
         try:
@@ -293,7 +294,7 @@ class INFCommand(Command):
                 "  Use 'info make' for details.\n",
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             lines = ["Info pages available:\n"]
             for entry, desc in sorted(self.INFO_ENTRIES.items()):
@@ -330,7 +331,7 @@ class TZSELECTCommand(Command):
         "Australia/Sydney": 10, "Pacific/Auckland": 12,
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             now = datetime.datetime.now(datetime.timezone.utc)
             lines = ["Available timezones:"]
@@ -364,7 +365,7 @@ class ZICCommand(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args or args[0] == "--version":
             return "zic: Timezone compiler for UmerOS (version 2024.1)\n"
         if args[0] == "--help":
@@ -399,7 +400,7 @@ class ZDUMPCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args or args[0] == "--version":
             return "zdump: timezone dumper for UmerOS\n"
         zones = args if args else ["UTC"]
@@ -431,7 +432,7 @@ class LOCALEDEFCOMMAND(Command):
     category = "system"
     privileges = ["root"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             return "Usage: localedef [-f charset] [-i source] [-o output] <name>\n"
         # Parse flags
@@ -488,7 +489,7 @@ class ETCCONFIGCommand(Command):
                       "PRETTY_NAME=\"UmerOS 1.0\"\n",
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in self.CONFIG_FILES:
             return self.CONFIG_FILES[args[0]]
         lines = ["/etc configuration files:\n"]
@@ -522,7 +523,7 @@ class BASHDEFAULTSCommand(Command):
         "HISTFILESIZE": "2000",
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in self.DEFAULTS:
             return f"{args[0]}={self.DEFAULTS[args[0]]}\n"
         lines = ["Bash defaults:\n"]
@@ -581,7 +582,7 @@ class HOWTOCommand(Command):
         ),
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             lines = ["Available HOWTOs:\n"]
             for topic in sorted(self.HOWTOS):
@@ -638,7 +639,7 @@ class FAQCommand(Command):
         ),
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if not args:
             lines = ["Frequently Asked Questions:\n"]
             for topic in sorted(self.FAQS):
@@ -690,7 +691,7 @@ class TMACCommand(Command):
                        "  Used by mandoc(1) for man page rendering.\n",
     }
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         if args and args[0] in self.MACROS:
             return f"{args[0]}:\n{self.MACROS[args[0]]}"
         lines = ["/usr/share/tmac/ - Groff macro packages:\n"]
@@ -709,7 +710,7 @@ class LocaleCommand(Command):
     category = "system"
     privileges = ["user"]
 
-    def execute(self, *args):
+    def execute(self, args: Optional[List[str]] = None, stdin: Any = None, stdout: Any = None) -> int:
         import locale
         try:
             lang, encoding = locale.getlocale()
