@@ -94,11 +94,11 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
     //    Flutter exe: .../flutter_ui/build/windows/x64/runner/Debug/
     //    Go up 6 levels → UmerOS root
     final root6 = exeDir.parent.parent.parent.parent.parent.parent;
-    final p1 = '${root6.path}${sep}boot${sep}python_vm${sep}build${sep}$_exeName';
+    final p1 = '$root6${sep}boot${sep}python_vm${sep}build${sep}$_exeName';
     if (File(p1).existsSync()) return p1;
 
     // 3. UmerOS/boot/python_vm/ (no build subdir)
-    final p2 = '${root6.path}${sep}boot${sep}python_vm${sep}$_exeName';
+    final p2 = '$root6${sep}boot${sep}python_vm${sep}$_exeName';
     if (File(p2).existsSync()) return p2;
 
     // 4. Fallback: bare name (relies on PATH)
@@ -400,13 +400,9 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
   // ── File operations ─────────────────────────────────────────
 
   Future<void> _openFile() async {
-    final result = await FilePicker.instance.pickFiles(
-      dialogTitle: 'Open Python File',
-      allowedExtensions: ['py', 'pyw', 'txt'],
-      type: FileType.custom,
-    );
-    if (result != null && result.files.single.path != null) {
-      final path = result.files.single.path!;
+    final result = await FilePicker.pickFiles();
+    if (result.isNotEmpty && result.single.path != null) {
+      final path = result.single.path!;
       final content = await File(path).readAsString();
       setState(() {
         _editorController.text = content;
@@ -425,13 +421,12 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
   }
 
   Future<void> _saveFileAs() async {
-    final path = await FilePicker.instance.saveFile(
-      dialogTitle: 'Save Python File',
+    final uri = await FilePicker.saveFile(
       fileName: _currentFileName,
-      allowedExtensions: ['py', 'pyw'],
-      type: FileType.custom,
+      bytes: Uint8List.fromList(utf8.encode(_editorController.text)),
     );
-    if (path != null) {
+    if (uri != null) {
+      final path = uri.toFilePath();
       await File(path).writeAsString(_editorController.text);
       setState(() {
         _currentFilePath = path;

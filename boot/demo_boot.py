@@ -18,28 +18,31 @@ UmerOS Boot System - Interactive Demo  [EXPERIMENTAL]
 Demonstrates all boot system modules with sample data creation.
 
 Usage:
-    python demo_boot.py
-    python demo_boot.py --quick
+    python -m boot.demo_boot
+    python -m boot.demo_boot --quick
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
-# Add boot directory to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from kernel_image import KernelImageManager, KernelArchitecture, KernelCompression
-from grub_manager import GrubManager, GrubModuleManager, GrubMenuEntry
-from systemd_boot import SystemdBootManager, LoaderConfig, BootEntry
-from efi_system import EFISystemManager, SecureBootManager, SecureBootState
-from boot_params import BootParamsManager, KernelCommandLine, SysctlManager
-from microcode import MicrocodeManager, MicrocodeInstaller
-from boot_splash import BootSplashManager, PlymouthManager, FramebufferManager
-from crash_kernel import CrashKernelManager, KdumpDumpTarget
+# [FIX H34] Use package-relative imports instead of unprefixed sibling
+# imports propped by a ``sys.path.insert(0, parent)`` hack. The old form
+# (``from kernel_image import ...``) only resolved when the script was run
+# from *inside* boot/; it broke the moment boot/ was imported as a package
+# (``python -m boot.demo_boot``) or from any other CWD. Package-relative
+# imports work in every invocation context and match the rest of the boot/
+# toolkit (which already uses ``boot.<module>`` qualified names).
+from boot.kernel_image import KernelImageManager, KernelArchitecture, KernelCompression
+from boot.grub_manager import GrubManager, GrubModuleManager, GrubMenuEntry
+from boot.systemd_boot import SystemdBootManager, LoaderConfig, BootEntry
+from boot.efi_system import EFISystemManager, SecureBootManager, SecureBootState
+from boot.boot_params import BootParamsManager, KernelCommandLine, SysctlManager
+from boot.microcode import MicrocodeManager, MicrocodeInstaller
+from boot.boot_splash import BootSplashManager, PlymouthManager, FramebufferManager
+from boot.crash_kernel import CrashKernelManager, KdumpDumpTarget
 
 
 BOOT_DIR = Path(__file__).parent / "boot_samples"

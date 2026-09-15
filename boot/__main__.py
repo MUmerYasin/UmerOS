@@ -52,6 +52,19 @@ from typing import List, Optional
 
 log = logging.getLogger("UmerOS.Boot.CLI")
 
+# [FIX H34] ``boot/__main__.py`` is the established "python -m boot" toolkit
+# CLI. It deliberately does NOT subclass ``core.command.Command`` — that base
+# class is the contract for the **bin/** entry points only (its own docstring
+# reads "Base class for all bin/ commands"), and it is imported solely by
+# bin/*.py. This CLI instead mirrors the identical standalone-toolkit pattern
+# already used by the sibling ``-m`` CLIs (python -m lib / initrd / root): a
+# module-level ``main(argv: Optional[List[str]] = None) -> int`` plus a
+# dispatch table, never a Command subclass. The standard's alternative
+# resolution branch ("document it as a standalone tool") is therefore
+# satisfied here; no refactor to core.command.Command is required. The real
+# actionable item in this hotspot was demo_boot.py's unprefixed sibling
+# imports, which are fixed in the same hotspot.
+
 
 USAGE = """\
 Umer OS /boot - boot filesystem CLI
