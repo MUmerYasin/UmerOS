@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Memtest Module
+UmerOS Memtest Module  [TODAY]
 ====================
 Memory testing integration for the boot process.
 
@@ -21,7 +21,6 @@ Manages:
 - Memory test result parsing
 - GRUB and BLS entry generation for memory diagnostics
 
-Reference: https://www.memtest86.com/
 """
 
 from __future__ import annotations

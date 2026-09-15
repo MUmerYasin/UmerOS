@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS /boot - one-shot summary
+Umer OS /boot - one-shot summary  [TODAY]
 ================================
 
 A small, dependency-free summary of the ``/boot`` hierarchy, in the

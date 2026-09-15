@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Kernel Image Manager
+UmerOS Kernel Image Manager  [TODAY]
 ============================
 Manages vmlinuz (compressed), vmlinux (uncompressed), System.map, and config-*.
 

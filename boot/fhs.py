@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS /boot
+Umer OS /boot  [TODAY]
 ================================
 
 Single entry point for "is ``/boot`` set up correctly?".  Wires

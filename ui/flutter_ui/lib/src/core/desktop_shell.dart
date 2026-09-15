@@ -292,8 +292,9 @@ class _MenuBar extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                     color: colorScheme.primary,
-                      ),
-                ),],
+                  ),
+                ),
+              ],
             ),
             onSelected: (value) {
               switch (value) {
@@ -1271,6 +1272,7 @@ class _LaunchPad extends StatelessWidget {
                                     ),
                                   ),
                                 ),
+                              ),
                               ),
                               ),
                            );

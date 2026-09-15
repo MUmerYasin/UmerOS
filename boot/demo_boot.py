@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS Boot System - Interactive Demo
+UmerOS Boot System - Interactive Demo  [EXPERIMENTAL]
 =======================================
 Demonstrates all boot system modules with sample data creation.
 

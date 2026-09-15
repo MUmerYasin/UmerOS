@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Microcode Manager
+UmerOS Microcode Manager  [TODAY]
 ===========================
 Manages CPU microcode updates for Intel and AMD processors.
 

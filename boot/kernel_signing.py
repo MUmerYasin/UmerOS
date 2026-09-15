@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Kernel Signing Module
+UmerOS Kernel Signing Module  [TODAY]
 ============================
 Secure Boot and UEFI kernel signing support.
 
@@ -23,8 +23,6 @@ Manages:
 - Signature verification and key enrollment
 - sbsigntools / pesign integration
 
-Reference: https://wiki.archlinux.org/title/Unified_Kernel_Image
-Reference: https://www.freedesktop.org/software/systemd/man/systemd-boot.html
 """
 
 from __future__ import annotations

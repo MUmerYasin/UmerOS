@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS /boot - kernel command line helper
+Umer OS /boot - kernel command line helper  [TODAY]
 =========================================
 
 A small, dependency-free command line parser/builder that focuses on

@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Boot Parameters Manager
+UmerOS Boot Parameters Manager  [TODAY]
 ================================
 Manages kernel command line parameters and sysctl-style runtime configuration.
 

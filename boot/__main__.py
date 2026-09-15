@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS /boot CLI
+Umer OS /boot CLI  [TODAY]
 =================
 
 ``python -m boot <command>`` - small command-line front-end for the

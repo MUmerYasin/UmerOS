@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS Initrd Manager
+Umer OS Initrd Manager  [TODAY]
 ======================
 Manages initrd/initramfs images for early userspace boot.
 

@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS GRUB2 Manager
+UmerOS GRUB2 Manager  [TODAY]
 =====================
 Complete GRUB2 bootloader management:
     - Menu entry generation

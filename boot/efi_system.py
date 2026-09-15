@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS EFI System & Secure Boot Manager
+UmerOS EFI System & Secure Boot Manager  [TODAY]
 =========================================
 Manages the EFI System Partition (ESP), NVRAM variables, and Secure Boot.
 

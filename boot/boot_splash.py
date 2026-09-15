@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Boot Splash Manager
+UmerOS Boot Splash Manager  [TODAY]
 ============================
 Manages boot splash screen and framebuffer graphics during boot.
 

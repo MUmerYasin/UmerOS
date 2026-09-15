@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Boot System
+UmerOS Boot System  [TODAY]
 ===================
 Complete /boot filesystem implementation for UmerOS, covering the
 FHS 3.0 ``/boot`` requirements (ch03s05), the Linux/x86 boot

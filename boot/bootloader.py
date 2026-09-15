@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS Bootloader  [TODAY - Python simulation]
+Umer OS Bootloader  [TODAY - Python simulation]  [TODAY]
 ================================================
 Simulates the Umer OS boot sequence on classical hardware.
 

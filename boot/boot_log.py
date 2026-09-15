@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Boot Log Module
+UmerOS Boot Log Module  [TODAY]
 =====================
 Boot logging and audit trail for the boot process.
 

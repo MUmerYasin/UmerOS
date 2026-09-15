@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS /boot - EFI stub kernel detector
+Umer OS /boot - EFI stub kernel detector  [TODAY]
 ========================================
 
 Detect whether a Linux kernel image is a **Unified Kernel Image (UKI)**

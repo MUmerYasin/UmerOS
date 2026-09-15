@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS Boot Manager
+Umer OS Boot Manager  [TODAY]
 ====================
 Central registry for /boot hierarchy management.
 
