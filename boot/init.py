@@ -16,6 +16,8 @@ Umer OS Boot Init  [TODAY]
 ====================
 """
 
+from __future__ import annotations
+
 import sys
 import platform
 import asyncio
@@ -68,7 +70,9 @@ class Bootloader:
         print(f"[BOOT] Checking hardware...")
         print(f"[BOOT] Architecture: {platform.machine()}")
         print(f"[BOOT] OS Platform: {platform.system()} {platform.release()}")
-        print(f"[BOOT] Initializing UEFI stubs via ctypes (Simulated)")
+        # [FIX H32] The C hardware layer (boot/uefi_stub.c) is a non-functional
+        # placeholder with NO ctypes binding — do not claim UEFI init happened.
+        print("[BOOT] UEFI hardware layer not wired (placeholder scaffold only)")
         
     async def load_kernel(self):
         print("[BOOT] Handing off to Umer Microkernel...")

@@ -1,8 +1,13 @@
 /*
- * Umer OS UEFI Stub
- * This C module represents the extremely low-level hardware abstraction
- * layer intended to interface with the motherboard UEFI before handing 
- * execution over to the Python environment via embedded CPython or Cython.
+ * [FUTURE] Umer OS UEFI Stub — NON-FUNCTIONAL PLACEHOLDER SCAFFOLD.
+ *
+ * This file is a placeholder only. It is NOT compiled, linked, or loaded by
+ * the Python runtime and has NO real UEFI binding. The printf() calls below
+ * are demos. A real implementation would (a) declare the UEFI boot-services
+ * tables, (b) be built into a PE/COFF EFI binary, and (c) be exposed to
+ * Python via a ctypes/CDLL bridge — none of which exist yet.
+ * Referenced as "pseudocode" by boot/bootloader.py (FUTURE bare-metal path).
+ * See H32 (code-review standard §9). Do NOT treat this as a working HAL.
  */
 
 #include <stdio.h>

@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Python interpreter with VS Code–style dual-panel layout:
@@ -55,6 +56,10 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
   bool _showInterpreterPicker = false;
 
   static const String _exeName = 'umeros_python.exe';
+
+  // ── File state ─────────────────────────────────────────────
+  String? _currentFilePath;
+  String _currentFileName = 'untitled.py';
 
   @override
   void initState() {
@@ -392,6 +397,49 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
         .toList();
   }
 
+  // ── File operations ─────────────────────────────────────────
+
+  Future<void> _openFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      dialogTitle: 'Open Python File',
+      allowedExtensions: ['py', 'pyw', 'txt'],
+      type: FileType.custom,
+    );
+    if (result != null && result.files.single.path != null) {
+      final path = result.files.single.path!;
+      final content = await File(path).readAsString();
+      setState(() {
+        _editorController.text = content;
+        _currentFilePath = path;
+        _currentFileName = path.split(Platform.pathSeparator).last;
+      });
+    }
+  }
+
+  Future<void> _saveFile() async {
+    if (_currentFilePath != null) {
+      await File(_currentFilePath!).writeAsString(_editorController.text);
+    } else {
+      await _saveFileAs();
+    }
+  }
+
+  Future<void> _saveFileAs() async {
+    final path = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save Python File',
+      fileName: _currentFileName,
+      allowedExtensions: ['py', 'pyw'],
+      type: FileType.custom,
+    );
+    if (path != null) {
+      await File(path).writeAsString(_editorController.text);
+      setState(() {
+        _currentFilePath = path;
+        _currentFileName = path.split(Platform.pathSeparator).last;
+      });
+    }
+  }
+
   // ── Keyboard shortcuts ──────────────────────────────────────
 
   void _handleKeyDown(KeyEvent event) {
@@ -440,6 +488,24 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
     // Ctrl+0 → Reset zoom
     if (hw.isControlPressed && logical == LogicalKeyboardKey.digit0) {
       setState(() => _fontSize = 13);
+      return;
+    }
+
+    // Ctrl+O → Open file
+    if (hw.isControlPressed && logical == LogicalKeyboardKey.keyO) {
+      _openFile();
+      return;
+    }
+
+    // Ctrl+S → Save file
+    if (hw.isControlPressed && !hw.isShiftPressed && logical == LogicalKeyboardKey.keyS) {
+      _saveFile();
+      return;
+    }
+
+    // Ctrl+Shift+S → Save As
+    if (hw.isControlPressed && hw.isShiftPressed && logical == LogicalKeyboardKey.keyS) {
+      _saveFileAs();
       return;
     }
 
@@ -510,6 +576,36 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
           Text(
             'Python Interpreter',
             style: smallStyle.copyWith(color: Colors.white70),
+          ),
+          if (_currentFileName.isNotEmpty) ...[
+            Text(
+              ' — $_currentFileName',
+              style: smallStyle.copyWith(color: Colors.white38),
+            ),
+          ],
+          const SizedBox(width: 12),
+          // ── File menu ─────────────────────────────────
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'open':
+                  _openFile();
+                case 'save':
+                  _saveFile();
+                case 'save_as':
+                  _saveFileAs();
+              }
+            },
+            offset: const Offset(0, 28),
+            color: const Color(0xFF2A2A3E),
+            icon: Icon(Icons.folder_rounded, size: 16, color: Colors.white54),
+            tooltip: 'File',
+            itemBuilder: (_) => [
+              _fileMenuItem('open', 'Open…', Icons.file_open_rounded, 'Ctrl+O'),
+              _fileMenuItem('save', 'Save', Icons.save_rounded, 'Ctrl+S'),
+              _fileMenuItem(
+                  'save_as', 'Save As…', Icons.save_alt_rounded, 'Ctrl+Shift+S'),
+            ],
           ),
           const Spacer(),
           // Run button
@@ -796,6 +892,32 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
               ),
               onSubmitted: _submitTerminalLine,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── File menu item helper ───────────────────────────────
+
+  PopupMenuItem<String> _fileMenuItem(
+    String value,
+    String label,
+    IconData icon,
+    String shortcut,
+  ) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: Colors.white60),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 13)),
+          ),
+          Text(
+            shortcut,
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
           ),
         ],
       ),
