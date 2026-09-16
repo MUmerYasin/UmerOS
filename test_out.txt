@@ -1,0 +1,229 @@
+.............F:\Pension Person Details\UmerOS\compatibility\win_kernel32.py:244: ResourceWarning: unclosed file <_io.BufferedRandom name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\umeros_test_compat_io.bin'>
+  return _close_handle(handle)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+..........................skipping non-literal initrd history line
+............refusing cpio entry outside image root: Refusing '..' segment in path component: 'etc/../../pwned'
+.refusing cpio entry outside image root: Refusing '..' segment in path component: '../evil.txt'
+......boot failed: Capability 'sys.admin' required but no trust source is wired (strict mode).
+Traceback (most recent call last):
+  File "F:\Pension Person Details\UmerOS\initrd\linuxrc.py", line 181, in run
+    asyncio.run(_run_async(ctx))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python314\Lib\asyncio\runners.py", line 205, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Program Files\Python314\Lib\asyncio\runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Program Files\Python314\Lib\asyncio\base_events.py", line 719, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "F:\Pension Person Details\UmerOS\initrd\linuxrc.py", line 202, in _run_async
+    ctx.effective_uid = _drop_to_root()
+                        ~~~~~~~~~~~~~^^
+  File "F:\Pension Person Details\UmerOS\initrd\linuxrc.py", line 350, in _drop_to_root
+    gate.require(CAP_SYS_ADMIN)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "F:\Pension Person Details\UmerOS\core\capability_gate.py", line 145, in require
+    raise PermissionError(
+    ...<2 lines>...
+    )
+PermissionError: Capability 'sys.admin' required but no trust source is wired (strict mode).
+.PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+......PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+...PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+.PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+.PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+install: chroot skipped (chroot: no such directory '/newroot')
+.....user requested unknown module: missing
+.................................RamDisk(test) MOUNTED READ-ONLY at / (default is rw)
+.......................2026-09-16 14:37:10,125 UmerOS.Lib.LibraryManager INFO Created symlink: libc.so -> libc.so.6
+2026-09-16 14:37:10,125 UmerOS.Lib.LibraryManager INFO Removed library: libm.so.6
+.unknown command: definitely-not-a-real-command
+
+Umer OS /lib - shared-library + kernel-module CLI
+
+Usage:
+    python -m lib <command> [args]
+
+Commands:
+    selftest                Run the self-test of every lib module.
+    info [path]             Print a one-shot summary of /lib.
+    audit [path]            Run the FHS audit and report issues.
+    ldd <elf>               Trace shared library dependencies of an ELF file.
+    ldconfig [path]         Rebuild /etc/ld.so.cache from /etc/ld.so.conf.
+    depmod [ver]            Regenerate modules.dep for the given kernel.
+    modprobe <name> [-r]    Load (or remove with -r) a kernel module.
+    lsmod                   List currently loaded kernel modules.
+    cpplink                 Ensure /lib/cpp references /usr/bin/cpp.
+    list                    List all essential libraries.
+    help                    Print this help text.
+
+.............2026-09-16 14:37:10,191 UmerOS.Lib.LibraryManager INFO Created symlink: libc.so -> libc.so.6
+2026-09-16 14:37:10,192 UmerOS.Lib.LibraryManager INFO Removed library: libm.so.6
+........ss..s.s.ss........unknown command: nope
+
+Umer OS /root - system administrator home CLI
+
+Usage:
+    python -m root <command> [args]
+
+Commands:
+    selftest                Run the self-test of every root module.
+    info [path]             Print a one-shot /root summary.
+    audit [path]            Run the audit and report issues.
+    safety [path]           Run the safety auditor only.
+    ensure [path]           Create the home, set perms, drop dotfiles.
+    forward <addr>          Set /root/.forward to the given address.
+    dotfiles [path]         List + materialise the standard dotfiles.
+    passwd [path]           Show the canonical /etc/passwd root entry.
+    help                    Print this help text.
+
+..s2026-09-16 14:37:10,594 UmerOS.CapabilityGate WARNING PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+...s..s.s2026-09-16 14:37:10,610 UmerOS.CapabilityGate WARNING PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+2026-09-16 14:37:10,611 UmerOS.CapabilityGate WARNING PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+2026-09-16 14:37:10,611 UmerOS.CapabilityGate WARNING PERMISSIVE: capability 'sys.admin' required by pid 20748 but no CapabilityManager is wired; allowing (set strict mode to deny).
+......2026-09-16 14:37:10,620 UmerOS.CapabilityManager INFO CapabilityManager initialised (zero-trust; SYSTEM_PID=0 is omnipotent).
+2026-09-16 14:37:10,620 UmerOS.Compat.Container WARNING [Container 99999] DENIED binary execution: missing 'HARDWARE' capability.
+.2026-09-16 14:37:10,621 UmerOS.Compat.Container WARNING [Container 1] DENIED binary execution: missing 'HARDWARE' capability.
+..2026-09-16 14:37:10,621 UmerOS.Compat.Container WARNING [Container 4] DENIED binary execution: missing 'HARDWARE' capability.
+.
+----------------------------------------------------------------------
+Ran 193 tests in 2.704s
+
+OK (skipped=10)
+Umer OS /lib - shared-library + kernel-module CLI
+
+Usage:
+    python -m lib <command> [args]
+
+Commands:
+    selftest                Run the self-test of every lib module.
+    info [path]             Print a one-shot summary of /lib.
+    audit [path]            Run the FHS audit and report issues.
+    ldd <elf>               Trace shared library dependencies of an ELF file.
+    ldconfig [path]         Rebuild /etc/ld.so.cache from /etc/ld.so.conf.
+    depmod [ver]            Regenerate modules.dep for the given kernel.
+    modprobe <name> [-r]    Load (or remove with -r) a kernel module.
+    lsmod                   List currently loaded kernel modules.
+    cpplink                 Ensure /lib/cpp references /usr/bin/cpp.
+    list                    List all essential libraries.
+    help                    Print this help text.
+
+Umer OS /lib summary   (C:\Users\MCRAJA~1\AppData\Local\Temp\tmpkield039\lib)
+============================================================
+  files:           0
+  directories:     0
+  symlinks:        0
+  total bytes:     0
+
+  essential libs:  17 (required present: 0 / 4)
+  kernel modules:  0 kernel(s), 0 module files
+
+  /lib/cpp ref:    MISSING
+  /etc/ld.so.conf: MISSING
+  /etc/ld.so.cache: MISSING  (run ldconfig)
+
+  subsystems:      (none)
+  alternate qual:  (none - no /lib32, /lib64 etc.)
+
+  issues:
+    - /lib/cpp is missing (FHS requires a reference to the C preprocessor)
+    - /etc/ld.so.conf is missing
+    - /etc/ld.so.cache is missing (run ldconfig)
+
+  /lib/libc.so.6  (   2032920 B) -> libc-2.31.so
+  /lib/libc-2.31.so  (   2032920 B)
+  /lib/ld-linux.so.2  (    186896 B) -> ld-2.31.so
+  /lib/ld-linux-x86-64.so.2  (    202952 B) -> ld-2.31.so
+  /lib/ld-2.31.so  (    202952 B)
+  /lib/libm.so.6  (   1381528 B) -> libm-2.31.so
+  /lib/libm-2.31.so  (   1381528 B)
+  /lib/libpthread.so.0  (    158216 B) -> libpthread-2.31.so
+  /lib/libpthread-2.31.so  (    158216 B)
+  /lib/libdl.so.2  (     18672 B) -> libdl-2.31.so
+  /lib/libdl-2.31.so  (     18672 B)
+  /lib/librt.so.1  (     35304 B) -> librt-2.31.so
+  /lib/librt-2.31.so  (     35304 B)
+  /lib/libnss_files.so.2  (     56264 B) -> libnss_files-2.31.so
+  /lib/libnss_files-2.31.so  (     56264 B)
+  /lib/libresolv.so.2  (     67928 B) -> libresolv-2.31.so
+  /lib/libresolv-2.31.so  (     67928 B)
+
+  17 essential libraries registered.
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+selftest OK
+  lib.elf_parser       [OK]  OK
+  lib.essential_libs   [OK]  OK
+  lib.library_manager  [OK]  OK
+  lib.dynamic_linker   [OK]  OK
+  lib.kernel_modules   [OK]  OK
+  lib.ldd              [OK]  OK
+  lib.fhs              [OK]  OK
+  lib.arch             [OK]  OK
+  lib.multiarch        [OK]  OK
+  lib.iptables_libs    [OK]  OK
+  lib.kbd              [OK]  OK
+  lib.security         [OK]  OK
+  lib.oss              [OK]  OK
+  lib.firmware         [OK]  OK
+  lib.usr_lib          [OK]  OK
+  lib.usr_include      [OK]  OK
+  lib.var_lib          [OK]  OK
+  lib.ssl_libs         [OK]  OK
+  lib.iconv            [OK]  OK
+  lib.tmpfiles         [OK]  OK
+  lib.libinfo          [OK]  OK
+
+  21 modules passed.
+Umer OS /root - system administrator home CLI
+
+Usage:
+    python -m root <command> [args]
+
+Commands:
+    selftest                Run the self-test of every root module.
+    info [path]             Print a one-shot /root summary.
+    audit [path]            Run the audit and report issues.
+    safety [path]           Run the safety auditor only.
+    ensure [path]           Create the home, set perms, drop dotfiles.
+    forward <addr>          Set /root/.forward to the given address.
+    dotfiles [path]         List + materialise the standard dotfiles.
+    passwd [path]           Show the canonical /etc/passwd root entry.
+    help                    Print this help text.
+
+Umer OS /root summary
+==================================================
+  path:               /
+  exists:             True
+  resolved_from:      fallback-/
+  owner uid/gid:      0/0
+  mode:               0o777
+  file_count:         75
+  subdirs:            $RECYCLE.BIN, Ali, Audit, CO MC RJ, Daily Wages, Daily report, LWMC, MAP, MC Office, MOF, NEW MC, New folder, Pension Person Details, State Bank, System Volume Information, UmerOS, WASA, autorun.inf, backup, etc, media, opt, usr, var
+  discouraged:        (none)
+
+  issues:
+    - mode is 0o777 (allows access to 'other'); expected at most 0o700
+
+[Container 2] Initializing zero-trust sandbox for LINUX binary: /bin/app
+[Syscall Shim] Intercepted legacy syscall: sys_read
+  -> Translated to Umer IPC Read (FD: 0, Size: 1024)
+[Container 2] Binary execution complete.
+[Container 3] Initializing zero-trust sandbox for WINDOWS binary: C:\app.exe
+[Syscall Shim] Intercepted legacy syscall: NtCreateFile
+  -> Translated to Umer IPC CreateFile (Name: C:\temp.txt)
+[Container 3] Binary execution complete.

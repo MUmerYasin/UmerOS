@@ -110,6 +110,15 @@ def _close_handle(handle_id: int) -> bool:
     h = _OPEN_HANDLES.pop(handle_id, None)
     if h is None:
         return False
+    # If the handle wraps a real file object, flush+close it so we
+    # don't leak file descriptors (CPython's ResourceWarning would
+    # otherwise surface when a test framework is loaded).
+    data = h.data
+    if hasattr(data, "close"):
+        try:
+            data.close()
+        except OSError:
+            pass
     h.close()
     return True
 

@@ -267,7 +267,11 @@ class ClassFactory:
         if iid not in (IID_IUNKNOWN, IID_IDISPATCH):
             return None
         self.instances_created += 1
-        return ComObjectBase()
+        obj = ComObjectBase()
+        # Real COM objects produced via a class factory almost always
+        # expose IDispatch (the scripting variant of IUnknown).
+        obj._supports_idispatch = True
+        return obj
 
 
 #: A small registry of CLSID -> factory.  Real installers add to this
