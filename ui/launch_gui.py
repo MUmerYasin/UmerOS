@@ -360,7 +360,11 @@ def main():
     print("2. Android")
     print("3. iOS (Requires macOS)")
     print("4. Web (Chrome)")
-    choice = input("Enter choice (1-4) or press Enter for Desktop [default: 1]: ").strip()
+    try:
+        choice = input("Enter choice (1-4) or press Enter for Desktop [default: 1]: ").strip()
+    except EOFError:
+        # Non-interactive / frozen (console=False) context — default to Desktop.
+        choice = ""
 
     if choice == '2':
         exit_code = launch_flutter_android(flutter_project_path)

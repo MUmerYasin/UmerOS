@@ -19,12 +19,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import 'services/smart_action_tracker.dart';
-import 'services/glassmorphic_theme.dart';
+import 'src/services/smart_action_tracker.dart';
+import 'src/services/glassmorphic_theme.dart';
 import 'services/clipboard_manager.dart';
+import 'src/core/app_state.dart';
+import 'src/core/theme_provider.dart';
+import 'src/core/app_registry.dart';
 
 // ── Public re-export so existing imports still compile ────────
-export 'services/clipboard_manager.dart';
+export 'services/clipboard_manager.dart' show ClipboardManager;
 
 // ═══════════════════════════════════════════════════════════════
 // Data models
@@ -1212,4 +1215,89 @@ class UmerOSContextMenuCallbacks {
   final VoidCallback onMinimize;
   final VoidCallback onMaximize;
   final VoidCallback onClose;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RightClickArea — wraps any widget so that a right-click opens
+// the Smart Adaptive Context Menu for the desktop context.
+// ═══════════════════════════════════════════════════════════════
+
+class RightClickArea extends StatelessWidget {
+  const RightClickArea({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onSecondaryTapUp: (details) => _showDesktopMenu(context, details.globalPosition),
+      child: child,
+    );
+  }
+
+  void _showDesktopMenu(BuildContext context, Offset position) {
+    final appState = context.read<AppState>();
+    final theme = context.read<ThemeProvider>();
+    final clipboard = context.read<ClipboardManager>();
+
+    showUmerOSContextMenu(
+      context,
+      position,
+      MenuContext.desktop,
+      UmerOSContextMenuCallbacks(
+        targetName: 'Desktop',
+        canPaste: clipboard.hasContent,
+        onRefresh: () {},
+        onDisplaySettings: () {
+          final app = AppRegistry.byId('settings');
+          if (app != null) {
+            appState.openWindow(
+              id: app.id,
+              title: app.title,
+              icon: app.icon,
+              child: app.builder(context),
+            );
+          }
+        },
+        onPersonalize: () {
+          final app = AppRegistry.byId('settings');
+          if (app != null) {
+            appState.openWindow(
+              id: app.id,
+              title: app.title,
+              icon: app.icon,
+              child: app.builder(context),
+            );
+          }
+        },
+        onOpenTerminal: () {
+          final app = AppRegistry.byId('terminal');
+          if (app != null) {
+            appState.openWindow(
+              id: app.id,
+              title: app.title,
+              icon: app.icon,
+              child: app.builder(context),
+            );
+          }
+        },
+        onNewFolder: () {},
+        onSortByName: () {},
+        onSortBySize: () {},
+        onSortByType: () {},
+        onSortByDate: () {},
+        onIconSmall: () {},
+        onIconMedium: () {},
+        onIconLarge: () {},
+        onIconExtraLarge: () {},
+        onCopy: () {},
+        onCut: () {},
+        onPaste: () {},
+        onUndo: () {},
+        onProperties: () {},
+        onShare: () {},
+      ),
+    );
+  }
 }

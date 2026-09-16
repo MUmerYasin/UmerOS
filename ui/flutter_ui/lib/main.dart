@@ -8,6 +8,7 @@ import 'src/core/app_state.dart';
 import 'src/core/theme_provider.dart';
 import 'src/animations/animations.dart';
 import 'src/services/prefs_service.dart';
+import 'src/services/smart_action_tracker.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +41,8 @@ class UmerOSApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: themeProvider),
         ChangeNotifierProvider.value(value: appState),
         ChangeNotifierProvider(create: (_) => ClipboardManager()),
+        ChangeNotifierProvider(create: (_) => SmartActionTracker()..restore()),
+        ChangeNotifierProvider(create: (_) => ContextMenuController()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {

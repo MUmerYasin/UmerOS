@@ -14,11 +14,17 @@
 #
 # [FIX H43] The hardcoded absolute dev-machine entrypoint path was replaced
 # with a repo-relative resolution that refuses silently-missing files.
+#
+# [FIX H41] The frozen "UmerOS-GUI" binary must launch the CANONICAL frontend
+# (Flutter, ui/flutter_ui/) — not the retired legacy PyQt6 desktop shell
+# (ui/umeros_gui.py, superseded by Flutter per H11/H25, §4.8). _ENTRY now points
+# at ui/launch_gui.py, the thin Python host that boots flutter_ui. The spec still
+# fails closed if that entry file is missing.
 
 import os
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(SPEC)))
-_ENTRY = os.path.join(_REPO_ROOT, "ui", "umeros_gui.py")
+_ENTRY = os.path.join(_REPO_ROOT, "ui", "launch_gui.py")
 if not os.path.isfile(_ENTRY):
     raise SystemExit(f"[spec] entrypoint missing: {_ENTRY}")
 
