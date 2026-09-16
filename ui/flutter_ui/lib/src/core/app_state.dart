@@ -94,6 +94,22 @@ class SystemNotification {
   }) : timestamp = timestamp ?? DateTime.now();
 }
 
+class DesktopItemData {
+  final String id;
+  final String name;
+  final IconData icon;
+  final Color? color;
+  final String? appId; // reference to AppRegistry app id, null for folders/files
+
+  const DesktopItemData({
+    required this.id,
+    required this.name,
+    required this.icon,
+    this.color,
+    this.appId,
+  });
+}
+
 class AppState extends ChangeNotifier {
   static const _kVolume = 'umeros.state.volume';
   static const _kBrightness = 'umeros.state.brightness';
@@ -105,6 +121,7 @@ class AppState extends ChangeNotifier {
   static const _kDockPins = 'umeros.state.dockPins';
 
   final List<WindowData> _windows = [];
+  final List<DesktopItemData> _desktopItems = [];
   int _topZIndex = 0;
   String? _activeWindowId;
 
@@ -227,6 +244,21 @@ class AppState extends ChangeNotifier {
   /// Force a UI rebuild of the desktop and window stack.
   /// Used by the context-menu Refresh action.
   void refreshDesktop() => notifyListeners();
+
+  /// Read-only snapshot of dynamically added desktop items (folders, user files).
+  List<DesktopItemData> get desktopItems => List.unmodifiable(_desktopItems);
+
+  /// Add a new item (folder / file / shortcut) to the desktop grid.
+  void addDesktopItem(DesktopItemData item) {
+    _desktopItems.add(item);
+    notifyListeners();
+  }
+
+  /// Remove an item from the desktop grid by its [id].
+  void removeDesktopItem(String id) {
+    _desktopItems.removeWhere((item) => item.id == id);
+    notifyListeners();
+  }
 
   void openWindow({
     required String id,

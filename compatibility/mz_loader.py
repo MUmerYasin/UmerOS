@@ -30,7 +30,7 @@ References
 * https://en.wikipedia.org/wiki/DOS_EXE
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0
 """
 
 from __future__ import annotations

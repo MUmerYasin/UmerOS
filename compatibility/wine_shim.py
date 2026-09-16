@@ -36,7 +36,7 @@ References
 * https://reactos.org/wiki/Building_ReactOS
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0 
 """
 
 from __future__ import annotations

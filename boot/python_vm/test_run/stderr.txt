@@ -1,34 +1,3 @@
-[COMPILER] Py_CompileString enter, source=0000003475FCD880
-[COMPILER] strlen=8, creating Lexer
-[COMPILER] Lexer_New returned 000001AE4C913860
-[COMPILER] calling Parser_New(lexer=000001AE4C913860)
-[COMPILER] Parser_New returned 000001AE4C90DD30
-[COMPILER] calling Compiler_New()
-[COMPILER] Compiler_New returned 000001AE4C904600
-[COMPILER] calling Parser_NextToken(parser=000001AE4C90DD30)
-[COMPILER] first token=4
-[COMPILER] calling Compile_Statement(compiler=000001AE4C904600, parser=000001AE4C90DD30)
 [COMPILER-STMT] entry: token=4
 [COMPILER-STMT] NAME token: 'print'
 [COMPILER-STMT] print statement detected
-[COMPILER-STMT] after skip print: token=59
-[COMPILER-STMT] LPAREN found, parsing args
-[COMPILER-STMT] after skip '(': token=1
-[COMPILER-STMT] print_idx=0, emitting LOAD_GLOBAL
-[COMPILER-STMT] calling Compile_Expr
-[COMPILER-EXPR] entry: token=1
-[COMPILER-EXPR] NUMBER branch: current_token=000001AE4C90D610
-[COMPILER-EXPR] ob_refcnt=1, ob_type=00007FF6FCE80910
-[MARKER-1] before Py_INCREF
-[MARKER-2] after Py_INCREF, before AddConstant
-[MARKER-3] after AddConstant, idx=1
-[MARKER-4] after Emit
-[MARKER-5] after Py_DECREF
-[MARKER-6] before NextToken
-[MARKER-7] after NextToken, token=60
-[COMPILER-STMT] emitting CALL_FUNCTION(1)
-[COMPILER-STMT] print done, returning 1
-[COMPILER] Compile_Statement returned 1
-[COMPILER] next token=0
-[COMPILER] compilation OK, calling Compiler_MakeCode
-[COMPILER] Compiler_MakeCode returned 000001AE4C9105E0

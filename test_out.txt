@@ -1,4 +1,4 @@
-.............F:\Pension Person Details\UmerOS\compatibility\win_kernel32.py:244: ResourceWarning: unclosed file <_io.BufferedRandom name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\umeros_test_compat_io.bin'>
+.............UmerOS\compatibility\win_kernel32.py:244: ResourceWarning: unclosed file <_io.BufferedRandom name='C:\\Users\\MCRAJA~1\\AppData\\Local\\Temp\\umeros_test_compat_io.bin'>
   return _close_handle(handle)
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ..........................skipping non-literal initrd history line
@@ -6,7 +6,7 @@ ResourceWarning: Enable tracemalloc to get the object allocation traceback
 .refusing cpio entry outside image root: Refusing '..' segment in path component: '../evil.txt'
 ......boot failed: Capability 'sys.admin' required but no trust source is wired (strict mode).
 Traceback (most recent call last):
-  File "F:\Pension Person Details\UmerOS\initrd\linuxrc.py", line 181, in run
+  File "UmerOS\initrd\linuxrc.py", line 181, in run
     asyncio.run(_run_async(ctx))
     ~~~~~~~~~~~^^^^^^^^^^^^^^^^^
   File "C:\Program Files\Python314\Lib\asyncio\runners.py", line 205, in run
@@ -18,13 +18,13 @@ Traceback (most recent call last):
   File "C:\Program Files\Python314\Lib\asyncio\base_events.py", line 719, in run_until_complete
     return future.result()
            ~~~~~~~~~~~~~^^
-  File "F:\Pension Person Details\UmerOS\initrd\linuxrc.py", line 202, in _run_async
+  File "UmerOS\initrd\linuxrc.py", line 202, in _run_async
     ctx.effective_uid = _drop_to_root()
                         ~~~~~~~~~~~~~^^
-  File "F:\Pension Person Details\UmerOS\initrd\linuxrc.py", line 350, in _drop_to_root
+  File "UmerOS\initrd\linuxrc.py", line 350, in _drop_to_root
     gate.require(CAP_SYS_ADMIN)
     ~~~~~~~~~~~~^^^^^^^^^^^^^^^
-  File "F:\Pension Person Details\UmerOS\core\capability_gate.py", line 145, in require
+  File "UmerOS\core\capability_gate.py", line 145, in require
     raise PermissionError(
     ...<2 lines>...
     )
@@ -213,7 +213,7 @@ Umer OS /root summary
   owner uid/gid:      0/0
   mode:               0o777
   file_count:         75
-  subdirs:            $RECYCLE.BIN, Ali, Audit, CO MC RJ, Daily Wages, Daily report, LWMC, MAP, MC Office, MOF, NEW MC, New folder, Pension Person Details, State Bank, System Volume Information, UmerOS, WASA, autorun.inf, backup, etc, media, opt, usr, var
+  subdirs:            $RECYCLE.BIN,  System Volume Information, UmerOS, WASA, autorun.inf, backup, etc, media, opt, usr, var
   discouraged:        (none)
 
   issues:

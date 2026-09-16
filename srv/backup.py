@@ -77,7 +77,7 @@ from .service import ServiceRecord
 
 log = logging.getLogger("UmerOS.Srv.Backup")
 
-DEFAULT_BACKUP_DIR = Path("F:/Pension Person Details/UmerOS/var/backups/srv") if os.name == "nt" else Path("/var/backups/srv")
+DEFAULT_BACKUP_DIR = Path("UmerOS/var/backups/srv") if os.name == "nt" else Path("/var/backups/srv")
 
 
 @dataclass

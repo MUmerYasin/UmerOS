@@ -13,7 +13,7 @@
 
 import io, os, sys
 
-DEL  = "F:/Pension Person Details/UmerOS/MainTask/Raw Data/Code Review Standards and Process.md"
+DEL  = "UmerOS/MainTask/Raw Data/Code Review Standards and Process.md"
 BAK  = DEL + ".bak"
 
 with io.open(DEL, "r", encoding="utf-8") as fh:

@@ -12,17 +12,26 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #!/usr/bin/env python3
-"""Umer OS Over-The-Air Update System  
+"""Umer OS Over-The-Air (OTA) Update System 
 
-Simulates a secure OTA pipeline:
-  1. Check remote version manifest
-  2. Download update delta
-  3. Verify cryptographic signature
-  4. Apply update
+SIMULATED update pipeline — NOT a production update client.
 
-The network/disk stages are simulated stubs (no real I/O); only the
-signature-verification boundary is wired to a real crypto engine. Marked
-the module is production update client.
+Stages (only the verification boundary is real):
+  1. Check remote version manifest — returns a hardcoded dict)
+  2. Download update delta         — returns a canned payload)
+  3. Verify cryptographic signature  (REAL, fail-closed — see `verify_and_apply`)
+  4. Apply update                    (Real disk/state mutation)
+
+The network/disk stages are stubs (no real I/O). The signature
+verification boundary is wired to a real crypto engine and refuses any update
+that does not verify against `trusted_public_key` (H46/H154). Because nothing is
+actually written to disk, this module is safe to exercise but is NOT the
+production updater.
+
+Security posture / remaining gaps (tracked under H49):
+  * No real transport — the endpoint is a config string (H48), not a live fetch.
+  * An in-memory audit trail (`_audit_log`) + a simulated `rollback()` exist, but a
+    REAL apply MUST add an on-disk snapshot + persisted audit before shipping.
 """
 
 from __future__ import annotations
@@ -66,7 +75,9 @@ _UNTRUSTED_OTA_HOSTS = frozenset(
 
 
 class UpdateManager:
-    """Secure OTA update service for Umer OS."""
+    """OTA update service for Umer OS pipeline
+    with a real, fail-closed signature-verification boundary (see `verify_and_apply`).
+    """
 
     CURRENT_VERSION = "2.0.0"
 
@@ -105,6 +116,10 @@ class UpdateManager:
         self.pinned_expected_host = os.environ.get(
             "UMEROS_OTA_PINNED_HOST", DEFAULT_OTA_PINNED_HOST
         )
+        # [FIX H49] Rollback + audit state (simulated — no real disk mutation).
+        self.applied_version: str = self.CURRENT_VERSION
+        self.last_good_version: str = self.CURRENT_VERSION
+        self._audit_log: list[dict[str, Any]] = []
         logger.info("[OTA] Update Manager initialized (endpoint=%s).", self.update_url)
 
     def _assert_update_source_trusted(self) -> bool:
@@ -146,8 +161,43 @@ class UpdateManager:
             return False
         return True
 
+    # ----------------------------------------------------------------------
+    # [FIX H49] Rollback + audit trail (simulated; real apply needs an on-disk
+    # snapshot + persisted audit — see standard §9 H49).
+    # ----------------------------------------------------------------------
+    def _audit(self, stage: str, ok: bool, detail: str = "") -> None:
+        """Append an entry to the in-memory update audit trail and log it."""
+        self._audit_log.append({"stage": stage, "ok": ok, "detail": detail})
+        (logger.info if ok else logger.warning)(
+            "[OTA][audit] %s %s %s", stage, "OK" if ok else "FAIL", detail
+        )
+
+    def get_audit_log(self) -> list[dict[str, Any]]:
+        """Return a copy of the in-memory update audit trail."""
+        return list(self._audit_log)
+
+    def rollback(self) -> bool:
+        """[FIX H49] rollback to the last known-good version.
+
+        The apply stage is (real disk/state mutation), so this only
+        moves the in-memory version pointers. A real updater MUST persist a
+        pre-apply snapshot and revert it on disk — this hook marks where that
+        would occur.
+        """
+        if self.applied_version == self.last_good_version:
+            logger.warning("[OTA] Rollback: already at last-good version.")
+            return False
+        target = self.last_good_version
+        # After reverting, the version we left is the new baseline, so a second
+        # rollback is a no-op (one-way revert to the last known-good version).
+        self.applied_version = target
+        self.last_good_version = target
+        self._audit("rollback", True, f"-> v{self.applied_version}")
+        logger.info("[OTA] Rolled back to v%s.", self.applied_version)
+        return True
+
     def check_for_updates(self) -> dict:
-        """Simulate checking a remote server for the latest version.
+        """checking a remote server for the latest version.
 
         Returns:
             dict: A simulated manifest with ``latest_version``,
@@ -156,6 +206,7 @@ class UpdateManager:
         # [FIX H48] Fail-closed: refuse to fetch/accept a manifest from an
         # untrusted or unpinned update source.
         if not self._assert_update_source_trusted():
+            self._audit("check", False, "update source untrusted")
             return {
                 "latest_version": self.CURRENT_VERSION,
                 "current_version": self.CURRENT_VERSION,
@@ -179,6 +230,7 @@ class UpdateManager:
             logger.info("[OTA] Changelog: %s", simulated_manifest["changelog"])
         else:
             logger.info("[OTA] System is up to date.")
+        self._audit("check", True, f"latest=v{simulated_manifest['latest_version']}")
         return simulated_manifest
 
     def download_update(self, manifest: dict) -> bytes:
@@ -193,6 +245,7 @@ class UpdateManager:
         logger.info(
             "[OTA] Downloading v%s... (simulated)", manifest["latest_version"]
         )
+        self._audit("download", True, f"v{manifest['latest_version']}")
         return b"UMER_OS_DELTA_PAYLOAD_v2.1.0"
 
     def verify_and_apply(self, payload: bytes, manifest: dict) -> bool:
@@ -224,15 +277,23 @@ class UpdateManager:
             logger.warning(
                 "[OTA] Refusing update: no crypto engine / trusted key / signature."
             )
+            self._audit("verify", False, "no crypto engine / trusted key / signature")
             return False
         try:
             ok = self.crypto.verify(payload, signature, self.trusted_public_key)
         except Exception as exc:  # noqa: BLE001
             logger.error("[OTA] Signature verification error: %s", exc)
+            self._audit("verify", False, f"error: {exc}")
             return False
         if not ok:
             logger.error("[OTA] Signature verification FAILED — refusing update.")
+            self._audit("verify", False, "signature mismatch")
             return False
+        # [FIX H49] Record the last-good version before the (simulated) apply.
+        self.last_good_version = self.applied_version
+        self.applied_version = str(manifest.get("latest_version", self.applied_version))
+        self._audit("verify", True, f"v{self.applied_version}")
+        self._audit("apply", True, f"v{self.applied_version}")
         logger.info(
             "[OTA] Signature verified; applying update to v%s...",
             manifest.get("latest_version"),

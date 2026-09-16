@@ -9,6 +9,7 @@ import 'theme_provider.dart';
 import '../widgets/dock.dart';
 import '../widgets/draggable_window.dart';
 import '../widgets/auto_adjust_box.dart';
+import '../services/glassmorphic_theme.dart';
 
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
@@ -250,7 +251,7 @@ class _MenuBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: GlassmorphicTheme.textColor(context),
             ),
           ),
         ),
@@ -451,7 +452,7 @@ class _MenuBar extends StatelessWidget {
                       currentDate,
                       style: TextStyle(
                         fontSize: 12,
-                        color: colorScheme.onSurfaceVariant,
+                        color: GlassmorphicTheme.subtleTextColor(context),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -460,7 +461,7 @@ class _MenuBar extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
+                        color: GlassmorphicTheme.textColor(context),
                       ),
                     ),
                   ],
@@ -482,6 +483,8 @@ class _DesktopGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appState = Provider.of<AppState>(context);
+    final desktopItems = appState.desktopItems;
     final apps = AppRegistry.apps;
 
     return Padding(
@@ -489,80 +492,172 @@ class _DesktopGrid extends StatelessWidget {
       child: Wrap(
         spacing: 28,
         runSpacing: 28,
-        children: apps.map((app) {
-          return SizedBox(
-            width: 86,
-            child: Draggable<String>(
-              data: app.id,
-              feedback: Material(
-                color: Colors.transparent,
-                child: Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: app.color.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Icon(app.icon, size: 34, color: Colors.white),
-                ),
-              ),
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: Semantics(
-                  label: app.title,
-                  button: true,
-                  child: GestureDetector(
-                  onTap: () => onOpenApp(app),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          color: app.color.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: app.color.withValues(alpha: 0.3),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: app.color.withValues(alpha: 0.15),
-                              blurRadius: 12,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: Icon(app.icon, size: 34, color: app.color),
-                      )
-                          .animate()
-                          .scale(
-                            begin: const Offset(0.92, 0.92),
-                            end: const Offset(1, 1),
-                            duration: 200.ms,
-                          ),
-                      const SizedBox(height: 8),
-                      Text(
-                        app.title,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          shadows: const [
-                            Shadow(color: Colors.black, blurRadius: 4),
-                          ],
-                        ),
-                        textAlign: TextAlign.center,
-                        overflow: TextOverflow.ellipsis,
+        children: [
+          // Regular apps from AppRegistry
+          ...apps.map((app) => _buildAppIcon(context, app)),
+          // Desktop items (folders, files, etc.)
+          ...desktopItems.map((item) => _buildDesktopItem(context, item, appState)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppIcon(BuildContext context, AppDefinition app) {
+    return SizedBox(
+      width: 86,
+      child: Draggable<String>(
+        data: app.id,
+        feedback: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: app.color.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(app.icon, size: 34, color: Colors.white),
+          ),
+        ),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Semantics(
+            label: app.title,
+            button: true,
+            child: GestureDetector(
+              onTap: () => onOpenApp(app),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: app.color.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: app.color.withValues(alpha: 0.3),
                       ),
-                    ],
+                      boxShadow: [
+                        BoxShadow(
+                          color: app.color.withValues(alpha: 0.15),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Icon(app.icon, size: 34, color: app.color),
+                  )
+                      .animate()
+                      .scale(
+                        begin: const Offset(0.92, 0.92),
+                        end: const Offset(1, 1),
+                        duration: 200.ms,
+                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    app.title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      shadows: const [
+                        Shadow(color: Colors.black, blurRadius: 4),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                ),
+                ],
               ),
             ),
-          );
-        }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopItem(BuildContext context, DesktopItemData item, AppState appState) {
+    final itemColor = item.color ?? Colors.grey;
+    return SizedBox(
+      width: 86,
+      child: Draggable<String>(
+        data: 'desktop:${item.id}',
+        feedback: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: itemColor.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(item.icon, size: 34, color: Colors.white),
+          ),
+        ),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Semantics(
+            label: item.name,
+            button: true,
+            child: GestureDetector(
+              onTap: () {
+                final appId = item.appId;
+                if (appId != null) {
+                  final app = AppRegistry.byId(appId);
+                  if (app != null) {
+                    onOpenApp(app);
+                  }
+                }
+                // Folders/files: open with Files app
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      color: itemColor.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: itemColor.withValues(alpha: 0.3),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: itemColor.withValues(alpha: 0.15),
+                          blurRadius: 12,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
+                    child: Icon(item.icon, size: 34, color: itemColor),
+                  )
+                      .animate()
+                      .scale(
+                        begin: const Offset(0.92, 0.92),
+                        end: const Offset(1, 1),
+                        duration: 200.ms,
+                      ),
+                  const SizedBox(height: 8),
+                  Text(
+                    item.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onSurface,
+                      shadows: const [
+                        Shadow(color: Colors.black, blurRadius: 4),
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

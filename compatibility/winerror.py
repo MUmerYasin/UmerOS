@@ -27,7 +27,7 @@ References
 * https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0 
 """
 
 from __future__ import annotations

@@ -11,7 +11,7 @@ subclasses agree on the signature (resolves the dominant H6 drift at its root ca
   wrote `def execute(self, *args)`, drifting from the contract (H6 ↔ H55).
 
 ## Change made
-`F:\Pension Person Details\UmerOS\core\command.py`
+`UmerOS\core\command.py`
 - Base `execute` → `execute(self, args: Optional[List[str]] = None) -> int: raise NotImplementedError(...)`.
 - Class docstring now states the canonical contract and notes `privileges` is **not yet
   enforced** (H56) as a separate follow-up.

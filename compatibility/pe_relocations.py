@@ -36,8 +36,7 @@ References
 * https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#the-reloc-section-image-only
 
 Author:  Umer OS Project
-Licence: GPL-3.0
-"""
+License: GPL-3.0
 
 from __future__ import annotations
 

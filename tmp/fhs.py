@@ -56,7 +56,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 # Default root path for /tmp in UmerOS
-DEFAULT_TMP_ROOT = Path("F:/Pension Person Details/UmerOS/tmp") if os.name == "nt" else Path("/tmp")
+DEFAULT_TMP_ROOT = Path("UmerOS/tmp") if os.name == "nt" else Path("/tmp")
 
 # Standard UNIX socket & system subdirectories reserved in /tmp
 PROTECTED_SOCKET_DIRS: Set[str] = {

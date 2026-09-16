@@ -61,7 +61,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 # Default root path for /srv in UmerOS
-DEFAULT_SRV_ROOT = Path("F:/Pension Person Details/UmerOS/srv") if os.name == "nt" else Path("/srv")
+DEFAULT_SRV_ROOT = Path("UmerOS/srv") if os.name == "nt" else Path("/srv")
 
 
 class OrganizationScheme(str, enum.Enum):

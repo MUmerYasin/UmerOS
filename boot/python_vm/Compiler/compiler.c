@@ -478,40 +478,16 @@ out:
 static void Compile_Expr(Compiler *compiler, Parser *parser) {
     /* Parse primary expression */
     int token = parser->token_type;
-    fprintf(stderr, "[COMPILER-EXPR] entry: token=%d\n", token);
-    fflush(stderr);
-
     if (token == TOKEN_NUMBER) {
-        fprintf(stderr, "[COMPILER-EXPR] NUMBER branch: current_token=%p\n", (void*)parser->current_token);
-        fflush(stderr);
         if (!parser->current_token) {
-            fprintf(stderr, "[COMPILER-EXPR] ERROR: current_token is NULL!\n");
-            fflush(stderr);
             return;
         }
-        fprintf(stderr, "[COMPILER-EXPR] ob_refcnt=%zd, ob_type=%p\n",
-            parser->current_token->ob_refcnt, (void*)parser->current_token->ob_type);
-        fflush(stderr);
-        /* MARKER 1: before Py_INCREF */
-        fprintf(stderr, "[MARKER-1] before Py_INCREF\n"); fflush(stderr);
         Py_INCREF(parser->current_token);
-        /* MARKER 2: after Py_INCREF, before AddConstant */
-        fprintf(stderr, "[MARKER-2] after Py_INCREF, before AddConstant\n"); fflush(stderr);
         int idx = Compiler_AddConstant(compiler, parser->current_token);
-        /* MARKER 3: after AddConstant */
-        fprintf(stderr, "[MARKER-3] after AddConstant, idx=%d\n", idx); fflush(stderr);
         Compiler_Emit(compiler, OP_LOAD_CONST, idx);
-        /* MARKER 4: after Emit */
-        fprintf(stderr, "[MARKER-4] after Emit\n"); fflush(stderr);
         Py_DECREF(parser->current_token);
-        /* MARKER 5: after Py_DECREF */
-        fprintf(stderr, "[MARKER-5] after Py_DECREF\n"); fflush(stderr);
         parser->current_token = NULL;
-        /* MARKER 6: before Parser_NextToken */
-        fprintf(stderr, "[MARKER-6] before NextToken\n"); fflush(stderr);
         Parser_NextToken(parser);  /* consume the token we just read */
-        fprintf(stderr, "[MARKER-7] after NextToken, token=%d\n", parser->token_type);
-        fflush(stderr);
         goto parse_binop;
     }
 
@@ -661,31 +637,19 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
             fflush(stderr);
             /* Parse function call */
             Parser_NextToken(parser);  /* skip 'print' */
-            fprintf(stderr, "[COMPILER-STMT] after skip print: token=%d\n", parser->token_type);
-            fflush(stderr);
             if (parser->token_type == TOKEN_LPAREN) {
-                fprintf(stderr, "[COMPILER-STMT] LPAREN found, parsing args\n");
-                fflush(stderr);
                 /* Parse arguments */
                 Parser_NextToken(parser);  /* skip '(' */
-                fprintf(stderr, "[COMPILER-STMT] after skip '(': token=%d\n", parser->token_type);
-                fflush(stderr);
 
                 /* Emit: LOAD_GLOBAL <print> first, THEN compile arg, THEN CALL_FUNCTION */
                 int print_idx = Compiler_AddConstant(compiler,
                     PyUnicode_FromString("print"));
-                fprintf(stderr, "[COMPILER-STMT] print_idx=%d, emitting LOAD_GLOBAL\n", print_idx);
-                fflush(stderr);
                 Compiler_Emit(compiler, OP_LOAD_GLOBAL, print_idx);
 
                 /* Compile the argument expression */
-                fprintf(stderr, "[COMPILER-STMT] calling Compile_Expr\n");
-                fflush(stderr);
                 Compile_Expr(compiler, parser);
 
                 /* Now emit CALL_FUNCTION and POP_TOP */
-                fprintf(stderr, "[COMPILER-STMT] emitting CALL_FUNCTION(1)\n");
-                fflush(stderr);
                 Compiler_Emit(compiler, OP_CALL_FUNCTION, 1);
                 Compiler_Emit(compiler, OP_POP_TOP, 0);
 
@@ -698,8 +662,6 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
                     Parser_NextToken(parser);
                 }
             }
-            fprintf(stderr, "[COMPILER-STMT] print done, returning 1\n");
-            fflush(stderr);
             return 1;
         }
 
@@ -724,59 +686,27 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
 
 /* Compile source code to bytecode */
 PyObject* Py_CompileString(const char *source, const char *filename) {
-    fprintf(stderr, "[COMPILER] Py_CompileString enter, source=%p\n", (void*)source);
-    fflush(stderr);
     if (!source) return NULL;
 
     int len = strlen(source);
-    fprintf(stderr, "[COMPILER] strlen=%d, creating Lexer\n", len);
-    fflush(stderr);
-
     Lexer *lexer = Lexer_New(source, len);
-    fprintf(stderr, "[COMPILER] Lexer_New returned %p\n", (void*)lexer);
-    fflush(stderr);
     if (!lexer) return NULL;
 
-    /* Step 2: restore Parser_New + Compiler_New */
-    fprintf(stderr, "[COMPILER] calling Parser_New(lexer=%p)\n", (void*)lexer);
-    fflush(stderr);
     Parser *parser = Parser_New(lexer);
-    fprintf(stderr, "[COMPILER] Parser_New returned %p\n", (void*)parser);
-    fflush(stderr);
     if (!parser) { Lexer_Free(lexer); return NULL; }
 
-    fprintf(stderr, "[COMPILER] calling Compiler_New()\n");
-    fflush(stderr);
     Compiler *compiler = Compiler_New();
-    fprintf(stderr, "[COMPILER] Compiler_New returned %p\n", (void*)compiler);
-    fflush(stderr);
     if (!compiler) { Parser_Free(parser); Lexer_Free(lexer); return NULL; }
 
-    /* Step 3: restore token loop + Compile_Statement */
-    fprintf(stderr, "[COMPILER] calling Parser_NextToken(parser=%p)\n", (void*)parser);
-    fflush(stderr);
     int token = Parser_NextToken(parser);
-    fprintf(stderr, "[COMPILER] first token=%d\n", token);
-    fflush(stderr);
 
     while (token != TOKEN_ENDMARKER) {
-        fprintf(stderr, "[COMPILER] calling Compile_Statement(compiler=%p, parser=%p)\n",
-                (void*)compiler, (void*)parser);
-        fflush(stderr);
         int result = Compile_Statement(compiler, parser);
-        fprintf(stderr, "[COMPILER] Compile_Statement returned %d\n", result);
-        fflush(stderr);
         if (result == -1) { break; }
         token = Parser_NextToken(parser);
-        fprintf(stderr, "[COMPILER] next token=%d\n", token);
-        fflush(stderr);
     }
 
-    fprintf(stderr, "[COMPILER] compilation OK, calling Compiler_MakeCode\n");
-    fflush(stderr);
     PyObject *code = Compiler_MakeCode(compiler);
-    fprintf(stderr, "[COMPILER] Compiler_MakeCode returned %p\n", (void*)code);
-    fflush(stderr);
     Compiler_Free(compiler);
     Parser_Free(parser);
     Lexer_Free(lexer);
@@ -785,9 +715,6 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
 
 /* Test function: can ANY compiler.c code be called from main.c? */
 void Compiler_Test(void) {
-    fprintf(stderr, "[COMPILER] Compiler_Test entered OK\n");
-    fflush(stderr);
     int x = 42;
-    fprintf(stderr, "[COMPILER] x=%d\n", x);
-    fflush(stderr);
+    (void)x;
 }

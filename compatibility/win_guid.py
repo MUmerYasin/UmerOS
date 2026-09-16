@@ -37,7 +37,7 @@ References
 * https://www.rfc-editor.org/rfc/rfc4122
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0
 """
 
 from __future__ import annotations

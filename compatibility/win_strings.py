@@ -34,7 +34,7 @@ References
 * https://learn.microsoft.com/en-us/windows/win32/api/lsalookup/ns-lsalookup-lsa_unicode_string
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0
 """
 
 from __future__ import annotations

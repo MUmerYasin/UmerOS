@@ -913,10 +913,7 @@ class _GlassmorphicMenu extends StatelessWidget {
                                     Icon(
                                       child.icon,
                                       size: GlassmorphicTheme.iconSize,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withAlpha(220),
+                                      color: GlassmorphicTheme.textColor(context).withAlpha(220),
                                     ),
                                   if (child.icon != null)
                                     const SizedBox(width: 10),
@@ -927,9 +924,7 @@ class _GlassmorphicMenu extends StatelessWidget {
                                         fontSize:
                                             GlassmorphicTheme.fontSizeItem,
                                         fontWeight: FontWeight.w400,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface,
+                                        color: GlassmorphicTheme.textColor(context),
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -969,10 +964,7 @@ class _GlassmorphicMenu extends StatelessWidget {
             fontSize: GlassmorphicTheme.fontSizeSectionHeader,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.6,
-            color: Theme.of(context)
-                .colorScheme
-                .onSurface
-                .withAlpha(140),
+            color: GlassmorphicTheme.subtleTextColor(context),
           ),
         ),
       );
@@ -987,7 +979,7 @@ class _GlassmorphicMenu extends StatelessWidget {
         ),
         child: Divider(
           height: GlassmorphicTheme.separatorHeight,
-          color: Theme.of(context).colorScheme.onSurface.withAlpha(30),
+          color: GlassmorphicTheme.subtleTextColor(context).withAlpha(30),
         ),
       );
     }
@@ -1035,40 +1027,29 @@ class _GlassmorphicMenu extends StatelessWidget {
                   size: GlassmorphicTheme.iconSize,
                   color: action.isDangerous
                       ? Colors.redAccent
-                      : action.isEnabled
-                          ? Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withAlpha(220)
-                          : Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withAlpha(100),
-                ),
-              if (action.icon != null) const SizedBox(width: 10),
+                       : action.isEnabled
+                          ? GlassmorphicTheme.textColor(context).withAlpha(220)
+                          : GlassmorphicTheme.subtleTextColor(context),
+                 ),
+               if (action.icon != null) const SizedBox(width: 10),
 
-              // Label
-              Expanded(
-                child: Semantics(
-                  label: action.label,
-                  button: true,
-                  enabled: action.isEnabled,
-                  child: Text(
-                    action.label,
-                    style: TextStyle(
-                      fontSize: GlassmorphicTheme.fontSizeItem,
-                      fontWeight:
-                          isHovered ? FontWeight.w500 : FontWeight.w400,
-                      color: action.isDangerous
-                          ? Colors.redAccent
-                          : action.isEnabled
-                              ? Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withAlpha(100),
+               // Label
+               Expanded(
+                 child: Semantics(
+                   label: action.label,
+                   button: true,
+                   enabled: action.isEnabled,
+                   child: Text(
+                     action.label,
+                     style: TextStyle(
+                       fontSize: GlassmorphicTheme.fontSizeItem,
+                       fontWeight:
+                           isHovered ? FontWeight.w500 : FontWeight.w400,
+                       color: action.isDangerous
+                           ? Colors.redAccent
+                           : action.isEnabled
+                               ? GlassmorphicTheme.textColor(context)
+                               : GlassmorphicTheme.subtleTextColor(context),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1083,10 +1064,7 @@ class _GlassmorphicMenu extends StatelessWidget {
                     action.shortcut!,
                     style: TextStyle(
                       fontSize: GlassmorphicTheme.fontSizeShortcut,
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurface
-                          .withAlpha(120),
+                      color: GlassmorphicTheme.subtleTextColor(context),
                     ),
                   ),
                 ),
@@ -1413,15 +1391,14 @@ class RightClickArea extends StatelessWidget {
             ),
           );
           if (result != null && result.isNotEmpty) {
-            final filesApp = AppRegistry.byId('files');
-            if (filesApp != null) {
-              appState.openWindow(
-                id: '${filesApp.id}_${result.hashCode}',
-                title: '$result — Files',
-                icon: filesApp.icon,
-                child: filesApp.builder(context),
-              );
-            }
+            // Add folder to desktop
+            appState.addDesktopItem(DesktopItemData(
+              id: 'folder_${result.hashCode}',
+              name: result,
+              icon: Icons.folder_rounded,
+              color: Colors.amber,
+            ));
+            appState.refreshDesktop();
           }
         },
         onSortByName: () {},

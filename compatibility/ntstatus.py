@@ -27,7 +27,7 @@ This module is a pure-Python reference table.  See
 the full list.
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0
 """
 
 from __future__ import annotations

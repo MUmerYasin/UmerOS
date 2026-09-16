@@ -28,7 +28,7 @@ References
 * https://learn.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-expandenvironmentstringsw
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0
 """
 
 from __future__ import annotations

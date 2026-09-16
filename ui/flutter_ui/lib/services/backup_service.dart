@@ -36,7 +36,7 @@ class BackupSnapshot {
 class BackupService {
   static const String pythonCmd = 'python';
   // Adjust paths as necessary for standard UmerOS layout
-  static const String umerOsRoot = r'F:\Pension Person Details\UmerOS';
+  static const String umerOsRoot = r'UmerOS';
   static const String cliPath = r'backup\cli.py'; 
 
   static Future<List<BackupSnapshot>> listSnapshots() async {

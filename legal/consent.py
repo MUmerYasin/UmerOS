@@ -45,7 +45,7 @@ from .disclaimer import DisclaimerNotice, DisclaimerRegistry
 
 log = logging.getLogger("UmerOS.Legal.Consent")
 
-DEFAULT_LEDGER_PATH = Path("F:/Pension Person Details/UmerOS/var/lib/umeros/consent_ledger.json") if os.name == "nt" else Path("/var/lib/umeros/consent_ledger.json")
+DEFAULT_LEDGER_PATH = Path("UmerOS/var/lib/umeros/consent_ledger.json") if os.name == "nt" else Path("/var/lib/umeros/consent_ledger.json")
 
 
 @dataclass

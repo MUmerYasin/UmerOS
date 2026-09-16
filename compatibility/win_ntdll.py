@@ -23,7 +23,7 @@ References
 * https://github.com/repnz/ntapi-doc
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0
 """
 
 from __future__ import annotations

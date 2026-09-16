@@ -35,7 +35,7 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Sources.SourceTree")
 
-DEFAULT_SRC_ROOT = Path("F:/Pension Person Details/UmerOS/usr/src") if os.name == "nt" else Path("/usr/src")
+DEFAULT_SRC_ROOT = Path("UmerOS/usr/src") if os.name == "nt" else Path("/usr/src")
 
 
 @dataclass

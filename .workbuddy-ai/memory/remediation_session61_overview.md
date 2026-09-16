@@ -4,7 +4,7 @@
 **H43 RESOLVED** via drift-reconciliation — the standard's premise was stale; the absolute path is already gone. No source change; bookkeeping-only closure.
 
 ## Drift-recon
-- Standard §9 H43: spec hardcodes `F://Pension Person Details\UmerOS\ui\umeros_gui.py` (non-portable; build breaks on CI/other machines).
+- Standard §9 H43: spec hardcodes `UmerOS\ui\umeros_gui.py` (non-portable; build breaks on CI/other machines).
 - **Finding:** grep for `[A-Z]:\\` over `build/UmerOS-GUI.spec` returns **0 matches**. The entry is now derived repo-relatively:/n  `_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(SPEC)))`, then `_ENTRY = os.path.join(_REPO_ROOT, "ui", "launch_gui.py")`.
 - The `[FIX H43]` comment (lines 15-16) documents the change, and the H42 session-32 rewrite already recorded "hardcoded dev path removed ([FIX H43])".
 - Conclusion: the portability requirement is satisfied; H43 is overstated (like H7/H11/H13/H14/H15/H16/H19/H23/H33/H34/H40).

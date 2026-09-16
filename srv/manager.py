@@ -59,7 +59,7 @@ from .service import (
 
 log = logging.getLogger("UmerOS.Srv.Manager")
 
-DEFAULT_REGISTRY_PATH = Path("F:/Pension Person Details/UmerOS/srv/registry.json") if os.name == "nt" else Path("/var/lib/umeros/srv-registry.json")
+DEFAULT_REGISTRY_PATH = Path("UmerOS/srv/registry.json") if os.name == "nt" else Path("/var/lib/umeros/srv-registry.json")
 
 
 class SrvManager:

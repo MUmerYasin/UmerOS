@@ -27,7 +27,7 @@ References
 * https://www.microsoft.com/en-us/download/details.aspx?id=9803
 
 Author:  Umer OS Project
-Licence: GPL-3.0
+License: GPL-3.0
 """
 
 from __future__ import annotations

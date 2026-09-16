@@ -117,7 +117,7 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
 
     // Write debug to file (Flutter console stderr is hard to capture)
     try {
-      final debugFile = File('F:\\Pension Person Details\\UmerOS\\flutter_debug.log');
+      final debugFile = File('UmerOS\\flutter_debug.log');
       debugFile.writeAsStringSync(debugInfo.toString());
     } catch (e) {
       // Never silently swallow — at minimum print to Flutter console

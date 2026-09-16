@@ -413,7 +413,7 @@ class InitrdManager:
         Create an initrd image.
 
         When the ``initrd`` package is importable (it lives in
-        ``F:\\Pension Person Details\\UmerOS\\initrd\\``) the manager
+        ``UmerOS\\initrd\\``) the manager
         delegates to :class:`initrd.builder.InitrdBuilder` so the
         resulting image is a real, bootable cpio archive.  When the
         package is not importable the manager falls back to the

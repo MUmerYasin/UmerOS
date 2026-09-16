@@ -50,8 +50,7 @@ References
 * "The Portable Executable File Format" -- Pietrek (MSJ 1994)
 
 Author:  Umer OS Project
-Licence: GPL-3.0
-"""
+License: GPL-3.0
 
 from __future__ import annotations
 
