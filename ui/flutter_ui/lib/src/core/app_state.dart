@@ -224,6 +224,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Force a UI rebuild of the desktop and window stack.
+  /// Used by the context-menu Refresh action.
+  void refreshDesktop() => notifyListeners();
+
   void openWindow({
     required String id,
     required String title,

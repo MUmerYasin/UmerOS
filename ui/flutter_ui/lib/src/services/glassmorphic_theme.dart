@@ -22,10 +22,10 @@ class GlassmorphicTheme {
   // ── Opacity ─────────────────────────────────────────────────
 
   /// Background opacity for dark mode panels.
-  static const double backgroundOpacityDark = 0.72;
+  static const double backgroundOpacityDark = 0.88;
 
   /// Background opacity for light mode panels.
-  static const double backgroundOpacityLight = 0.65;
+  static const double backgroundOpacityLight = 0.82;
 
   /// Hover / pressed overlay opacity.
   static const double hoverOpacity = 0.12;

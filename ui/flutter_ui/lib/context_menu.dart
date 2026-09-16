@@ -27,6 +27,7 @@ import 'services/clipboard_manager.dart';
 import 'src/core/app_state.dart';
 import 'src/core/theme_provider.dart';
 import 'src/core/app_registry.dart';
+import 'src/apps/settings_app.dart';
 
 // ── Public re-export so existing imports still compile ────────
 export 'services/clipboard_manager.dart' show ClipboardManager;
@@ -816,7 +817,7 @@ class _GlassmorphicMenu extends StatelessWidget {
     final bgColor = GlassmorphicTheme.backgroundColor(context);
     final bdrColor = GlassmorphicTheme.borderColor(context);
 
-    return Focus(
+    final mainMenu = Focus(
       focusNode: focusNode,
       onKeyEvent: onKey,
       child: MouseRegion(
@@ -853,6 +854,103 @@ class _GlassmorphicMenu extends StatelessWidget {
         ),
       ),
     );
+
+    // If a submenu is open, overlay it on top
+    if (openSubmenuIndex != null &&
+        openSubmenuIndex! >= 0 &&
+        openSubmenuIndex! < items.length &&
+        items[openSubmenuIndex!].action.children.isNotEmpty) {
+      final submenuAction = items[openSubmenuIndex!].action;
+      final submenuWidth = width;
+      const submenuItemHeight = GlassmorphicTheme.itemHeight;
+
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          mainMenu,
+          Positioned(
+            left: width + 2,
+            top: 0,
+            child: Material(
+              type: MaterialType.transparency,
+              child: ClipRRect(
+                borderRadius:
+                    BorderRadius.circular(GlassmorphicTheme.borderRadius),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: GlassmorphicTheme.blurRadiusSmall,
+                    sigmaY: GlassmorphicTheme.blurRadiusSmall,
+                  ),
+                  child: Container(
+                    width: submenuWidth,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(
+                          GlassmorphicTheme.borderRadius),
+                      border: Border.all(
+                        color: bdrColor,
+                        width: GlassmorphicTheme.borderWidth,
+                      ),
+                      boxShadow: GlassmorphicTheme.shadow,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: submenuAction.children.map((child) {
+                        return GestureDetector(
+                          onTap: () => onTap(child),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: AnimatedContainer(
+                              duration: GlassmorphicTheme.hoverDuration,
+                              height: submenuItemHeight,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: GlassmorphicTheme.itemPaddingH,
+                              ),
+                              child: Row(
+                                children: [
+                                  if (child.icon != null)
+                                    Icon(
+                                      child.icon,
+                                      size: GlassmorphicTheme.iconSize,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withAlpha(220),
+                                    ),
+                                  if (child.icon != null)
+                                    const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      child.label,
+                                      style: TextStyle(
+                                        fontSize:
+                                            GlassmorphicTheme.fontSizeItem,
+                                        fontWeight: FontWeight.w400,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return mainMenu;
   }
 
   Widget _buildItem(BuildContext context, _RenderItem item, int index) {
@@ -1251,15 +1349,17 @@ class RightClickArea extends StatelessWidget {
       callbacks: UmerOSContextMenuCallbacks(
         targetName: 'Desktop',
         canPaste: clipboard.hasContent,
-        onRefresh: () {},
+        onRefresh: () {
+          appState.refreshDesktop();
+        },
         onDisplaySettings: () {
           final app = AppRegistry.byId('settings');
           if (app != null) {
             appState.openWindow(
-              id: app.id,
-              title: app.title,
+              id: 'settings_display',
+              title: 'Display Settings',
               icon: app.icon,
-              child: app.builder(context),
+              child: const SettingsApp(initialSection: 2),
             );
           }
         },
@@ -1267,10 +1367,10 @@ class RightClickArea extends StatelessWidget {
           final app = AppRegistry.byId('settings');
           if (app != null) {
             appState.openWindow(
-              id: app.id,
-              title: app.title,
+              id: 'settings_personalize',
+              title: 'Personalize',
               icon: app.icon,
-              child: app.builder(context),
+              child: const SettingsApp(initialSection: 0),
             );
           }
         },
@@ -1285,7 +1385,45 @@ class RightClickArea extends StatelessWidget {
             );
           }
         },
-        onNewFolder: () {},
+        onNewFolder: () async {
+          final nameController = TextEditingController(text: 'New Folder');
+          final result = await showDialog<String>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('New Folder'),
+              content: TextField(
+                controller: nameController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Folder name',
+                  border: OutlineInputBorder(),
+                ),
+                onSubmitted: (v) => Navigator.of(ctx).pop(v),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(nameController.text),
+                  child: const Text('Create'),
+                ),
+              ],
+            ),
+          );
+          if (result != null && result.isNotEmpty) {
+            final filesApp = AppRegistry.byId('files');
+            if (filesApp != null) {
+              appState.openWindow(
+                id: '${filesApp.id}_${result.hashCode}',
+                title: '$result — Files',
+                icon: filesApp.icon,
+                child: filesApp.builder(context),
+              );
+            }
+          }
+        },
         onSortByName: () {},
         onSortBySize: () {},
         onSortByType: () {},

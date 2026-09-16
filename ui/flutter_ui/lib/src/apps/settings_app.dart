@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import '../widgets/auto_adjust_box.dart';
 
 class SettingsApp extends StatefulWidget {
-  const SettingsApp({super.key});
+  const SettingsApp({super.key, this.initialSection = 0});
+
+  /// Which sidebar section to show on open (0=Appearance, 2=Display).
+  final int initialSection;
 
   @override
   State<SettingsApp> createState() => _SettingsAppState();
@@ -34,6 +37,7 @@ class _SettingsAppState extends State<SettingsApp> {
   @override
   void initState() {
     super.initState();
+    _selectedSidebarIndex = widget.initialSection;
     _scrollController.addListener(_onScroll);
   }
 
