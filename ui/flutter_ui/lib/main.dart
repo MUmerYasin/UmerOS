@@ -42,7 +42,7 @@ class UmerOSApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: appState),
         ChangeNotifierProvider(create: (_) => ClipboardManager()),
         ChangeNotifierProvider(create: (_) => SmartActionTracker()..restore()),
-        ChangeNotifierProvider(create: (_) => ContextMenuController()),
+        ChangeNotifierProvider(create: (_) => UmerOSContextMenuController()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, theme, _) {

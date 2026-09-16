@@ -15,6 +15,8 @@
 /// * Lightweight animations: 180 ms spring-in, 120 ms fade-out.
 library;
 
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -500,7 +502,7 @@ class ContextMenuBuilder {
 // Controller — manages overlay lifecycle
 // ═══════════════════════════════════════════════════════════════
 
-class ContextMenuController extends ChangeNotifier {
+class UmerOSContextMenuController extends ChangeNotifier {
   OverlayEntry? _entry;
   bool _isVisible = false;
 
@@ -769,11 +771,12 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
 
 class _RenderItem {
   _RenderItem.sectionHeader(this.label)
-      : action = ContextMenuAction(id: '_hdr_$label', label: label),
+      : action = ContextMenuAction(id: '_hdr_$label', label: label!),
         isHeader = true;
 
-  _RenderItem.action(this.action) : isHeader = false;
+  _RenderItem.action(this.action) : isHeader = false, label = null;
 
+  final String? label;
   final ContextMenuAction action;
   final bool isHeader;
 }
@@ -798,7 +801,7 @@ class _GlassmorphicMenu extends StatelessWidget {
 
   final double width;
   final FocusNode focusNode;
-  final KeyEventCallback onKey;
+  final FocusOnKeyEventCallback onKey;
   final List<_RenderItem> items;
   final int hoveredIndex;
   final int? openSubmenuIndex;
@@ -1030,7 +1033,7 @@ void showUmerOSContextMenu(
   required UmerOSContextMenuCallbacks callbacks,
 }) {
   final categories = _buildCategories(contextType, callbacks);
-  final controller = context.read<ContextMenuController>();
+  final controller = context.read<UmerOSContextMenuController>();
   controller.show(
     context,
     categories: categories,
@@ -1243,9 +1246,9 @@ class RightClickArea extends StatelessWidget {
 
     showUmerOSContextMenu(
       context,
-      position,
-      MenuContext.desktop,
-      UmerOSContextMenuCallbacks(
+      position: position,
+      contextType: MenuContext.desktop,
+      callbacks: UmerOSContextMenuCallbacks(
         targetName: 'Desktop',
         canPaste: clipboard.hasContent,
         onRefresh: () {},
