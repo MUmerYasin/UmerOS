@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/locale Hierarchy Commands
+UmerOS /usr/share/locale Hierarchy Commands  [TODAY]
 =============================================
-FHS 3.0 §4.11.8: Locale information.
+Locale information.
 
 This directory contains locale data files. Each subdirectory
 represents a locale, containing LC_* category data.

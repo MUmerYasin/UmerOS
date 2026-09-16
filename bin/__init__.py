@@ -23,7 +23,7 @@
 # ed                 - ed (line editor)
 # bin_manager        - command registry, FHS audit
 """
-UmerOS /bin — Essential command binaries.
+UmerOS /bin — Essential command binaries.  [TODAY]
 """
 
 from __future__ import annotations

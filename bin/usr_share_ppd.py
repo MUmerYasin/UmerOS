@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/ppd Hierarchy Commands
+UmerOS /usr/share/ppd Hierarchy Commands  [TODAY]
 ==========================================
-FHS 3.0 §4.11.10: Printer definitions (optional).
+Printer definitions (optional).
 
 This directory contains PostScript Printer Description (PPD)
 files used by printing systems to configure printers.

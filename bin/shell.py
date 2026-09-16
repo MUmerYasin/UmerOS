@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin Shell and Stream Editor Commands
+UmerOS /bin Shell and Stream Editor Commands  [TODAY]
 =============================================
 Implements POSIX shell (sh) and stream editor (sed).
 

@@ -92,13 +92,13 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
 
     // 2. UmerOS/boot/python_vm/build/
     //    Flutter exe: .../flutter_ui/build/windows/x64/runner/Debug/
-    //    Go up 6 levels → UmerOS root
-    final root6 = exeDir.parent.parent.parent.parent.parent.parent;
-    final p1 = '$root6${sep}boot${sep}python_vm${sep}build${sep}$_exeName';
+    //    Go up 7 levels → UmerOS root
+    final root7 = exeDir.parent.parent.parent.parent.parent.parent.parent;
+    final p1 = '$root7${sep}boot${sep}python_vm${sep}build$sep$_exeName';
     if (File(p1).existsSync()) return p1;
 
     // 3. UmerOS/boot/python_vm/ (no build subdir)
-    final p2 = '$root6${sep}boot${sep}python_vm${sep}$_exeName';
+    final p2 = '$root7${sep}boot${sep}python_vm$sep$_exeName';
     if (File(p2).existsSync()) return p2;
 
     // 4. Fallback: bare name (relies on PATH)

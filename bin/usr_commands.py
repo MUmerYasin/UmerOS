@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin /usr/bin Utilities
+UmerOS /bin /usr/bin Utilities  [TODAY]
 ===============================
 Implements common /usr/bin commands as stubs for FHS compliance.
 """

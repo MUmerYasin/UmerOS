@@ -265,9 +265,23 @@ class SidDatabase:
             self.register(name, sid, overwrite=False)
 
     def register(self, name: str, sid: Sid, *, overwrite: bool = True) -> None:
-        """Add or replace a (name, SID) entry."""
-        if not overwrite and name in self._to_sid:
-            return
+        """Add or replace a (name, SID) entry.
+
+        When ``overwrite=False`` we treat both directions of the map as
+        immutable: the function is a no-op if either the ``name`` is
+        already known *or* the ``sid`` already has a canonical friendly
+        name.  This prevents later alias entries (e.g. ``"NT AUTHORITY\\SYSTEM"``)
+        from clobbering the friendly name that was bound to a SID first
+        (e.g. ``"LocalSystem"``).
+        """
+        if not overwrite:
+            if name in self._to_sid:
+                return
+            if sid in self._to_name:
+                # Still register the alias name so that ``lookup_sid``
+                # can resolve it, but keep the canonical name binding.
+                self._to_sid[name] = sid
+                return
         self._to_sid[name] = sid
         self._to_name[sid] = name
 

@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/man - Manual Pages Hierarchy
+UmerOS /usr/man - Manual Pages Hierarchy  [TODAY]
 =========================================
 /usr/man: Manual pages organized in 8 sections.
 Now located at /usr/share/man, symlinked from /usr/man.

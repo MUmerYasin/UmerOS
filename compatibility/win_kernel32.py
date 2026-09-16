@@ -193,15 +193,16 @@ def CreateFileA(path: str, access: int, share: int,
                 security: Any, creation: int, flags: int,
                 template: int) -> int:
     """Open / create a file.  Returns INVALID_HANDLE_VALUE on failure."""
-    if not os.path.isfile(path) and creation not in (2, 3):    # OPEN_ALWAYS, CREATE_ALWAYS
+    GENERIC_READ = 0x80000000
+    GENERIC_WRITE = 0x40000000
+    want_read = bool(access & GENERIC_READ)
+    want_write = bool(access & GENERIC_WRITE)
+    if not os.path.isfile(path) and creation not in (2, 5):    # OPEN_ALWAYS, CREATE_ALWAYS
         SetLastError(ERROR_FILE_NOT_FOUND)
         return 0xFFFFFFFFFFFFFFFF & 0xFFFFFFFF
     try:
-        base_mode = _decode_creation_disposition(creation)
-        if base_mode in ("x", "w", "w+"):
-            f = open(path, base_mode + "b")
-        else:
-            f = open(path, base_mode + "b")
+        base_mode = _decode_creation_disposition(creation, want_read, want_write)
+        f = open(path, base_mode + "b")
     except OSError as exc:
         SetLastError(ERROR_ACCESS_DENIED)
         log.warning("CreateFileA(%s): %s", path, exc)
@@ -264,21 +265,27 @@ def MoveFileA(src: str, dst: str) -> bool:
     return True
 
 
-def _decode_creation_disposition(c: int) -> str:
-    """Map a Win32 ``dwCreationDisposition`` to a Python file mode.
+def _decode_creation_disposition(c: int, want_read: bool, want_write: bool) -> str:
+    """Map a Win32 ``dwCreationDisposition`` + access mask to a Python file mode.
 
-    Note: we return a *base* mode (r/w/x).  The caller decides the
-    text/binary suffix and the +/- to keep the table here simple.
+    The combination is:
+
+    * 1 = CREATE_NEW     -> exclusive create; reads/writes both allowed
+    * 2 = OPEN_ALWAYS    -> open if exists, else create; reads/writes both allowed
+    * 3 = OPEN_EXISTING  -> open existing only; access depends on GENERIC_READ/WRITE
+    * 4 = TRUNCATE_EXISTING -> truncate existing; access depends on read/write
+    * 5 = CREATE_ALWAYS  -> always create / truncate; reads/writes both allowed
+
+    The caller appends ``"b"`` for binary mode.
     """
-    # 1=CREATE_NEW, 2=OPEN_ALWAYS, 3=OPEN_EXISTING, 4=TRUNCATE_EXISTING,
-    # 5=CREATE_ALWAYS
+    rw = "r+" if (want_read and want_write) else ("w" if want_write else "r")
     return {
-        1: "x",
-        2: "r+",
-        3: "r",
-        4: "w",
-        5: "w+",
-    }.get(c, "r")
+        1: "x+",        # CREATE_NEW: exclusive, then read+write
+        2: "a+" if (want_read and want_write) else ("a" if want_write else "r"),
+        3: rw,          # OPEN_EXISTING
+        4: rw if want_write else "w",  # TRUNCATE_EXISTING requires write
+        5: "w+",        # CREATE_ALWAYS
+    }.get(c, rw)
 
 
 # ---------------------------------------------------------------------------

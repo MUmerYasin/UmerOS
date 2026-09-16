@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/games Hierarchy Commands
+UmerOS /usr/share/games Hierarchy Commands  [TODAY]
 ============================================
-FHS 3.0 §4.11.6: Static game data files.
+Static game data files.
 
 This directory contains static, read-only game data. Game binaries
 go in /usr/games or /usr/bin; only architecture-independent data

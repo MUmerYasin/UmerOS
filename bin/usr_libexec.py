@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/libexec Hierarchy Commands
+UmerOS /usr/libexec Hierarchy Commands  [TODAY]
 ========================================
-FHS 3.0 §4.2.6: Binaries run by other programs.
+Binaries run by other programs.
 
 This directory contains program binaries that are not meant to be
 executed directly by the shell or users. These binaries are used

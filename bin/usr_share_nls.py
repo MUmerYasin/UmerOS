@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/nls Hierarchy Commands
+UmerOS /usr/share/nls Hierarchy Commands  [TODAY]
 ==========================================
-FHS 3.0 §4.11.9: Native Language Support (NLS).
+Native Language Support (NLS).
 
 This directory contains Native Language Support (NLS) catalogs
 used by older libc5 systems. Modern systems use /usr/share/locale.

@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/sgml Hierarchy Commands
+UmerOS /usr/share/sgml Hierarchy Commands  [TODAY]
 ==========================================
-FHS 3.0 §4.11.11: SGML/XML data files.
+SGML/XML data files.
 
 The /usr/share/sgml directory contains architecture-independent
 SGML (Standard Generalized Markup Language) and XML files.

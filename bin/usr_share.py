@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share Hierarchy Commands
+UmerOS /usr/share Hierarchy Commands  [TODAY]
 ======================================
 /usr/share: Architecture-independent data.
 

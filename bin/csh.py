@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin C Shell Interface
+UmerOS /bin C Shell Interface  [TODAY]
 =============================
 Implements the C Shell (csh) as required by FSSTND.
 """

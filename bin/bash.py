@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin/bash - The Bourne Again Shell
+UmerOS /bin/bash - The Bourne Again Shell  [TODAY]
 ==========================================
 /bin: bash is the most important shell in /bin.
 If /bin/sh is not a true Bourne shell, it must be a hard or symbolic

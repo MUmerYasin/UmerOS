@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin Essential File Operation Commands
+UmerOS /bin Essential File Operation Commands  [TODAY]
 ==============================================
 Implementation of core file manipulation commands
 

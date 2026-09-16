@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin Hierarchy Manager
+UmerOS /bin Hierarchy Manager  [TODAY]
 ==============================
 Central registry for /bin essential command binaries.
   - /bin contains essential command binaries required for booting, restoring,

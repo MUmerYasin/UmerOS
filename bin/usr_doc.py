@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/doc - Documentation Hierarchy
+UmerOS /usr/doc - Documentation Hierarchy  [TODAY]
 ==========================================
 /usr: The central documentation directory.
 Now located at /usr/share/doc, symlinked from /usr/doc.

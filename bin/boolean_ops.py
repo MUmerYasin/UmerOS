@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin Boolean & Shell Commands
+UmerOS /bin Boolean & Shell Commands  [TODAY]
 =====================================
 Boolean operations and shell primitives: true, false, sh
 

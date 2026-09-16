@@ -12,9 +12,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/templates Hierarchy Commands
+UmerOS /usr/share/templates Hierarchy Commands  [TODAY]
 ===============================================
-FHS 3.0 §4.11.13: Default configuration templates.
 
 The /usr/share/templates directory contains default template
 files for various applications. These are used as starting

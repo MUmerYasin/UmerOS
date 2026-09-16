@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin/home Command
+UmerOS /bin/home Command  [TODAY]
 =========================
 Shell command for managing user home directories.
 

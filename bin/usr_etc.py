@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/etc - System Configuration Hierarchy
+UmerOS /usr/etc - System Configuration Hierarchy  [TODAY]
 =================================================
 /usr: Another directory for configuration files. Virtually unused now.
 """

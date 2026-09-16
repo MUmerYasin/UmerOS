@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin Ed Line Editor
+UmerOS /bin Ed Line Editor  [TODAY]
 ===========================
 Implements the ed line editor as required by FSSTND.
 """

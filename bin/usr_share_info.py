@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/info Hierarchy Commands
+UmerOS /usr/share/info Hierarchy Commands  [TODAY]
 ==========================================
-FHS 3.0 §4.11.7: GNU Info system documentation.
+GNU Info system documentation.
 
 This directory contains Info pages, the GNU documentation system.
 Info pages are typically generated from Texinfo source.

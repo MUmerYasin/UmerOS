@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/lib - Shared Libraries & Modules
+UmerOS /usr/lib - Shared Libraries & Modules  [TODAY]
 =============================================
 /usr: Contains program libraries - collections of frequently
 used program routines. Also includes modules and architecture-specific libs.

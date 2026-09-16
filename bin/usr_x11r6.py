@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/X11R6 - X Window System Hierarchy
+UmerOS /usr/X11R6 - X Window System Hierarchy  [TODAY]
 ===============================================
 /usr: Contains X11R6 libraries, executables, docs, fonts.
 Symbolic links expected:

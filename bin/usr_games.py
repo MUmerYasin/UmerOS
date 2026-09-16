@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/games - Games Hierarchy
+UmerOS /usr/games - Games Hierarchy  [TODAY]
 ====================================
 /usr: Once contained network games files. Rarely used now.
 """

@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/doc Hierarchy Commands
+UmerOS /usr/share/doc Hierarchy Commands  [TODAY]
 ==========================================
-FHS 3.0 §4.11.5: Documentation files.
+Documentation files.
 
 Software documentation should be placed in /usr/share/doc/<pkg>
 where <pkg> is the package name. This directory contains README,

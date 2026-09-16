@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin Permission Management Commands
+UmerOS /bin Permission Management Commands  [TODAY]
 =============================================
-Implementation of permission and ownership management commands per FHS 3.0.
+Implementation of permission and ownership management commands.
 
 Commands implemented:
   chmod  - Change file mode bits

@@ -12,12 +12,12 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin Process & Filesystem Commands
+UmerOS /bin Process & Filesystem Commands  [TODAY]
 ==========================================
 Process management and filesystem operation commands:
   ps, kill, mount, umount, stty, sync
 
-FHS 3.0: These are essential commands for both root and
+These are essential commands for both root and
 non-privileged users.
 """
 

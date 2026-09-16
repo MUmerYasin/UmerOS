@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/dict Hierarchy Commands
+UmerOS /usr/share/dict Hierarchy Commands  [TODAY]
 ==========================================
-FHS 3.0 §4.11.4: Word lists.
+Word lists.
 
 This directory contains the list of words available on the system.
 Used by spell-checkers and word games.

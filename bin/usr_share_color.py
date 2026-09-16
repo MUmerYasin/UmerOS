@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/share/color Hierarchy Commands
+UmerOS /usr/share/color Hierarchy Commands  [TODAY]
 ============================================
-FHS 3.0 §4.11.3: Color management information.
+Color management information.
 
 This directory contains color profile and device information
 for color management systems like Oy-Color Management.

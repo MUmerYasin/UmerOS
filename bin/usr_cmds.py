@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/bin Utilities
+UmerOS /usr/bin Utilities  [TODAY]
 ==========================================
 Additional /usr/bin commands per Filesystem Hierarchy Standard.
 These complement the 61 commands already in usr_commands.py.

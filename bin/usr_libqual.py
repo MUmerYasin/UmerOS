@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/lib<qual> Hierarchy Commands
+UmerOS /usr/lib<qual> Hierarchy Commands  [TODAY]
 ==========================================
-FHS 3.0 §4.2.3: Alternate format libraries.
+Alternate format libraries.
 
 On a multilib system, this directory contains alternate format
 libraries such as /usr/lib64 for 64-bit libraries on a 32-bit host.

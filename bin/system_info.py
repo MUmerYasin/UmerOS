@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin System Information Commands
+UmerOS /bin System Information Commands  [TODAY]
 =========================================
-Implementation of system information commands per FHS 3.0.
+Implementation of system information commands.
 
 Commands implemented:
   uname    - Print system information

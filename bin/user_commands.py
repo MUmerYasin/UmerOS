@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /bin User Commands
+UmerOS /bin User Commands  [TODAY]
 ==========================
 User-related commands: su, login
 

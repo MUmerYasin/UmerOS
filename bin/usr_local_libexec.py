@@ -12,9 +12,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /usr/local/libexec Hierarchy Commands
+UmerOS /usr/local/libexec Hierarchy Commands  [TODAY]
 =============================================
-FHS 3.0 §4.2.6: Locally installed program binaries run by other programs.
+Locally installed program binaries run by other programs.
 
 Binaries in /usr/local/libexec are not part of the base system and
 are not managed by the package manager. They are used internally by
