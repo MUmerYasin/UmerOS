@@ -114,10 +114,27 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
   Future<void> _startProcess() async {
     try {
       final exePath = _findInterpreter();
+      final workDir = _workingDir();
+      final exeExists = await File(exePath).exists();
+
+      if (!exeExists) {
+        setState(() {
+          _outputLines.add(_LogEntry(
+            type: _EntryType.error,
+            text: 'ERROR: Interpreter not found.\n'
+                'Please build it first:\n'
+                '  cd boot/python_vm/build\n'
+                '  rebuild.bat',
+          ));
+        });
+        return;
+      }
+
       final proc = await Process.start(
         exePath,
         [],
-        workingDirectory: _workingDir(),
+        workingDirectory: workDir,
+        runInShell: true,
       );
       _process = proc;
       _running = true;
