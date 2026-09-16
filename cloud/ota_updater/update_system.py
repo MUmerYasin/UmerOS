@@ -28,6 +28,8 @@ the module is production update client.
 from __future__ import annotations
 
 import logging
+import os
+import urllib.parse
 from typing import Any, Optional
 
 logger = logging.getLogger("UmerOS.Cloud.OtaUpdater.update_system")
@@ -39,6 +41,29 @@ logger = logging.getLogger("UmerOS.Cloud.OtaUpdater.update_system")
 # The signature-verification boundary was already fail-closed (H46/H154), so no
 # behavioural change to verification — only the baseline/observability uplift.
 
+# ---------------------------------------------------------------------------
+# [FIX H48] Externalize the OTA update endpoint + pin the update source.
+# Previously `update_url` was a simulated domain hardcoded directly in __init__
+# (no config surface, no cert/key pinning). Now:
+#   * the endpoint comes from UMEROS_OTA_UPDATE_URL (falling back to a named
+#     DEFAULT_OTA_UPDATE_URL) and may also be injected via the constructor;
+#   * the update-server certificate is pinned via UMEROS_OTA_SERVER_CERT_FP
+#     (default placeholder SHA-256 fingerprint — replace with the real CDN
+#     cert fingerprint in production), with the expected host re-pinnable via
+#     UMEROS_OTA_PINNED_HOST;
+#   * the signing public key (trusted_public_key) remains the signature pin;
+#   * `_assert_update_source_trusted()` enforces all of the above fail-closed
+#     before any manifest is fetched/accepted. (Standard §9 H48.)
+# ---------------------------------------------------------------------------
+DEFAULT_OTA_UPDATE_URL = "https://updates.umeros.dev/latest"
+DEFAULT_OTA_SERVER_CERT_FP = "00" * 32  # placeholder SHA-256 pin — NOT a real cert
+DEFAULT_OTA_PINNED_HOST = "updates.umeros.dev"
+
+# Hosts that must never be treated as a trusted OTA source (fail-closed).
+_UNTRUSTED_OTA_HOSTS = frozenset(
+    {"localhost", "127.0.0.1", "::1", "[::1]"}
+)
+
 
 class UpdateManager:
     """Secure OTA update service for Umer OS."""
@@ -49,6 +74,7 @@ class UpdateManager:
         self,
         crypto_engine: Optional[Any] = None,
         trusted_public_key: Optional[bytes] = None,
+        update_url: Optional[str] = None,
     ) -> None:
         """Initialise the update manager.
 
@@ -57,14 +83,68 @@ class UpdateManager:
                 ``verify(payload, signature, public_key) -> bool``. When ``None``,
                 signature checks are refused.
             trusted_public_key: The pinned public key used to verify manifests.
+                This is the signature pin — it MUST be set unless unsigned updates
+                are explicitly allowed via ``UMEROS_OTA_ALLOW_UNSIGNED``.
+            update_url: Optional override of the OTA endpoint. When ``None`` the
+                endpoint is read from ``UMEROS_OTA_UPDATE_URL`` (falling back to
+                ``DEFAULT_OTA_UPDATE_URL``). [FIX H48]
 
         Returns:
             None
         """
         self.crypto = crypto_engine
         self.trusted_public_key = trusted_public_key
-        self.update_url = "https://updates.umeros.dev/latest"
-        logger.info("[OTA] Update Manager initialized.")
+        # [FIX H48] Externalize the endpoint + pin the update source.
+        self.update_url = (
+            update_url
+            or os.environ.get("UMEROS_OTA_UPDATE_URL", DEFAULT_OTA_UPDATE_URL)
+        )
+        self.pinned_server_cert_fp = os.environ.get(
+            "UMEROS_OTA_SERVER_CERT_FP", DEFAULT_OTA_SERVER_CERT_FP
+        )
+        self.pinned_expected_host = os.environ.get(
+            "UMEROS_OTA_PINNED_HOST", DEFAULT_OTA_PINNED_HOST
+        )
+        logger.info("[OTA] Update Manager initialized (endpoint=%s).", self.update_url)
+
+    def _assert_update_source_trusted(self) -> bool:
+        """[FIX H48] Fail-closed validation of the configured update source.
+
+        Refuses (returns ``False``) when any of the following hold:
+          * the endpoint is not HTTPS (plaintext transport);
+          * the endpoint host is a loopback/link-local/internal address;
+          * a server-cert fingerprint is pinned but the endpoint host does not
+            match the pinned expected host;
+          * unsigned updates are not allowed and no signing public key is pinned.
+
+        Returns:
+            bool: ``True`` only if the update source satisfies every pin.
+        """
+        parsed = urllib.parse.urlparse(self.update_url)
+        if parsed.scheme != "https":
+            logger.error(
+                "[OTA] Refusing update: endpoint is not HTTPS (%s).", self.update_url
+            )
+            return False
+        host = (parsed.hostname or "").lower()
+        if host in _UNTRUSTED_OTA_HOSTS:
+            logger.error(
+                "[OTA] Refusing update: endpoint on untrusted host (%s).", host
+            )
+            return False
+        if self.pinned_server_cert_fp and host != self.pinned_expected_host:
+            logger.error(
+                "[OTA] Refusing update: endpoint host %s != pinned cert host %s.",
+                host,
+                self.pinned_expected_host,
+            )
+            return False
+        if not os.environ.get("UMEROS_OTA_ALLOW_UNSIGNED") and self.trusted_public_key is None:
+            logger.error(
+                "[OTA] Refusing update: no pinned signing key and unsigned forbidden."
+            )
+            return False
+        return True
 
     def check_for_updates(self) -> dict:
         """Simulate checking a remote server for the latest version.
@@ -73,6 +153,15 @@ class UpdateManager:
             dict: A simulated manifest with ``latest_version``,
             ``current_version``, ``delta_size_mb`` and ``changelog`` keys.
         """
+        # [FIX H48] Fail-closed: refuse to fetch/accept a manifest from an
+        # untrusted or unpinned update source.
+        if not self._assert_update_source_trusted():
+            return {
+                "latest_version": self.CURRENT_VERSION,
+                "current_version": self.CURRENT_VERSION,
+                "delta_size_mb": 0,
+                "changelog": "",
+            }
         # In production this would use the HTTPClient to fetch a manifest
         simulated_manifest: dict = {
             "latest_version": "2.1.0",

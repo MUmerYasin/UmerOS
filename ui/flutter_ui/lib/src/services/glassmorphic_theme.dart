@@ -22,26 +22,26 @@ class GlassmorphicTheme {
   // ── Opacity ─────────────────────────────────────────────────
 
   /// Background opacity for dark mode panels.
-  static const double backgroundOpacityDark = 0.88;
+  static const double backgroundOpacityDark = 0.95;
 
   /// Background opacity for light mode panels.
-  static const double backgroundOpacityLight = 0.82;
+  static const double backgroundOpacityLight = 0.90;
 
   /// Hover / pressed overlay opacity.
-  static const double hoverOpacity = 0.12;
+  static const double hoverOpacity = 0.15;
 
   /// Active (selected) item opacity.
-  static const double activeOpacity = 0.18;
+  static const double activeOpacity = 0.22;
 
   // ── Border ──────────────────────────────────────────────────
 
-  /// Subtle border colour for dark mode.
-  static const Color borderDark = Color(0x33FFFFFF);
+  /// Visible border colour for dark mode.
+  static const Color borderDark = Color(0x66FFFFFF);
 
-  /// Subtle border colour for light mode.
-  static const Color borderLight = Color(0x33000000);
+  /// Visible border colour for light mode.
+  static const Color borderLight = Color(0x88000000);
 
-  static const double borderWidth = 0.5;
+  static const double borderWidth = 1.0;
 
   static const double borderRadius = 12.0;
 
@@ -104,6 +104,37 @@ class GlassmorphicTheme {
     return Theme.of(context).brightness == Brightness.dark
         ? borderDark
         : borderLight;
+  }
+
+  /// High-contrast text colour — pure white on dark, near-black on light.
+  static Color textColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+  }
+
+  /// Subdued text for secondary labels (shortcuts, hints).
+  static Color subtleTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.dark
+        ? Colors.white70
+        : Colors.black54;
+  }
+
+  /// Stronger shadow for menus floating over busy backgrounds.
+  static List<BoxShadow> elevatedShadow(BuildContext context) {
+    return [
+      const BoxShadow(
+        color: Color(0x55000000),
+        blurRadius: 24,
+        offset: Offset(0, 6),
+        spreadRadius: -2,
+      ),
+      const BoxShadow(
+        color: Color(0x22000000),
+        blurRadius: 8,
+        offset: Offset(0, 2),
+      ),
+    ];
   }
 
   /// Creates the frosted-glass backdrop filter widget.

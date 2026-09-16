@@ -102,14 +102,18 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
     debugInfo.writeln('local: $local  exists=$localExists');
 
     // 2. UmerOS/boot/python_vm/build/
-    final p1 = '$root7${sep}boot${sep}python_vm${sep}build$sep$_exeName';
+    final rootPath = root7.path;
+    final p1 = '$rootPath${sep}boot${sep}python_vm${sep}build$sep$_exeName';
     final p1Exists = File(p1).existsSync();
     debugInfo.writeln('p1: $p1  exists=$p1Exists');
 
     // 3. UmerOS/boot/python_vm/ (no build subdir)
-    final p2 = '$root7${sep}boot${sep}python_vm$sep$_exeName';
+    final p2 = '$rootPath${sep}boot${sep}python_vm$sep$_exeName';
     final p2Exists = File(p2).existsSync();
     debugInfo.writeln('p2: $p2  exists=$p2Exists');
+
+    // Flutter console output for path debugging
+    print('Interpreter paths: root7=${root7.path} p1=$p1 p1exists=$p1Exists p2=$p2 p2exists=$p2Exists');
 
     // Write debug to file (Flutter console stderr is hard to capture)
     try {
