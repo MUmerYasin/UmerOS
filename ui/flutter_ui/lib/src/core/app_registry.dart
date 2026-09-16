@@ -29,6 +29,7 @@ import '../apps/backup_app.dart';
 import '../apps/browser_app.dart';
 import '../apps/calculator_app.dart';
 import '../apps/calendar_app.dart';
+import '../apps/cloud_app.dart';
 import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
@@ -153,6 +154,15 @@ abstract final class AppRegistry {
       color: Colors.teal,
       category: AppCategory.system,
       builder: (_) => const BackupApp(),
+    ),
+    AppDefinition(
+      id: 'cloud',
+      title: 'Cloud Control',
+      description: 'Manage compute pools, elastic workloads, quotas and usage.',
+      icon: Icons.cloud_queue,
+      color: Colors.blue,
+      category: AppCategory.system,
+      builder: (_) => const CloudApp(),
     ),
 
     // ── Tools ─────────────────────────────────────────────────────

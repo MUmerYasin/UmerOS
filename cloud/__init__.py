@@ -4,6 +4,7 @@
 #
 # The ``cloud`` package hosts:
 #   * ``cloud.ota_updater``  - signed over-the-air update manager
+#   * ``cloud.compute``      - cloud OS compute, network, quota, and metering
 #   * any future cloud-only services (sync, telemetry backup, etc.)
 #
 # Author: UmerOS Project
@@ -35,6 +36,14 @@ for _mod, _names in (
     ("ota_updater", (
         "UpdateManager", "UpdateManifest", "UpdateChannel",
         "verify_and_apply",
+    )),
+    ("compute", (
+        "CloudOSManager", "CloudScheduler", "CloudProject", "CloudQuota",
+        "CloudUsage", "CloudNode", "CloudImage", "CloudFlavor",
+        "CloudInstance", "CloudService", "CloudVolume", "VirtualNetwork",
+        "ResourceRequest", "UsageRecord", "InstanceState", "ServiceState",
+        "DeploymentModel", "ServiceModel", "CloudError", "CloudQuotaError",
+        "CloudSchedulingError", "CloudNotFoundError",
     )),
 ):
     _try_import(_mod, _names)
