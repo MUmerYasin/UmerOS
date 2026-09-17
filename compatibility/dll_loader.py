@@ -43,6 +43,11 @@ from .pe_exports import parse_exports
 from .pe_relocations import parse_relocations
 from .pe_tls import parse_tls_directory
 from .pe_resources import parse_resources
+from .api_set import ApiSetNamespace, fallback_namespace, is_api_set_name
+from .forwarded import (ForwarderString, follow_forward,
+                        make_pe_resolver, make_table_resolver)
+from .dll_search import (DllSearchPath, find_dll, SearchLocation,
+                         LOAD_LIBRARY_SEARCH_DEFAULT_DIRS)
 
 log = logging.getLogger("UmerOS.Compat.DllLoader")
 
@@ -77,6 +82,18 @@ HOST_LIBRARIES: Dict[str, ExportTable] = {
 }
 
 
+#: Cache populated by :meth:`DllLoader.resolve_advanced` when a
+#: ``search_path`` is supplied.  Maps ``id(pe)`` to a ``{dll_name:
+#: (location, abs_path)}`` dict so callers can re-use the search
+#: results without re-walking the filesystem.
+_SEARCH_HITS: Dict[int, Dict[str, "tuple"]] = {}
+
+
+def get_search_hits(loaded: "LoadedPe") -> Dict[str, "tuple"]:
+    """Return the disk-search hits accumulated for ``loaded.pe``."""
+    return dict(_SEARCH_HITS.get(id(loaded.pe), {}))
+
+
 # ---------------------------------------------------------------------------
 # Result types
 # ---------------------------------------------------------------------------
@@ -89,6 +106,10 @@ class ResolvedImport:
     name: Optional[str]            # None for ordinal-only imports
     ordinal: int
     target: Optional[Callable]    # the resolved stub (or None if missing)
+    #: Forwarder chain (populated when the import resolved through a chain).
+    forward_chain: Tuple[str, ...] = ()
+    #: API Set host DLL that ultimately satisfied the import (if any).
+    api_set_host: Optional[str] = None
 
     @property
     def is_resolved(self) -> bool:
@@ -152,38 +173,112 @@ class DllLoader:
 
     def resolve(self, pe: PeFile) -> LoadedPe:
         """Parse every directory of ``pe`` and resolve its IAT."""
+        return self.resolve_advanced(pe, api_set=None, search_path=None,
+                                     image_table=None)
+
+    def resolve_advanced(self, pe: PeFile,
+                         *,
+                         api_set: Optional[ApiSetNamespace] = None,
+                         search_path: Optional[DllSearchPath] = None,
+                         image_table: Optional[Dict[str, PeFile]] = None,
+                         ) -> LoadedPe:
+        """Like :meth:`resolve` but uses API Set + forwarded + search
+        order when supplied.
+
+        * ``api_set`` -- an :class:`~compatibility.api_set.ApiSetNamespace`
+          that maps contract names (``api-ms-win-...``) to host DLLs.
+          When absent, the small built-in :func:`fallback_namespace` is
+          used.
+        * ``search_path`` -- a :class:`~compatibility.dll_search.DllSearchPath`
+          describing where the loader should look for DLL files.
+        * ``image_table`` -- a mapping from DLL name (case-insensitive)
+          to a parsed :class:`PeFile`, used to follow forwarder chains
+          that re-enter another DLL.
+        """
+        if api_set is None:
+            api_set = fallback_namespace()
         imports = parse_imports(pe)
         exports_obj = parse_exports(pe)
         reloc = parse_relocations(pe)
         tls = parse_tls_directory(pe)
         res = parse_resources(pe)
 
+        # Build a resolver that consults API Set first, then walks
+        # forwarder chains across image_table / host_libraries.
+        host_libraries = self.host_libraries
+
+        def api_set_resolve(name: str) -> Optional[str]:
+            entry = api_set.resolve(name)
+            if entry is None or not entry.values:
+                return None
+            return entry.values[0].dll_name
+
+        resolver = make_pe_resolver(
+            image_table or {},
+            api_set_resolver=api_set_resolve,
+        )
+
         resolved: List[ResolvedImport] = []
         for dll in imports:
-            lib = self._lookup_dll(dll.name)
+            api_set_host: Optional[str] = None
+            effective_dll = dll.name
+            if is_api_set_name(dll.name):
+                host = api_set_resolve(dll.name)
+                if host is not None:
+                    api_set_host = host
+                    effective_dll = host
+
+            lib = self._lookup_dll(effective_dll)
             for sym in dll.symbols:
                 target = None
+                chain: Tuple[str, ...] = ()
                 if lib is not None:
                     if sym.is_ordinal_only:
-                        # Try ordinal lookup.  We don't have an
-                        # exact export-by-ordinal index here, so we
-                        # look for any name with that ordinal hint.
                         for ename, eproc in lib.items():
                             if eproc.__doc__ and f"ordinal={sym.ordinal}" in eproc.__doc__:
                                 target = eproc
                                 break
                     else:
                         target = lib.get(sym.name)
+                        # If still unresolved, try following the
+                        # forwarder chain via image_table.
+                        if target is None and image_table is not None:
+                            fw = follow_forward(
+                                f"{effective_dll}.{sym.name}",
+                                resolver,
+                            )
+                            if fw is not None and fw.is_terminal:
+                                chain = fw.chain
+                                target = self._lookup_dll_export(
+                                    fw.final_dll, fw.final_name)
                 resolved.append(ResolvedImport(
                     dll=dll.name, name=sym.name, ordinal=sym.ordinal,
                     target=target,
+                    forward_chain=chain,
+                    api_set_host=api_set_host,
                 ))
+                # Side effect: if a search_path was given and we did
+                # not find the DLL in host_libraries, record the disk
+                # location for the caller (used by the audit CLI).
+                if (search_path is not None and lib is None
+                        and not is_api_set_name(dll.name)):
+                    hit = find_dll(dll.name, search_path)
+                    if hit is not None:
+                        _SEARCH_HITS.setdefault(id(pe), {})[dll.name] = hit
 
-        return LoadedPe(
+        loaded = LoadedPe(
             pe=pe, imports=imports, exports_obj=exports_obj,
             relocations=reloc, tls=tls, resources=res,
             resolved_imports=resolved,
         )
+        return loaded
+
+    def _lookup_dll_export(self, dll: str, name: str) -> Optional[Callable]:
+        """Resolve an export name across the registered host libraries."""
+        lib = self._lookup_dll(dll)
+        if lib is None:
+            return None
+        return lib.get(name)
 
     def _lookup_dll(self, name: str) -> Optional[ExportTable]:
         # Case-insensitive lookup.

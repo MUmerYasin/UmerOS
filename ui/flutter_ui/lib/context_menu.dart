@@ -25,7 +25,6 @@ import 'src/services/smart_action_tracker.dart';
 import 'src/services/glassmorphic_theme.dart';
 import 'services/clipboard_manager.dart';
 import 'src/core/app_state.dart';
-import 'src/core/theme_provider.dart';
 import 'src/core/app_registry.dart';
 import 'src/apps/settings_app.dart';
 
@@ -813,7 +812,6 @@ class _GlassmorphicMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
     final bgColor = GlassmorphicTheme.backgroundColor(context);
     final bdrColor = GlassmorphicTheme.borderColor(context);
 
@@ -869,31 +867,34 @@ class _GlassmorphicMenu extends StatelessWidget {
         children: [
           mainMenu,
           Positioned(
-            left: width + 2,
+            left: width,
             top: 0,
-            child: Material(
-              type: MaterialType.transparency,
-              child: ClipRRect(
-                borderRadius:
-                    BorderRadius.circular(GlassmorphicTheme.borderRadius),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(
-                    sigmaX: GlassmorphicTheme.blurRadiusSmall,
-                    sigmaY: GlassmorphicTheme.blurRadiusSmall,
-                  ),
-                  child: Container(
-                    width: submenuWidth,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(
-                          GlassmorphicTheme.borderRadius),
-                      border: Border.all(
-                        color: bdrColor,
-                        width: GlassmorphicTheme.borderWidth,
-                      ),
-                      boxShadow: GlassmorphicTheme.shadow,
+            child: MouseRegion(
+              onEnter: (_) => onSubmenuHover(openSubmenuIndex),
+              onExit: (_) => onSubmenuHover(null),
+              child: Material(
+                type: MaterialType.transparency,
+                child: ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(GlassmorphicTheme.borderRadius),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: GlassmorphicTheme.blurRadiusSmall,
+                      sigmaY: GlassmorphicTheme.blurRadiusSmall,
                     ),
-                    child: Column(
+                    child: Container(
+                      width: submenuWidth,
+                      decoration: BoxDecoration(
+                        color: bgColor,
+                        borderRadius: BorderRadius.circular(
+                            GlassmorphicTheme.borderRadius),
+                        border: Border.all(
+                          color: bdrColor,
+                          width: GlassmorphicTheme.borderWidth,
+                        ),
+                        boxShadow: GlassmorphicTheme.shadow,
+                      ),
+                      child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: submenuAction.children.map((child) {
@@ -940,6 +941,7 @@ class _GlassmorphicMenu extends StatelessWidget {
                 ),
               ),
             ),
+          ),
           ),
         ],
       );
@@ -1317,7 +1319,6 @@ class RightClickArea extends StatelessWidget {
 
   void _showDesktopMenu(BuildContext context, Offset position) {
     final appState = context.read<AppState>();
-    final theme = context.read<ThemeProvider>();
     final clipboard = context.read<ClipboardManager>();
 
     showUmerOSContextMenu(

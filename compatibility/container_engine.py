@@ -55,6 +55,13 @@ import time
 import uuid
 from typing import Dict, List, Optional
 
+try:
+    import resource  # POSIX only; unavailable on Windows
+except ImportError:  # pragma: no cover - non-POSIX host
+    resource = None
+
+from core.capability_gate import gate  # zero-trust capability gate (H52)
+
 log = logging.getLogger("UmerOS.Compatibility")
 
 # Supported application types
@@ -62,6 +69,104 @@ APP_TYPE_LINUX   = "linux"
 APP_TYPE_WINDOWS = "windows"
 APP_TYPE_ANDROID = "android"
 APP_TYPE_GAME    = "game"
+
+# ---------------------------------------------------------------------------
+# Foreign-binary launch sandbox  [zero-trust; H52]
+# ---------------------------------------------------------------------------
+# Capability required to launch any foreign binary (ELF/.exe/APK). Fail-closed
+# when a CapabilityManager is wired (or strict mode); permissive (warn + allow)
+# otherwise - matching the rest of the cap-gate cluster.
+CAP_FOREIGN_EXEC = "container.launch"
+
+# Default sandbox posture. Full namespace/seccomp isolation is the module's
+# FUTURE note; it is EXPERIMENTAL and OFF by default so existing host-tool
+# launches (wine/adb) keep working. Enable per-launch via sandbox=True or
+# repo-wide via UMEROS_COMPAT_SANDBOX=1.
+_SANDBOX_DEFAULT = os.environ.get("UMEROS_COMPAT_SANDBOX", "0") == "1"
+
+# Env vars a foreign binary may inherit when no explicit env is supplied.
+_SAFE_ENV_ALLOW = (
+    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TERM",
+    "LANG", "LC_ALL", "DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR",
+    "TMPDIR", "TEMP", "TMP",
+)
+
+
+def _sanitize_env(explicit_env: Optional[dict]) -> Optional[dict]:
+    """Build a minimal, secret-safe environment for a foreign binary.
+
+    An explicit ``env`` is always honoured (caller intent). When ``env`` is None
+    we no longer blindly inherit the *full* parent environment (which would leak
+    trust material such as UMEROS_OTA_* keys / OPENROUTER_API_KEY into an
+    untrusted foreign process); we pass an allow-listed subset instead.
+    """
+    if explicit_env is not None:
+        return explicit_env
+    safe: dict = {}
+    for key in _SAFE_ENV_ALLOW:
+        val = os.environ.get(key)
+        if val is not None:
+            safe[key] = val
+    return safe
+
+
+def _sandbox_preexec(drop_uid: Optional[int] = None,
+                     drop_gid: Optional[int] = None,
+                     mem_mb: int = 512,
+                     cpu_seconds: int = 300) -> None:
+    """Best-effort privilege drop + resource quotas (POSIX; runs in the child).
+
+    Intended as ``preexec_fn`` for subprocess.Popen. Raises on any step so a
+    launch that *asked* to be sandboxed never silently runs unsandboxed.
+    Namespace isolation (unshare) is applied when available; the module's FUTURE
+    note is full chroot/OCI/seccomp-bpf.
+
+    Raises:
+        RuntimeError: If a requested isolation primitive is unavailable.
+    """
+    if resource is not None:
+        try:
+            resource.setrlimit(resource.RLIMIT_AS,
+                               (mem_mb * 1024 * 1024, mem_mb * 1024 * 1024))
+            resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds))
+            resource.setrlimit(resource.RLIMIT_NPROC, (256, 256))
+            resource.setrlimit(resource.RLIMIT_FSIZE,
+                               (1024 * 1024 * 1024, 1024 * 1024 * 1024))
+        except (ValueError, OSError) as exc:
+            raise RuntimeError(f"sandbox: rlimit apply failed: {exc}") from exc
+    if hasattr(os, "unshare"):
+        try:
+            # New mount + PID + network namespace (Linux). Best-effort isolation.
+            os.unshare(0x00020000 | 0x01000000 | 0x02000000)
+        except OSError as exc:
+            raise RuntimeError(f"sandbox: unshare failed: {exc}") from exc
+    if drop_gid is not None and hasattr(os, "setgid"):
+        try:
+            os.setgid(drop_gid)
+        except OSError as exc:
+            raise RuntimeError(f"sandbox: setgid failed: {exc}") from exc
+    if drop_uid is not None and hasattr(os, "setuid"):
+        try:
+            os.setuid(drop_uid)
+        except OSError as exc:
+            raise RuntimeError(f"sandbox: setuid failed: {exc}") from exc
+
+
+def _require_launch_capability(sandbox: bool) -> None:
+    """Zero-trust gate for foreign-binary launches (H52).
+
+    Fail-closed when a trust source is active (CapabilityManager wired or strict
+    mode): the launch capability must be granted. In a hard zero-trust posture
+    (gate.enforcing) an *unsandboxed* launch is refused outright - running
+    untrusted foreign code with the launcher's privileges is not permitted.
+    """
+    gate.require(CAP_FOREIGN_EXEC)
+    if gate.enforcing and not sandbox:
+        raise RuntimeError(
+            "Refusing to launch foreign binary UNSANDBOXED while the zero-trust "
+            "posture is active (gate.enforcing). Enable sandbox=True or relax "
+            "strict mode."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -262,6 +367,7 @@ class LinuxCompat:
         exe_path: str,
         args: Optional[List[str]] = None,
         env: Optional[dict] = None,
+        sandbox: bool = _SANDBOX_DEFAULT,
     ) -> ContainerInstance:
         """Launch a Linux ELF binary.
 
@@ -276,14 +382,23 @@ class LinuxCompat:
         Raises:
             FileNotFoundError: If exe_path does not exist.
         """
+        _require_launch_capability(sandbox)
         if not os.path.isfile(exe_path):
             raise FileNotFoundError(f"ELF binary not found: '{exe_path}'.")
-        cmd  = [exe_path] + (args or [])
+        cmd = [exe_path] + (args or [])
+        safe_env = _sanitize_env(env)
+        preexec = _sandbox_preexec() if (sandbox and os.name == "posix") else None
+        if sandbox and os.name != "posix":
+            raise RuntimeError(
+                "sandbox=True requested but POSIX namespace/quota isolation is "
+                "unavailable on this platform; refusing unsandboxed launch."
+            )
         proc = subprocess.Popen(
             cmd,
-            env=env,
+            env=safe_env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            preexec_fn=preexec,
         )
         return ContainerInstance(app_path=exe_path, app_type=APP_TYPE_LINUX, process=proc)
 
@@ -332,6 +447,7 @@ class WineShim:
         exe_path:  str,
         app_id:    str = "default",
         args:      Optional[List[str]] = None,
+        sandbox:   bool = _SANDBOX_DEFAULT,
     ) -> ContainerInstance:
         """Run a Windows .exe via Wine.
 
@@ -354,15 +470,23 @@ class WineShim:
         if not os.path.isfile(exe_path):
             raise FileNotFoundError(f"Windows executable not found: '{exe_path}'.")
 
+        _require_launch_capability(sandbox)
         prefix = self.setup_prefix(app_id)
-        env    = {**os.environ, "WINEPREFIX": prefix}
+        env    = {**_sanitize_env(None), "WINEPREFIX": prefix}
         cmd    = [self._wine, exe_path] + (args or [])
+        preexec = _sandbox_preexec() if (sandbox and os.name == "posix") else None
+        if sandbox and os.name != "posix":
+            raise RuntimeError(
+                "sandbox=True requested but POSIX namespace/quota isolation is "
+                "unavailable on this platform; refusing unsandboxed Wine launch."
+            )
 
         proc = subprocess.Popen(
             cmd,
             env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            preexec_fn=preexec,
         )
         log.info("WineShim: launched '%s' (prefix=%s).", exe_path, prefix)
         return ContainerInstance(app_path=exe_path, app_type=APP_TYPE_WINDOWS, process=proc)
@@ -420,7 +544,7 @@ class AndroidContainer:
         log.info("AndroidContainer: APK '%s' registered as '%s'.", apk_path, pkg)
         return pkg
 
-    def launch_app(self, package_name: str) -> ContainerInstance:
+    def launch_app(self, package_name: str, sandbox: bool = _SANDBOX_DEFAULT) -> ContainerInstance:
         """Launch an installed Android application.
 
         TODAY: Returns a stub ContainerInstance (no real process).
@@ -444,12 +568,22 @@ class AndroidContainer:
 
         if self._adb:
             # EXPERIMENTAL: real ADB launch
+            _require_launch_capability(sandbox)
+            safe_env = _sanitize_env(None)
+            preexec = _sandbox_preexec() if (sandbox and os.name == "posix") else None
+            if sandbox and os.name != "posix":
+                raise RuntimeError(
+                    "sandbox=True requested but POSIX namespace/quota isolation "
+                    "is unavailable; refusing unsandboxed ADB launch."
+                )
             try:
                 proc = subprocess.Popen(
                     [self._adb, "shell", "am", "start", "-n",
                      f"{package_name}/.MainActivity"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
+                    env=safe_env,
+                    preexec_fn=preexec,
                 )
                 return ContainerInstance(
                     app_path=apk_path,
@@ -527,6 +661,7 @@ class ContainerEngine:
         app_path:  str,
         app_type:  Optional[str] = None,
         args:      Optional[List[str]] = None,
+        sandbox:   bool = _SANDBOX_DEFAULT,
     ) -> ContainerInstance:
         """Launch an application in the appropriate container.
 
@@ -545,12 +680,12 @@ class ContainerEngine:
         atype = app_type or self.detect_type(app_path)
 
         if atype == APP_TYPE_WINDOWS:
-            inst = self._wine.run(app_path, args=args)
+            inst = self._wine.run(app_path, args=args, sandbox=sandbox)
         elif atype == APP_TYPE_ANDROID:
             pkg  = self._android.install_apk(app_path)
-            inst = self._android.launch_app(pkg)
+            inst = self._android.launch_app(pkg, sandbox=sandbox)
         elif atype in (APP_TYPE_LINUX, APP_TYPE_GAME):
-            inst = self._linux.launch(app_path, args=args)
+            inst = self._linux.launch(app_path, args=args, sandbox=sandbox)
         else:
             raise RuntimeError(f"Unsupported application type: '{atype}'.")
 

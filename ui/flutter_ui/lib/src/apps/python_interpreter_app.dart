@@ -89,44 +89,18 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
 
     final root7 = exeDir.parent.parent.parent.parent.parent.parent.parent;
 
-    // Debug: log all resolved paths
-    final debugInfo = StringBuffer()
-      ..writeln('flutterExe: $flutterExe')
-      ..writeln('exeDir: ${exeDir.path}')
-      ..writeln('root7: ${root7.path}')
-      ..writeln('pathSep: $sep');
-
     // 1. Same dir as Flutter exe
     final local = '${exeDir.path}$sep$_exeName';
-    final localExists = File(local).existsSync();
-    debugInfo.writeln('local: $local  exists=$localExists');
+    if (File(local).existsSync()) return local;
 
     // 2. UmerOS/boot/python_vm/build/
     final rootPath = root7.path;
     final p1 = '$rootPath${sep}boot${sep}python_vm${sep}build$sep$_exeName';
-    final p1Exists = File(p1).existsSync();
-    debugInfo.writeln('p1: $p1  exists=$p1Exists');
+    if (File(p1).existsSync()) return p1;
 
     // 3. UmerOS/boot/python_vm/ (no build subdir)
     final p2 = '$rootPath${sep}boot${sep}python_vm$sep$_exeName';
-    final p2Exists = File(p2).existsSync();
-    debugInfo.writeln('p2: $p2  exists=$p2Exists');
-
-    // Flutter console output for path debugging
-    print('Interpreter paths: root7=${root7.path} p1=$p1 p1exists=$p1Exists p2=$p2 p2exists=$p2Exists');
-
-    // Write debug to file (Flutter console stderr is hard to capture)
-    try {
-      final debugFile = File('UmerOS\\flutter_debug.log');
-      debugFile.writeAsStringSync(debugInfo.toString());
-    } catch (e) {
-      // Never silently swallow — at minimum print to Flutter console
-      print('ERROR writing flutter_debug.log: $e');
-    }
-
-    if (localExists) return local;
-    if (p1Exists) return p1;
-    if (p2Exists) return p2;
+    if (File(p2).existsSync()) return p2;
 
     // 4. Fallback: bare name (relies on PATH)
     return _exeName;
@@ -143,18 +117,6 @@ class _PythonInterpreterAppState extends State<PythonInterpreterApp> {
       final exePath = _findInterpreter();
       final workDir = _workingDir();
       final exeExists = await File(exePath).exists();
-
-      // Flutter console output (always visible in terminal runner)
-      print('Python Interpreter starting: exe=$exePath exists=$exeExists cwd=$workDir');
-
-      // Show path resolution in terminal so user sees exactly what's happening
-      setState(() {
-        _outputLines.add(_LogEntry(
-          type: _EntryType.system,
-          text: 'Interpreter search: $exePath\n'
-              'Exists: $exeExists | CWD: $workDir',
-        ));
-      });
 
       if (!exeExists) {
         setState(() {

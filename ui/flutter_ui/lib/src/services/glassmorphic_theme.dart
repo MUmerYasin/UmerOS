@@ -90,13 +90,16 @@ class GlassmorphicTheme {
   // ── Helpers ─────────────────────────────────────────────────
 
   /// Resolved background colour given the current brightness.
+  /// Dark mode uses a dark semi-transparent bg; light mode uses a light
+  /// semi-transparent bg — matching the convention that white text sits on
+  /// dark surfaces and black text sits on light surfaces.
   static Color backgroundColor(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final opacity =
         brightness == Brightness.dark ? backgroundOpacityDark : backgroundOpacityLight;
     return brightness == Brightness.dark
-        ? Colors.white.withAlpha((opacity * 255).round())
-        : Colors.black.withAlpha((opacity * 255).round());
+        ? Colors.black.withAlpha((opacity * 255).round())
+        : Colors.white.withAlpha((opacity * 255).round());
   }
 
   /// Resolved border colour given the current brightness.

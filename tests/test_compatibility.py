@@ -31,6 +31,7 @@ from compatibility import (  # noqa: E402
     win_kernel32, win_user32, win_gdi32, win_advapi32, win_ntdll,
     winerror, ntstatus, win_guid, win_sid, win_strings, win_path,
     dll_loader, wine_shim,
+    api_set, forwarded, dll_search, manifest, long_path,
 )
 from compatibility.pe_loader import PeFile, PeClass          # noqa: E402
 from compatibility.dll_loader import DllLoader, ResolvedImport  # noqa: E402
@@ -470,6 +471,224 @@ class TestWineShim(unittest.TestCase):
             self.assertTrue(r.is_loadable)
         finally:
             os.remove(path)
+
+
+# ---------------------------------------------------------------------------
+# API Set Schema
+# ---------------------------------------------------------------------------
+
+class TestApiSet(unittest.TestCase):
+    def test_fallback_resolves_core(self) -> None:
+        ns = api_set.fallback_namespace()
+        e = ns.resolve("api-ms-win-core-io-l1-1-0.dll")
+        self.assertIsNotNone(e)
+        self.assertEqual(e.values[0].dll_name.lower(), "kernel32.dll")
+
+    def test_fallback_resolves_crt(self) -> None:
+        ns = api_set.fallback_namespace()
+        e = ns.resolve("api-ms-win-crt-runtime-l1-1-0")
+        self.assertIsNotNone(e)
+        self.assertEqual(e.values[0].dll_name.lower(), "ucrtbase.dll")
+
+    def test_is_api_set_name(self) -> None:
+        self.assertTrue(api_set.is_api_set_name("api-ms-win-core-foo-l1-1-0"))
+        self.assertTrue(api_set.is_api_set_name("API-MS-WIN-CORE-FOO-L1-1-0.DLL"))
+        self.assertFalse(api_set.is_api_set_name("KERNEL32.DLL"))
+        self.assertFalse(api_set.is_api_set_name(""))
+
+    def test_parse_synthetic_blob(self) -> None:
+        blob = api_set._build_synthetic_schema()
+        ns = api_set.parse_apiset(blob)
+        self.assertIsNotNone(ns)
+        self.assertEqual(ns.version, 2)
+        e = ns.resolve("api-ms-win-test-set-l1-1-0.dll")
+        self.assertIsNotNone(e)
+        self.assertEqual(e.values[0].dll_name, "ucrtbase.dll")
+
+
+# ---------------------------------------------------------------------------
+# Forwarded exports
+# ---------------------------------------------------------------------------
+
+class TestForwarded(unittest.TestCase):
+    def test_parse_forwarder(self) -> None:
+        f = forwarded.ForwarderString.parse("kernel32.DecodePointer")
+        self.assertIsNotNone(f)
+        self.assertEqual(f.dll, "kernel32")
+        self.assertEqual(f.symbol, "DecodePointer")
+        self.assertFalse(f.is_ordinal)
+
+    def test_parse_ordinal(self) -> None:
+        f = forwarded.ForwarderString.parse("ntdll.#42")
+        self.assertIsNotNone(f)
+        self.assertTrue(f.is_ordinal)
+        self.assertEqual(f.ordinal, 42)
+
+    def test_follow_chain(self) -> None:
+        def resolver(dll, sym):
+            if (dll.upper(), sym) == ("A", "foo"):
+                return "b.dll.bar"
+            if (dll.upper(), sym) == ("B.DLL", "bar"):
+                return "c.dll.baz"
+            if (dll.upper(), sym) == ("C.DLL", "baz"):
+                return forwarded.follow_forward.__globals__.get(
+                    "__terminal__", "__terminal__")
+            return None
+        result = forwarded.follow_forward("a.foo", resolver)
+        self.assertIsNotNone(result)
+        self.assertTrue(result.is_terminal)
+        self.assertEqual(result.final_dll.upper(), "C.DLL")
+        self.assertEqual(result.final_name, "baz")
+        self.assertEqual(result.depth, 3)
+        self.assertEqual(len(result.chain), 2)
+
+    def test_cycle_detection(self) -> None:
+        def resolver(dll, sym):
+            if sym == "alpha":
+                return "beta"
+            if sym == "beta":
+                return "alpha"
+            return None
+        self.assertIsNone(forwarded.follow_forward("gamma.alpha", resolver))
+
+
+# ---------------------------------------------------------------------------
+# DLL search order
+# ---------------------------------------------------------------------------
+
+class TestDllSearch(unittest.TestCase):
+    def test_safe_mode_application_first(self) -> None:
+        sp = dll_search.DllSearchPath(
+            application_dir="C:/App",
+            system32_dir="C:/Windows/System32",
+            system16_dir="C:/Windows/System",
+            windows_dir="C:/Windows",
+            current_dir="C:/Other",
+            safe_dll_search_mode=True,
+        )
+        kinds = [l.kind for l in sp.make_sequence()]
+        self.assertEqual(kinds[:4],
+                         ["application", "system32", "system16", "windows"])
+        self.assertEqual(kinds[4], "current")
+
+    def test_legacy_mode_current_before_system(self) -> None:
+        sp = dll_search.DllSearchPath(
+            application_dir="C:/App",
+            system32_dir="C:/Windows/System32",
+            system16_dir="C:/Windows/System",
+            windows_dir="C:/Windows",
+            current_dir="C:/Other",
+            safe_dll_search_mode=False,
+        )
+        kinds = [l.kind for l in sp.make_sequence()]
+        self.assertEqual(kinds[:2], ["application", "current"])
+
+    def test_find_dll_with_real_files(self) -> None:
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            app = os.path.join(tmp, "app")
+            sys32 = os.path.join(tmp, "win", "system32")
+            os.makedirs(app)
+            os.makedirs(sys32)
+            with open(os.path.join(sys32, "foo.dll"), "wb") as f:
+                f.write(b"x")
+            sp = dll_search.DllSearchPath(
+                application_dir=app,
+                system32_dir=sys32,
+                windows_dir=tmp,
+                safe_dll_search_mode=True,
+            )
+            loc, path = dll_search.find_dll("foo.dll", sp)
+            self.assertIsNotNone(loc)
+            self.assertEqual(loc.kind, "system32")
+
+    def test_candidate_names(self) -> None:
+        self.assertEqual(dll_search.DllSearchPath.candidate_names("kernel32"),
+                         ("kernel32.dll", "kernel32.DLL"))
+        self.assertEqual(dll_search.DllSearchPath.candidate_names("foo.bar"),
+                         ("foo.bar",))
+
+
+# ---------------------------------------------------------------------------
+# Manifest
+# ---------------------------------------------------------------------------
+
+class TestManifest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.xml = (
+            '<?xml version="1.0"?>'
+            '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">'
+            '  <assemblyIdentity name="X" version="1.0.0.0" processorArchitecture="x86" '
+            'publicKeyToken="abcdef" type="win32" />'
+            '  <dependency>'
+            '    <dependentAssembly>'
+            '      <assemblyIdentity name="Y" version="2.0.0.0" '
+            'processorArchitecture="x86" publicKeyToken="123456" />'
+            '    </dependentAssembly>'
+            '  </dependency>'
+            '</assembly>'
+        )
+
+    def test_parse_basic(self) -> None:
+        m = manifest.parse_manifest(self.xml)
+        self.assertIsNotNone(m.assembly)
+        self.assertEqual(m.assembly.name, "X")
+        self.assertEqual(m.assembly.version, "1.0.0.0")
+
+    def test_parse_dependency(self) -> None:
+        m = manifest.parse_manifest(self.xml)
+        self.assertEqual(len(m.dependencies), 1)
+        d = m.find_dependency("Y")
+        self.assertIsNotNone(d)
+        self.assertEqual(d.identity.public_key_token, "123456")
+
+    def test_wildcard_match(self) -> None:
+        a = manifest.AssemblyIdentity(name="X", public_key_token="abc")
+        b = manifest.AssemblyIdentity(name="X", public_key_token="ABC")
+        self.assertTrue(a.matches(b))
+
+    def test_malformed_returns_empty(self) -> None:
+        m = manifest.parse_manifest("<assembly>")
+        self.assertIsNone(m.assembly)
+
+
+# ---------------------------------------------------------------------------
+# Long path
+# ---------------------------------------------------------------------------
+
+class TestLongPath(unittest.TestCase):
+    def test_parse_extended_drive(self) -> None:
+        p = long_path.parse_long_path("\\\\?\\C:\\Windows")
+        self.assertEqual(p.prefix, long_path.LongPathPrefix.WIN32_EXTENDED)
+        self.assertEqual(p.drive, "C")
+        self.assertEqual(p.path_parts, ("Windows",))
+
+    def test_parse_extended_unc(self) -> None:
+        p = long_path.parse_long_path(
+            "\\\\?\\UNC\\server\\share\\dir\\file.txt")
+        self.assertEqual(p.prefix, long_path.LongPathPrefix.WIN32_UNC)
+        self.assertTrue(p.is_unc)
+        self.assertEqual(p.server, "server")
+        self.assertEqual(p.share, "share")
+
+    def test_parse_device(self) -> None:
+        p = long_path.parse_long_path("\\\\.\\COM1")
+        self.assertEqual(p.prefix, long_path.LongPathPrefix.WIN32_DEVICE)
+
+    def test_to_native_drops_prefix(self) -> None:
+        p = long_path.parse_long_path("\\\\?\\C:\\Windows\\foo")
+        self.assertEqual(p.to_native(), "C:\\Windows\\foo")
+
+    def test_no_prefix_passthrough(self) -> None:
+        p = long_path.parse_long_path("C:\\Windows")
+        self.assertEqual(p.prefix, long_path.LongPathPrefix.NONE)
+        self.assertEqual(p.drive, "C")
+
+    def test_make_extended_roundtrip(self) -> None:
+        s = long_path.make_extended("D", ("a", "b"))
+        p = long_path.parse_long_path(s)
+        self.assertEqual(p.drive, "D")
+        self.assertEqual(p.path_parts, ("a", "b"))
 
 
 # ---------------------------------------------------------------------------

@@ -116,9 +116,31 @@ _IMPORT_PLAN = {
                              "FILE_ATTRIBUTE_READONLY", "FILE_ATTRIBUTE_HIDDEN",
                              "FILE_ATTRIBUTE_ARCHIVE", "FILE_ATTRIBUTE_DIRECTORY"),
 
+    # ---- Modern loader plumbing ----
+    "api_set":              ("ApiSetNamespace", "ApiSetEntry", "ApiSetValue",
+                             "parse_apiset", "fallback_namespace",
+                             "is_api_set_name"),
+    "forwarded":            ("ResolvedForward", "ForwarderString",
+                             "follow_forward", "make_pe_resolver",
+                             "make_table_resolver"),
+    "dll_search":           ("DllSearchPath", "SearchLocation", "find_dll",
+                             "LOAD_LIBRARY_SEARCH_DEFAULT_DIRS",
+                             "LOAD_LIBRARY_SEARCH_SYSTEM32",
+                             "LOAD_LIBRARY_SEARCH_APPLICATION_DIR",
+                             "LOAD_LIBRARY_SEARCH_USER_DIRS",
+                             "LOAD_WITH_ALTERED_SEARCH_PATH"),
+    "manifest":             ("ActivationManifest", "AssemblyIdentity",
+                             "Dependency", "parse_manifest", "parse_manifest_file",
+                             "find_manifest_in_resources",
+                             "ISOLATIONAWARE_MANIFEST_RESOURCE_ID", "RT_MANIFEST"),
+    "long_path":            ("LongPath", "LongPathPrefix", "parse_long_path",
+                             "make_extended", "make_extended_unc",
+                             "wrap_if_needed", "is_too_long_for_win32",
+                             "MAX_WIN32_PATH", "MAX_WIN32_LONG_PATH"),
+
     # ---- Loader + shim ----
     "dll_loader":           ("DllLoader", "ResolvedImport", "HOST_LIBRARIES",
-                             "resolve_imports"),
+                             "resolve_imports", "get_search_hits"),
     "wine_shim":            ("WineShim", "LaunchResult"),
 }
 
