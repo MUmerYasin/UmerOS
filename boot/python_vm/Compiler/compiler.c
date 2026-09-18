@@ -492,8 +492,6 @@ static void Compile_Expr(Compiler *compiler, Parser *parser) {
     }
 
     if (token == TOKEN_STRING) {
-        fprintf(stderr, "[COMPILER-EXPR] STRING branch\n");
-        fflush(stderr);
         Py_INCREF(parser->current_token);
         int idx = Compiler_AddConstant(compiler, parser->current_token);
         Compiler_Emit(compiler, OP_LOAD_CONST, idx);
@@ -504,8 +502,6 @@ static void Compile_Expr(Compiler *compiler, Parser *parser) {
     }
 
     if (token == TOKEN_LPAREN) {
-        fprintf(stderr, "[COMPILER-EXPR] LPAREN branch\n");
-        fflush(stderr);
         Parser_NextToken(parser);
         Compile_Expr(compiler, parser);
         if (parser->token_type == TOKEN_RPAREN) {
@@ -515,8 +511,6 @@ static void Compile_Expr(Compiler *compiler, Parser *parser) {
     }
 
     if (token == TOKEN_MINUS) {
-        fprintf(stderr, "[COMPILER-EXPR] MINUS branch\n");
-        fflush(stderr);
         Compiler_Emit(compiler, OP_LOAD_CONST,
             Compiler_AddConstant(compiler, PyLong_FromLong(0)));
         Parser_NextToken(parser);
@@ -526,8 +520,6 @@ static void Compile_Expr(Compiler *compiler, Parser *parser) {
     }
 
     if (token == TOKEN_NAME) {
-        fprintf(stderr, "[COMPILER-EXPR] NAME branch\n");
-        fflush(stderr);
         Py_INCREF(parser->current_token);
         int idx = Compiler_AddConstant(compiler, parser->current_token);
         Compiler_Emit(compiler, OP_LOAD_NAME, idx);
@@ -538,8 +530,6 @@ static void Compile_Expr(Compiler *compiler, Parser *parser) {
     }
 
     if (token == TOKEN_KEYWORD_TRUE) {
-        fprintf(stderr, "[COMPILER-EXPR] TRUE branch\n");
-        fflush(stderr);
         Parser_NextToken(parser);
         int idx = Compiler_AddConstant(compiler, PyBool_FromLong(1));
         Compiler_Emit(compiler, OP_LOAD_CONST, idx);
@@ -613,8 +603,6 @@ static PyCodeObject* Compiler_MakeCode(Compiler *compiler) {
 /* Compile a statement */
 static int Compile_Statement(Compiler *compiler, Parser *parser) {
     int token = parser->token_type;
-    fprintf(stderr, "[COMPILER-STMT] entry: token=%d\n", token);
-    fflush(stderr);
 
     /* Skip newlines */
     while (token == TOKEN_NL) {
@@ -622,19 +610,13 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
     }
 
     if (token == TOKEN_ENDMARKER) {
-        fprintf(stderr, "[COMPILER-STMT] ENDMARKER, returning 0\n");
-        fflush(stderr);
         return 0;
     }
 
     /* print(...) statement */
     if (token == TOKEN_NAME) {
         const char *name = PyUnicode_AsString(parser->current_token);
-        fprintf(stderr, "[COMPILER-STMT] NAME token: '%s'\n", name);
-        fflush(stderr);
         if (strcmp(name, "print") == 0) {
-            fprintf(stderr, "[COMPILER-STMT] print statement detected\n");
-            fflush(stderr);
             /* Parse function call */
             Parser_NextToken(parser);  /* skip 'print' */
             if (parser->token_type == TOKEN_LPAREN) {

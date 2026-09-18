@@ -82,6 +82,8 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
             }
         }
 
+        fprintf(stderr, "[VM] op=%d arg=%d offset=%d\n", (int)op, arg, (int)instr_off);
+
         switch (op) {
             case OP_LOAD_CONST: {
                 if (arg < 0 || arg >= n_consts) {
@@ -110,8 +112,11 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                     PyErr_SetString(PyExc_SystemError, "LOAD_NAME: name is not a string");
                     return NULL;
                 }
+                fprintf(stderr, "[DEBUG] LOAD_NAME name='%s'\n", name);
                 PyObject *value = VM_GetGlobal(frame, name);
+                fprintf(stderr, "[DEBUG] LOAD_NAME result=%p\n", (void*)value);
                 if (value == NULL) {
+                    fprintf(stderr, "[DEBUG] LOAD_NAME -> NameError (pushing Py_None)\n");
                     if (PyErr_ExceptionMatches(PyExc_NameError)) {
                         PyErr_Clear();
                         Py_INCREF(Py_None);
@@ -137,7 +142,9 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                     return NULL;
                 }
                 PyObject *value = Stack_Pop(stack);
+                fprintf(stderr, "[DEBUG] STORE_NAME name='%s' value=%p\n", name, (void*)value);
                 VM_SetGlobal(frame, name, value);
+                fprintf(stderr, "[DEBUG] STORE_NAME done\n");
                 Py_DECREF(value);
                 break;
             }

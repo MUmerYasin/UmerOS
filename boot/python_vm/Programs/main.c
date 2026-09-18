@@ -5,14 +5,18 @@
  * compiles to bytecode, and executes.
  *
  * Usage:
- *   umerospython                  # Interactive REPL
- *   umerospython script.py        # Execute script file
- *   umerospython -c "code"        # Execute code string
+ *   umerospython                        # Interactive REPL
+ *   umerospython script.py              # Execute script file
+ *   umerospython -c "code"              # Execute code string
+ *   umerospython -m module              # Run module as __main__
+ *   umerospython --quiet script.py      # Suppress REPL banner
+ *   umerospython --verbose script.py    # Verbose compilation output
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "../Include/umeros_python.h"
 #include "../Include/pycode.h"
 #include "../Include/pyvm.h"
@@ -26,6 +30,81 @@ extern PyObject* PyBuiltins_GetDict(void);
 extern PyObject* Py_CompileString(const char *source, const char *filename);
 extern PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *locals);
 extern void Compiler_Test(void);
+
+/* Global flags */
+static int quiet_mode = 0;
+static int verbose_mode = 0;
+
+/* Persistent REPL history */
+#define HISTORY_MAX 1000
+#define HISTORY_FILE ".umeros_history"
+
+static char *history[HISTORY_MAX];
+static int history_count = 0;
+
+static const char* GetHistoryPath(void) {
+    const char *home = getenv("HOME");
+    if (!home) home = getenv("USERPROFILE");
+    if (!home) home = ".";
+
+    static char path[4096];
+    snprintf(path, sizeof(path), "%s/%s", home, HISTORY_FILE);
+    return path;
+}
+
+static void LoadHistory(void) {
+    const char *path = GetHistoryPath();
+    FILE *fp = fopen(path, "r");
+    if (!fp) return;
+
+    char buf[4096];
+    while (fgets(buf, sizeof(buf), fp) && history_count < HISTORY_MAX) {
+        /* strip trailing newline */
+        Py_ssize_t len = strlen(buf);
+        while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r')) {
+            buf[--len] = '\0';
+        }
+        if (len == 0) continue;
+        history[history_count] = strdup(buf);
+        if (history[history_count]) history_count++;
+    }
+    fclose(fp);
+}
+
+static void SaveHistory(void) {
+    const char *path = GetHistoryPath();
+    FILE *fp = fopen(path, "w");
+    if (!fp) return;
+    for (int i = 0; i < history_count; i++) {
+        fprintf(fp, "%s\n", history[i]);
+    }
+    fclose(fp);
+}
+
+static void AddToHistory(const char *line) {
+    /* Deduplicate: skip if identical to last entry */
+    if (history_count > 0 && strcmp(history[history_count - 1], line) == 0) {
+        return;
+    }
+    if (history_count >= HISTORY_MAX) {
+        /* Shift out oldest */
+        free(history[0]);
+        for (int i = 1; i < history_count; i++) {
+            history[i - 1] = history[i];
+        }
+        history_count--;
+    }
+    history[history_count] = strdup(line);
+    if (history[history_count]) history_count++;
+}
+
+static void FreeHistory(void) {
+    for (int i = 0; i < history_count; i++) {
+        free(history[i]);
+        history[i] = NULL;
+    }
+    history_count = 0;
+}
 
 /* Read entire file into string */
 static char* ReadFile(const char *filename, Py_ssize_t *out_length) {
@@ -55,8 +134,12 @@ static char* ReadFile(const char *filename, Py_ssize_t *out_length) {
 
 /* Interactive REPL */
 static void RunREPL(void) {
-    printf("UmerOS Python 3.x (UmerOS built-in interpreter)\n");
-    printf("Type \"help\", \"copyright\", \"credits\" or \"license\" for more information.\n");
+    if (!quiet_mode) {
+        printf("UmerOS Python 3.x (UmerOS built-in interpreter)\n");
+        printf("Type \"help\", \"copyright\", \"credits\" or \"license\" for more information.\n");
+    }
+
+    LoadHistory();
 
     PyObject *globals = PyDict_New();
     PyObject *builtins = PyBuiltins_GetDict();
@@ -80,6 +163,8 @@ static void RunREPL(void) {
         }
         /* Empty line */
         if (len == 0) continue;
+
+        AddToHistory(line);
 
         /* Check for exit */
         if (strcmp(line, "exit()") == 0 || strcmp(line, "quit()") == 0) {
@@ -122,6 +207,10 @@ static void RunREPL(void) {
         }
 
         /* Compile and execute */
+        if (verbose_mode) {
+            fprintf(stderr, "[REPL] Compiling: %s\n", line);
+        }
+
         PyCodeObject *code = (PyCodeObject *)Py_CompileString(line, "<stdin>");
         if (code) {
             PyObject *result = PyEval_EvalCode(code, globals, globals);
@@ -143,15 +232,21 @@ static void RunREPL(void) {
         }
     }
 
+    SaveHistory();
+    FreeHistory();
     Py_DECREF(globals);
 }
 
 /* Execute a script file */
 static int RunScript(const char *filename) {
+    if (verbose_mode) {
+        fprintf(stderr, "[RUN] Executing script: %s\n", filename);
+    }
 
     Py_ssize_t length;
     char *source = ReadFile(filename, &length);
     if (!source) {
+        fprintf(stderr, "umerospython: can't open file '%s': No such file or directory\n", filename);
         return 1;
     }
 
@@ -165,6 +260,10 @@ static int RunScript(const char *filename) {
     PyDict_SetItemString(globals, "__file__",
                          PyUnicode_FromString(filename));
 
+    if (verbose_mode) {
+        fprintf(stderr, "[COMPILE] Compiling %s (%ld bytes)\n", filename, (long)length);
+    }
+
     PyCodeObject *code = (PyCodeObject *)Py_CompileString(source, filename);
     free(source);
 
@@ -174,6 +273,9 @@ static int RunScript(const char *filename) {
         return 1;
     }
 
+    if (verbose_mode) {
+        fprintf(stderr, "[EXEC] Running compiled bytecode\n");
+    }
 
     PyObject *result = PyEval_EvalCode(code, globals, globals);
     Py_DECREF((PyObject *)code);
@@ -194,11 +296,19 @@ static int RunString(const char *code_str) {
     PyObject *builtins = PyBuiltins_GetDict();
     PyDict_SetItemString(globals, "__builtins__", builtins);
 
+    if (verbose_mode) {
+        fprintf(stderr, "[COMPILE] Compiling string (%ld bytes)\n", (long)strlen(code_str));
+    }
+
     PyCodeObject *code = (PyCodeObject *)Py_CompileString(code_str, "<string>");
     if (!code) {
         PyErr_Print();
         Py_DECREF(globals);
         return 1;
+    }
+
+    if (verbose_mode) {
+        fprintf(stderr, "[EXEC] Running compiled bytecode\n");
     }
 
     PyObject *result = PyEval_EvalCode(code, globals, globals);
@@ -214,6 +324,34 @@ static int RunString(const char *code_str) {
     }
 }
 
+/* Run a module as __main__ (-m flag)
+ * Currently supports only built-in module names.
+ * For a real module, the module name must map to a file path.
+ */
+static int RunModule(const char *module_name) {
+    if (verbose_mode) {
+        fprintf(stderr, "[MODULE] Running module: %s\n", module_name);
+    }
+
+    /* Try to find the module as a file: module_name.py */
+    char filename[4096];
+    snprintf(filename, sizeof(filename), "%s.py", module_name);
+
+    FILE *fp = fopen(filename, "rb");
+    if (fp) {
+        fclose(fp);
+        /* File exists — run it as a script */
+        if (verbose_mode) {
+            fprintf(stderr, "[MODULE] Found module file: %s\n", filename);
+        }
+        return RunScript(filename);
+    }
+
+    /* Module file not found — report error */
+    fprintf(stderr, "No module named %s\n", module_name);
+    return 1;
+}
+
 /* Print version info */
 static void PrintVersion(void) {
     printf("UmerOS Python interpreter\n");
@@ -225,12 +363,15 @@ static void PrintVersion(void) {
 
 /* Print help */
 static void PrintHelp(void) {
-    printf("usage: umerospython [options] [script | -c code | -]\n");
+    printf("usage: umerospython [options] [script | -c code | -m module | -]\n");
     printf("\n");
     printf("Options:\n");
     printf("  -h, --help       Show this help message and exit\n");
     printf("  -V, --version    Show version information and exit\n");
     printf("  -c code          Execute the given code string\n");
+    printf("  -m module        Run module as __main__\n");
+    printf("  --quiet          Suppress the REPL banner\n");
+    printf("  --verbose        Verbose output (show compilation steps)\n");
     printf("  script           Execute the given script file\n");
     printf("  -                Read script from stdin\n");
     printf("\n");
@@ -244,6 +385,15 @@ int main(int argc, char *argv[]) {
     PyNone_Init();
     PyBuiltins_Init();
 
+    /* Parse global flags first (--quiet, --verbose) */
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
+            quiet_mode = 1;
+        } else if (strcmp(argv[i], "--verbose") == 0 || strcmp(argv[i], "-v") == 0) {
+            verbose_mode = 1;
+        }
+    }
+
     /* Parse command line arguments */
     if (argc == 1) {
         /* No arguments - interactive REPL */
@@ -254,6 +404,16 @@ int main(int argc, char *argv[]) {
     int i = 1;
     while (i < argc) {
         const char *arg = argv[i];
+
+        /* Skip flags already processed */
+        if (strcmp(arg, "--quiet") == 0 || strcmp(arg, "-q") == 0) {
+            i++;
+            continue;
+        }
+        if (strcmp(arg, "--verbose") == 0 || strcmp(arg, "-v") == 0) {
+            i++;
+            continue;
+        }
 
         if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
             PrintHelp();
@@ -271,6 +431,14 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             return RunString(argv[++i]);
+        }
+
+        if (strcmp(arg, "-m") == 0) {
+            if (i + 1 >= argc) {
+                fprintf(stderr, "umerospython: expected argument after -m\n");
+                return 1;
+            }
+            return RunModule(argv[++i]);
         }
 
         if (strcmp(arg, "-") == 0) {

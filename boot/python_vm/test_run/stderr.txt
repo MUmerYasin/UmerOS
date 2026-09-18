@@ -1,3 +1,0 @@
-[COMPILER-STMT] entry: token=4
-[COMPILER-STMT] NAME token: 'print'
-[COMPILER-STMT] print statement detected
