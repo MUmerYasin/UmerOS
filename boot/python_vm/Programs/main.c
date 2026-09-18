@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <signal.h>
+#include <windows.h>
 #include "../Include/umeros_python.h"
 #include "../Include/pycode.h"
 #include "../Include/pyvm.h"
@@ -34,6 +36,12 @@ extern void Compiler_Test(void);
 /* Global flags */
 static int quiet_mode = 0;
 static int verbose_mode = 0;
+static int force_mode = 0;
+
+/* Singleton lock file */
+#define LOCK_FILE ".umeros_python.lock"
+static char lock_path[4096];
+static int lock_held = 0;
 
 /* Persistent REPL history */
 #define HISTORY_MAX 1000
@@ -106,8 +114,136 @@ static void FreeHistory(void) {
     history_count = 0;
 }
 
-/* Read entire file into string */
-static char* ReadFile(const char *filename, Py_ssize_t *out_length) {
+/* ============================================================
+ * Singleton Lock File Implementation
+ * ============================================================ */
+
+/* Get path to the lock file */
+static const char* GetLockPath(void) {
+    const char *home = getenv("HOME");
+    if (!home) home = getenv("USERPROFILE");
+    if (!home) home = ".";
+
+    snprintf(lock_path, sizeof(lock_path), "%s/%s", home, LOCK_FILE);
+    return lock_path;
+}
+
+/* Check if a process with given PID is still running */
+static int IsProcessAlive(int pid) {
+#ifdef _WIN32
+    /* Windows: use OpenProcess */
+    HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, (DWORD)pid);
+    if (hProcess == NULL) {
+        return 0; /* Process doesn't exist */
+    }
+    DWORD exitCode;
+    BOOL success = GetExitCodeProcess(hProcess, &exitCode);
+    CloseHandle(hProcess);
+    /* STILL_ACTIVE = 259 on Windows */
+    return (success && exitCode == STILL_ACTIVE);
+#else
+    /* POSIX: kill(pid, 0) checks if process exists */
+    return kill(pid, 0) == 0;
+#endif
+}
+
+/* Read PID from lock file */
+static int ReadLockFile(void) {
+    const char *path = GetLockPath();
+    FILE *fp = fopen(path, "r");
+    if (!fp) return 0;
+
+    int pid = 0;
+    if (fscanf(fp, "%d", &pid) != 1) {
+        pid = 0;
+    }
+    fclose(fp);
+    return pid;
+}
+
+/* Write PID to lock file */
+static int WriteLockFile(int pid) {
+    const char *path = GetLockPath();
+    FILE *fp = fopen(path, "w");
+    if (!fp) return 0;
+    fprintf(fp, "%d\n", pid);
+    fclose(fp);
+    return 1;
+}
+
+/* Remove lock file */
+static void RemoveLockFile(void) {
+    const char *path = GetLockPath();
+    remove(path);
+}
+
+/* Check if another instance is already running.
+ * Returns 1 if lock is free (we can proceed), 0 if locked. */
+static int CheckSingleton(void) {
+    int pid = ReadLockFile();
+    if (pid == 0) {
+        /* No lock file or invalid — we're free to proceed */
+        return 1;
+    }
+
+    /* Check if the process that holds the lock is still alive */
+    if (IsProcessAlive(pid)) {
+        fprintf(stderr, "umerospython: another instance is already running (PID %d).\n", pid);
+        fprintf(stderr, "Use --force to override, or close the other instance.\n");
+        return 0;
+    }
+
+    /* Stale lock — process is dead, clean it up */
+    fprintf(stderr, "umerospython: removing stale lock (PID %d no longer running).\n", pid);
+    RemoveLockFile();
+    return 1;
+}
+
+/* Acquire the singleton lock.
+ * Returns 1 on success, 0 on failure. */
+static int AcquireLock(void) {
+    int pid = (int)GetCurrentProcessId();
+
+    if (!WriteLockFile(pid)) {
+        fprintf(stderr, "umerospython: warning: could not create lock file.\n");
+        /* Non-fatal — continue anyway */
+        return 1;
+    }
+
+    lock_held = 1;
+    if (verbose_mode) {
+        fprintf(stderr, "[LOCK] Acquired lock (PID %d)\n", pid);
+    }
+    return 1;
+}
+
+/* Release the singleton lock */
+static void ReleaseLock(void) {
+    if (lock_held) {
+        RemoveLockFile();
+        lock_held = 0;
+        if (verbose_mode) {
+            fprintf(stderr, "[LOCK] Released lock\n");
+        }
+    }
+}
+
+/* atexit() handler and signal handler */
+static void CleanupLock(void) {
+    ReleaseLock();
+    FreeHistory();
+}
+
+static void SignalHandler(int sig) {
+    (void)sig;
+    CleanupLock();
+    exit(1);
+}
+
+/* ============================================================
+ * Read entire file into string
+ * ============================================================ */
+static char* Umeros_ReadFile(const char *filename, Py_ssize_t *out_length) {
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
         return NULL;
@@ -244,7 +380,7 @@ static int RunScript(const char *filename) {
     }
 
     Py_ssize_t length;
-    char *source = ReadFile(filename, &length);
+    char *source = Umeros_ReadFile(filename, &length);
     if (!source) {
         fprintf(stderr, "umerospython: can't open file '%s': No such file or directory\n", filename);
         return 1;
@@ -372,6 +508,7 @@ static void PrintHelp(void) {
     printf("  -m module        Run module as __main__\n");
     printf("  --quiet          Suppress the REPL banner\n");
     printf("  --verbose        Verbose output (show compilation steps)\n");
+    printf("  --force          Allow multiple instances (ignore singleton lock)\n");
     printf("  script           Execute the given script file\n");
     printf("  -                Read script from stdin\n");
     printf("\n");
@@ -385,13 +522,27 @@ int main(int argc, char *argv[]) {
     PyNone_Init();
     PyBuiltins_Init();
 
-    /* Parse global flags first (--quiet, --verbose) */
+    /* Register cleanup handlers */
+    atexit(CleanupLock);
+    signal(SIGINT, SignalHandler);
+
+    /* Parse global flags first (--quiet, --verbose, --force) */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0) {
             quiet_mode = 1;
         } else if (strcmp(argv[i], "--verbose") == 0 || strcmp(argv[i], "-v") == 0) {
             verbose_mode = 1;
+        } else if (strcmp(argv[i], "--force") == 0) {
+            force_mode = 1;
         }
+    }
+
+    /* Acquire singleton lock */
+    if (!force_mode) {
+        if (!CheckSingleton()) {
+            return 1;
+        }
+        AcquireLock();
     }
 
     /* Parse command line arguments */
@@ -411,6 +562,10 @@ int main(int argc, char *argv[]) {
             continue;
         }
         if (strcmp(arg, "--verbose") == 0 || strcmp(arg, "-v") == 0) {
+            i++;
+            continue;
+        }
+        if (strcmp(arg, "--force") == 0) {
             i++;
             continue;
         }

@@ -122,7 +122,7 @@ typedef enum {
     TOKEN_ERROR,
 
     TOKEN_AT
-} TokenType;
+} PyTokenType;
 
 /* Compatibility aliases for compiler.c */
 #define TOKEN_KEYWORD_FALSE  TOKEN_FALSE
@@ -181,7 +181,7 @@ typedef enum {
 
 /* Token structure */
 typedef struct {
-    TokenType type;
+    PyTokenType type;
     char *value;
     Py_ssize_t length;
     int line;

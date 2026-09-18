@@ -21,7 +21,7 @@
 /* Keyword strings and their token types */
 typedef struct {
     const char *word;
-    TokenType type;
+    PyTokenType type;
 } KeywordEntry;
 
 static KeywordEntry keywords[] = {
@@ -647,15 +647,22 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
             return 1;
         }
 
-        /* Assignment: name = expr */
+        /* Assignment: name = expr
+         * IMPORTANT: strdup(name) BEFORE advancing tokens, because
+         * Parser_NextToken calls Py_DECREF on current_token, freeing
+         * the token's internal buffer. Without strdup, name becomes
+         * a dangling pointer. */
+        char *name_copy = strdup(name);
         Parser_NextToken(parser);
         if (parser->token_type == TOKEN_EQUAL) {
             Parser_NextToken(parser);  /* skip '=' */
             Compile_Expr(compiler, parser);
-            int name_idx = Compiler_AddConstant(compiler, PyUnicode_FromString(name));
+            int name_idx = Compiler_AddConstant(compiler, PyUnicode_FromString(name_copy));
             Compiler_Emit(compiler, OP_STORE_NAME, name_idx);
+            free(name_copy);
             return 1;
         }
+        free(name_copy);
     }
 
     /* Skip unrecognized tokens */
