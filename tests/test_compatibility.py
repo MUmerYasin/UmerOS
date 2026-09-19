@@ -32,6 +32,7 @@ from compatibility import (  # noqa: E402
     winerror, ntstatus, win_guid, win_sid, win_strings, win_path,
     dll_loader, wine_shim,
     api_set, forwarded, dll_search, manifest, long_path,
+    memory_map, sync,
 )
 from compatibility.pe_loader import PeFile, PeClass          # noqa: E402
 from compatibility.dll_loader import DllLoader, ResolvedImport  # noqa: E402
@@ -689,6 +690,97 @@ class TestLongPath(unittest.TestCase):
         p = long_path.parse_long_path(s)
         self.assertEqual(p.drive, "D")
         self.assertEqual(p.path_parts, ("a", "b"))
+
+
+# ---------------------------------------------------------------------------
+# Memory-mapped files
+# ---------------------------------------------------------------------------
+
+class TestMemoryMap(unittest.TestCase):
+    def test_anonymous_round_trip(self) -> None:
+        h = memory_map.CreateFileMappingA(
+            memory_map.INVALID_HANDLE_VALUE, None,
+            memory_map.PAGE_READWRITE, 0, 4096,
+            "Local\\UmerOS_test_anon")
+        self.assertNotEqual(h, 0)
+        addr = memory_map.MapViewOfFile(
+            h, memory_map.FILE_MAP_ALL_ACCESS, 0, 0, 4096)
+        self.assertNotEqual(addr, 0)
+        mapping = memory_map.get_mapping(h)
+        self.assertIsNotNone(mapping)
+        view = mapping.views[-1]
+        view.mmap[:11] = b"hello world"
+        self.assertEqual(view.read(11), b"hello world")
+        self.assertTrue(memory_map.UnmapViewOfFile(addr))
+        self.assertTrue(memory_map.CloseMappingHandle(h))
+
+    def test_open_existing(self) -> None:
+        h1 = memory_map.CreateFileMappingA(
+            memory_map.INVALID_HANDLE_VALUE, None,
+            memory_map.PAGE_READWRITE, 0, 256,
+            "Local\\UmerOS_test_lookup")
+        h2 = memory_map.OpenFileMappingA(
+            memory_map.FILE_MAP_ALL_ACCESS, False,
+            "Local\\UmerOS_test_lookup")
+        self.assertNotEqual(h1, 0)
+        self.assertNotEqual(h2, 0)
+        self.assertIs(memory_map.get_mapping(h1),
+                      memory_map.get_mapping(h2))
+        memory_map.CloseMappingHandle(h1)
+
+    def test_missing_name(self) -> None:
+        self.assertEqual(
+            memory_map.OpenFileMappingA(
+                memory_map.FILE_MAP_ALL_ACCESS, False,
+                "Local\\UmerOS_does_not_exist"),
+            0)
+
+
+# ---------------------------------------------------------------------------
+# Synchronization primitives
+# ---------------------------------------------------------------------------
+
+class TestSync(unittest.TestCase):
+    def test_critical_section_recursive(self) -> None:
+        cs = sync.create_critical_section()
+        sync.InitializeCriticalSection(cs)
+        sync.EnterCriticalSection(cs)
+        self.assertTrue(sync.TryEnterCriticalSection(cs))
+        sync.LeaveCriticalSection(cs)
+        sync.LeaveCriticalSection(cs)
+        sync.DeleteCriticalSection(cs)
+
+    def test_srw_exclusive_blocks_shared(self) -> None:
+        srw = sync.create_srw_lock()
+        sync.InitializeSRWLock(srw)
+        sync.AcquireSRWLockExclusive(srw)
+        self.assertFalse(sync.TryAcquireSRWLockShared(srw))
+        self.assertFalse(sync.TryAcquireSRWLockExclusive(srw))
+        sync.ReleaseSRWLockExclusive(srw)
+        self.assertTrue(sync.TryAcquireSRWLockShared(srw))
+        sync.ReleaseSRWLockShared(srw)
+
+    def test_init_once_runs_once(self) -> None:
+        import threading
+        io = sync.create_init_once()
+        sync.InitOnceInitialize(io)
+        counter = [0]
+        results: list = []
+
+        def init(_p):
+            counter[0] += 1
+            return "ctx"
+
+        def runner():
+            sync.InitOnceExecuteOnce(io, init, None, results)
+
+        threads = [threading.Thread(target=runner) for _ in range(5)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=2.0)
+        self.assertEqual(counter[0], 1)
+        self.assertTrue(all(r == "ctx" for r in results))
 
 
 # ---------------------------------------------------------------------------
