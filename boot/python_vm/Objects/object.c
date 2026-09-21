@@ -220,7 +220,7 @@ PyObject* PyDict_GetItemString(PyObject *dict, const char *key) {
 
 /* ==================== List ==================== */
 
-typedef struct { PyObject ob_base; PyObject **items; Py_ssize_t size; Py_ssize_t allocated; } PyListObject;
+
 
 static PyTypeObject _PyList_Type = {
     1, NULL, "list", sizeof(PyListObject), 0,
@@ -276,7 +276,7 @@ int PyList_Append(PyObject *list, PyObject *item) {
 
 /* ==================== Tuple ==================== */
 
-typedef struct { PyObject ob_base; PyObject **items; Py_ssize_t size; } PyTupleObject;
+
 
 static PyTypeObject _PyTuple_Type = {
     1, NULL, "tuple", sizeof(PyTupleObject), 0,
@@ -416,7 +416,7 @@ int PyObject_Not(PyObject *op) {
 
 /* ==================== Hash ==================== */
 
-Py_ssize_t PyObject_Hash(PyObject *op) {
+PyObjectHash PyObject_Hash(PyObject *op) {
     if (!op) return 0;
     if (Py_TYPE(op)->tp_hash) return (Py_ssize_t)Py_TYPE(op)->tp_hash(op);
     return (Py_ssize_t)((uintptr_t)op);
@@ -676,7 +676,7 @@ PyObject* PyCFunction_NewEx(PyMethodDef *method, PyObject *self, PyObject *modul
 
 const char* PyUnicode_AsUTF8(PyObject *op) {
     if (!op || op->ob_type != &PyUnicode_Type) return NULL;
-    return ((PyUnicodeObject *)op)->str;
+    return ((PyUnicodeObject *)op)->value;
 }
 
 /* ==================== Dict Keys ==================== */
@@ -689,7 +689,7 @@ PyObject* PyDict_Keys(PyObject *dict) {
     PyObject *list = PyList_New(0);
     if (!list) return NULL;
     PyDictObject *d = (PyDictObject *)dict;
-    for (Py_ssize_t i = 0; i < d->nentries; i++) {
+    for (Py_ssize_t i = 0; i < d->size; i++) {
         if (d->entries[i].key != NULL) {
             Py_INCREF(d->entries[i].key);
             PyList_Append(list, d->entries[i].key);
@@ -716,24 +716,30 @@ PyObject* PyModule_GetDict(PyObject *module) {
 
 /* ==================== Module Type ==================== */
 
+static const char* module_repr(PyObject *self) {
+    (void)self;
+    return "<module>";
+}
+
 static PyTypeObject PyModule_Type = {
     "module",                    /* tp_name */
     sizeof(PyModuleObject),      /* tp_basicsize */
     0,                           /* tp_itemsize */
+    0,                           /* tp_new */
     0,                           /* tp_dealloc */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    Py_TPFLAGS_DEFAULT,          /* tp_flags */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    (reprfunc)"<module>",        /* tp_repr */
-    0,                           /* tp_as_number */
-    0,                           /* tp_as_sequence */
-    0,                           /* tp_as_mapping */
-    0,                           /* tp_hash */
-    0,                           /* tp_call */
+    module_repr,                  /* tp_repr */
     0,                           /* tp_str */
+    0,                           /* tp_richcompare */
+    0,                           /* tp_hash */
+    0,                           /* tp_bool */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* number ops */
+    0,                           /* tp_length */
+    0,                           /* tp_concat */
+    0,                           /* tp_repeat */
+    0,                           /* tp_item */
     0,                           /* tp_getattro */
     0,                           /* tp_setattro */
-    0,                           /* tp_as_buffer */
-    0,                           /* tp_flags2 */
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    0,                           /* tp_call */
+    0,                           /* tp_base */
+    Py_TPFLAGS_DEFAULT           /* tp_flags */
 };

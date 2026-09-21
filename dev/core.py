@@ -222,10 +222,39 @@ class DeviceManager:
     # ── Physical filesystem sync ──────────────────────────────────────────
 
     def sync_to_filesystem(self) -> int:
-        """Create actual files in the VFS for all registered nodes."""
+        """Create actual files in the VFS for all registered nodes.
+
+        [FIX H60] Zero-trust gate: materializing device special files
+        (``os.mknod`` / ``os.mkfifo``) is a privileged operation. The caller
+        must hold ``CAP_SYS_ADMIN`` — enforced fail-closed via the process-global
+        capability gate (same family as H27/H28/H46/H51). Every node path is
+        also confined to ``self.dev_root`` (CWE-22): a node that would resolve
+        outside the UmerOS virtual ``/dev`` namespace is skipped and never
+        materialized, so sync can never write onto a real host ``/dev`` unless
+        authorized.
+        """
+        # [FIX H60] fail-closed privileged-op gate (zero-trust family)
+        from core.capability_gate import gate, CAP_SYS_ADMIN
+        gate.require(CAP_SYS_ADMIN)
+
         created = 0
+        dev_root = Path(self.dev_root).resolve()
         for node in self._nodes.values():
             p = Path(node.path)
+            # [FIX H60] confine node to the virtual dev root (CWE-22)
+            try:
+                resolved = p.resolve()
+            except OSError:
+                resolved = p
+            if resolved != dev_root:
+                try:
+                    resolved.relative_to(dev_root)
+                except ValueError:
+                    log.warning(
+                        "REFUSED: device node %s escapes dev root %s (CWE-22); not materialized.",
+                        node.path, self.dev_root,
+                    )
+                    continue
             if node.dev_type == DeviceType.DIRECTORY:
                 p.mkdir(parents=True, exist_ok=True)
                 created += 1

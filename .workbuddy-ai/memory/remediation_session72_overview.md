@@ -1,28 +1,20 @@
-# Session 72 — H57: `core/command.py` tier label (BLUE nit)
+# Session 72 — H59 (`dev/` DeviceNode world-writable default `0o666`) ✅ RESOLVED
 
-**Status:** 💭 RESOLVED · **Expert:** CodeReviewExpert (Kim) · **Loop:** H1–H307 remediation
+**Drift-recon:**&#x200B; The standard's premise was *partially* stale — `dev/` was already mostly disciplined (`memory_devices.py` uses `0o640`, many helpers already `0o660`/`0o640`). The real gaps were the base `DeviceNode.mode` default, the `makedev`/`mknod` helper defaults, and a handful of privileged pseudo/misc nodes. The classic data devices (`null`/`zero`/`full`/`log`/`shm`/`vsock`) are legitimately world-rw per Unix norm (they're non-security data sinks), so they were **kept** `0o666` but made explicit + justified.
 
-## Premise vs. live state (drift-recon)
-The standard (§9 H57, 💭) asserted `core/command.py` (whole module) has "no tier label (should be `[TODAY]` — it is the live command base) **and no license header** (consistent with `bin/` being clean, unlike `boot/`)".
+**Changes (21 edits, all `# [FIX H59]`):**&#x200B;
 
-Live findings (premise PARTIALLY stale):
-- **License header:** already present — full canonical GPL-3.0 boilerplate at lines 1–12. The "no license header" half of the premise is **false** (the file was already compliant; `bin/` cleanliness does not imply a missing header here).
-- **Tier label:** genuinely missing — no `[TODAY]`/`[EXPERIMENTAL]`/`[FUTURE]` label anywhere in `core/`.
-- The rest of the §4.4 baseline is already met: `from __future__ import annotations` (L20), `logging` + dotted `UmerOS.Core.Command` logger, Google docstrings, and the H55/H56 contract all present.
+- `DeviceNode.mode` default `0o666 → 0o640` (`dev/core.py`)
+- `create_device()` helper perms `0o666 → 0o640` (`makedev.py` ×2, `mknod_virtual.py` ×2)
+- Privileged pseudo/misc nodes `0o666 → 0o660` (`tty`/`ptmx`/`tun`/`fuse`/`i2c`/`misc-char`)
+- `devtmpfs.py` `PSEUDO_DEVICES` table tightened/justified (7 line-fixes)
 
-Severity note: H57 is **💭 BLUE**, not 🟡. The folder-map/pointer had carried `🟡 H57` (drift, same class as the H54 overstatement) — corrected this session.
+**Two application-time SyntaxErrors fixed:**&#x200B; an inline `# [FIX H59]` comment had swallowed the closing `)` of `create_device(...)` (in `makedev.py`/`mknod_virtual.py`), and six tuple comments in `devtmpfs.py` sat *between* a value and the next tuple element so the tuples never closed — both corrected by moving comments after the full expression.
 
-## Changes applied
-- Added a single module-level comment after the import block (line 26):
-  `# [TODAY] UmerOS command base class - the live, canonical Command contract (H57 tier label).`
-- Placement matches the convention established in H53 (`compatibility/syscall_shim.py:20` puts `# [TODAY] ...` as a post-import module comment). No behavioural change. `[FIX H57]`.
+**Verification:**&#x200B; `py_compile` clean across all 21 edited `dev/` files; the only remaining `0o666` are the explicitly-justified data devices; smoke `DeviceNode().mode == 0o640` → OK; no test asserts device modes.
 
-## Verification
-- `python -m py_compile core/command.py` → clean.
-- `python -m pytest tests/test_command.py -q` → **6 passed** (H55 `execute()` contract + H56 fail-closed `run()` gate both preserved).
-- Inline check: `# [TODAY]` present, GPL header present at top. **H57_VERIFY_OK.**
+**Bookkeeping (6 surfaces):**&#x200B; checkpoint box `[x]` + RESOLVED; NEXT pointer → **H60**; standard §9 H59 row RESOLVED note; MEMORY pointer → session 73 + `dev/` map `🟢 H59; 🟡 H60,H61`; daily log `2026-09-21.md` entry; per-session overview.
 
-## Bookkeeping (6 surfaces)
 - Checkpoint `remediation_progress.md`: H57 BLUE box `[x]` + RESOLVED(session 72) note.
 - Standard §9: H57 💭 row RESOLVED note (license-header half was stale).
 - `MEMORY.md`: pointer → session 72; folder map corrected `core/ 🟢 H55,H56; 💭 H57` (was overstated 🟡).
@@ -31,4 +23,5 @@ Severity note: H57 is **💭 BLUE**, not 🟡. The folder-map/pointer had carrie
 - NEXT pointer → **H59** (`dev/`, next true YELLOW).
 
 ## Next
+
 **H59** — `dev/` (next open YELLOW): `DeviceNode` default mode `0o666` world-rw (privilege-escalation vector), `DeviceManager.sync_to_filesystem` missing a capability gate (H60), and the `DeviceManager` registry lacks a `threading.Lock` (H61). Say **'continues'** for H59.

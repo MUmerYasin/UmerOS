@@ -129,6 +129,16 @@ struct _tupleobject {
     Py_ssize_t size;
 };
 
+/* ==================== UNICODE OBJECT ==================== */
+
+struct _unicodeobject {
+    PyObject ob_base;
+    char *value;
+    Py_ssize_t length;
+    Py_ssize_t hash;
+    uint8_t hash_computed;
+};
+
 /* ==================== MODULE OBJECT ==================== */
 
 struct _moduleobject {
@@ -138,6 +148,7 @@ struct _moduleobject {
 
 typedef struct _listobject  PyListObject;
 typedef struct _tupleobject PyTupleObject;
+typedef struct _unicodeobject PyUnicodeObject;
 typedef struct _moduleobject PyModuleObject;
 
 /* ==================== THREAD STATE ==================== */

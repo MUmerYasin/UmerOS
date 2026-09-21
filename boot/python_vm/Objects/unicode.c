@@ -7,14 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct {
-    PyObject ob_base;
-    char *value;
-    Py_ssize_t length;
-    Py_ssize_t hash;
-    uint8_t hash_computed;
-} PyUnicodeObject;
-
 static void unicode_dealloc(PyObject *op) {
     PyUnicodeObject *self = (PyUnicodeObject *)op;
     if (self->value) free(self->value);

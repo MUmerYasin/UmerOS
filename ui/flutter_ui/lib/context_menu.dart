@@ -516,12 +516,15 @@ class UmerOSContextMenuController extends ChangeNotifier {
   }) {
     dismiss();
 
+    final smartTracker = context.read<SmartActionTracker>();
+
     _entry = OverlayEntry(
       builder: (_) => _ContextMenuOverlay(
         categories: categories,
         position: position,
         menuContext: menuContext,
         onDismiss: dismiss,
+        smartTracker: smartTracker,
       ),
     );
 
@@ -550,12 +553,14 @@ class _ContextMenuOverlay extends StatefulWidget {
     required this.position,
     required this.menuContext,
     required this.onDismiss,
+    required this.smartTracker,
   });
 
   final List<ContextMenuCategory> categories;
   final Offset position;
   final MenuContext menuContext;
   final VoidCallback onDismiss;
+  final SmartActionTracker smartTracker;
 
   @override
   State<_ContextMenuOverlay> createState() => _ContextMenuOverlayState();
@@ -569,7 +574,6 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
   final FocusNode _focusNode = FocusNode();
   int _hoveredIndex = -1;
   int? _openSubmenuIndex;
-  Timer? _submenuCloseTimer;
 
   // Flatten categories into a single list of renderable items
   // (keeping category separators and headers).
@@ -608,7 +612,6 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
 
   @override
   void dispose() {
-    _submenuCloseTimer?.cancel();
     _animCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -1451,3 +1454,4 @@ class RightClickArea extends StatelessWidget {
     );
   }
 }
+                                  
