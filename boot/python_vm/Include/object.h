@@ -374,6 +374,10 @@ PyObject*  PyDict_Keys(PyObject *dict);
 Py_ssize_t PyDict_Size(PyObject *dict);
 int        PyDict_Next(PyObject *dict, Py_ssize_t *pos, PyObject **key, PyObject **value);
 
+/* ==================== MODULE FUNCTIONS ==================== */
+
+PyObject*  PyModule_GetDict(PyObject *module);
+
 /* ==================== NEEDED FORWARD DECS ==================== */
 
 PyTypeObject* PyType_FromSpec(const char *name, PyTypeObject *base);
@@ -409,6 +413,14 @@ PyObject*  PyDict_GetItemString(PyObject *dict, const char *key);
 
 int PyList_SetItem(PyObject *list, Py_ssize_t i, PyObject *item);
 int PyTuple_SetItem(PyObject *tuple, Py_ssize_t i, PyObject *item);
+
+/* ==================== VM ACCESSOR MACROS ==================== */
+
+#define GET_NAME(frame, i)       ((frame)->f_code->co_names[(i)])
+#define PyTuple_SET_ITEM(t, i, v) (((PyTupleObject*)(t))->items[(i)] = (v))
+#define PyModule_Check(op)       ((op)->ob_type == &PyModule_Type)
+#define PyList_GET_SIZE(l)       (((PyListObject*)(l))->size)
+#define PyList_GET_ITEM(l, i)    (((PyListObject*)(l))->items[(i)])
 
 /* ==================== ITER PROTOCOL ==================== */
 

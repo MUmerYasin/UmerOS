@@ -762,8 +762,8 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
                     // Immediately open submenu on hover
                     setState(() => _openSubmenuIndex = i);
                   } else {
-                    // Delay close so cursor can travel to submenu
-                    _submenuCloseTimer = Timer(const Duration(milliseconds: 200), () {
+                    // Delay close so cursor can travel to submenu (350ms standard for cascading menus)
+                    _submenuCloseTimer = Timer(const Duration(milliseconds: 350), () {
                       if (mounted) setState(() => _openSubmenuIndex = null);
                     });
                   }

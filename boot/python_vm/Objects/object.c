@@ -671,3 +671,69 @@ PyObject* PyCFunction_NewEx(PyMethodDef *method, PyObject *self, PyObject *modul
     op->m_module = module;
     return (PyObject *)op;
 }
+
+/* ==================== Unicode AsUTF8 ==================== */
+
+const char* PyUnicode_AsUTF8(PyObject *op) {
+    if (!op || op->ob_type != &PyUnicode_Type) return NULL;
+    return ((PyUnicodeObject *)op)->str;
+}
+
+/* ==================== Dict Keys ==================== */
+
+PyObject* PyDict_Keys(PyObject *dict) {
+    if (!dict || dict->ob_type != &PyDict_Type) {
+        PyErr_SetString(PyExc_TypeError, "expected dict");
+        return NULL;
+    }
+    PyObject *list = PyList_New(0);
+    if (!list) return NULL;
+    PyDictObject *d = (PyDictObject *)dict;
+    for (Py_ssize_t i = 0; i < d->nentries; i++) {
+        if (d->entries[i].key != NULL) {
+            Py_INCREF(d->entries[i].key);
+            PyList_Append(list, d->entries[i].key);
+        }
+    }
+    return list;
+}
+
+/* ==================== Module GetDict ==================== */
+
+PyObject* PyModule_GetDict(PyObject *module) {
+    if (!module || module->ob_type != &PyModule_Type) {
+        PyErr_SetString(PyExc_TypeError, "expected module");
+        return NULL;
+    }
+    PyObject *dict = ((PyModuleObject *)module)->md_dict;
+    if (!dict) {
+        dict = PyDict_New();
+        ((PyModuleObject *)module)->md_dict = dict;
+    }
+    Py_XINCREF(dict);
+    return dict;
+}
+
+/* ==================== Module Type ==================== */
+
+static PyTypeObject PyModule_Type = {
+    "module",                    /* tp_name */
+    sizeof(PyModuleObject),      /* tp_basicsize */
+    0,                           /* tp_itemsize */
+    0,                           /* tp_dealloc */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    Py_TPFLAGS_DEFAULT,          /* tp_flags */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    (reprfunc)"<module>",        /* tp_repr */
+    0,                           /* tp_as_number */
+    0,                           /* tp_as_sequence */
+    0,                           /* tp_as_mapping */
+    0,                           /* tp_hash */
+    0,                           /* tp_call */
+    0,                           /* tp_str */
+    0,                           /* tp_getattro */
+    0,                           /* tp_setattro */
+    0,                           /* tp_as_buffer */
+    0,                           /* tp_flags2 */
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
