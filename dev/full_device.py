@@ -14,7 +14,7 @@
 """
 UmerOS /dev/full — Write-full device.
 
-FHS 3.0 /dev/full:
+/dev/full:
   /dev/full — The full device. Reads return null bytes (like /dev/zero).
   Writes fail with errno ENOSPC (no space left on device).
   Useful for testing write failure handling.
@@ -60,7 +60,7 @@ class FullDevice:
             dev_type=DeviceType.CHAR,
             major=self.MAJOR,
             minor=self.MINOR,
-            mode=0o666,
+            mode=0o666,  # Unix-norm world-rw (data device); explicit+justified
             description="Full device — writes always fail with ENOSPC",
             write_callback=self._on_write,
             read_callback=self._on_read,

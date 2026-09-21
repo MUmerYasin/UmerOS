@@ -14,7 +14,7 @@
 """
 UmerOS /dev/log — Syslog device.
 
-FHS 3.0 /dev/log:
+/dev/log:
   /dev/log — Unix domain socket for syslog.
   Programs write syslog messages to this socket.
 
@@ -56,7 +56,7 @@ class LogDevice:
         mgr = DeviceManager.get_instance()
         mgr.create_node(DeviceNode(
             name="log", path="/dev/log", dev_type=DeviceType.SOCKET,
-            major=self.LOG_MAJOR, minor=self.LOG_MINOR, mode=0o666,
+            major=self.LOG_MAJOR, minor=self.LOG_MINOR, mode=0o666,  # Unix-norm world-rw (data device); explicit+justified
             description="Syslog socket",
             write_callback=self._on_write,
         ))

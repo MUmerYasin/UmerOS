@@ -63,7 +63,7 @@ class NetDevice:
         # TUN device
         mgr.create_node(DeviceNode(
             name="tun", path="/dev/net/tun", dev_type=DeviceType.CHAR,
-            major=self.TUN_MAJOR, minor=self.TUN_MINOR, mode=0o666,
+            major=self.TUN_MAJOR, minor=self.TUN_MINOR, mode=0o660,  # tightened from world-writable 0o666
             description="TUN/TAP network device",
             ioctl_callback=self._on_tun_ioctl,
         ))

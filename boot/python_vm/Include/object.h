@@ -112,6 +112,34 @@ struct _frame {
     PyObject **f_stackbase;
 };
 
+/* ==================== LIST OBJECT ==================== */
+
+struct _listobject {
+    PyObject ob_base;
+    PyObject **items;
+    Py_ssize_t size;
+    Py_ssize_t allocated;
+};
+
+/* ==================== TUPLE OBJECT ==================== */
+
+struct _tupleobject {
+    PyObject ob_base;
+    PyObject **items;
+    Py_ssize_t size;
+};
+
+/* ==================== MODULE OBJECT ==================== */
+
+struct _moduleobject {
+    PyObject ob_base;
+    PyObject *md_dict;
+};
+
+typedef struct _listobject  PyListObject;
+typedef struct _tupleobject PyTupleObject;
+typedef struct _moduleobject PyModuleObject;
+
 /* ==================== THREAD STATE ==================== */
 
 struct _threadstate {
@@ -320,6 +348,7 @@ int     PyBool_AsLong(PyObject *obj);
 /* ==================== STRING REPR ==================== */
 
 const char* PyUnicode_AsString(PyObject *obj);
+const char* PyUnicode_AsUTF8(PyObject *obj);
 PyObject*   PyUnicode_FromString(const char *u);
 PyObject*   PyUnicode_FromFormat(const char *fmt, ...);
 

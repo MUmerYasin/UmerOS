@@ -59,15 +59,15 @@ class DevTmpFS:
 
     # Standard pseudo-device major:minor numbers
     PSEUDO_DEVICES = [
-        ("null",      1,   3, "c", 0o666, "Null device"),
-        ("zero",      1,   5, "c", 0o666, "Zero device"),
-        ("full",      1,   7, "c", 0o666, "Full device"),
+        ("null",      1,   3, "c", 0o666, "Null device"),  # Unix-norm world-rw (data device); explicit+justified [FIX H59]
+        ("zero",      1,   5, "c", 0o666, "Zero device"),  # Unix-norm world-rw (data device); explicit+justified [FIX H59]
+        ("full",      1,   7, "c", 0o666, "Full device"),  # Unix-norm world-rw (data device); explicit+justified [FIX H59]
         ("random",    1,   8, "c", 0o644, "Entropy pool"),
         ("urandom",   1,   9, "c", 0o644, "Pseudo-random"),
-        ("tty",       5,   0, "c", 0o666, "Controlling terminal"),
+        ("tty",       5,   0, "c", 0o660, "Controlling terminal"),  # tightened from world-writable 0o666 [FIX H59]
         ("console",   5,   1, "c", 0o620, "System console"),
-        ("ptmx",      5,   2, "c", 0o666, "PTY master"),
-        ("log",      10, 229, "c", 0o666, "Syslog"),
+        ("ptmx",      5,   2, "c", 0o660, "PTY master"),  # tightened from world-writable 0o666 [FIX H59]
+        ("log",      10, 229, "c", 0o666, "Syslog"),  # Unix-norm world-rw (data device); explicit+justified [FIX H59]
     ]
 
     # Virtual terminals: /dev/tty0-tty63 (major 4, minor 0-63)
@@ -238,7 +238,7 @@ class DevTmpFS:
         # ── TUN/TAP ────────────────────────────────────────────────────
         node = DeviceNode(
             name="tun", path="/dev/net/tun", dev_type=DeviceType.CHAR,
-            major=10, minor=200, mode=0o666,
+            major=10, minor=200, mode=0o660,  # tightened from world-writable 0o666,
             description="TUN/TAP network device",
         )
         if mgr.create_node(node):

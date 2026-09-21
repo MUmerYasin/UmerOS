@@ -76,7 +76,7 @@ class DeviceNode:
     dev_type: DeviceType
     major: int = 0
     minor: int = 0
-    mode: int = 0o666                       # default permissions
+    mode: int = 0o640                       # default perms: owner rw, group r (safe; copy memory_devices.py 0o640 discipline) [FIX H59]                       # default permissions
     uid: int = 0                            # root
     gid: int = 0                            # root
     symlink_target: str = ""                # for symlinks

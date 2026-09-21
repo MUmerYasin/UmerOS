@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 /// Tracks copy, cut, paste, and undo actions with a lightweight history.
 class ClipboardManager extends ChangeNotifier {
   final List<ClipboardEntry> _history = [];
-  int _maxHistory = 20;
+  final int _maxHistory = 20;
 
   List<ClipboardEntry> get history => List.unmodifiable(_history);
   bool get hasContent => _history.isNotEmpty;

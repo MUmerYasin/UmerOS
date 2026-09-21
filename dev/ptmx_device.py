@@ -65,7 +65,7 @@ class PtmxDevice:
         # /dev/ptmx
         mgr.create_node(DeviceNode(
             name="ptmx", path="/dev/ptmx", dev_type=DeviceType.CHAR,
-            major=self.PTMX_MAJOR, minor=self.PTMX_MINOR, mode=0o666,
+            major=self.PTMX_MAJOR, minor=self.PTMX_MINOR, mode=0o660,  # tightened from world-writable 0o666
             description="PTY master clone device",
             read_callback=self._on_master_read,
             write_callback=self._on_master_write,

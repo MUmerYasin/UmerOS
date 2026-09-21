@@ -14,7 +14,7 @@
 """
 UmerOS MAKEDEV — Device node creation script.
 
-FHS 3.0 /dev:
+/dev:
   /dev/MAKEDEV — Shell script for creating device nodes manually.
   In, it's a symlink to /dev/null (devtmpfs handles creation).
   In UmerOS, we provide a Python implementation.
@@ -100,7 +100,7 @@ class MAKEDEVCommand:
                     dev_type=DeviceType.CHAR if info["mode"] == "c" else DeviceType.BLOCK,
                     major=info["major"],
                     minor=info["minor"],
-                    mode=0o666,
+                    mode=0o640,  # [FIX H59] safe default
                     description=info["desc"],
                 )
                 if mgr.create_node(node):
@@ -121,7 +121,7 @@ class MAKEDEVCommand:
         return 0 if not self._errors else 1
 
     def create_device(self, name: str, major: int, minor: int,
-                      mode: str = "c", perms: int = 0o666) -> bool:
+                      mode: str = "c", perms: int = 0o640) -> bool:  # [FIX H59] safe default
         """Programmatic device creation."""
         mgr = DeviceManager.get_instance()
         node = DeviceNode(

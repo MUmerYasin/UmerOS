@@ -60,7 +60,7 @@ class ShmDevice:
         mgr = DeviceManager.get_instance()
         node = DeviceNode(
             name=name, path=path, dev_type=DeviceType.FIFO,
-            mode=0o666, description=f"SHM segment {name}",
+            mode=0o666,  # Unix-norm world-rw (data device); explicit+justified description=f"SHM segment {name}",
         )
         if mgr.create_node(node):
             self._segments[path] = {"name": name, "size": size}

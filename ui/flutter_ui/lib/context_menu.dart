@@ -15,6 +15,8 @@
 /// * Lightweight animations: 150 ms spring-in, 100 ms fade-out.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -567,6 +569,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
   final FocusNode _focusNode = FocusNode();
   int _hoveredIndex = -1;
   int? _openSubmenuIndex;
+  Timer? _submenuCloseTimer;
 
   // Flatten categories into a single list of renderable items
   // (keeping category separators and headers).
@@ -605,6 +608,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
 
   @override
   void dispose() {
+    _submenuCloseTimer?.cancel();
     _animCtrl.dispose();
     _focusNode.dispose();
     super.dispose();
@@ -752,7 +756,18 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
                 openSubmenuIndex: _openSubmenuIndex,
                 onHover: (i) => setState(() => _hoveredIndex = i),
                 onTap: _activate,
-                onSubmenuHover: (i) => setState(() => _openSubmenuIndex = i),
+                onSubmenuHover: (i) {
+                  _submenuCloseTimer?.cancel();
+                  if (i != null) {
+                    // Immediately open submenu on hover
+                    setState(() => _openSubmenuIndex = i);
+                  } else {
+                    // Delay close so cursor can travel to submenu
+                    _submenuCloseTimer = Timer(const Duration(milliseconds: 200), () {
+                      if (mounted) setState(() => _openSubmenuIndex = null);
+                    });
+                  }
+                },
                 menuContext: widget.menuContext,
               ),
             ),
@@ -808,6 +823,20 @@ class _M3Menu extends StatelessWidget {
   final ValueChanged<int?> onSubmenuHover;
   final MenuContext menuContext;
 
+  /// Returns the estimated rendered height of a single menu item.
+  static double _estimateItemHeight(_RenderItem item) {
+    if (item.isHeader) {
+      // top:10 + font(~13.2 at fontSize 11 + lineHeight) + bottom:4 ≈ 27.2
+      return 27.2;
+    }
+    if (item.action.isSeparator) {
+      // padding vertical:4×2 + divider height:1.0 = 9.0
+      return 9.0;
+    }
+    // Normal items use fixed M3Theme.itemHeight (32.0)
+    return M3Theme.itemHeight;
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = M3Theme.backgroundColor(context);
@@ -844,14 +873,31 @@ class _M3Menu extends StatelessWidget {
       ),
     );
 
-    // If a submenu is open, overlay it on top
+    // If a submenu is open, overlay it aligned to the parent item
     if (openSubmenuIndex != null &&
         openSubmenuIndex! >= 0 &&
         openSubmenuIndex! < items.length &&
         items[openSubmenuIndex!].action.children.isNotEmpty) {
       final submenuAction = items[openSubmenuIndex!].action;
       final submenuWidth = width;
-      const submenuItemHeight = M3Theme.itemHeight;
+
+      // Compute cumulative top offset from items above the hovered one
+      double topOffset = 0;
+      for (var i = 0; i < openSubmenuIndex!; i++) {
+        topOffset += _estimateItemHeight(items[i]);
+      }
+
+      // Submenu estimated height for screen-edge clamping
+      final submenuHeight =
+          submenuAction.children.length * M3Theme.itemHeight;
+      final screen = MediaQuery.of(context).size;
+      final menuHeight = topOffset + M3Theme.itemHeight + submenuHeight;
+
+      // Clamp vertically so submenu stays on-screen
+      if (menuHeight > screen.height) {
+        final overflow = menuHeight - screen.height;
+        topOffset = (topOffset - overflow).clamp(0.0, topOffset);
+      }
 
       return Stack(
         clipBehavior: Clip.none,
@@ -859,7 +905,7 @@ class _M3Menu extends StatelessWidget {
           mainMenu,
           Positioned(
             left: width,
-            top: 0,
+            top: topOffset,
             child: MouseRegion(
               onEnter: (_) => onSubmenuHover(openSubmenuIndex),
               onExit: (_) => onSubmenuHover(null),
@@ -890,7 +936,7 @@ class _M3Menu extends StatelessWidget {
                             cursor: SystemMouseCursors.click,
                             child: AnimatedContainer(
                               duration: M3Theme.hoverDuration,
-                              height: submenuItemHeight,
+                              height: M3Theme.itemHeight,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: M3Theme.itemPaddingH,
                               ),

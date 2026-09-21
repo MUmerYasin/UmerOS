@@ -72,7 +72,7 @@ class UHIDDevice:
         mgr = DeviceManager.get_instance()
         mgr.create_node(DeviceNode(
             name="uhid", path="/dev/uhid", dev_type=DeviceType.CHAR,
-            major=self.MAJOR, minor=self.MINOR, mode=0o666,
+            major=self.MAJOR, minor=self.MINOR, mode=0o660,  # tightened from world-writable 0o666
             description="User-space HID device",
             read_callback=self._read,
             write_callback=self._write,
@@ -137,7 +137,7 @@ class UserfaultfdDevice:
         mgr.create_node(DeviceNode(
             name="userfaultfd", path="/dev/userfaultfd",
             dev_type=DeviceType.CHAR,
-            major=self.MAJOR, minor=self.MINOR, mode=0o666,
+            major=self.MAJOR, minor=self.MINOR, mode=0o660,  #  tightened from world-writable 0o666
             description="User-space page fault handling",
             read_callback=self._read,
             write_callback=self._write,
@@ -358,7 +358,7 @@ class PSAUXDevice:
         mgr.create_node(DeviceNode(
             name="psaux", path="/dev/psaux",
             dev_type=DeviceType.CHAR,
-            major=self.MAJOR, minor=self.MINOR, mode=0o666,
+            major=self.MAJOR, minor=self.MINOR, mode=0o660,  # tightened from world-writable 0o666
             description="PS/2 auxiliary port (mouse)",
             read_callback=self._read,
             write_callback=self._write,

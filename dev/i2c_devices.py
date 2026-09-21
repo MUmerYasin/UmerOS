@@ -66,7 +66,7 @@ class I2CDevice:
             mgr.create_node(DeviceNode(
                 name=f"i2c-{i}", path=f"/dev/i2c-{i}",
                 dev_type=DeviceType.CHAR,
-                major=self.MAJOR, minor=minor, mode=0o666,
+                major=self.MAJOR, minor=minor, mode=0o660,  # tightened from world-writable 0o666
                 description=f"I2C bus adapter {i}",
                 ioctl_callback=lambda r, a, n=i: self._ioctl(r, a, n),
                 read_callback=lambda sz, n=i: self._read(sz, n),

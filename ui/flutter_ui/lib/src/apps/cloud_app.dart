@@ -749,8 +749,7 @@ class _CloudNode {
     required this.memory,
     required this.storage,
     required this.traits,
-    this.healthy = true,
-  });
+  }) : healthy = true;
 
   final String host;
   final String zone;

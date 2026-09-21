@@ -61,7 +61,7 @@ class ZeroDevice:
             dev_type=DeviceType.CHAR,
             major=self.MAJOR,
             minor=self.MINOR,
-            mode=0o666,
+            mode=0o666,  # Unix-norm world-rw (data device); explicit+justified
             description="Zero device — returns null bytes on read",
             write_callback=self._on_write,
             read_callback=self._on_read,

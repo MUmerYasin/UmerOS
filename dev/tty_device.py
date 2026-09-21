@@ -74,7 +74,7 @@ class TTYDevice:
         # /dev/tty
         mgr.create_node(DeviceNode(
             name="tty", path="/dev/tty", dev_type=DeviceType.CHAR,
-            major=self.TTY_MAJOR, minor=self.TTY_MINOR, mode=0o666,
+            major=self.TTY_MAJOR, minor=self.TTY_MINOR, mode=0o660,  # tightened from world-writable 0o666
             description="Controlling terminal",
             read_callback=self._on_tty_read, write_callback=self._on_tty_write,
         ))

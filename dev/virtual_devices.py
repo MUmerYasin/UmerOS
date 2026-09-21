@@ -413,7 +413,7 @@ class VSockDevice:
         mgr.create_node(DeviceNode(
             name="vsock", path="/dev/vsock",
             dev_type=DeviceType.CHAR,
-            major=self.MAJOR, minor=self.MINOR, mode=0o666,
+            major=self.MAJOR, minor=self.MINOR, mode=0o666,  # Unix-norm world-rw (data device); explicit+justified
             description="Virtual socket (AF_VSOCK)",
             ioctl_callback=self._ioctl,
         ))

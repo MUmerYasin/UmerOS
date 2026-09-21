@@ -14,7 +14,7 @@
 """
 UmerOS mknod (virtual) — Create device nodes.
 
-FHS 3.0 /dev:
+/dev:
   mknod — Create block or character special files.
   In UmerOS, this creates device nodes in the virtual /dev filesystem
   without touching the host OS.
@@ -54,7 +54,7 @@ class MknodVirtualCommand:
             self._print_help(stdout)
             return 0
 
-        mode = 0o666
+        mode = 0o640  # safe default
         i = 0
 
         # Parse -m flag
@@ -144,7 +144,7 @@ class MknodVirtualCommand:
             return 1
 
     def create_device(self, name: str, dev_type: DeviceType,
-                      major: int, minor: int, mode: int = 0o666) -> bool:
+                      major: int, minor: int, mode: int = 0o640) -> bool:  # safe default
         """Programmatic device node creation."""
         path = name if name.startswith("/dev/") else f"/dev/{name}"
         mgr = DeviceManager.get_instance()

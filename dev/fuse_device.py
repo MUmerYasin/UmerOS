@@ -149,7 +149,7 @@ class FuseDevice:
         mgr.create_node(DeviceNode(
             name="fuse", path="/dev/fuse",
             dev_type=DeviceType.CHAR,
-            major=self.MAJOR, minor=self.MINOR, mode=0o666,
+            major=self.MAJOR, minor=self.MINOR, mode=0o660,  # tightened from world-writable 0o666
             description="Filesystem in Userspace",
             read_callback=self._read,
             write_callback=self._write,
