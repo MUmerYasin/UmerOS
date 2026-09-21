@@ -18,6 +18,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <signal.h>
+#include <sys/stat.h>
 #include <windows.h>
 #include "../Include/umeros_python.h"
 #include "../Include/pycode.h"
@@ -37,6 +38,7 @@ extern void Compiler_Test(void);
 extern void SysModule_Init(void);
 extern PyObject* SysModule_GetDict(void);
 extern void SysModule_AddToPath(const char *dir);
+extern PyObject* SysModule_GetPath(void);
 
 /* Global flags */
 static int quiet_mode = 0;

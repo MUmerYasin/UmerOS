@@ -23,6 +23,7 @@ import logging
 from typing import Callable, List, Optional
 log = logging.getLogger("UmerOS.Core.Command")
 EXIT_PERMISSION_DENIED = 77  # sysexits.h EX_NOPERM
+# [TODAY] UmerOS command base class - the live, canonical Command contract (H57 tier label).
 
 
 class Command:
@@ -60,7 +61,7 @@ class Command:
     def execute(self, args: Optional[List[str]] = None) -> int:
         """Run the command. Override in subclasses.
 
-        [FIX H6 / H55] Adopted contract: `args` is the argument list (argv without
+        Adopted contract: `args` is the argument list (argv without
         argv[0]); returns a POSIX exit code (int). Subclasses must override this.
         """
         raise NotImplementedError(
