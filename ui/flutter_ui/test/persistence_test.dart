@@ -25,7 +25,6 @@ void main() {
       expect(theme.themeMode, ThemeMode.dark);
       expect(theme.flexScheme, FlexScheme.deepPurple);
       expect(theme.wallpaper, WallpaperPreset.quantumGradient);
-      expect(theme.enableGlassmorphism, isTrue);
       expect(theme.uiScale, 1.0);
     });
 
@@ -59,14 +58,12 @@ void main() {
       expect(second.customImagePath, 'C:/walls/umer.png');
     });
 
-    test('glassmorphism and ui-scale round-trip', () async {
+    test('ui-scale round-trips', () async {
       final first = ThemeProvider()..restore();
-      first.toggleGlassmorphism(false);
       first.setUiScale(1.25);
       await Future<void>.delayed(Duration.zero);
 
       final second = ThemeProvider()..restore();
-      expect(second.enableGlassmorphism, isFalse);
       expect(second.uiScale, 1.25);
     });
 

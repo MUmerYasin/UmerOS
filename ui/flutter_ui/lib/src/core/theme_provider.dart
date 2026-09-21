@@ -25,21 +25,21 @@ class ThemeProvider extends ChangeNotifier {
   static const _kScheme = 'umeros.theme.scheme';
   static const _kWallpaper = 'umeros.theme.wallpaper';
   static const _kCustomImage = 'umeros.theme.imagePath';
-  static const _kGlass = 'umeros.theme.glassmorphism';
+  // M3: glassmorphism flag removed — surfaces use M3 tinting natively
   static const _kScale = 'umeros.theme.uiScale';
 
   ThemeMode _themeMode = ThemeMode.dark;
   FlexScheme _flexScheme = FlexScheme.deepPurple;
   WallpaperPreset _wallpaper = WallpaperPreset.quantumGradient;
   String? _customImagePath;
-  bool _enableGlassmorphism = true;
+  // M3: glassmorphism flag removed
   double _uiScale = 1.0;
 
   ThemeMode get themeMode => _themeMode;
   FlexScheme get flexScheme => _flexScheme;
   WallpaperPreset get wallpaper => _wallpaper;
   String? get customImagePath => _customImagePath;
-  bool get enableGlassmorphism => _enableGlassmorphism;
+  // M3: glassmorphism flag removed
   double get uiScale => _uiScale;
 
   /// Restore persisted preferences. Call once at startup, right after
@@ -78,7 +78,7 @@ class ThemeProvider extends ChangeNotifier {
     final image = prefs.getString(_kCustomImage);
     if (image != null && image.isNotEmpty) _customImagePath = image;
 
-    _enableGlassmorphism = prefs.getBool(_kGlass) ?? true;
+    // M3: glassmorphism flag removed
     _uiScale = prefs.getDouble(_kScale) ?? 1.0;
   }
 
@@ -115,11 +115,7 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void toggleGlassmorphism(bool value) {
-    _enableGlassmorphism = value;
-    PrefsService.instance.setBool(_kGlass, value);
-    notifyListeners();
-  }
+  // M3: toggleGlassmorphism removed — no longer needed
 
   void setUiScale(double scale) {
     _uiScale = scale.clamp(0.75, 1.5);

@@ -9,7 +9,7 @@ import 'theme_provider.dart';
 import '../widgets/dock.dart';
 import '../widgets/draggable_window.dart';
 import '../widgets/auto_adjust_box.dart';
-import '../services/glassmorphic_theme.dart';
+import '../services/material3_theme.dart';
 
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
@@ -251,7 +251,7 @@ class _MenuBar extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: GlassmorphicTheme.textColor(context),
+              color: M3Theme.textColor(context),
             ),
           ),
         ),
@@ -452,7 +452,7 @@ class _MenuBar extends StatelessWidget {
                       currentDate,
                       style: TextStyle(
                         fontSize: 12,
-                        color: GlassmorphicTheme.subtleTextColor(context),
+                        color: M3Theme.subtleTextColor(context),
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -461,7 +461,7 @@ class _MenuBar extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: GlassmorphicTheme.textColor(context),
+                        color: M3Theme.textColor(context),
                       ),
                     ),
                   ],

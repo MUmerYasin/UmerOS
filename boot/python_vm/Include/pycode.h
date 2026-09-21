@@ -36,6 +36,10 @@ typedef enum {
     OP_CALL_FUNCTION,
     OP_RETURN_VALUE,
     OP_NOP,
+    /* Import opcodes */
+    OP_IMPORT_NAME,
+    OP_IMPORT_FROM,
+    OP_IMPORT_STAR,
     OP_HAVE_ARGUMENT = 90
 } Opcode;
 

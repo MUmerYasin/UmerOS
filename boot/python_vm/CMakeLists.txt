@@ -47,6 +47,7 @@ set(VM_SOURCES
     Objects/none.c
     Objects/errors.c
     Builtins/builtins.c
+    Builtins/sys_module.c
     Compiler/compiler.c
     VM/vm.c
     Programs/main.c

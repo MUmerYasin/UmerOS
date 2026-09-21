@@ -1,28 +1,26 @@
 /// UmerOS — Smart Adaptive Context Menu System
 /// ============================================
-/// A glassmorphic, context-aware right-click menu that learns user
+/// A Material Design 3, context-aware right-click menu that learns user
 /// behaviour via [SmartActionTracker] and surfaces the most-used
 /// actions at the top.
 ///
 /// Design principles
-/// * Glassmorphism: frosted-glass backdrop, subtle borders, soft
-///   shadows — never a flat rectangle.
+/// * Material Design 3: M3 surfaces, color roles, subtle elevation —
+///   clean, modern, never a flat rectangle.
 /// * Smart prioritisation: the top 3 items are the user's most
 ///   frequently used actions for the current context.
 /// * Keyboard-first: full arrow-key navigation, Escape to close,
 ///   Enter/Space to activate.
 /// * Accessible: every item carries a [Semantics] label.
-/// * Lightweight animations: 180 ms spring-in, 120 ms fade-out.
+/// * Lightweight animations: 150 ms spring-in, 100 ms fade-out.
 library;
-
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'src/services/smart_action_tracker.dart';
-import 'src/services/glassmorphic_theme.dart';
+import 'src/services/material3_theme.dart';
 import 'services/clipboard_manager.dart';
 import 'src/core/app_state.dart';
 import 'src/core/app_registry.dart';
@@ -581,7 +579,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
 
     _animCtrl = AnimationController(
       vsync: this,
-      duration: GlassmorphicTheme.animDuration,
+      duration: M3Theme.animDuration,
     );
 
     _scaleAnim = CurvedAnimation(
@@ -715,7 +713,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
   Widget build(BuildContext context) {
     final screen = MediaQuery.of(context).size;
     final menuWidth = 260.0;
-    final estimatedHeight = _items.length * GlassmorphicTheme.itemHeight + 32.0;
+    final estimatedHeight = _items.length * M3Theme.itemHeight + 32.0;
 
     // Clamp position so the menu stays on screen.
     var left = widget.position.dx;
@@ -745,7 +743,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
             scale: _scaleAnim,
             child: FadeTransition(
               opacity: _fadeAnim,
-              child: _GlassmorphicMenu(
+              child: _M3Menu(
                 width: menuWidth,
                 focusNode: _focusNode,
                 onKey: _onKey,
@@ -785,8 +783,8 @@ class _RenderItem {
 // The actual glassmorphic menu widget
 // ═══════════════════════════════════════════════════════════════
 
-class _GlassmorphicMenu extends StatelessWidget {
-  const _GlassmorphicMenu({
+class _M3Menu extends StatelessWidget {
+  const _M3Menu({
     required this.width,
     required this.focusNode,
     required this.onKey,
@@ -812,8 +810,8 @@ class _GlassmorphicMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = GlassmorphicTheme.backgroundColor(context);
-    final bdrColor = GlassmorphicTheme.borderColor(context);
+    final bgColor = M3Theme.backgroundColor(context);
+    final bdrColor = M3Theme.borderColor(context);
 
     final mainMenu = Focus(
       focusNode: focusNode,
@@ -821,32 +819,25 @@ class _GlassmorphicMenu extends StatelessWidget {
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(GlassmorphicTheme.borderRadius),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: GlassmorphicTheme.blurRadius,
-              sigmaY: GlassmorphicTheme.blurRadius,
+          borderRadius: BorderRadius.circular(M3Theme.borderRadius),
+          child: Container(
+            width: width,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(M3Theme.borderRadius),
+              border: Border.all(
+                color: bdrColor,
+                width: M3Theme.borderWidth,
+              ),
+              boxShadow: M3Theme.shadow,
             ),
-            child: Container(
-              width: width,
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius:
-                    BorderRadius.circular(GlassmorphicTheme.borderRadius),
-                border: Border.all(
-                  color: bdrColor,
-                  width: GlassmorphicTheme.borderWidth,
-                ),
-                boxShadow: GlassmorphicTheme.shadow,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  for (var i = 0; i < items.length; i++)
-                    _buildItem(context, items[i], i),
-                ],
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  _buildItem(context, items[i], i),
+              ],
             ),
           ),
         ),
@@ -860,7 +851,7 @@ class _GlassmorphicMenu extends StatelessWidget {
         items[openSubmenuIndex!].action.children.isNotEmpty) {
       final submenuAction = items[openSubmenuIndex!].action;
       final submenuWidth = width;
-      const submenuItemHeight = GlassmorphicTheme.itemHeight;
+      const submenuItemHeight = M3Theme.itemHeight;
 
       return Stack(
         clipBehavior: Clip.none,
@@ -876,25 +867,20 @@ class _GlassmorphicMenu extends StatelessWidget {
                 type: MaterialType.transparency,
                 child: ClipRRect(
                   borderRadius:
-                      BorderRadius.circular(GlassmorphicTheme.borderRadius),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: GlassmorphicTheme.blurRadiusSmall,
-                      sigmaY: GlassmorphicTheme.blurRadiusSmall,
-                    ),
-                    child: Container(
-                      width: submenuWidth,
-                      decoration: BoxDecoration(
-                        color: bgColor,
-                        borderRadius: BorderRadius.circular(
-                            GlassmorphicTheme.borderRadius),
-                        border: Border.all(
-                          color: bdrColor,
-                          width: GlassmorphicTheme.borderWidth,
-                        ),
-                        boxShadow: GlassmorphicTheme.shadow,
+                      BorderRadius.circular(M3Theme.borderRadius),
+                  child: Container(
+                    width: submenuWidth,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(
+                          M3Theme.borderRadius),
+                      border: Border.all(
+                        color: bdrColor,
+                        width: M3Theme.borderWidth,
                       ),
-                      child: Column(
+                      boxShadow: M3Theme.shadow,
+                    ),
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: submenuAction.children.map((child) {
@@ -903,18 +889,18 @@ class _GlassmorphicMenu extends StatelessWidget {
                           child: MouseRegion(
                             cursor: SystemMouseCursors.click,
                             child: AnimatedContainer(
-                              duration: GlassmorphicTheme.hoverDuration,
+                              duration: M3Theme.hoverDuration,
                               height: submenuItemHeight,
                               padding: const EdgeInsets.symmetric(
-                                horizontal: GlassmorphicTheme.itemPaddingH,
+                                horizontal: M3Theme.itemPaddingH,
                               ),
                               child: Row(
                                 children: [
                                   if (child.icon != null)
                                     Icon(
                                       child.icon,
-                                      size: GlassmorphicTheme.iconSize,
-                                      color: GlassmorphicTheme.textColor(context).withAlpha(220),
+                                      size: M3Theme.iconSize,
+                                      color: M3Theme.textColor(context).withAlpha(220),
                                     ),
                                   if (child.icon != null)
                                     const SizedBox(width: 10),
@@ -923,9 +909,9 @@ class _GlassmorphicMenu extends StatelessWidget {
                                       child.label,
                                       style: TextStyle(
                                         fontSize:
-                                            GlassmorphicTheme.fontSizeItem,
+                                            M3Theme.fontSizeItem,
                                         fontWeight: FontWeight.w400,
-                                        color: GlassmorphicTheme.textColor(context),
+                                        color: M3Theme.textColor(context),
                                       ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -942,7 +928,6 @@ class _GlassmorphicMenu extends StatelessWidget {
               ),
             ),
           ),
-          ),
         ],
       );
     }
@@ -955,18 +940,18 @@ class _GlassmorphicMenu extends StatelessWidget {
     if (item.isHeader) {
       return Padding(
         padding: const EdgeInsets.only(
-          left: GlassmorphicTheme.itemPaddingH,
-          right: GlassmorphicTheme.itemPaddingH,
+          left: M3Theme.itemPaddingH,
+          right: M3Theme.itemPaddingH,
           top: 10,
           bottom: 4,
         ),
         child: Text(
           item.action.label.toUpperCase(),
           style: TextStyle(
-            fontSize: GlassmorphicTheme.fontSizeSectionHeader,
+            fontSize: M3Theme.fontSizeSectionHeader,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.6,
-            color: GlassmorphicTheme.subtleTextColor(context),
+            color: M3Theme.subtleTextColor(context),
           ),
         ),
       );
@@ -977,11 +962,11 @@ class _GlassmorphicMenu extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(
           vertical: 4,
-          horizontal: GlassmorphicTheme.itemPaddingH,
+          horizontal: M3Theme.itemPaddingH,
         ),
         child: Divider(
-          height: GlassmorphicTheme.separatorHeight,
-          color: GlassmorphicTheme.subtleTextColor(context).withAlpha(30),
+          height: M3Theme.separatorHeight,
+          color: M3Theme.subtleTextColor(context).withAlpha(30),
         ),
       );
     }
@@ -1002,10 +987,10 @@ class _GlassmorphicMenu extends StatelessWidget {
           if (hasSubmenu) onSubmenuHover(null);
         },
         child: AnimatedContainer(
-          duration: GlassmorphicTheme.hoverDuration,
-          height: GlassmorphicTheme.itemHeight,
+          duration: M3Theme.hoverDuration,
+          height: M3Theme.itemHeight,
           padding: const EdgeInsets.symmetric(
-            horizontal: GlassmorphicTheme.itemPaddingH,
+            horizontal: M3Theme.itemPaddingH,
           ),
           decoration: BoxDecoration(
             color: isHovered
@@ -1015,10 +1000,10 @@ class _GlassmorphicMenu extends StatelessWidget {
                         .colorScheme
                         .primary
                         .withAlpha(
-                            (GlassmorphicTheme.hoverOpacity * 255).round()))
+                            (M3Theme.hoverOpacity * 255).round()))
                 : Colors.transparent,
             borderRadius:
-                BorderRadius.circular(GlassmorphicTheme.borderRadiusSmall),
+                BorderRadius.circular(M3Theme.borderRadiusSmall),
           ),
           child: Row(
             children: [
@@ -1026,12 +1011,12 @@ class _GlassmorphicMenu extends StatelessWidget {
               if (action.icon != null)
                 Icon(
                   action.icon,
-                  size: GlassmorphicTheme.iconSize,
+                  size: M3Theme.iconSize,
                   color: action.isDangerous
                       ? Colors.redAccent
                        : action.isEnabled
-                          ? GlassmorphicTheme.textColor(context).withAlpha(220)
-                          : GlassmorphicTheme.subtleTextColor(context),
+                          ? M3Theme.textColor(context).withAlpha(220)
+                          : M3Theme.subtleTextColor(context),
                  ),
                if (action.icon != null) const SizedBox(width: 10),
 
@@ -1044,14 +1029,14 @@ class _GlassmorphicMenu extends StatelessWidget {
                    child: Text(
                      action.label,
                      style: TextStyle(
-                       fontSize: GlassmorphicTheme.fontSizeItem,
+                       fontSize: M3Theme.fontSizeItem,
                        fontWeight:
                            isHovered ? FontWeight.w500 : FontWeight.w400,
                        color: action.isDangerous
                            ? Colors.redAccent
                            : action.isEnabled
-                               ? GlassmorphicTheme.textColor(context)
-                               : GlassmorphicTheme.subtleTextColor(context),
+                               ? M3Theme.textColor(context)
+                               : M3Theme.subtleTextColor(context),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -1065,8 +1050,8 @@ class _GlassmorphicMenu extends StatelessWidget {
                   child: Text(
                     action.shortcut!,
                     style: TextStyle(
-                      fontSize: GlassmorphicTheme.fontSizeShortcut,
-                      color: GlassmorphicTheme.subtleTextColor(context),
+                      fontSize: M3Theme.fontSizeShortcut,
+                      color: M3Theme.subtleTextColor(context),
                     ),
                   ),
                 ),
@@ -1075,7 +1060,7 @@ class _GlassmorphicMenu extends StatelessWidget {
               if (hasSubmenu)
                 Icon(
                   Icons.chevron_right_rounded,
-                  size: GlassmorphicTheme.submenuArrowSize,
+                  size: M3Theme.submenuArrowSize,
                   color: Theme.of(context)
                       .colorScheme
                       .onSurface

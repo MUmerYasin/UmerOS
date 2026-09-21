@@ -137,6 +137,17 @@ build CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj: C_COMPILER__umeros_p
   TARGET_PDB = umeros_python.pdb
   TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
 
+build CMakeFiles\umeros_python.dir\Builtins\sys_module.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Builtins\sys_module.c || cmake_object_order_depends_target_umeros_python
+  CONFIG = Debug
+  DEFINES = -D_CRT_SECURE_NO_WARNINGS
+  FLAGS = -std:c11 /W4 /Od /Zi /MDd /DDEBUG
+  INCLUDES = -I"F:\Pension Person Details\UmerOS\boot\python_vm\Include"
+  OBJECT_DIR = CMakeFiles\umeros_python.dir
+  OBJECT_FILE_DIR = CMakeFiles\umeros_python.dir\Builtins
+  TARGET_COMPILE_PDB = CMakeFiles\umeros_python.dir\
+  TARGET_PDB = umeros_python.pdb
+  TARGET_SUPPORT_DIR = CMakeFiles\umeros_python.dir
+
 build CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj: C_COMPILER__umeros_python_unscanned_Debug F$:\Pension$ Person$ Details\UmerOS\boot\python_vm\Compiler\compiler.c || cmake_object_order_depends_target_umeros_python
   CONFIG = Debug
   DEFINES = -D_CRT_SECURE_NO_WARNINGS
@@ -178,7 +189,7 @@ build CMakeFiles\umeros_python.dir\Programs\main.c.obj: C_COMPILER__umeros_pytho
 #############################################
 # Link the executable umeros_python.exe
 
-build umeros_python.exe: C_EXECUTABLE_LINKER__umeros_python_Debug CMakeFiles\umeros_python.dir\Objects\object.c.obj CMakeFiles\umeros_python.dir\Objects\long.c.obj CMakeFiles\umeros_python.dir\Objects\float.c.obj CMakeFiles\umeros_python.dir\Objects\unicode.c.obj CMakeFiles\umeros_python.dir\Objects\bool.c.obj CMakeFiles\umeros_python.dir\Objects\none.c.obj CMakeFiles\umeros_python.dir\Objects\errors.c.obj CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj CMakeFiles\umeros_python.dir\VM\vm.c.obj CMakeFiles\umeros_python.dir\Programs\main.c.obj
+build umeros_python.exe: C_EXECUTABLE_LINKER__umeros_python_Debug CMakeFiles\umeros_python.dir\Objects\object.c.obj CMakeFiles\umeros_python.dir\Objects\long.c.obj CMakeFiles\umeros_python.dir\Objects\float.c.obj CMakeFiles\umeros_python.dir\Objects\unicode.c.obj CMakeFiles\umeros_python.dir\Objects\bool.c.obj CMakeFiles\umeros_python.dir\Objects\none.c.obj CMakeFiles\umeros_python.dir\Objects\errors.c.obj CMakeFiles\umeros_python.dir\Builtins\builtins.c.obj CMakeFiles\umeros_python.dir\Builtins\sys_module.c.obj CMakeFiles\umeros_python.dir\Compiler\compiler.c.obj CMakeFiles\umeros_python.dir\VM\vm.c.obj CMakeFiles\umeros_python.dir\Programs\main.c.obj
   CONFIG = Debug
   LINK_FLAGS = /subsystem:console
   LINK_LIBRARIES = kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib

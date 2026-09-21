@@ -204,6 +204,88 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                 break;
             }
 
+            case OP_IMPORT_NAME: {
+                int names_idx = arg;
+                PyObject *modname = GET_NAME(frame, names_idx);
+                PyObject *mod = NULL;
+                PyObject *globals = frame->f_globals;
+                PyObject *locals = frame->f_locals;
+                PyObject *builtins_dict = PyBuiltins_GetDict();
+                if (builtins_dict) {
+                    PyObject *import_fn = PyDict_GetItem(builtins_dict, PyUnicode_FromString("__import__"));
+                    if (import_fn) {
+                        PyObject *args = PyTuple_New(1);
+                        PyTuple_SET_ITEM(args, 0, modname);
+                        Py_INCREF(modname);
+                        mod = PyObject_Call(import_fn, args, NULL);
+                        Py_DECREF(args);
+                    }
+                    Py_DECREF(builtins_dict);
+                }
+                if (!mod) {
+                    PyErr_Format(PyExc_ImportError, "cannot import module");
+                    return NULL;
+                }
+                Stack_Push(stack, mod);
+                Py_DECREF(mod);
+                break;
+            }
+
+            case OP_IMPORT_FROM: {
+                int names_idx = arg;
+                PyObject *attr_name = GET_NAME(frame, names_idx);
+                PyObject *module = Stack_Pop(stack);
+                PyObject *value = NULL;
+                if (PyModule_Check(module)) {
+                    PyObject *mdict = PyModule_GetDict(module);
+                    if (mdict) {
+                        value = PyDict_GetItem(mdict, attr_name);
+                        if (value) {
+                            Py_INCREF(value);
+                        }
+                        Py_DECREF(mdict);
+                    }
+                }
+                Stack_Push(stack, module);
+                if (!value) {
+                    PyErr_Format(PyExc_ImportError, "cannot import name %U", attr_name);
+                    Py_DECREF(module);
+                    return NULL;
+                }
+                Stack_Push(stack, value);
+                Py_DECREF(value);
+                Py_DECREF(module);
+                Py_DECREF(attr_name);
+                break;
+            }
+
+            case OP_IMPORT_STAR: {
+                PyObject *module = Stack_Pop(stack);
+                PyObject *mdict = PyModule_Check(module) ? PyModule_GetDict(module) : NULL;
+                if (mdict) {
+                    PyObject *keys = PyDict_Keys(mdict);
+                    if (keys) {
+                        Py_ssize_t len = PyList_GET_SIZE(keys);
+                        for (Py_ssize_t i = 0; i < len; i++) {
+                            PyObject *key = PyList_GET_ITEM(keys, i);
+                            PyObject *val = PyDict_GetItem(mdict, key);
+                            if (val && PyUnicode_Check(key)) {
+                                const char *key_str = PyUnicode_AsUTF8(key);
+                                if (key_str && key_str[0] != '_') {
+                                    Py_INCREF(val);
+                                    VM_SetGlobal(frame, key_str, val);
+                                    Py_DECREF(val);
+                                }
+                            }
+                        }
+                        Py_DECREF(keys);
+                    }
+                    Py_DECREF(mdict);
+                }
+                Py_DECREF(module);
+                break;
+            }
+
             case OP_RETURN_VALUE: {
                 PyObject *retval = Stack_Pop(stack);
                 return retval;

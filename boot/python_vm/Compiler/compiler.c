@@ -665,6 +665,61 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
         free(name_copy);
     }
 
+    if (token == TOKEN_KEYWORD_IMPORT) {
+        Parser_NextToken(parser);  /* skip 'import' */
+        token = Parser_NextToken(parser);
+        while (token == TOKEN_NAME) {
+            PyObject *mod_name = PyUnicode_FromString(parser->current_token);
+            int mod_idx = Compiler_AddConstant(compiler, mod_name);
+            Py_DECREF(mod_name);
+            Compiler_Emit(compiler, OP_IMPORT_NAME, mod_idx);
+            Compiler_Emit(compiler, OP_STORE_NAME, mod_idx);
+            Compiler_Emit(compiler, OP_POP_TOP, 0);
+            token = Parser_NextToken(parser);
+            if (token == TOKEN_COMMA) {
+                token = Parser_NextToken(parser);
+            }
+        }
+        return 1;
+    }
+
+    if (token == TOKEN_KEYWORD_FROM) {
+        Parser_NextToken(parser);  /* skip 'from' */
+        PyObject *mod_name = PyUnicode_FromString(parser->current_token);
+        int mod_idx = Compiler_AddConstant(compiler, mod_name);
+        Py_DECREF(mod_name);
+        Compiler_Emit(compiler, OP_IMPORT_NAME, mod_idx);
+        token = Parser_NextToken(parser);
+        token = Parser_NextToken(parser);  /* skip 'import' */
+        if (token == TOKEN_STAR) {
+            Compiler_Emit(compiler, OP_IMPORT_STAR, 0);
+            Parser_NextToken(parser);  /* skip '*' */
+        } else {
+            while (token == TOKEN_NAME) {
+                PyObject *attr = PyUnicode_FromString(parser->current_token);
+                int attr_idx = Compiler_AddConstant(compiler, attr);
+                Py_DECREF(attr);
+                Compiler_Emit(compiler, OP_IMPORT_FROM, attr_idx);
+                PyObject *alias = NULL;
+                token = Parser_NextToken(parser);
+                if (token == TOKEN_KEYWORD_AS) {
+                    token = Parser_NextToken(parser);
+                    alias = PyUnicode_FromString(parser->current_token);
+                    token = Parser_NextToken(parser);
+                } else {
+                    alias = PyUnicode_FromString((const char *)PyUnicode_AsUTF8(attr));
+                }
+                int alias_idx = Compiler_AddConstant(compiler, alias);
+                Py_DECREF(alias);
+                Compiler_Emit(compiler, OP_STORE_NAME, alias_idx);
+                if (token == TOKEN_COMMA) {
+                    token = Parser_NextToken(parser);
+                }
+            }
+        }
+        return 1;
+    }
+
     /* Skip unrecognized tokens */
     while (token != TOKEN_NL && token != TOKEN_ENDMARKER) {
         token = Parser_NextToken(parser);

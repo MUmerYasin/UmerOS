@@ -18,19 +18,22 @@ Base class for all bin/ commands.
 """
 
 from __future__ import annotations
+import logging
 
-from typing import List, Optional
+from typing import Callable, List, Optional
+log = logging.getLogger("UmerOS.Core.Command")
+EXIT_PERMISSION_DENIED = 77  # sysexits.h EX_NOPERM
 
 
 class Command:
     """Base class for all UmerOS commands.
 
-    [FIX H6 / H55] Canonical command contract (adopted convention):
+    Canonical command contract (adopted convention):
         execute(self, args: Optional[List[str]] = None) -> int
     `args` is the argv list (excluding argv[0]); the return value is a POSIX-style
     exit code (0 == success). The base previously declared
     `execute(self, *args: Any) -> Any`, which contradicted the dominant `bin/`
-    convention and let subclasses drift (see H35). We converge the base to the
+    convention and let subclasses drift. We converge the base to the
     adopted contract so every `bin/*` subclass agrees on the signature.
 
     Subclasses should define:
@@ -38,8 +41,10 @@ class Command:
         description (str):     One-line help text.
         category (str):        Category label (e.g. "file", "process").
         privileges (list):     Required privileges (e.g. ["user"], ["root"]).
-                              NOTE: `privileges` is declared but NOT yet enforced by
-                              the base (see H56) — enforcement is a separate follow-up.
+                              `privileges` is enforced fail-closed by `run()` / `check_privileges()`
+                               callers pass a `has_privilege` verifier (wired to
+                              `CapabilityManager` / `Credentials`); unverifiable privileged
+                              commands are denied by default and never run un-gated.
 
     And override:
         execute(self, args: Optional[List[str]] = None) -> int
@@ -61,3 +66,41 @@ class Command:
         raise NotImplementedError(
             f"{self.__class__.__name__}: execute(args: Optional[List[str]] = None) -> int not implemented"
         )
+
+    def check_privileges(self, has_privilege: Optional[Callable[[str], bool]]) -> bool:
+        """Fail-closed privilege gate for this command.
+
+        Returns ``True`` only when the command may run for the
+        current principal:
+          * no ``privileges`` declared -> always allowed (unprivileged);
+          * ``has_privilege`` is ``None``  -> DENY (no verifier wired);
+          * otherwise -> every required privilege in ``self.privileges``
+            must satisfy ``has_privilege(priv)`` (logical AND).
+
+        ``has_privilege`` is a ``Callable[[str], bool]`` supplied by the
+        caller (typically wired to ``CapabilityManager`` / ``Credentials``);
+        the base stays decoupled from any specific privilege backend.
+        """
+        if not self.privileges:
+            return True
+        if has_privilege is None:
+            return False
+        return all(bool(has_privilege(p)) for p in self.privileges)
+
+    def run(self, args: Optional[List[str]] = None,
+            has_privilege: Optional[Callable[[str], bool]] = None) -> int:
+        """Privilege-gated entry point.
+
+        Refuses execution (returns ``EXIT_PERMISSION_DENIED`` /
+        ``EX_NOPERM`` = 77) when :meth:`check_privileges` fails, otherwise
+        delegates to :meth:`execute`. Callers that need enforcement should
+        use ``run()`` and pass a ``has_privilege`` verifier; ``execute()``
+        itself remains the capability-agnostic contract locked by H55/tests.
+        """
+        if not self.check_privileges(has_privilege):
+            log.warning(
+                "Command %s denied: caller lacks required privileges %s",
+                self.name or self.__class__.__name__, self.privileges,
+            )
+            return EXIT_PERMISSION_DENIED
+        return self.execute(args)

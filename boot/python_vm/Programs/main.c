@@ -33,6 +33,11 @@ extern PyObject* Py_CompileString(const char *source, const char *filename);
 extern PyObject* PyEval_EvalCode(PyCodeObject *code, PyObject *globals, PyObject *locals);
 extern void Compiler_Test(void);
 
+/* Sys module forward declarations */
+extern void SysModule_Init(void);
+extern PyObject* SysModule_GetDict(void);
+extern void SysModule_AddToPath(const char *dir);
+
 /* Global flags */
 static int quiet_mode = 0;
 static int verbose_mode = 0;
@@ -268,6 +273,49 @@ static char* Umeros_ReadFile(const char *filename, Py_ssize_t *out_length) {
     return buffer;
 }
 
+/* Detect and configure virtual environment.
+ * Searches relative to the script dir and cwd for venv/.venv directories.
+ * If found, adds <venv>/Lib/site-packages to sys.path.
+ */
+static int DetectVirtualEnvironment(const char *script_dir) {
+    const char *search_dirs[2];
+    int n_dirs = 0;
+
+    if (script_dir && script_dir[0] != '\0') {
+        search_dirs[n_dirs++] = script_dir;
+    }
+    search_dirs[n_dirs++] = ".";
+
+    for (int i = 0; i < n_dirs; i++) {
+        const char *base = search_dirs[i];
+        const char *venv_names[] = {"venv", ".venv"};
+        for (int v = 0; v < 2; v++) {
+            char venv_path[4096];
+            snprintf(venv_path, sizeof(venv_path), "%s/%s", base, venv_names[v]);
+            struct stat st;
+            if (stat(venv_path, &st) == 0 && (st.st_mode & _S_IFDIR)) {
+                /* Found venv — compute site-packages path */
+                char sp_path[4096];
+#ifdef _WIN32
+                snprintf(sp_path, sizeof(sp_path), "%s/Lib/site-packages", venv_path);
+#else
+                snprintf(sp_path, sizeof(sp_path), "%s/lib/python3/site-packages", venv_path);
+#endif
+                struct stat sp_st;
+                if (stat(sp_path, &sp_st) == 0 && (sp_st.st_mode & _S_IFDIR)) {
+                    if (verbose_mode) {
+                        fprintf(stderr, "[VENV] Found virtual environment: %s\n", venv_path);
+                        fprintf(stderr, "[VENV] Adding to sys.path: %s\n", sp_path);
+                    }
+                    SysModule_AddToPath(sp_path);
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 /* Interactive REPL */
 static void RunREPL(void) {
     if (!quiet_mode) {
@@ -280,6 +328,8 @@ static void RunREPL(void) {
     PyObject *globals = PyDict_New();
     PyObject *builtins = PyBuiltins_GetDict();
     PyDict_SetItemString(globals, "__builtins__", builtins);
+    PyObject *sys_dict = SysModule_GetDict();
+    PyDict_SetItemString(globals, "sys", sys_dict);
 
     char line[4096];
 
@@ -389,6 +439,8 @@ static int RunScript(const char *filename) {
     PyObject *globals = PyDict_New();
     PyObject *builtins = PyBuiltins_GetDict();
     PyDict_SetItemString(globals, "__builtins__", builtins);
+    PyObject *sys_dict = SysModule_GetDict();
+    PyDict_SetItemString(globals, "sys", sys_dict);
 
     PyDict_SetItemString(globals, "__name__",
                          PyUnicode_FromString("__main__"));
@@ -432,6 +484,13 @@ static int RunString(const char *code_str) {
     PyObject *builtins = PyBuiltins_GetDict();
     PyDict_SetItemString(globals, "__builtins__", builtins);
 
+    /* Add sys module dict */
+    PyObject *sys_dict = SysModule_GetDict();
+    if (sys_dict) {
+        PyDict_SetItemString(globals, "sys", sys_dict);
+        Py_DECREF(sys_dict);
+    }
+
     if (verbose_mode) {
         fprintf(stderr, "[COMPILE] Compiling string (%ld bytes)\n", (long)strlen(code_str));
     }
@@ -461,8 +520,7 @@ static int RunString(const char *code_str) {
 }
 
 /* Run a module as __main__ (-m flag)
- * Currently supports only built-in module names.
- * For a real module, the module name must map to a file path.
+ * Searches sys.path for the module file, falls back to cwd.
  */
 static int RunModule(const char *module_name) {
     if (verbose_mode) {
@@ -471,16 +529,42 @@ static int RunModule(const char *module_name) {
 
     /* Try to find the module as a file: module_name.py */
     char filename[4096];
-    snprintf(filename, sizeof(filename), "%s.py", module_name);
 
+    /* First check current directory */
+    snprintf(filename, sizeof(filename), "%s.py", module_name);
     FILE *fp = fopen(filename, "rb");
     if (fp) {
         fclose(fp);
-        /* File exists — run it as a script */
         if (verbose_mode) {
-            fprintf(stderr, "[MODULE] Found module file: %s\n", filename);
+            fprintf(stderr, "[MODULE] Found module file in cwd: %s\n", filename);
         }
         return RunScript(filename);
+    }
+
+    /* Search sys.path */
+    PyObject *path = SysModule_GetPath();
+    if (path) {
+        Py_ssize_t n = PyList_Size(path);
+        for (Py_ssize_t i = 0; i < n; i++) {
+            PyObject *item = PyList_GetItem(path, i);
+            if (item && PyType_IsSubtype(Py_TYPE(item), &PyUnicode_Type)) {
+                const char *dir = PyUnicode_AsString(item);
+                if (dir && dir[0] != '\0') {
+                    char fullpath[4096];
+                    snprintf(fullpath, sizeof(fullpath), "%s/%s.py", dir, module_name);
+                    fp = fopen(fullpath, "rb");
+                    if (fp) {
+                        fclose(fp);
+                        if (verbose_mode) {
+                            fprintf(stderr, "[MODULE] Found module file: %s\n", fullpath);
+                        }
+                        Py_DECREF(path);
+                        return RunScript(fullpath);
+                    }
+                }
+            }
+        }
+        Py_DECREF(path);
     }
 
     /* Module file not found — report error */
@@ -521,6 +605,8 @@ int main(int argc, char *argv[]) {
     PyBool_Init();
     PyNone_Init();
     PyBuiltins_Init();
+    SysModule_Init();
+    DetectVirtualEnvironment(NULL);
 
     /* Register cleanup handlers */
     atexit(CleanupLock);

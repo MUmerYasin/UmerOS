@@ -18,7 +18,7 @@
 ## Remediation status
 - **RED blockers: ALL CLOSED (sessions 1–33).**
 - **YELLOW sweep in progress (session 36+).** Large drift-recon resolutions: cloud/ fully 🟢 (H46,H154,H47,H48,H49). Many earlier H-items (H4,H5,H6,H7,H8,H9,H11,H13,H14,H15,H16,H19,H20,H23,H24,H26,H30) were RESOLVED with the premise proven stale/overstated — detail lives in the standard §9 + per-session overview files, not re-duplicated here.
-- **Current pointer (session 69):** `cloud/` sweep COMPLETE; **H50/H51/H52/H53 🟢** (H53 = compatibility/ baseline: logging + from __future__ + docstrings + [TODAY] label; syscall_table kept allow-listed). Next 🟡 **H54** — `compatibility/` (two divergent container models `ZeroTrustContainer` vs `ContainerEngine`). Say **'continues'** for H54.
+- **Current pointer (session 71):** `compatibility/` sweep COMPLETE (**H50/H51/H52/H53/H54 🟢**); H54 = two container models documented as complementary zero-trust paths (`HARDWARE` vs `container.launch`), not deleted/merged. Next 🟢 **H57** — `core/` (H55,H56 🟢; H57 = `command.py` tier label + GPL header). Say **'continues'** for H57.
 - H1 standing user action (not mine): user must rotate the leaked OpenRouter key + purge git history.
 
 ## Folder scope map — hotspots (🟢 fixed / 🟡 yellow / 💭 nit)
@@ -26,8 +26,8 @@
 - bin/ 🟢 H4,H5,H37,H6,H8,H35,H36,H38,H39,H40
 - build/ 🟢 H42,H41,H43,H44,H45
 - cloud/ 🟢 H46,H154,H47,H48,H49
-- compatibility/ 🟢 H50,H51,H52,H53; 🟡 H54
-- core/ 🟢 H55; 🟡 H56,H57
+- compatibility/ 🟢 H50,H51,H52,H53,H54
+- core/ 🟢 H55,H56; 🟡 H57
 - dev/ 🟡 H59,H60,H61
 - drivers/ 🟢 H64; 🟡 H62,H63,H66,H69; 💭 H65
 - etc/ 🟢 H5,H72,H73; 🟡 H70,H71

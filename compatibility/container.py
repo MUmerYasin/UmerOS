@@ -11,6 +11,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Zero-trust, hardware-gated container for the Linux/Android compat path.
+
+``ZeroTrustContainer`` runs a *single* foreign/legacy binary and enforces the
+``HARDWARE`` capability (fail-closed - see before executing it,
+then translates the binary's syscalls through ``SyscallShim``. It is the
+hardware-access execution path and is intentionally distinct from
+``ContainerEngine`` (in ``container_engine``), which is the general
+foreign-binary compatibility launcher enforcing ``container.launch`` instead.
+The two are complementary zero-trust paths; do not merge their capability
+gates or syscall shims.
+"""
+
 from __future__ import annotations
 
 import logging

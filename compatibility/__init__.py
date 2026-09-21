@@ -24,8 +24,19 @@
 #   Unicode strings, DOS->POSIX path mapping.
 #
 # Stop-gap containers (``container``, ``container_engine``,
-# ``syscall_shim``) are still part of the package and power the
-# Linux/Android side of the compatibility story.
+# ``syscall_shim``) power the Linux/Android side of the compatibility
+# story. They are TWO complementary, zero-trust execution paths - NOT
+# duplicates:
+#   * ``ZeroTrustContainer`` (``container``) is the *hardware-gated*
+#     path: it enforces the ``HARDWARE`` capability (fail-closed, H51)
+#     before running a single binary and translates syscalls via
+#     ``SyscallShim``.
+#   * ``ContainerEngine`` (``container_engine``) is the *foreign-binary*
+#     path: it launches ELF/.exe/APK via ``LinuxCompat``/``WineShim``/
+#     ``AndroidContainer`` and enforces ``container.launch`` (fail-closed,
+#     H52) via ``SyscallTranslator``.
+# Keep the two paths SEPARATE - do not merge their capability gates or
+# syscall shims.
 """
 UmerOS /compatibility — Windows compatibility layer (pure Python).
 
