@@ -574,6 +574,7 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
   final FocusNode _focusNode = FocusNode();
   int _hoveredIndex = -1;
   int? _openSubmenuIndex;
+  Timer? _submenuCloseTimer;
 
   // Flatten categories into a single list of renderable items
   // (keeping category separators and headers).
@@ -706,9 +707,9 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
   void _activate(ContextMenuAction action) {
     if (!action.isEnabled || action.isSeparator) return;
 
-    // Track usage.
-    final tracker = context.read<SmartActionTracker>();
-    tracker.track(widget.menuContext, action.id);
+    // Track usage via the tracker passed through the widget tree (not context.read,
+    // because this widget lives inside the Overlay which is outside the Provider tree).
+    widget.smartTracker.track(widget.menuContext, action.id);
 
     widget.onDismiss();
     action.onTap?.call();
@@ -906,6 +907,22 @@ class _M3Menu extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           mainMenu,
+          // ── Triangle keep-up zone ──────────────────────────
+          // Invisible hit-test strip connecting parent item right edge
+          // to submenu left edge, so cursor can travel between them
+          // without the submenu closing.
+          Positioned(
+            left: width - 24,
+            top: topOffset,
+            width: 24,
+            height: submenuHeight,
+            child: MouseRegion(
+              onEnter: (_) => onSubmenuHover(openSubmenuIndex),
+              onExit: (_) => onSubmenuHover(null),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          // ── Submenu ───────────────────────────────────────
           Positioned(
             left: width,
             top: topOffset,
@@ -1026,7 +1043,14 @@ class _M3Menu extends StatelessWidget {
     final hasSubmenu = action.children.isNotEmpty;
 
     return GestureDetector(
-      onTap: () => onTap(action),
+      onTap: () {
+        if (hasSubmenu) {
+          // Linux GTK-style: clicking a parent item opens its submenu
+          onSubmenuHover(index);
+        } else {
+          onTap(action);
+        }
+      },
       child: MouseRegion(
         onEnter: (_) {
           onHover(index);
@@ -1454,4 +1478,3 @@ class RightClickArea extends StatelessWidget {
     );
   }
 }
-                                  

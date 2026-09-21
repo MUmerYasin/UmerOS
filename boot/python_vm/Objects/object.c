@@ -149,7 +149,7 @@ void PyCode_Free(PyCodeObject *code) {
 typedef struct { PyObject *key; PyObject *value; } DictEntry;
 typedef struct { PyObject ob_base; DictEntry *entries; Py_ssize_t size; Py_ssize_t capacity; } PyDictObject;
 
-static PyTypeObject _PyDict_Type = {
+PyTypeObject PyDict_Type = {
     1, NULL, "dict", sizeof(PyDictObject), 0,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -167,7 +167,7 @@ static void _dict_resize(PyDictObject *d) {
 PyObject* PyDict_New(void) {
     PyDictObject *d = (PyDictObject *)calloc(1, sizeof(PyDictObject));
     if (!d) { PyErr_SetString(PyExc_MemoryError, "out of memory"); return NULL; }
-    d->ob_base.ob_refcnt = 1; d->ob_base.ob_type = &_PyDict_Type;
+    d->ob_base.ob_refcnt = 1; d->ob_base.ob_type = &PyDict_Type;
     return (PyObject *)d;
 }
 
@@ -716,18 +716,13 @@ PyObject* PyModule_GetDict(PyObject *module) {
 
 /* ==================== Module Type ==================== */
 
-static const char* module_repr(PyObject *self) {
-    (void)self;
-    return "<module>";
-}
-
-static PyTypeObject PyModule_Type = {
+PyTypeObject PyModule_Type = {
     "module",                    /* tp_name */
     sizeof(PyModuleObject),      /* tp_basicsize */
     0,                           /* tp_itemsize */
     0,                           /* tp_new */
     0,                           /* tp_dealloc */
-    module_repr,                  /* tp_repr */
+    0,                           /* tp_repr */
     0,                           /* tp_str */
     0,                           /* tp_richcompare */
     0,                           /* tp_hash */

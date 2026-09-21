@@ -427,7 +427,7 @@ int PyTuple_SetItem(PyObject *tuple, Py_ssize_t i, PyObject *item);
 
 /* ==================== VM ACCESSOR MACROS ==================== */
 
-#define GET_NAME(frame, i)       ((frame)->f_code->co_names[(i)])
+#define GET_NAME(frame, i)       ((frame)->f_code->names[(i)])
 #define PyTuple_SET_ITEM(t, i, v) (((PyTupleObject*)(t))->items[(i)] = (v))
 #define PyModule_Check(op)       ((op)->ob_type == &PyModule_Type)
 #define PyList_GET_SIZE(l)       (((PyListObject*)(l))->size)
