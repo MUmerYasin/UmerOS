@@ -33,6 +33,7 @@ from compatibility import (  # noqa: E402
     dll_loader, wine_shim,
     api_set, forwarded, dll_search, manifest, long_path,
     memory_map, sync,
+    version_info, delay_imports, signed_pe, winsock, timezone,
 )
 from compatibility.pe_loader import PeFile, PeClass          # noqa: E402
 from compatibility.dll_loader import DllLoader, ResolvedImport  # noqa: E402
@@ -781,6 +782,168 @@ class TestSync(unittest.TestCase):
             t.join(timeout=2.0)
         self.assertEqual(counter[0], 1)
         self.assertTrue(all(r == "ctx" for r in results))
+
+
+# ---------------------------------------------------------------------------
+# VS_VERSIONINFO
+# ---------------------------------------------------------------------------
+
+class TestVersionInfo(unittest.TestCase):
+    def test_fixture_round_trip(self) -> None:
+        blob = version_info._build_fixture()
+        info = version_info.parse_version_info(blob)
+        self.assertIsNotNone(info)
+        self.assertEqual(info.file_version, "1.2.3.4")
+        self.assertEqual(info.product_version, "5.6.7.8")
+        self.assertEqual(info.company_name(), "Umer OS Project")
+        self.assertEqual(info.file_description(), "selftest pe")
+        self.assertEqual(info.string_tables[0].lang_cp, "040904b0")
+
+    def test_VerQueryValue(self) -> None:
+        blob = version_info._build_fixture()
+        q = version_info.VerQueryValue(
+            blob, "\\StringFileInfo\\040904b0")
+        self.assertIsNotNone(q)
+        self.assertEqual(q[0], "StringFileInfo")
+        self.assertEqual(q[1]["FileVersion"], "1.2.3.4")
+
+    def test_malformed(self) -> None:
+        self.assertIsNone(version_info.parse_version_info(b""))
+        self.assertIsNone(version_info.parse_version_info(b"\x00\x00"))
+
+
+# ---------------------------------------------------------------------------
+# Delay Imports
+# ---------------------------------------------------------------------------
+
+class TestDelayImports(unittest.TestCase):
+    def test_fixture_parse(self) -> None:
+        blob = delay_imports._build_pe_with_delay_imports()
+        pe = PeFile.from_bytes(blob)
+        ddir = delay_imports.parse_delay_imports(pe)
+        self.assertIsNotNone(ddir)
+        self.assertEqual(len(ddir.entries), 1)
+        self.assertEqual(ddir.entries[0].dll_name.upper(), "MYDLL.DLL")
+        sym = ddir.entries[0].symbols[0]
+        self.assertEqual(sym.name, "Foo")
+        self.assertEqual(sym.hint, 42)
+
+    def test_empty(self) -> None:
+        from compatibility.pe_loader import _build_fake_pe
+        pe = PeFile.from_bytes(_build_fake_pe())
+        self.assertIsNone(delay_imports.parse_delay_imports(pe))
+
+
+# ---------------------------------------------------------------------------
+# Signed PE
+# ---------------------------------------------------------------------------
+
+class TestSignedPe(unittest.TestCase):
+    def test_unsigned_image(self) -> None:
+        from compatibility.pe_loader import _build_fake_pe
+        pe = PeFile.from_bytes(_build_fake_pe())
+        info = signed_pe.parse_certificates(pe)
+        self.assertFalse(info.is_signed)
+        self.assertEqual(info.signer_count, 0)
+
+    def test_signed_image(self) -> None:
+        import struct as _s
+        from compatibility.pe_loader import _build_fake_pe, PeFile
+        pe_bytes = bytearray(_build_fake_pe())
+        cert_off = 0x400
+        fake_blob = (b"CN=Test Signer\x00"
+                     + b"O=Acme\x00"
+                     + b"\x00" * 64)
+        struct.pack_into("<IHH", pe_bytes, cert_off,
+                         len(fake_blob) + 8,
+                         signed_pe.WIN_CERT_REVISION_2_0,
+                         signed_pe.WIN_CERT_TYPE_PKCS_SIGNED_DATA)
+        pe_bytes[cert_off + 8: cert_off + 8 + len(fake_blob)] = fake_blob
+        pe2 = PeFile.from_bytes(bytes(pe_bytes))
+        n = pe2.optional_header.number_of_rva_and_sizes
+        dd_off = (pe2.pe_offset + 4 + 20
+                  + pe2.size_of_optional_header - n * 8)
+        struct.pack_into("<II", pe_bytes, dd_off + 4 * 8,
+                         cert_off, 8 + len(fake_blob))
+        pe3 = PeFile.from_bytes(bytes(pe_bytes))
+        info = signed_pe.parse_certificates(pe3)
+        self.assertTrue(info.is_signed)
+        self.assertTrue(info.has_security_directory)
+
+
+# ---------------------------------------------------------------------------
+# Winsock
+# ---------------------------------------------------------------------------
+
+class TestWinsock(unittest.TestCase):
+    def setUp(self) -> None:
+        winsock.WSACleanup()
+
+    def tearDown(self) -> None:
+        winsock.WSACleanup()
+
+    def test_startup_cleanup(self) -> None:
+        rc, data = winsock.WSAStartup(winsock.WSA_VERSION)
+        self.assertEqual(rc, 0)
+        self.assertEqual(data.version, winsock.WSA_VERSION)
+        self.assertEqual(winsock.WSACleanup(), 0)
+
+    def test_byte_order_and_inet(self) -> None:
+        self.assertEqual(winsock.inet_addr("127.0.0.1"), 0x0100007F)
+        self.assertEqual(winsock.inet_ntoa(0x0100007F), "127.0.0.1")
+        self.assertEqual(
+            winsock.htons(0x1234),
+            winsock._stdlib_socket.htons(0x1234))
+
+    def test_sockaddr_round_trip(self) -> None:
+        addr = winsock.SockAddrIn(family=winsock.AF_INET,
+                                   port=80, address="10.0.0.1")
+        blob = addr.to_bytes()
+        addr2 = winsock.SockAddrIn.from_bytes(blob)
+        self.assertEqual(addr2.port, 80)
+        self.assertEqual(addr2.address, "10.0.0.1")
+
+    def test_socket_lifecycle(self) -> None:
+        winsock.WSAStartup(winsock.WSA_VERSION)
+        s = winsock.socket(winsock.AF_INET, winsock.SOCK_STREAM)
+        self.assertNotEqual(s, winsock.INVALID_SOCKET)
+        self.assertEqual(winsock.closesocket(s), 0)
+
+
+# ---------------------------------------------------------------------------
+# Timezone
+# ---------------------------------------------------------------------------
+
+class TestTimezone(unittest.TestCase):
+    def test_system_time_round_trip(self) -> None:
+        st = timezone.SystemTime(year=2025, month=6, day=15,
+                                  hour=12, minute=34,
+                                  second=56, millisecond=789)
+        ft = timezone.SystemTimeToFileTime(st)
+        self.assertIsNotNone(ft)
+        st2 = timezone.FileTimeToSystemTime(ft)
+        self.assertEqual((st2.year, st2.month, st2.day,
+                          st2.hour, st2.minute, st2.second),
+                         (2025, 6, 15, 12, 34, 56))
+
+    def test_dos_round_trip(self) -> None:
+        import datetime as _dt
+        ft = timezone.FileTime.from_datetime(
+            _dt.datetime(2024, 12, 31, 23, 59, 58,
+                         tzinfo=_dt.timezone.utc))
+        dos_date, dos_time = timezone.FileTimeToDosDateTime(ft)
+        ft2 = timezone.DosDateTimeToFileTime(dos_date, dos_time)
+        self.assertEqual(ft2.to_datetime().year, 2024)
+
+    def test_tz_round_trip(self) -> None:
+        tz = timezone.GetTimeZoneInformation()
+        raw = tz.to_bytes()
+        tz2 = timezone.TimeZoneInformation.from_bytes(raw)
+        self.assertEqual(tz2.bias, tz.bias)
+
+    def test_get_system_time(self) -> None:
+        st = timezone.GetSystemTime()
+        self.assertGreaterEqual(st.year, 2024)
 
 
 # ---------------------------------------------------------------------------
