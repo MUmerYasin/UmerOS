@@ -39,6 +39,16 @@ class PrefsService {
   /// and for surfacing "settings will not be saved" states in debug.
   bool get isAvailable => _prefs != null;
 
+  Set<String> getKeys() {
+    final prefs = _prefs;
+    if (prefs == null) return const <String>{};
+    try {
+      return prefs.getKeys();
+    } catch (_) {
+      return const <String>{};
+    }
+  }
+
   String? getString(String key) => _read<String>(key, (p) => p.getString(key));
 
   bool? getBool(String key) => _read<bool>(key, (p) => p.getBool(key));

@@ -7,6 +7,7 @@ import 'package:flutter_ui/src/core/theme_provider.dart';
 import 'package:flutter_ui/src/services/prefs_service.dart';
 import 'package:flutter_ui/src/widgets/dock.dart';
 import 'package:flutter_ui/src/widgets/data_source_badge.dart';
+import 'package:flutter_ui/src/widgets/responsive_container.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -128,6 +129,51 @@ void main() {
       // Unmount so the shell's clock Timer is cancelled.
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 100));
+    });
+  });
+
+  group('UI/UX Responsiveness & Controls', () {
+    testWidgets('ResponsiveContainer mounts in Stack without ParentData violation',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                ResponsiveContainer(
+                  zone: ResponsiveZone.topLeft,
+                  child: Text('TopLeft Content'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('TopLeft Content'), findsOneWidget);
+    });
+
+    testWidgets('Dock right-click opens context menu', (WidgetTester tester) async {
+      final appState = AppState()..restore();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChangeNotifierProvider<AppState>.value(
+              value: appState,
+              child: Dock(onOpenApp: (_) {}),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Find the first dock item gesture detector and perform secondary tap (right click)
+      final dockIcon = find.byType(GestureDetector).first;
+      await tester.tap(dockIcon, buttons: 2); // Secondary mouse button / right click
+      await tester.pumpAndSettle();
+
+      // Check if popup menu items appeared
+      expect(find.textContaining('Open'), findsWidgets);
     });
   });
 }

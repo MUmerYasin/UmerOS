@@ -69,76 +69,89 @@ class _FileManagerAppState extends State<FileManagerApp> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        // Sidebar
-        Container(
-          width: 200,
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-            border: Border(
-              right: BorderSide(
-                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 560;
+        final sidebarWidth = isCompact ? 56.0 : 200.0;
+
+        return Row(
+          children: [
+            // Sidebar
+            Container(
+              width: sidebarWidth,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                border: Border(
+                  right: BorderSide(
+                    color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+                ),
+              ),
+              child: AutoAdjustColumn(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!isCompact)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        'Favorites',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                  _SidebarItem(
+                    icon: Icons.home,
+                    label: 'Home',
+                    compact: isCompact,
+                    onTap: () => _navigateTo('/home/user'),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.description,
+                    label: 'Documents',
+                    compact: isCompact,
+                    onTap: () => _navigateTo('/home/user/Documents'),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.download,
+                    label: 'Downloads',
+                    compact: isCompact,
+                    onTap: () => _navigateTo('/home/user/Downloads'),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.image,
+                    label: 'Pictures',
+                    compact: isCompact,
+                    onTap: () => _navigateTo('/home/user/Pictures'),
+                  ),
+                  const Divider(),
+                  if (!isCompact)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        'Devices',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                  _SidebarItem(
+                    icon: Icons.computer,
+                    label: 'Root (/)',
+                    compact: isCompact,
+                    onTap: () => _navigateTo('/'),
+                  ),
+                  _SidebarItem(
+                    icon: Icons.sd_storage,
+                    label: 'QFS Drive',
+                    compact: isCompact,
+                    onTap: () => _navigateTo('/opt'),
+                  ),
+                ],
               ),
             ),
-          ),
-          child: AutoAdjustColumn(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Favorites',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-              ),
-              _SidebarItem(
-                icon: Icons.home,
-                label: 'Home',
-                onTap: () => _navigateTo('/home/user'),
-              ),
-              _SidebarItem(
-                icon: Icons.description,
-                label: 'Documents',
-                onTap: () => _navigateTo('/home/user/Documents'),
-              ),
-              _SidebarItem(
-                icon: Icons.download,
-                label: 'Downloads',
-                onTap: () => _navigateTo('/home/user/Downloads'),
-              ),
-              _SidebarItem(
-                icon: Icons.image,
-                label: 'Pictures',
-                onTap: () => _navigateTo('/home/user/Pictures'),
-              ),
-              const Divider(),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Devices',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-              ),
-              _SidebarItem(
-                icon: Icons.computer,
-                label: 'Root (/)',
-                onTap: () => _navigateTo('/'),
-              ),
-              _SidebarItem(
-                icon: Icons.sd_storage,
-                label: 'QFS Drive',
-                onTap: () => _navigateTo('/opt'),
-              ),
-            ],
-          ),
-        ),
 
         // Main Content
         Expanded(
@@ -252,6 +265,8 @@ class _FileManagerAppState extends State<FileManagerApp> {
         ),
       ],
     );
+      },
+    );
   }
 
   Widget _buildListView() {
@@ -360,15 +375,29 @@ class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final bool compact;
 
   const _SidebarItem({
     required this.icon,
     required this.label,
     required this.onTap,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (compact) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: IconButton(
+            icon: Icon(icon, size: 20),
+            tooltip: label,
+            onPressed: onTap,
+          ),
+        ),
+      );
+    }
     return ListTile(
       leading: Icon(icon, size: 20),
       title: Text(label, style: const TextStyle(fontSize: 13)),

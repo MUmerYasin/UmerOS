@@ -55,18 +55,10 @@ class SmartActionTracker extends ChangeNotifier {
 
   List<String> _allKeys() {
     final prefs = PrefsService.instance;
-    final keys = <String>[];
-    // shared_preferences doesn't expose keys() in all versions,
-    // so we reconstruct from what we know: scan each context.
-    for (final ctx in MenuContext.values) {
-      // We can't enumerate without keys(), so rely on restore()
-      // being called after we've already seeded keys from usage.
-    }
-    // If the platform store is available, try the native keys list.
-    // PrefsService wraps SharedPreferences which doesn't expose
-    // keys() directly on all platforms, so we use a safe fallback:
-    // nothing — counts start at 0 and accumulate naturally.
-    return keys;
+    return prefs
+        .getKeys()
+        .where((key) => key.startsWith('$_prefix.'))
+        .toList();
   }
 
   String _key(MenuContext ctx, String actionId) =>

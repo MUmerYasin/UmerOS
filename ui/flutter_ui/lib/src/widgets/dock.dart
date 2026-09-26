@@ -106,156 +106,21 @@ class _DockState extends State<Dock> {
                         appState.activeWindowId == appId && isOpen && !isMinimized;
                     final isPinned = appState.pinnedDockIds.contains(appId);
 
-                    final label = meta?.title ?? appId;
-                    final icon = meta?.icon ?? Icons.apps;
-                    final color = meta?.color ?? Colors.grey;
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: MouseRegion(
-                        onEnter: (_) => setState(() => _hoveredIndex = index),
-                        onExit: (_) => setState(() => _hoveredIndex = -1),
-                        child: PopupMenuButton<String>(
-                          tooltip: label,
-                          offset: const Offset(0, -90),
-                          onSelected: (value) {
-                            switch (value) {
-                              case 'launch':
-                                _handleTap(appState, appId, window);
-                              case 'minimize':
-                                appState.minimizeWindow(appId);
-                              case 'close':
-                                appState.closeWindow(appId);
-                              case 'pin':
-                                appState.pinDockItem(appId);
-                              case 'unpin':
-                                appState.unpinDockItem(appId);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            PopupMenuItem(
-                              value: 'launch',
-                              child: Row(children: [
-                                Icon(icon, size: 18),
-                                const SizedBox(width: 8),
-                                Text('Open $label'),
-                              ]),
-                            ),
-                            if (isOpen && !isMinimized)
-                              const PopupMenuItem(
-                                value: 'minimize',
-                                child: Row(children: [
-                                  Icon(Icons.minimize, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Minimize Window'),
-                                ]),
-                              ),
-                            if (isOpen)
-                              const PopupMenuItem(
-                                value: 'close',
-                                child: Row(children: [
-                                  Icon(Icons.close, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Close Window'),
-                                ]),
-                              ),
-                            if (isPinned)
-                              const PopupMenuItem(
-                                value: 'unpin',
-                                child: Row(children: [
-                                  Icon(Icons.push_pin_outlined, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Unpin from Dock'),
-                                ]),
-                              )
-                            else
-                              const PopupMenuItem(
-                                value: 'pin',
-                                child: Row(children: [
-                                  Icon(Icons.push_pin, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Pin to Dock'),
-                                ]),
-                              ),
-                          ],
-                          child: Semantics(
-                            label: label,
-                            child: GestureDetector(
-                            onTap: () => _handleTap(appState, appId, window),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              curve: UmerCurves.spring,
-                              width: 50 * scale,
-                              height: 50 * scale,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  // Hover glow that pulses when the icon is
-                                  // the active focused window.
-                                  if (isActive)
-                                    Positioned.fill(
-                                      child: HoverGlow(
-                                        glowColor: color,
-                                        maxGlow: 0.45,
-                                        child: const SizedBox.shrink(),
-                                      ),
-                                    ),
-                                  Container(
-                                    width: 46 * scale,
-                                    height: 46 * scale,
-                                    decoration: BoxDecoration(
-                                      color: isActive
-                                          ? color.withValues(alpha: 0.28)
-                                          : (isHovered
-                                              ? color.withValues(alpha: 0.18)
-                                              : Colors.transparent),
-                                      borderRadius:
-                                          BorderRadius.circular(14 * scale),
-                                    ),
-                                    child: Icon(
-                                      icon,
-                                      color: color,
-                                      size: 26 * scale,
-                                    ),
-                                  ),
-
-                                  // Open / Minimized State Dot Indicator.
-                                  // For the *active* (focused) icon we use a
-                                  // breathing PulsingDot so the user always
-                                  // knows which window is on top.
-                                  if (isOpen)
-                                    Positioned(
-                                      bottom: 1,
-                                      child: isActive
-                                          ? PulsingDot(
-                                              size: 4,
-                                              color: color,
-                                              maxOpacity: 0.9,
-                                            )
-                                          : AnimatedContainer(
-                                              duration: const Duration(
-                                                  milliseconds: 200),
-                                              width: isMinimized ? 8 : 6,
-                                              height: 4,
-                                              decoration: BoxDecoration(
-                                                color: isMinimized
-                                                    ? Colors.amber
-                                                    : Theme.of(context)
-                                                        .colorScheme
-                                                        .onSurface
-                                                        .withValues(alpha: 0.6),
-                                                borderRadius:
-                                                    BorderRadius.circular(2),
-                                              ),
-                                            ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          ),
-                        ),
-                      ),
+                    return _DockItemWidget(
+                      appId: appId,
+                      index: index,
+                      scale: scale,
+                      isHovered: isHovered,
+                      isNeighbor: isNeighbor,
+                      meta: meta,
+                      window: window,
+                      isOpen: isOpen,
+                      isMinimized: isMinimized,
+                      isActive: isActive,
+                      isPinned: isPinned,
+                      onHover: () => setState(() => _hoveredIndex = index),
+                      onHoverExit: () => setState(() => _hoveredIndex = -1),
+                      onHandleTap: _handleTap,
                     );
                   }),
                 ),
@@ -280,6 +145,199 @@ class _DockState extends State<Dock> {
     } else {
       appState.focusWindow(window.id);
     }
+  }
+}
+
+class _DockItemWidget extends StatefulWidget {
+  final String appId;
+  final int index;
+  final double scale;
+  final bool isHovered;
+  final bool isNeighbor;
+  final AppDefinition? meta;
+  final WindowData? window;
+  final bool isOpen;
+  final bool isMinimized;
+  final bool isActive;
+  final bool isPinned;
+  final VoidCallback onHover;
+  final VoidCallback onHoverExit;
+  final void Function(AppState appState, String appId, WindowData? window) onHandleTap;
+
+  const _DockItemWidget({
+    required this.appId,
+    required this.index,
+    required this.scale,
+    required this.isHovered,
+    required this.isNeighbor,
+    required this.meta,
+    required this.window,
+    required this.isOpen,
+    required this.isMinimized,
+    required this.isActive,
+    required this.isPinned,
+    required this.onHover,
+    required this.onHoverExit,
+    required this.onHandleTap,
+  });
+
+  @override
+  State<_DockItemWidget> createState() => _DockItemWidgetState();
+}
+
+class _DockItemWidgetState extends State<_DockItemWidget> {
+  final GlobalKey<PopupMenuButtonState<String>> _popupKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.read<AppState>();
+    final label = widget.meta?.title ?? widget.appId;
+    final icon = widget.meta?.icon ?? Icons.apps;
+    final color = widget.meta?.color ?? Colors.grey;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: MouseRegion(
+        onEnter: (_) => widget.onHover(),
+        onExit: (_) => widget.onHoverExit(),
+        child: PopupMenuButton<String>(
+          key: _popupKey,
+          tooltip: label,
+          offset: const Offset(0, -90),
+          onSelected: (value) {
+            switch (value) {
+              case 'launch':
+                widget.onHandleTap(appState, widget.appId, widget.window);
+              case 'minimize':
+                appState.minimizeWindow(widget.appId);
+              case 'close':
+                appState.closeWindow(widget.appId);
+              case 'pin':
+                appState.pinDockItem(widget.appId);
+              case 'unpin':
+                appState.unpinDockItem(widget.appId);
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'launch',
+              child: Row(children: [
+                Icon(icon, size: 18),
+                const SizedBox(width: 8),
+                Text('Open $label'),
+              ]),
+            ),
+            if (widget.isOpen && !widget.isMinimized)
+              PopupMenuItem(
+                value: 'minimize',
+                child: Row(children: [
+                  Icon(Icons.minimize, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Minimize Window'),
+                ]),
+              ),
+            if (widget.isOpen)
+              PopupMenuItem(
+                value: 'close',
+                child: Row(children: [
+                  Icon(Icons.close, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Close Window'),
+                ]),
+              ),
+            if (widget.isPinned)
+              PopupMenuItem(
+                value: 'unpin',
+                child: Row(children: [
+                  Icon(Icons.push_pin_outlined, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Unpin from Dock'),
+                ]),
+              )
+            else
+              PopupMenuItem(
+                value: 'pin',
+                child: Row(children: [
+                  Icon(Icons.push_pin, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Pin to Dock'),
+                ]),
+              ),
+          ],
+          child: Semantics(
+            label: label,
+            child: GestureDetector(
+              onTap: () => widget.onHandleTap(appState, widget.appId, widget.window),
+              onSecondaryTapDown: (_) {
+                _popupKey.currentState?.showButtonMenu();
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: UmerCurves.spring,
+                width: 50 * widget.scale,
+                height: 50 * widget.scale,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Hover glow that pulses when the icon is the active focused window.
+                    if (widget.isActive)
+                      Positioned.fill(
+                        child: HoverGlow(
+                          glowColor: color,
+                          maxGlow: 0.45,
+                          child: const SizedBox.shrink(),
+                        ),
+                      ),
+                    Container(
+                      width: 46 * widget.scale,
+                      height: 46 * widget.scale,
+                      decoration: BoxDecoration(
+                        color: widget.isActive
+                            ? color.withValues(alpha: 0.28)
+                            : (widget.isHovered
+                                ? color.withValues(alpha: 0.18)
+                                : Colors.transparent),
+                        borderRadius:
+                            BorderRadius.circular(14 * widget.scale),
+                      ),
+                      child: Icon(
+                        icon,
+                        color: color,
+                        size: 26 * widget.scale,
+                      ),
+                    ),
+                    if (widget.isOpen)
+                      Positioned(
+                        bottom: 1,
+                        child: widget.isActive
+                            ? PulsingDot(
+                                size: 4,
+                                color: color,
+                                maxOpacity: 0.9,
+                              )
+                            : AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                width: widget.isMinimized ? 8 : 6,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: widget.isMinimized
+                                      ? Colors.amber
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

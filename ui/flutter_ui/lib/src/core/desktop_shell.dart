@@ -10,6 +10,7 @@ import '../widgets/dock.dart';
 import '../widgets/draggable_window.dart';
 import '../widgets/auto_adjust_box.dart';
 import '../services/material3_theme.dart';
+import 'package:file_picker/file_picker.dart';
 
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
@@ -487,7 +488,8 @@ class _DesktopGrid extends StatelessWidget {
     final desktopItems = appState.desktopItems;
     final apps = AppRegistry.apps;
 
-    return Padding(
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(28),
       child: Wrap(
         spacing: 28,
@@ -869,20 +871,45 @@ class _ControlCenterPopoverState extends State<_ControlCenterPopover> {
                 isDense: true,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.image, size: 18),
-                  tooltip: 'Apply custom wallpaper',
-                  onPressed: () {
-                    if (_customWallpaperController.text.isNotEmpty) {
-                      themeProvider
-                          .setCustomImagePath(_customWallpaperController.text);
-                      appState.addNotification(
-                        'Wallpaper',
-                        'Custom background image applied',
-                        Icons.wallpaper,
-                      );
-                    }
-                  },
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.folder_open, size: 18),
+                      tooltip: 'Browse image file',
+                      onPressed: () async {
+                        final result = await FilePicker.pickFiles(
+                          type: FileType.custom,
+                          allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp'],
+                        );
+                        final path = result.firstOrNull?.path;
+                        if (path != null) {
+                          _customWallpaperController.text = path;
+                          themeProvider.setCustomImagePath(path);
+                          appState.addNotification(
+                            'Wallpaper',
+                            'Custom background image applied',
+                            Icons.wallpaper,
+                          );
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.check, size: 18),
+                      tooltip: 'Apply custom wallpaper',
+                      onPressed: () {
+                        if (_customWallpaperController.text.isNotEmpty) {
+                          themeProvider
+                              .setCustomImagePath(_customWallpaperController.text);
+                          appState.addNotification(
+                            'Wallpaper',
+                            'Custom background image applied',
+                            Icons.wallpaper,
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
                 border: const OutlineInputBorder(),
               ),
@@ -1299,8 +1326,8 @@ class _LaunchPad extends StatelessWidget {
                   Expanded(
                     child: GridView.builder(
                       gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 6,
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 140,
                         mainAxisSpacing: 24,
                         crossAxisSpacing: 24,
                         childAspectRatio: 0.85,

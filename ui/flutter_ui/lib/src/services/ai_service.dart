@@ -253,7 +253,7 @@ class AiService {
         rq.write(jsonEncode(body));
       }
       final rs = await rq.close().timeout(effectiveTimeout);
-      return _decode(rs);
+      return await _decode(rs);
     } on SocketException catch (e) {
       throw AiServiceException('AI backend unreachable (${e.message})');
     } on HttpException catch (e) {

@@ -8,7 +8,7 @@ class BackupScreen extends StatefulWidget {
   const BackupScreen({super.key});
 
   @override
-  _BackupScreenState createState() => _BackupScreenState();
+  State<BackupScreen> createState() => _BackupScreenState();
 }
 
 class _BackupScreenState extends State<BackupScreen> {
@@ -25,21 +25,25 @@ class _BackupScreenState extends State<BackupScreen> {
     setState(() => _isLoading = true);
     try {
       final snaps = await BackupService.listSnapshots();
+      if (!mounted) return;
       setState(() {
         _snapshots = snaps;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       _showError('Failed to load snapshots: $e');
     }
   }
 
   void _showError(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
 
   void _showSuccess(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
   }
 
@@ -47,7 +51,7 @@ class _BackupScreenState extends State<BackupScreen> {
     final descController = TextEditingController();
     final partsController = TextEditingController();
 
-    await showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Create New Backup'),
@@ -68,34 +72,40 @@ class _BackupScreenState extends State<BackupScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              setState(() => _isLoading = true);
-              try {
-                await BackupService.createSnapshot(
-                  description: descController.text.isNotEmpty ? descController.text : 'Manual Backup',
-                  parts: partsController.text,
-                );
-                _showSuccess('Backup Created Successfully!');
-                _loadSnapshots();
-              } catch (e) {
-                _showError(e.toString());
-                setState(() => _isLoading = false);
-              }
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Backup'),
           )
         ],
       ),
     );
+
+    final desc = descController.text.isNotEmpty ? descController.text : 'Manual Backup';
+    final parts = partsController.text;
+    descController.dispose();
+    partsController.dispose();
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        await BackupService.createSnapshot(
+          description: desc,
+          parts: parts,
+        );
+        _showSuccess('Backup Created Successfully!');
+        _loadSnapshots();
+      } catch (e) {
+        _showError(e.toString());
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _restoreSnapshot(BackupSnapshot snap) async {
     final partsController = TextEditingController();
 
-    await showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Restore Snapshot: ${snap.id}'),
@@ -114,30 +124,34 @@ class _BackupScreenState extends State<BackupScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            onPressed: () async {
-              Navigator.pop(context);
-              setState(() => _isLoading = true);
-              try {
-                await BackupService.restoreSnapshot(snap.id, parts: partsController.text);
-                _showSuccess('Restore Completed Successfully!');
-                _loadSnapshots();
-              } catch (e) {
-                _showError(e.toString());
-                setState(() => _isLoading = false);
-              }
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('RESTORE'),
           )
         ],
       ),
     );
+
+    final parts = partsController.text;
+    partsController.dispose();
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        await BackupService.restoreSnapshot(snap.id, parts: parts);
+        _showSuccess('Restore Completed Successfully!');
+        _loadSnapshots();
+      } catch (e) {
+        _showError(e.toString());
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _factoryReset() async {
-    await showDialog(
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('FACTORY RESET', style: TextStyle(color: Colors.red)),
@@ -145,26 +159,27 @@ class _BackupScreenState extends State<BackupScreen> {
             'This is a destructive operation. All system changes, user configurations, '
             'and non-factory files will be permanently DELETED. Are you absolutely sure?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(context);
-              setState(() => _isLoading = true);
-              try {
-                await BackupService.factoryReset();
-                _showSuccess('Factory Reset Completed!');
-                _loadSnapshots();
-              } catch (e) {
-                _showError(e.toString());
-                setState(() => _isLoading = false);
-              }
-            },
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('WIPE EVERYTHING', style: TextStyle(color: Colors.white)),
           )
         ],
       ),
     );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
+      try {
+        await BackupService.factoryReset();
+        _showSuccess('Factory Reset Completed!');
+        _loadSnapshots();
+      } catch (e) {
+        _showError(e.toString());
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
