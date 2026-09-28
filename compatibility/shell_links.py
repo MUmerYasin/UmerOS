@@ -216,25 +216,28 @@ def parse_shell_link(blob: bytes) -> Optional[ShellLink]:
     """
     if len(blob) < SHELL_LINK_HEADER_SIZE:
         return None
-    (header_size, _cls1, _cls2, _cls3, _cls4,
-     _cls5, _cls6, _cls7, _cls8, _cls9, _cls10,
-     _cls11, _cls12,
-     link_flags, file_attrs, ctime, atime, wtime,
-     file_size, icon_index, show_command,
-     hot_key, _reserved) = struct.unpack_from(
-        "<IIHHHHHHHHHHHHIIQQIIQ", blob, 0)
+    (header_size,
+     _cls1, _cls2, _cls3, _cls4,        # 16-byte CLSID (4 + 2 + 2 + 8)
+     link_flags, file_attrs,
+     ctime, atime, wtime,
+     file_size, icon_index,
+     show_command, hot_key,
+     _reserved1, _reserved2, _reserved3) = struct.unpack_from(
+        "<IIHH8sIIQQQIIHHHHI", blob, 0)
     # Validate.
     if header_size != SHELL_LINK_HEADER_SIZE:
         return None
-    clsid = (_cls1, _cls2, _cls3, _cls4, _cls5, _cls6, _cls7, _cls8,
-             _cls9, _cls10, _cls11, _cls12)
-    if clsid != SHELL_LINK_CLSID:
+    # Compare the first three pieces of the CLSID (the I H H triple).
+    if (_cls1, _cls2, _cls3) != SHELL_LINK_CLSID[:3]:
+        return None
+    # The trailing 8-byte device-class identifier must begin with 0xC0.
+    if not _cls4 or _cls4[0] != 0xC0:
         return None
     out = ShellLink(
         raw=bytes(blob),
         header=ShellLinkHeader(
             header_size=header_size,
-            link_clsid=clsid,
+            link_clsid=(_cls1, _cls2, _cls3, _cls4),
             link_flags=link_flags,
             file_attributes=file_attrs,
             creation_time=ctime,
@@ -244,7 +247,7 @@ def parse_shell_link(blob: bytes) -> Optional[ShellLink]:
             icon_index=icon_index,
             show_command=show_command,
             hot_key=hot_key,
-            reserved=_reserved,
+            reserved=_reserved3,
         ),
     )
 
@@ -269,19 +272,14 @@ def parse_shell_link(blob: bytes) -> Optional[ShellLink]:
 def _parse_link_info(buf: bytes, off: int) -> Tuple[Optional[LinkInfo], int]:
     if off + 28 > len(buf):
         return None, 0
-    (size, hdr_size, flags, vol_id_off, local_base_off,
-     common_path_off) = struct.unpack_from("<IIIII", buf, off)
+    (size, hdr_size, _flags, vol_id_off, local_base_off,
+     _net_link_off, common_path_off) = struct.unpack_from(
+        "<IIIIIII", buf, off)
     info = LinkInfo()
-    cursor = off + hdr_size
-    # Volume ID block (size + data).
     if vol_id_off:
         vol_abs = off + vol_id_off
         if vol_abs + 4 <= len(buf):
             info.volume_id = bytes(buf[vol_abs:vol_abs + 4])
-        # Drive letter offset 4 bytes into the block.
-        if vol_abs + 8 <= len(buf):
-            drive_letter, _ = _read_cstring(buf, vol_abs + 4)
-            info.volume_id = info.volume_id + bytes([ord(drive_letter) or 0])
     if local_base_off:
         abs_off = off + local_base_off
         if abs_off < len(buf):
@@ -355,16 +353,36 @@ def build_shell_link(target: str,
     out = bytearray(SHELL_LINK_HEADER_SIZE)
     # Header.
     struct.pack_into("<I", out, 0, SHELL_LINK_HEADER_SIZE)
-    out[4:20] = b"\x01\x14\x02\x00" + b"\x00" * 10 + b"\x46"
-    struct.pack_into("<I", out, 24, flags)
-    struct.pack_into("<I", out, 28, file_attributes)
-    struct.pack_into("<Q", out, 32, 0)        # creation time
-    struct.pack_into("<Q", out, 40, 0)        # access time
-    struct.pack_into("<Q", out, 48, 0)        # write time
-    struct.pack_into("<I", out, 56, file_size)
-    struct.pack_into("<I", out, 60, 0)        # icon index
-    struct.pack_into("<H", out, 64, 1)        # show command (SW_SHOWNORMAL)
-    struct.pack_into("<H", out, 66, 0)        # hot key
+    # CLSID: I (0x00021401) + H (0x0000) + H (0x0000) + 8s (0xC0...0x46).
+    out[4:20] = (b"\x01\x14\x02\x00"        # DWORD LE
+                 + b"\x00\x00"               # WORD
+                 + b"\x00\x00"               # WORD
+                 + bytes([0xC0, 0x00, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x46]))    # 8 bytes
+    # Layout per MS-SHLLINK v2.1 (76 bytes):
+    #  00 HeaderSize (4)
+    #  04 LinkCLSID (16)
+    #  20 LinkFlags (4)
+    #  24 FileAttributes (4)
+    #  28 CreationTime (8)
+    #  36 AccessTime (8)
+    #  44 WriteTime (8)
+    #  52 FileSize (4)
+    #  56 IconIndex (4)
+    #  60 ShowCommand (2)
+    #  62 HotKey (2)
+    #  64 Reserved1 (2)
+    #  66 Reserved2 (2)
+    #  68 Reserved3 (4)
+    struct.pack_into("<I", out, 20, flags)
+    struct.pack_into("<I", out, 24, file_attributes)
+    struct.pack_into("<Q", out, 28, 0)        # creation time
+    struct.pack_into("<Q", out, 36, 0)        # access time
+    struct.pack_into("<Q", out, 44, 0)        # write time
+    struct.pack_into("<I", out, 52, file_size)
+    struct.pack_into("<I", out, 56, 0)        # icon index
+    struct.pack_into("<H", out, 60, 1)        # show command (SW_SHOWNORMAL)
+    struct.pack_into("<H", out, 62, 0)        # hot key
 
     # LinkInfo: minimal volume-id + local base path.
     link_info_off = len(out)
@@ -379,11 +397,11 @@ def build_shell_link(target: str,
         local = target.encode("ascii", errors="replace") + b"\x00"
     out += local
     link_info_size += len(local)
-    # Volume-id block (4 bytes drive serial + 1 byte drive letter + NUL).
+    # Volume-id block: 4 bytes drive serial + 16 bytes drive label.
     vol_off = link_info_size
     out += struct.pack("<I", 0)            # drive serial
-    out += bytes([0]) + b"\x00"           # drive letter, NUL
-    link_info_size += 6
+    out += b"\x00" * 16                    # drive label (ASCIIZ)
+    link_info_size += 20
     # Back-fill LinkInfo header.
     struct.pack_into("<I", out, link_info_off, link_info_size)
     struct.pack_into("<I", out, link_info_off + 4, 28)

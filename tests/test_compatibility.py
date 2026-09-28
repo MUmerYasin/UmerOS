@@ -34,6 +34,7 @@ from compatibility import (  # noqa: E402
     api_set, forwarded, dll_search, manifest, long_path,
     memory_map, sync,
     version_info, delay_imports, signed_pe, winsock, timezone,
+    shell_links, tokens, msi_runtime,
 )
 from compatibility.pe_loader import PeFile, PeClass          # noqa: E402
 from compatibility.dll_loader import DllLoader, ResolvedImport  # noqa: E402
@@ -944,6 +945,112 @@ class TestTimezone(unittest.TestCase):
     def test_get_system_time(self) -> None:
         st = timezone.GetSystemTime()
         self.assertGreaterEqual(st.year, 2024)
+
+
+# ---------------------------------------------------------------------------
+# Shell Links
+# ---------------------------------------------------------------------------
+
+class TestShellLinks(unittest.TestCase):
+    def test_build_and_parse(self) -> None:
+        blob = shell_links.build_shell_link(
+            "C:\\Windows\\notepad.exe",
+            working_dir="C:\\Windows",
+            arguments="test.txt",
+            description="Open test.txt",
+        )
+        link = shell_links.parse_shell_link(blob)
+        self.assertIsNotNone(link)
+        self.assertEqual(link.target_path,
+                         "C:\\Windows\\notepad.exe")
+        self.assertEqual(link.strings.working_dir, "C:\\Windows")
+        self.assertEqual(link.strings.command_line_args, "test.txt")
+        self.assertEqual(link.strings.name, "Open test.txt")
+        self.assertIn("ARCHIVE", link.attribute_names())
+
+    def test_ishelllink_setpath(self) -> None:
+        blob = shell_links.build_shell_link("C:\\Windows\\calc.exe")
+        link = shell_links.parse_shell_link(blob)
+        shell_links.IShellLinkW_SetPath(link, "C:\\foo\\bar.exe")
+        self.assertEqual(shell_links.IShellLinkW_GetPath(link),
+                         "C:\\foo\\bar.exe")
+
+    def test_truncated(self) -> None:
+        self.assertIsNone(shell_links.parse_shell_link(b""))
+
+
+# ---------------------------------------------------------------------------
+# Tokens
+# ---------------------------------------------------------------------------
+
+class TestTokens(unittest.TestCase):
+    def test_self_token_elevated(self) -> None:
+        h, err = tokens.OpenProcessToken(
+            0xFFFFFFFF, tokens.TOKEN_QUERY)
+        self.assertEqual(err, 0)
+        self.assertNotEqual(h, 0)
+        elev = tokens.GetTokenInformation(
+            h, tokens.TokenInformationClass.TokenElevation)
+        self.assertIsInstance(elev, tokens.TokenElevation)
+        self.assertTrue(elev.is_elevated)
+        self.assertTrue(tokens.IsUserAdmin(h))
+        self.assertTrue(tokens.CloseToken(h))
+
+    def test_lookup_privilege(self) -> None:
+        low, high = tokens.LookupPrivilegeValue(None, "SeShutdownPrivilege")
+        self.assertNotEqual((low, high), (0, 0))
+        self.assertEqual(tokens.LookupPrivilegeValue(None, "SeNope"), (0, 0))
+
+    def test_adjust_privileges(self) -> None:
+        h, _ = tokens.OpenProcessToken(0xFFFFFFFF, tokens.TOKEN_QUERY)
+        lp = tokens.LuidAndAttributes(
+            luid=tokens.Luid(*tokens.LUID_SE_SHUTDOWN_PRIVILEGE),
+            attributes=0x80000000)
+        self.assertEqual(tokens.AdjustTokenPrivileges(h, False, [lp], 0),
+                         0)
+        tokens.CloseToken(h)
+
+
+# ---------------------------------------------------------------------------
+# MSI Runtime
+# ---------------------------------------------------------------------------
+
+class TestMsiRuntime(unittest.TestCase):
+    def test_open_get_set(self) -> None:
+        handle = []
+        rc = msi_runtime.MsiOpenPackageA("C:\\Installer\\MyApp.msi", handle)
+        self.assertEqual(rc, 0)
+        self.assertTrue(handle)
+        rc, name = msi_runtime.MsiGetPropertyA(
+            handle[0], "ProductName", None)
+        self.assertEqual(rc, 0)
+        self.assertTrue(name)
+        self.assertEqual(msi_runtime.MsiSetPropertyA(
+            handle[0], "INSTALLDIR", "C:\\Foo"), 0)
+        rc, val = msi_runtime.MsiGetPropertyA(
+            handle[0], "INSTALLDIR", None)
+        self.assertEqual(val, "C:\\Foo")
+
+    def test_features(self) -> None:
+        handle = []
+        msi_runtime.MsiOpenPackageA("C:\\Installer\\B.msi", handle)
+        rc, state = msi_runtime.MsiGetFeatureStateA(
+            handle[0], "MainFeature")
+        self.assertEqual(rc, 0)
+        self.assertEqual(state, msi_runtime.INSTALLSTATE_UNKNOWN)
+        msi_runtime.MsiSetFeatureStateA(
+            handle[0], "MainFeature", msi_runtime.INSTALLSTATE_LOCAL)
+        rc, state = msi_runtime.MsiGetFeatureStateA(
+            handle[0], "MainFeature")
+        self.assertEqual(state, msi_runtime.INSTALLSTATE_LOCAL)
+
+    def test_close(self) -> None:
+        handle = []
+        msi_runtime.MsiOpenPackageA("C:\\Installer\\C.msi", handle)
+        msi_runtime.MsiCloseHandle(handle[0])
+        rc, _ = msi_runtime.MsiGetPropertyA(
+            handle[0], "ProductName", None)
+        self.assertNotEqual(rc, 0)
 
 
 # ---------------------------------------------------------------------------
