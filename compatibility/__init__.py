@@ -232,6 +232,14 @@ _IMPORT_PLAN = {
     "dll_loader":           ("DllLoader", "ResolvedImport", "HOST_LIBRARIES",
                              "resolve_imports", "get_search_hits"),
     "wine_shim":            ("WineShim", "LaunchResult"),
+    # ---- Pure-Python execution layer ----
+    "x86_runner":           ("Emulator", "Registers", "Memory",
+                             "EmulatorError", "EmulatorHalt",
+                             "EmulatorBreakpoint", "EmulatorDecodeError",
+                             "REG_NAMES"),
+    "win32_runner":         ("Win32Runner", "RunResult",
+                             "build_test_pe_gettickcount",
+                             "build_gettickcount_pe"),
 }
 
 

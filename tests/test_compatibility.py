@@ -477,6 +477,150 @@ class TestWineShim(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Pure-Python x86-64 emulator
+# ---------------------------------------------------------------------------
+
+class TestX86Runner(unittest.TestCase):
+    """Smoke-tests for the pure-Python emulator."""
+
+    def test_selftest_passes(self) -> None:
+        from compatibility import x86_runner
+        self.assertTrue(x86_runner._selftest())
+
+    def test_arith_and_flags(self) -> None:
+        from compatibility import x86_runner
+        emu = x86_runner.Emulator()
+        # mov eax, 0x2A; add rax, 5; cmp eax, 0x2F; hlt
+        code = (
+            b"\xB8\x2A\x00\x00\x00"        # mov eax, 0x2A
+            b"\x48\x83\xC0\x05"            # add rax, 5
+            b"\x3D\x2F\x00\x00\x00"        # cmp eax, 0x2F
+            b"\xF4"                        # hlt
+        )
+        emu.mem.write(emu.base, code)
+        emu.regs.set(15, emu.base)
+        emu.run(max_steps=20)
+        self.assertEqual(emu.regs.get(0), 0x2F)
+        self.assertEqual(emu.regs.zf, 1)
+        self.assertEqual(emu.regs.cf, 0)
+
+    def test_thunk_dispatch(self) -> None:
+        """A thunk should run the registered callable and return to caller."""
+        from compatibility import x86_runner
+        emu = x86_runner.Emulator()
+        # Install a thunk that returns 0x42 in rax.
+        thunk = emu.install_thunk("demo!SetValue", lambda e: e.regs.set(0, 0x42))
+        # Write a tiny program: sub rsp, 0x28; call [rip+disp]; add rsp, 0x28; hlt
+        # ``[rip+disp]`` reads the 8-byte address to call from the
+        # resolved address.  We arrange that address by writing the
+        # thunk address into a known memory location.
+        iat_addr = emu.base + 0x100        # pretend IAT slot
+        emu.mem.write_u64(iat_addr, thunk)
+        call_rip_next = emu.base + 4 + 6
+        disp = iat_addr - call_rip_next    # RIP-relative disp
+        code = bytearray()
+        code += b"\x48\x83\xEC\x28"                                   # sub rsp, 0x28
+        code += b"\xFF\x15" + struct.pack("<i", disp)                 # call [rip+disp]
+        code += b"\x48\x83\xC4\x28"                                   # add rsp, 0x28
+        code += b"\xF4"                                               # hlt
+        emu.mem.write(emu.base, bytes(code))
+        emu.regs.set(15, emu.base)
+        emu.run(max_steps=20)
+        self.assertEqual(emu.regs.get(0), 0x42)
+        self.assertEqual(emu.regs.r[4], emu.stack_top - 0x100)  # rsp restored
+
+    def test_rip_relative_addressing(self) -> None:
+        """`mov [rip+disp], rax` should write to RIP_next + disp."""
+        from compatibility import x86_runner
+        emu = x86_runner.Emulator()
+        # Place rax = 0xCAFEBABE; then write rax to mem[0x3000] via
+        # RIP-relative addressing.
+        emu.regs.set(0, 0xCAFEBABE)
+        # Layout: mov rax, 0xCAFEBABE (10 bytes), mov [rip+disp32], rax (7 bytes),
+        # hlt (1 byte).
+        rip_after_movimm = emu.base + 10    # 10-byte instruction
+        rip_after_memwrite = emu.base + 17   # 7-byte instruction
+        target = 0x3000
+        disp = target - rip_after_memwrite
+        code = bytearray()
+        code += b"\x48\xB8" + struct.pack("<Q", 0xCAFEBABE)        # mov rax, imm64
+        code += b"\x48\x89\x05" + struct.pack("<i", disp)         # mov [rip+disp], rax
+        code += b"\xF4"
+        emu.mem.write(emu.base, bytes(code))
+        emu.regs.set(15, emu.base)
+        emu.run(max_steps=20)
+        self.assertEqual(emu.mem.read_u64(target), 0xCAFEBABE)
+
+
+# ---------------------------------------------------------------------------
+# Win32 PE runner
+# ---------------------------------------------------------------------------
+
+class TestWin32Runner(unittest.TestCase):
+    """End-to-end test of the Win32 PE loader + emulator."""
+
+    def test_selftest_passes(self) -> None:
+        from compatibility import win32_runner
+        self.assertTrue(win32_runner._selftest())
+
+    def test_synthetic_pe_sections(self) -> None:
+        """The hand-assembled PE must have .text/.rdata/.data sections
+        with file-aligned bodies."""
+        from compatibility import win32_runner
+        blob = win32_runner.build_gettickcount_pe()
+        pe = PeFile.from_bytes(blob)
+        names = [s.name for s in pe.sections]
+        self.assertEqual(names, [".text", ".rdata", ".data"])
+        # All raw_size must be > 0 and file-aligned to 0x100.
+        for s in pe.sections:
+            self.assertGreater(s.raw_size, 0)
+            self.assertEqual(s.raw_offset % 0x100, 0)
+
+    def test_runs_gettickcount_through_emulator(self) -> None:
+        """Load the synthetic PE, dispatch GetTickCount to a stub,
+        and verify the result lands in the .data section."""
+        from compatibility import win32_runner
+
+        def _fake_tick(emu):
+            emu.regs.set(0, 12345)
+
+        blob = win32_runner.build_gettickcount_pe()
+        pe = PeFile.from_bytes(blob)
+        runner = win32_runner.Win32Runner(
+            image_base=int(pe.optional_header.image_base),
+            imports={"KERNEL32.DLL": {"GetTickCount": _fake_tick}},
+        )
+        runner.load_pe(pe, raw_image=blob)
+        runner.emulator.regs.set(15, 0x1000)
+        rc = runner.emulator.run(max_steps=50)
+        self.assertEqual(rc, 0)
+        self.assertEqual(runner.emulator.mem.read_u64(0x3000), 12345)
+        self.assertEqual(runner.emulator.mem.read_u64(0x3008), 12345)
+        # The thunk was installed exactly once.
+        self.assertEqual(runner.emulator._thunk_count, 1)
+
+    def test_unknown_import_returns_zero(self) -> None:
+        """Imports that have no stub should still resolve -- via the
+        missing-stub shim that returns 0."""
+        from compatibility import win32_runner
+
+        blob = win32_runner.build_gettickcount_pe()
+        pe = PeFile.from_bytes(blob)
+        # Empty import map -- every import is "missing".
+        runner = win32_runner.Win32Runner(
+            image_base=int(pe.optional_header.image_base),
+            imports={},
+        )
+        runner.load_pe(pe, raw_image=blob)
+        runner.emulator.regs.set(15, 0x1000)
+        rc = runner.emulator.run(max_steps=50)
+        self.assertEqual(rc, 0)
+        # Both stores should be 0 (the missing-stub return value).
+        self.assertEqual(runner.emulator.mem.read_u64(0x3000), 0)
+        self.assertEqual(runner.emulator.mem.read_u64(0x3008), 0)
+
+
+# ---------------------------------------------------------------------------
 # API Set Schema
 # ---------------------------------------------------------------------------
 
