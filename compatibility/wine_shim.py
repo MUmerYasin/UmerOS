@@ -64,6 +64,8 @@ class LaunchResult:
     loaded: LoadedPe
     mapped_path: str              # the QFS path the binary is staged to
     issues: List[str] = field(default_factory=list)
+    # Optional execution result (populated when launch(..., execute=True)).
+    run_result: Optional["ExecuteResult"] = None
 
     @property
     def is_loadable(self) -> bool:
@@ -90,7 +92,21 @@ class LaunchResult:
             lines.append("  issues:")
             for it in self.issues:
                 lines.append(f"    * {it}")
+        if self.run_result is not None:
+            lines.append(f"  executed: rc={self.run_result.exit_code}"
+                         f" steps={self.run_result.steps}"
+                         f" final_rip=0x{self.run_result.rip_final:x}")
         return "\n".join(lines)
+
+
+@dataclass
+class ExecuteResult:
+    """The outcome of actually running a PE through the emulator."""
+    exit_code: int = 0
+    steps: int = 0
+    rip_final: int = 0
+    error: Optional[str] = None
+    halted: bool = False
 
 
 class WineShim:
@@ -108,15 +124,25 @@ class WineShim:
     # Public API
     # ------------------------------------------------------------------
 
-    def launch(self, binary_path: str) -> LaunchResult:
+    def launch(self, binary_path: str, *,
+               execute: bool = False,
+               max_steps: int = 100_000) -> LaunchResult:
         """Open a PE binary, map it to the QFS, and analyse the IAT.
 
         Args:
             binary_path: Path to a .exe / .dll / .sys file.
+            execute: If ``True`` and the binary is 64-bit x86, run it
+                in the pure-Python emulator.  Imported functions are
+                dispatched to the compatibility-layer stubs via
+                :class:`compatibility.win32_runner.Win32Runner`.
+            max_steps: Maximum number of emulated instructions to
+                execute before bailing out.
 
         Returns:
             A :class:`LaunchResult` with the loaded image and any
-            missing imports.
+            missing imports.  When ``execute=True`` and the binary is
+            runnable, ``result.run_result`` carries the exit code and
+            final RIP.
         """
         issues: List[str] = []
         try:
@@ -137,10 +163,75 @@ class WineShim:
         except Exception as exc:
             mapped = binary_path
             issues.append(f"path-mapping: {exc}")
+        run_result: Optional[ExecuteResult] = None
+        if execute and pe.machine == 0x8664:        # AMD64
+            try:
+                run_result = self.execute(pe, max_steps=max_steps)
+            except Exception as exc:    # noqa: BLE001
+                issues.append(f"execute: {exc}")
         return LaunchResult(
             binary_path=binary_path, pe=pe, loaded=loaded,
             mapped_path=mapped, issues=issues,
+            run_result=run_result,
         )
+
+    # ------------------------------------------------------------------
+    # x86-64 execution path
+    # ------------------------------------------------------------------
+
+    def execute(self, pe: PeFile, *, max_steps: int = 100_000) -> ExecuteResult:
+        """Load ``pe`` into the pure-Python emulator and run its entry
+        point.
+
+        Imports are dispatched to the in-process host libraries
+        (``compatibility.dll_loader.HOST_LIBRARIES``).  The method
+        blocks until the program halts (or ``max_steps`` is reached).
+        """
+        from .win32_runner import Win32Runner, RunResult
+        from .x86_runner import EmulatorHalt, EmulatorError
+
+        # First, map the pe-loader-level imports into the form that
+        # Win32Runner expects (a flat ``dll -> name -> callable`` map).
+        import_table: Dict[str, Dict[str, callable]] = {}
+        for desc in self.loader.resolve(pe).imports:
+            lib_map: Dict[str, callable] = {}
+            for sym in desc.symbols:
+                if sym.is_ordinal_only:
+                    lib_map[f"ordinal_{sym.ordinal}"] = lambda emu: None
+                else:
+                    lib_map[sym.name] = lambda emu: None
+            import_table[desc.name.upper()] = lib_map
+
+        runner = Win32Runner(image_base=int(pe.optional_header.image_base),
+                             imports=import_table)
+        runner.load_pe(pe, raw_image=pe.raw)
+        # The Win64 ABI starts at the entry point with rsp pointing
+        # into the stack; the runner builds a stub argv/envp for us.
+        entry_va = (int(pe.optional_header.image_base)
+                    + pe.optional_header.address_of_entry_point)
+        runner.emulator.regs.set(15, entry_va)
+        try:
+            rc = runner.emulator.run(max_steps=max_steps)
+            return ExecuteResult(
+                exit_code=rc,
+                steps=runner.emulator.steps,
+                rip_final=runner.emulator.regs.get(15),
+                halted=rc >= 0,
+            )
+        except EmulatorHalt:
+            return ExecuteResult(
+                exit_code=runner.emulator.exit_code,
+                steps=runner.emulator.steps,
+                rip_final=runner.emulator.regs.get(15),
+                halted=True,
+            )
+        except EmulatorError as exc:
+            return ExecuteResult(
+                exit_code=-1,
+                steps=runner.emulator.steps,
+                rip_final=runner.emulator.regs.get(15),
+                error=str(exc),
+            )
 
     def describe(self, binary_path: str) -> str:
         """Return a one-shot human-readable description of a binary."""

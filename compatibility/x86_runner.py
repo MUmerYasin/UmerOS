@@ -468,6 +468,24 @@ class Emulator:
             # ret -- pop RIP.
             self.regs.set(15, self._pop())
             return
+        if op == 0xC2:
+            # ret imm16 -- pop RIP then add imm16 to rsp (callee stack cleanup).
+            imm, _ = self._read_imm(ip, 2)
+            self.regs.set(15, self._pop())
+            self.regs.set(REG_RSP, self.regs.get(REG_RSP) + imm)
+            return
+        if op == 0x68:
+            # push imm32 (sign-extended to 64 bits in 64-bit mode).
+            imm, _ = self._read_imm(ip, 4)
+            self._push(self._signed(imm, 32))
+            self.regs.set(15, ip + 4)
+            return
+        if op == 0x6A:
+            # push imm8 (sign-extended).
+            imm, _ = self._read_imm(ip, 1)
+            self._push(self._signed(imm, 8))
+            self.regs.set(15, ip + 1)
+            return
         if op == 0xC9:
             # leave: rsp = rbp; pop rbp.
             self.regs.set(REG_RSP, self.regs.get(REG_RBP))
@@ -489,6 +507,13 @@ class Emulator:
         if op == 0xE9:
             disp, _ = self._read_imm(ip, 4)
             target = (ip + 4) + self._signed(disp, 32)
+            self.regs.set(15, target)
+            return
+        if op == 0xE8:
+            # call near rel32 -- push return address then jump.
+            disp, _ = self._read_imm(ip, 4)
+            target = (ip + 4) + self._signed(disp, 32)
+            self._push(ip + 4)
             self.regs.set(15, target)
             return
         if op == 0xEB:

@@ -472,13 +472,30 @@ class TestWineShim(unittest.TestCase):
             self.assertTrue(r.pe.entry_point_rva != 0)
             # The fake PE has no imports, so all are resolvable.
             self.assertTrue(r.is_loadable)
+            # The default mode does NOT execute.
+            self.assertIsNone(r.run_result)
         finally:
             os.remove(path)
 
-
-# ---------------------------------------------------------------------------
-# Pure-Python x86-64 emulator
-# ---------------------------------------------------------------------------
+    def test_launch_and_execute_synthetic_pe(self) -> None:
+        """The synthetic Win64 PE should execute end-to-end through
+        ``WineShim.launch(execute=True)``."""
+        from compatibility import win32_runner
+        blob = win32_runner.build_gettickcount_pe()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".exe") as tf:
+            tf.write(blob)
+            path = tf.name
+        try:
+            shim = wine_shim.WineShim()
+            r = shim.launch(path, execute=True, max_steps=100)
+            self.assertIsNotNone(r.run_result,
+                f"run_result is None; issues={r.issues}")
+            self.assertIsNone(r.run_result.error,
+                f"emulator error: {r.run_result.error}")
+            self.assertEqual(r.run_result.exit_code, 0)
+            self.assertTrue(r.run_result.halted)
+        finally:
+            os.remove(path)
 
 class TestX86Runner(unittest.TestCase):
     """Smoke-tests for the pure-Python emulator."""
@@ -486,6 +503,38 @@ class TestX86Runner(unittest.TestCase):
     def test_selftest_passes(self) -> None:
         from compatibility import x86_runner
         self.assertTrue(x86_runner._selftest())
+
+    def test_push_imm32_sign_extends(self) -> None:
+        """`push imm32` should sign-extend to 64 bits in 64-bit mode."""
+        from compatibility import x86_runner
+        emu = x86_runner.Emulator()
+        # push -1 ; hlt
+        code = b"\x68\xFF\xFF\xFF\xFF" + b"\xF4"
+        emu.mem.write(emu.base, code)
+        emu.regs.set(15, emu.base)
+        emu.run(max_steps=10)
+        self.assertEqual(emu.mem.read_u64(emu.stack_top - 0x100 - 8),
+                         0xFFFFFFFFFFFFFFFF)
+
+    def test_ret_imm16_cleans_stack(self) -> None:
+        """`ret imm16` should pop RIP then add imm16 to rsp."""
+        from compatibility import x86_runner
+        emu = x86_runner.Emulator()
+        rsp0 = emu.regs.get(4)
+        # Layout:
+        #   base+0:  push return_addr   ; 5 bytes, RSP -= 8
+        #   base+5:  ret 8              ; 3 bytes (pop + add 8)
+        #   base+8:  hlt                ; 1 byte
+        ret_target = emu.base + 8           # where ret should land (hlt)
+        emu.mem.write(emu.base, b"\x68" + struct.pack("<I", ret_target))
+        emu.mem.write(emu.base + 5, b"\xC2\x08\x00\xF4")
+        emu.regs.set(15, emu.base)
+        emu.run(max_steps=10)
+        # `push imm32` -> RSP = rsp0 - 8.
+        # `ret 8` pops the 8-byte return addr (RSP -> rsp0) and then
+        # adds 8 (RSP -> rsp0 + 8).
+        self.assertEqual(emu.regs.get(4), rsp0 + 8)
+        self.assertEqual(emu.regs.get(15), ret_target)
 
     def test_arith_and_flags(self) -> None:
         from compatibility import x86_runner
