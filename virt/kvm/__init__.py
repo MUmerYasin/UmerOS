@@ -55,6 +55,7 @@ from .binary_stats import (
     KVM_STATS_NAME_SIZE,
     kvm_stats_read,
     KVM_STATS_TYPE_CUMULATIVE,
+    KVM_STATS_TYPE_INSTANT,
     KVM_STATS_UNIT_BYTES,
 )
 
@@ -64,6 +65,13 @@ from .dirty_ring import (
     KVM_DIRTY_GFN_F_DIRTY,
     KVM_DIRTY_GFN_F_RESET,
     KVM_DIRTY_RING_RSVD_ENTRIES,
+    kvm_dirty_ring_alloc,
+    kvm_dirty_ring_used,
+    kvm_dirty_ring_soft_full,
+    kvm_dirty_ring_full,
+    kvm_dirty_ring_reset,
+    kvm_dirty_ring_push,
+    kvm_dirty_ring_free,
 )
 
 from .irqchip import (
@@ -89,6 +97,9 @@ from .guest_memfd import (
     KVM_GMEM_FLAGS,
     kvm_gmem_init,
     kvm_gmem_exit,
+    kvm_gmem_create,
+    kvm_gmem_bind,
+    kvm_gmem_unbind,
 )
 
 from .pfncache import (
@@ -98,6 +109,7 @@ from .pfncache import (
     KVM_HVA_ERR_BAD,
     kvm_gpc_init,
     kvm_gpc_activate,
+    kvm_gpc_activate_hva,
     kvm_gpc_deactivate,
 )
 
@@ -106,6 +118,8 @@ from .vfio import (
     KVMVFIOFile,
     KVM_DEV_VFIO_FILE_ADD,
     KVM_DEV_VFIO_FILE_DEL,
+    kvm_vfio_ops_init,
+    kvm_vfio_ops_exit,
 )
 
 from .kvm_mm import (
@@ -151,6 +165,7 @@ __all__ = [
     "KVM_STATS_NAME_SIZE",
     "kvm_stats_read",
     "KVM_STATS_TYPE_CUMULATIVE",
+    "KVM_STATS_TYPE_INSTANT",
     "KVM_STATS_UNIT_BYTES",
     # Dirty Ring
     "KVMDirtyRing",
@@ -158,6 +173,13 @@ __all__ = [
     "KVM_DIRTY_GFN_F_DIRTY",
     "KVM_DIRTY_GFN_F_RESET",
     "KVM_DIRTY_RING_RSVD_ENTRIES",
+    "kvm_dirty_ring_alloc",
+    "kvm_dirty_ring_used",
+    "kvm_dirty_ring_soft_full",
+    "kvm_dirty_ring_full",
+    "kvm_dirty_ring_reset",
+    "kvm_dirty_ring_push",
+    "kvm_dirty_ring_free",
     # IRQ Chip
     "KVMKernelIrqRoutingEntry",
     "KVM_Irq_Routing_Table",
@@ -184,12 +206,15 @@ __all__ = [
     "KVM_HVA_ERR_BAD",
     "kvm_gpc_init",
     "kvm_gpc_activate",
+    "kvm_gpc_activate_hva",
     "kvm_gpc_deactivate",
     # VFIO
     "KVMVFIO",
     "KVMVFIOFile",
     "KVM_DEV_VFIO_FILE_ADD",
     "KVM_DEV_VFIO_FILE_DEL",
+    "kvm_vfio_ops_init",
+    "kvm_vfio_ops_exit",
     # Memory Management
     "KVMFollowPFN",
     "KVM_MMU_LOCK",

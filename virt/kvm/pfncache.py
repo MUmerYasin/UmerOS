@@ -204,58 +204,67 @@ def __kvm_gpc_refresh(gpc: GFNToPFNCache, gpa: int, uhva: int) -> int:
     if (gpa == INVALID_GPA) == (uhva == KVM_HVA_ERR_BAD):
         return -22  # EINVAL
     
-    with gpc.refresh_lock:
-        with gpc.lock:
-            if not gpc.active:
-                return -22
-            
-            old_pfn = gpc.pfn
-            old_khva = gpc.khva & ~(PAGE_SIZE - 1) if gpc.khva else 0
-            old_uhva = gpc.uhva & ~(PAGE_SIZE - 1)
-            
-            if gpa == INVALID_GPA:
-                # HVA-based cache
-                page_offset = uhva % PAGE_SIZE
-                gpc.gpa = INVALID_GPA
-                gpc.memslot = None
-                gpc.uhva = uhva & ~(PAGE_SIZE - 1)
-                if gpc.uhva != old_uhva:
-                    hva_change = True
-            else:
-                # GPA-based cache
-                page_offset = gpa % PAGE_SIZE
-                if gpc.kvm:
-                    slots = gpc.kvm.memslots() if callable(getattr(gpc.kvm, 'memslots', None)) else None
-                    if slots:
-                        if gpc.gpa != gpa or gpc.generation != getattr(slots, 'generation', 0):
-                            gfn = gpa // PAGE_SIZE
-                            gpc.gpa = gpa
-                            gpc.generation = slots.generation
-                            # Find memslot (simplified)
-                            gpc.memslot = None
-                            gpc.uhva = 0  # Would compute from memslot
-                            if gpc.uhva == KVM_HVA_ERR_BAD:
-                                return -14
-                            if gpc.uhva != old_uhva:
-                                hva_change = True
-                        else:
-                            gpc.uhva = old_uhva
-            
-            gpc.uhva += page_offset
-            
-            if not gpc.valid or hva_change:
-                # Drop lock and retry
-                gpc.lock.release()
-                try:
-                    ret = hva_to_pfn_retry(gpc)
-                finally:
-                    gpc.lock.acquire()
-            else:
-                # Just update offset within page
-                gpc.khva = old_khva + page_offset
-                ret = 0
-            
-            unmap_old = (old_pfn != gpc.pfn)
+    # refresh_lock is already held by caller (__kvm_gpc_activate)
+    with gpc.lock:
+        if not gpc.active:
+            return -22
+        
+        old_pfn = gpc.pfn
+        old_khva = gpc.khva & ~(PAGE_SIZE - 1) if gpc.khva else 0
+        old_uhva = gpc.uhva & ~(PAGE_SIZE - 1)
+        
+        if gpa == INVALID_GPA:
+            # HVA-based cache
+            page_offset = uhva % PAGE_SIZE
+            gpc.gpa = INVALID_GPA
+            gpc.memslot = None
+            gpc.uhva = uhva & ~(PAGE_SIZE - 1)
+            if gpc.uhva != old_uhva:
+                hva_change = True
+        else:
+            # GPA-based cache
+            page_offset = gpa % PAGE_SIZE
+            if gpc.kvm:
+                slots = gpc.kvm.memslots() if callable(getattr(gpc.kvm, 'memslots', None)) else None
+                if slots:
+                    if gpc.gpa != gpa or gpc.generation != getattr(slots, 'generation', 0):
+                        gfn = gpa // PAGE_SIZE
+                        gpc.gpa = gpa
+                        gpc.generation = slots.generation
+                        # Find memslot (simplified)
+                        gpc.memslot = None
+                        gpc.uhva = 0  # Would compute from memslot
+                        if gpc.uhva == KVM_HVA_ERR_BAD:
+                            return -14
+                        if gpc.uhva != old_uhva:
+                            hva_change = True
+                    else:
+                        gpc.uhva = old_uhva
+        
+        gpc.uhva += page_offset
+        
+        if not gpc.valid or hva_change:
+            # Drop lock and retry
+            gpc.lock.release()
+            try:
+                ret = hva_to_pfn_retry(gpc)
+            finally:
+                gpc.lock.acquire()
+        else:
+            # Just update offset within page
+            gpc.khva = old_khva + page_offset
+            ret = 0
+    
+    # Invalidate the cache and purge the pfn/khva if the refresh failed.
+    # Some/all of the uhva, gpa, and memslot generation info may still be
+    # valid, leave it as is.
+    if ret:
+        gpc.valid = False
+        gpc.pfn = KVM_PFN_ERR_FAULT
+        gpc.khva = None
+    
+    # Detect a pfn change before dropping the lock!
+    unmap_old = (old_pfn != gpc.pfn)
     
     if unmap_old:
         gpc_unmap(old_pfn, old_khva)
@@ -299,30 +308,29 @@ def __kvm_gpc_activate(gpc: GFNToPFNCache, gpa: int, uhva: int, length: int) -> 
     if not kvm_gpc_is_valid_len(gpa, uhva, length):
         return -22
     
-    with gpc.refresh_lock:
-        if not gpc.active:
-            # Initialize locks
-            if not hasattr(gpc, 'lock') or gpc.lock is None:
-                gpc.lock = threading.RLock()
-            if not hasattr(gpc, 'refresh_lock') or gpc.refresh_lock is None:
-                gpc.refresh_lock = threading.Lock()
-            
-            if gpc.valid:
-                return -5  # EIO
-            
-            # Add to VM's GPC list
-            if gpc.kvm:
-                with getattr(gpc.kvm, 'gpc_lock', threading.Lock()):
-                    gpc.list_next = gpc.kvm.gpc_list
-                    if gpc.kvm.gpc_list:
-                        gpc.kvm.gpc_list.list_prev = gpc
-                    gpc.kvm.gpc_list = gpc
-            
-            # Activate
-            with gpc.lock:
-                gpc.active = True
+    if not gpc.active:
+        # Initialize locks
+        if not hasattr(gpc, 'lock') or gpc.lock is None:
+            gpc.lock = threading.RLock()
+        if not hasattr(gpc, 'refresh_lock') or gpc.refresh_lock is None:
+            gpc.refresh_lock = threading.RLock()  # Use RLock for reentrancy
         
-        return __kvm_gpc_refresh(gpc, gpa, uhva)
+        if gpc.valid:
+            return -5  # EIO
+        
+        # Add to VM's GPC list
+        if gpc.kvm:
+            with getattr(gpc.kvm, 'gpc_lock', threading.Lock()):
+                gpc.list_next = gpc.kvm.gpc_list
+                if gpc.kvm.gpc_list:
+                    gpc.kvm.gpc_list.list_prev = gpc
+                gpc.kvm.gpc_list = gpc
+        
+        # Activate
+        with gpc.lock:
+            gpc.active = True
+    
+    return __kvm_gpc_refresh(gpc, gpa, uhva)
 
 
 def kvm_gpc_activate(gpc: GFNToPFNCache, gpa: int, length: int) -> int:

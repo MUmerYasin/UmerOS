@@ -268,9 +268,8 @@ class KVM:
     
     def init_irq_routing(self) -> int:
         """Initialize IRQ routing table"""
-        from .irqchip import KVM_Irq_Routing_Table
-        self.irq_routing = KVM_Irq_Routing_Table()
-        return 0
+        from .irqchip import kvm_init_irq_routing
+        return kvm_init_irq_routing(self)
     
     def set_irq_routing(self, entries: List['KVMKernelIrqRoutingEntry']) -> int:
         """Set IRQ routing entries"""

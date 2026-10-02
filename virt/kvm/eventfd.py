@@ -9,6 +9,7 @@ Based on linux/virt/kvm/eventfd.c
 import os
 import select
 import threading
+import queue
 from dataclasses import dataclass, field
 from typing import Optional, List, Any, Callable
 from enum import IntEnum
@@ -22,10 +23,70 @@ class KVMEventFDFlags(IntEnum):
     CLOEXEC = 4    # EFD_CLOEXEC
 
 
+# Cross-platform eventfd implementation using queue.Queue
+class _EventFD:
+    """Internal eventfd implementation using queue.Queue"""
+    def __init__(self, flags: int = 0):
+        self.queue = queue.Queue()
+        self.flags = flags
+        self.value = 0
+        self._semaphore = (flags & KVMEventFDFlags.SEMAPHORE) != 0
+    
+    def write(self, value: int = 1) -> int:
+        if self._semaphore:
+            # Semaphore mode: increment counter
+            self.value += value
+        else:
+            # Eventfd mode: add value to queue
+            try:
+                self.queue.put_nowait(value)
+            except queue.Full:
+                return -1
+        return 0
+    
+    def read(self) -> int:
+        if self._semaphore:
+            if self.value == 0:
+                return 0
+            val = self.value
+            self.value = 0
+            return val
+        else:
+            try:
+                return self.queue.get_nowait()
+            except queue.Empty:
+                return 0
+    
+    def poll(self, timeout: float = -1) -> bool:
+        if self._semaphore:
+            return self.value > 0
+        return not self.queue.empty()
+
+
+def eventfd_create(flags: int = 0) -> _EventFD:
+    """Create an eventfd (cross-platform using queue.Queue)"""
+    return _EventFD(flags)
+
+
+def eventfd_signal(efd: _EventFD, value: int = 1) -> int:
+    """Signal an eventfd"""
+    return efd.write(value)
+
+
+def eventfd_read(efd: _EventFD) -> int:
+    """Read from eventfd"""
+    return efd.read()
+
+
+def eventfd_poll(efd: _EventFD, timeout: float = -1) -> bool:
+    """Poll eventfd for readability"""
+    return efd.poll(timeout)
+
+
 @dataclass
 class KVMEventFD:
     """KVM EventFD - for signaling events to userspace"""
-    fd: int = -1
+    fd: _EventFD = field(default_factory=_EventFD)
     kvm: Optional[Any] = None
     virq: int = -1
     flags: int = 0
@@ -37,7 +98,7 @@ class KVMEventFD:
 @dataclass
 class KVMIOEventFD:
     """KVM IO EventFD - for MMIO/PIO exit notification"""
-    fd: int = -1
+    fd: _EventFD = field(default_factory=_EventFD)
     kvm: Optional[Any] = None
     addr: int = 0
     length: int = 0
@@ -51,7 +112,7 @@ class KVMIOEventFD:
 @dataclass
 class KVMVirqFD:
     """KVM Virtual IRQ FD - for IRQ injection"""
-    fd: int = -1
+    fd: _EventFD = field(default_factory=_EventFD)
     kvm: Optional[Any] = None
     gsi: int = 0
     flags: int = 0
@@ -59,77 +120,10 @@ class KVMVirqFD:
     irq_source_id: int = 0
 
 
-def eventfd_create(flags: int = 0) -> int:
-    """Create an eventfd (Linux-specific, fallback for other platforms)"""
-    try:
-        # Try Linux eventfd
-        import ctypes
-        libc = ctypes.CDLL('libc.so.6', use_errno=True)
-        EFD_SEMAPHORE = 1
-        EFD_NONBLOCK = 0o4000
-        EFD_CLOEXEC = 0o2000000
-        
-        fd = libc.eventfd(0, flags & (EFD_SEMAPHORE | EFD_NONBLOCK | EFD_CLOEXEC))
-        if fd >= 0:
-            return fd
-    except (OSError, AttributeError):
-        pass
-    
-    # Fallback: create a pipe
-    r, w = os.pipe()
-    if flags & KVMEventFDFlags.NONBLOCK:
-        import fcntl
-        for fd in (r, w):
-            fl = fcntl.fcntl(fd, fcntl.F_GETFL)
-            fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
-    return r  # Return read end for polling
-
-
-def eventfd_signal(fd: int, value: int = 1) -> int:
-    """Signal an eventfd"""
-    try:
-        # Try Linux eventfd_write
-        import ctypes
-        libc = ctypes.CDLL('libc.so.6', use_errno=True)
-        return libc.eventfd_write(fd, value)
-    except (OSError, AttributeError):
-        pass
-    
-    # Fallback: write to pipe
-    try:
-        os.write(fd, value.to_bytes(8, 'little'))
-        return 0
-    except OSError:
-        return -1
-
-
-def eventfd_read(fd: int) -> int:
-    """Read from eventfd"""
-    try:
-        # Try Linux eventfd_read
-        import ctypes
-        libc = ctypes.CDLL('libc.so.6', use_errno=True)
-        val = ctypes.c_uint64()
-        ret = libc.eventfd_read(fd, ctypes.byref(val))
-        if ret == 0:
-            return val.value
-    except (OSError, AttributeError):
-        pass
-    
-    # Fallback: read from pipe
-    try:
-        data = os.read(fd, 8)
-        if len(data) == 8:
-            return int.from_bytes(data, 'little')
-    except OSError:
-        pass
-    return 0
-
-
-def kvm_eventfd_init(kvm: Any, eventfd: KVMEventFD, fd: int, 
+def kvm_eventfd_init(kvm: Any, eventfd: KVMEventFD, efd: _EventFD, 
                       virq: int = -1, flags: int = 0) -> int:
     """Initialize a KVM eventfd"""
-    eventfd.fd = fd
+    eventfd.fd = efd
     eventfd.kvm = kvm
     eventfd.virq = virq
     eventfd.flags = flags
@@ -152,13 +146,6 @@ def kvm_eventfd_deinit(eventfd: KVMEventFD):
             eventfd.kvm.eventfds.remove(eventfd)
         except ValueError:
             pass
-    
-    if eventfd.fd >= 0:
-        try:
-            os.close(eventfd.fd)
-        except OSError:
-            pass
-        eventfd.fd = -1
 
 
 def kvm_eventfd_signal(eventfd: KVMEventFD, value: int = 1) -> int:
@@ -169,11 +156,11 @@ def kvm_eventfd_signal(eventfd: KVMEventFD, value: int = 1) -> int:
     return eventfd_signal(eventfd.fd, value)
 
 
-def kvm_ioeventfd_init(kvm: Any, ioeventfd: KVMIOEventFD, fd: int,
+def kvm_ioeventfd_init(kvm: Any, ioeventfd: KVMIOEventFD, efd: _EventFD,
                        addr: int, length: int, datamatch: int,
                        bus_idx: int, pio: bool, flags: int) -> int:
     """Initialize a KVM IO eventfd"""
-    ioeventfd.fd = fd
+    ioeventfd.fd = efd
     ioeventfd.kvm = kvm
     ioeventfd.addr = addr
     ioeventfd.length = length
@@ -199,19 +186,12 @@ def kvm_ioeventfd_deinit(ioeventfd: KVMIOEventFD):
             ioeventfd.kvm.ioeventfds.remove(ioeventfd)
         except ValueError:
             pass
-    
-    if ioeventfd.fd >= 0:
-        try:
-            os.close(ioeventfd.fd)
-        except OSError:
-            pass
-        ioeventfd.fd = -1
 
 
-def kvm_virqfd_init(kvm: Any, virqfd: KVMVirqFD, fd: int,
+def kvm_virqfd_init(kvm: Any, virqfd: KVMVirqFD, efd: _EventFD,
                     gsi: int, flags: int) -> int:
     """Initialize a KVM virtual IRQ fd"""
-    virqfd.fd = fd
+    virqfd.fd = efd
     virqfd.kvm = kvm
     virqfd.gsi = gsi
     virqfd.flags = flags
@@ -234,13 +214,6 @@ def kvm_virqfd_deinit(virqfd: KVMVirqFD):
             virqfd.kvm.virqfds.remove(virqfd)
         except ValueError:
             pass
-    
-    if virqfd.fd >= 0:
-        try:
-            os.close(virqfd.fd)
-        except OSError:
-            pass
-        virqfd.fd = -1
 
 
 def kvm_virqfd_signal(virqfd: KVMVirqFD, level: int = 1) -> int:
@@ -262,14 +235,7 @@ def kvm_inject_irq(kvm: Any, gsi: int, level: int, irq_source_id: int) -> int:
 # Polling support
 def kvm_eventfd_poll(eventfd: KVMEventFD, timeout: float = -1) -> bool:
     """Poll eventfd for readability"""
-    if eventfd.fd < 0:
-        return False
-    
-    try:
-        r, _, _ = select.select([eventfd.fd], [], [], timeout)
-        return bool(r)
-    except (OSError, ValueError):
-        return False
+    return eventfd_poll(eventfd.fd, timeout)
 
 
 def kvm_eventfd_wait(eventfd: KVMEventFD, timeout: float = -1) -> int:
@@ -289,11 +255,11 @@ class KVMEventFDContext:
         self.virq = virq
         self.flags = flags
         self.eventfd = KVMEventFD()
-        self.fd = -1
+        self.efd = None
     
     def __enter__(self) -> KVMEventFD:
-        self.fd = eventfd_create(self.flags)
-        kvm_eventfd_init(self.kvm, self.eventfd, self.fd, self.virq, self.flags)
+        self.efd = eventfd_create(self.flags)
+        kvm_eventfd_init(self.kvm, self.eventfd, self.efd, self.virq, self.flags)
         return self.eventfd
     
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -318,19 +284,11 @@ class KVMEventFDBatch:
         if not self.eventfds:
             return []
         
-        fds = [efd.fd for efd in self.eventfds if efd.fd >= 0 and efd.active]
-        if not fds:
-            return []
-        
-        try:
-            r, _, _ = select.select(fds, [], [], timeout)
-            ready = []
-            for efd in self.eventfds:
-                if efd.fd in r:
-                    ready.append(efd)
-            return ready
-        except (OSError, ValueError):
-            return []
+        ready = []
+        for efd in self.eventfds:
+            if efd.active and eventfd_poll(efd.fd, 0):
+                ready.append(efd)
+        return ready
     
     def wait_any(self, timeout: float = -1) -> Optional[KVMEventFD]:
         """Wait for any eventfd to be ready"""

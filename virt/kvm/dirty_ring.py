@@ -84,10 +84,14 @@ def kvm_reset_dirty_gfn(kvm: Any, slot: int, offset: int, mask: int):
 
 def kvm_dirty_ring_alloc(kvm: Any, ring: KVMDirtyRing, index: int, size: int) -> int:
     """Allocate dirty ring"""
-    # Round up to page size
+    # Round up to page size and make power of 2
     import math
     page_size = 4096
-    num_entries = size // struct.calcsize('QQI')  # Approximate size of KVMDirtyGFN
+    entry_size = struct.calcsize('QQI')  # Approximate size of KVMDirtyGFN
+    num_entries = max(64, size // entry_size)
+    
+    # Round up to next power of 2
+    num_entries = 1 << (num_entries - 1).bit_length()
     
     ring.dirty_gfns = [KVMDirtyGFN() for _ in range(num_entries)]
     ring.size = num_entries
@@ -124,7 +128,6 @@ def kvm_dirty_ring_reset(kvm: Any, ring: KVMDirtyRing,
     cur_slot = 0
     cur_offset = 0
     mask = 0
-    first_entry = True
     
     while nr_entries_reset[0] < 2**31 - 1:  # INT_MAX
         # Check for signals (simplified)

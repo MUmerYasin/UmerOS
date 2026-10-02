@@ -80,14 +80,15 @@ class KVMStatsDesc:
         """Pack descriptor into bytes"""
         name_bytes = self.name.encode('utf-8')[:KVM_STATS_NAME_SIZE]
         name_bytes = name_bytes.ljust(KVM_STATS_NAME_SIZE, b'\x00')
-        return struct.pack('<QQBBB', 
+        # Linux kernel uses: u64, u64, u32, u32, u32 = 8+8+4+4+4 = 24 bytes
+        return struct.pack('<QQIII', 
             self.offset, self.size, self.type, self.unit, self.scale) + name_bytes
     
     @classmethod
     def unpack(cls, data: bytes) -> 'KVMStatsDesc':
         """Unpack descriptor from bytes"""
-        offset, size, type_, unit, scale = struct.unpack('<QQBBB', data[:24])
-        name = data[24:24+KVM_STATS_NAME_SIZE].rstrip(b'\x00').decode('utf-8')
+        offset, size, type_, unit, scale = struct.unpack('<QQIII', data[:28])
+        name = data[28:28+KVM_STATS_NAME_SIZE].rstrip(b'\x00').decode('utf-8')
         desc = cls()
         desc.offset = offset
         desc.size = size

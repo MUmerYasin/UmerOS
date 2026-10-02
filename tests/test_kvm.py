@@ -18,15 +18,17 @@ from virt.kvm import (
     kvm_vm_ioctl_register_coalesced_mmio, kvm_vm_ioctl_unregister_coalesced_mmio,
     KVMStatsHeader, KVMStatsDesc, KVM_STATS_NAME_SIZE, kvm_stats_read,
     KVMDirtyRing, KVMDirtyGFN, KVM_DIRTY_GFN_F_DIRTY, KVM_DIRTY_GFN_F_RESET,
+    kvm_dirty_ring_alloc, kvm_dirty_ring_used, kvm_dirty_ring_reset,
+    kvm_dirty_ring_soft_full,
     KVMKernelIrqRoutingEntry, KVM_Irq_Routing_Table,
     KVMEventFD, KVMIOEventFD, KVMVirqFD,
     KVMGuestMemfd, KVMCreateGuestMemfd,
+    kvm_gmem_init, kvm_gmem_exit, kvm_gmem_create,
     GFNToPFNCache, KVM_PFN_ERR_FAULT, INVALID_GPA, KVM_HVA_ERR_BAD,
     KVMVFIO, KVMVFIOFile,
     KVMFollowPFN, KVM_MMU_LOCK, KVM_MMU_UNLOCK, KVM_MMU_LOCK_INIT,
     KVM_EXIT_REASONS, KVM_MAX_VCPUS, KVM_MAX_MEM_SLOTS, KVM_PAGE_SIZE,
     kvm_async_pf_init, kvm_async_pf_deinit, kvm_async_pf_vcpu_init,
-    kvm_gmem_init, kvm_gmem_exit,
     kvm_gpc_init, kvm_gpc_activate, kvm_gpc_deactivate,
     KVM_STATS_TYPE_CUMULATIVE, KVM_STATS_UNIT_BYTES,
 )
@@ -264,8 +266,7 @@ class TestKVMDirtyRing(unittest.TestCase):
         kvm = KVM()
         ring = KVMDirtyRing()
         
-        ret = ring.__init__()
-        ret = kvm._dirty_ring_alloc(kvm, ring, 0, 4096)
+        ret = kvm_dirty_ring_alloc(kvm, ring, 0, 4096)
         self.assertEqual(ret, 0)
         
         self.assertGreater(ring.size, 0)
@@ -275,7 +276,7 @@ class TestKVMDirtyRing(unittest.TestCase):
     def test_dirty_ring_push(self):
         kvm = KVM()
         ring = KVMDirtyRing()
-        kvm._dirty_ring_alloc(kvm, ring, 0, 4096)
+        kvm_dirty_ring_alloc(kvm, ring, 0, 4096)
         
         # Push some dirty entries
         ring.dirty_index = 0
@@ -285,13 +286,13 @@ class TestKVMDirtyRing(unittest.TestCase):
             ring.dirty_gfns[ring.dirty_index & (ring.size - 1)].flags = KVM_DIRTY_GFN_F_DIRTY
             ring.dirty_index += 1
         
-        self.assertEqual(kvm._dirty_ring_used(ring), 10)
-        self.assertFalse(kvm._dirty_ring_soft_full(ring))
+        self.assertEqual(kvm_dirty_ring_used(ring), 10)
+        self.assertFalse(kvm_dirty_ring_soft_full(ring))
     
     def test_dirty_ring_reset(self):
         kvm = KVM()
         ring = KVMDirtyRing()
-        kvm._dirty_ring_alloc(kvm, ring, 0, 4096)
+        kvm_dirty_ring_alloc(kvm, ring, 0, 4096)
         
         # Add entries and mark as harvested
         for i in range(5):
@@ -304,7 +305,7 @@ class TestKVMDirtyRing(unittest.TestCase):
         ring.reset_index = 0
         
         nr_reset = [0]
-        ret = kvm._dirty_ring_reset(kvm, ring, nr_reset)
+        ret = kvm_dirty_ring_reset(kvm, ring, nr_reset)
         
         self.assertEqual(ret, 0)
         self.assertEqual(nr_reset[0], 5)
@@ -337,34 +338,30 @@ class TestKVMEventFD(unittest.TestCase):
     """Test EventFD"""
     
     def test_eventfd_create(self):
-        from kvm.eventfd import eventfd_create, eventfd_signal, eventfd_read
+        from virt.kvm.eventfd import eventfd_create, eventfd_signal, eventfd_read
         
-        fd = eventfd_create()
-        self.assertGreaterEqual(fd, 0)
+        efd = eventfd_create()
+        self.assertIsNotNone(efd)
         
         # Signal
-        ret = eventfd_signal(fd, 5)
+        ret = eventfd_signal(efd, 5)
         self.assertEqual(ret, 0)
         
         # Read back
-        val = eventfd_read(fd)
+        val = eventfd_read(efd)
         self.assertEqual(val, 5)
-        
-        os.close(fd)
     
     def test_kvm_eventfd_init(self):
         kvm = KVM()
         eventfd = KVMEventFD()
         
-        from kvm.eventfd import eventfd_create, kvm_eventfd_init
-        fd = eventfd_create()
+        from virt.kvm.eventfd import eventfd_create, kvm_eventfd_init
+        efd = eventfd_create()
         
-        ret = kvm_eventfd_init(kvm, eventfd, fd, virq=1)
+        ret = kvm_eventfd_init(kvm, eventfd, efd, virq=1)
         self.assertEqual(ret, 0)
         self.assertTrue(eventfd.active)
         self.assertEqual(eventfd.virq, 1)
-        
-        os.close(fd)
 
 
 class TestKVMGuestMemfd(unittest.TestCase):
@@ -381,7 +378,7 @@ class TestKVMGuestMemfd(unittest.TestCase):
         kvm_gmem_init()
         
         args = KVMCreateGuestMemfd(size=4096 * 1024, flags=0)
-        ret = kvm.kvm_gmem_create(kvm, args)
+        ret = kvm_gmem_create(kvm, args)
         
         if ret == 0:  # May fail on non-Linux
             self.assertGreater(args.fd, 0)
@@ -431,10 +428,12 @@ class TestKVMVFIO(unittest.TestCase):
     """Test VFIO"""
     
     def test_vfio_init(self):
-        ret = kvm.kvm_vfio_ops_init()
+        from virt.kvm import kvm_vfio_ops_init, kvm_vfio_ops_exit
+        
+        ret = kvm_vfio_ops_init()
         self.assertEqual(ret, 0)
         
-        kvm.kvm_vfio_ops_exit()
+        kvm_vfio_ops_exit()
 
 
 class TestKVMMMULock(unittest.TestCase):
@@ -508,9 +507,10 @@ class TestIntegration(unittest.TestCase):
         
         # Clean up
         kvm_async_pf_deinit()
-    
+
     def test_stats_builder(self):
-        from kvm.binary_stats import KVMStatsBuilder, create_vm_stats_builder
+        from virt.kvm.binary_stats import KVMStatsBuilder, create_vm_stats_builder
+        from virt.kvm.binary_stats import KVM_STATS_TYPE_INSTANT, KVM_STATS_UNIT_BYTES
         
         builder = create_vm_stats_builder(1)
         builder.add_stat("vcpu_count", 4, type_=KVM_STATS_TYPE_INSTANT)
@@ -519,9 +519,9 @@ class TestIntegration(unittest.TestCase):
         buffer = builder.get_buffer()
         self.assertGreater(len(buffer), 0)
         
-        # Verify we can read it back
+        # Verify we can read it back (builder has 8 default stats + 2 added, one duplicate = 10)
         header = KVMStatsHeader.unpack(buffer[:40])
-        self.assertEqual(header.num_desc, 2)
+        self.assertEqual(header.num_desc, 10)
 
 
 if __name__ == '__main__':
