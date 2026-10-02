@@ -14,6 +14,8 @@ from virt.kvm import (
     KVM, KVMVCPU, KVMMemorySlot, KVMRun,
     KVMAsyncPF, KVMAsyncPFWork, ASYNC_PF_PER_VCPU,
     KVMCoalescedMMIOZone, KVMCoalescedMMIORing, KVM_COALESCED_MMIO_MAX,
+    kvm_coalesced_mmio_init, kvm_coalesced_mmio_free,
+    kvm_vm_ioctl_register_coalesced_mmio, kvm_vm_ioctl_unregister_coalesced_mmio,
     KVMStatsHeader, KVMStatsDesc, KVM_STATS_NAME_SIZE, kvm_stats_read,
     KVMDirtyRing, KVMDirtyGFN, KVM_DIRTY_GFN_F_DIRTY, KVM_DIRTY_GFN_F_RESET,
     KVMKernelIrqRoutingEntry, KVM_Irq_Routing_Table,
@@ -24,7 +26,6 @@ from virt.kvm import (
     KVMFollowPFN, KVM_MMU_LOCK, KVM_MMU_UNLOCK, KVM_MMU_LOCK_INIT,
     KVM_EXIT_REASONS, KVM_MAX_VCPUS, KVM_MAX_MEM_SLOTS, KVM_PAGE_SIZE,
     kvm_async_pf_init, kvm_async_pf_deinit, kvm_async_pf_vcpu_init,
-    kvm_coalesced_mmio_init, kvm_coalesced_mmio_free,
     kvm_gmem_init, kvm_gmem_exit,
     kvm_gpc_init, kvm_gpc_activate, kvm_gpc_deactivate,
     KVM_STATS_TYPE_CUMULATIVE, KVM_STATS_UNIT_BYTES,
@@ -114,13 +115,17 @@ class TestKVMMemoryManagement(unittest.TestCase):
         kvm = KVM()
         kvm.set_memory_region(0, 0, 0x100000, 0x10000, 0x7f0000000000)
         
-        # GFN within slot
-        hva = kvm.gfn_to_hva(0x100)  # 0x100000 + 0x100*4096
-        expected = 0x7f0000000000 + 0x100 * KVM_PAGE_SIZE
+        # GFN within slot (slot starts at 0x100000/4096 = 0x100, has 0x10000/4096 = 0x10 pages)
+        hva = kvm.gfn_to_hva(0x100)  # First page of slot
+        expected = 0x7f0000000000
+        self.assertEqual(hva, expected)
+        
+        hva = kvm.gfn_to_hva(0x101)  # Second page
+        expected = 0x7f0000000000 + KVM_PAGE_SIZE
         self.assertEqual(hva, expected)
         
         # GFN outside slot
-        hva = kvm.gfn_to_hva(0x200)
+        hva = kvm.gfn_to_hva(0x110)
         self.assertEqual(hva, -1)
 
 
@@ -174,7 +179,7 @@ class TestKVMCoalescedMMIO(unittest.TestCase):
             pio=1
         )
         
-        ret = kvm.kvm_vm_ioctl_register_coalesced_mmio(kvm, zone)
+        ret = kvm_vm_ioctl_register_coalesced_mmio(kvm, zone)
         self.assertEqual(ret, 0)
         self.assertEqual(len(kvm.coalesced_zones), 1)
     
@@ -183,9 +188,9 @@ class TestKVMCoalescedMMIO(unittest.TestCase):
         kvm_coalesced_mmio_init(kvm)
         
         zone = KVMCoalescedMMIOZone(addr=0x3f8, size=8, pio=1)
-        kvm.kvm_vm_ioctl_register_coalesced_mmio(kvm, zone)
+        kvm_vm_ioctl_register_coalesced_mmio(kvm, zone)
         
-        ret = kvm.kvm_vm_ioctl_unregister_coalesced_mmio(kvm, zone)
+        ret = kvm_vm_ioctl_unregister_coalesced_mmio(kvm, zone)
         self.assertEqual(ret, 0)
         self.assertEqual(len(kvm.coalesced_zones), 0)
 

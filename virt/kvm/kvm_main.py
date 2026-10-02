@@ -197,7 +197,7 @@ class KVM:
         vcpu = KVMVCPU(vcpu_id=vcpu_id, kvm=self)
         vcpu.run = KVMRun()
         
-        with self.mutex:
+        with self.lock:
             self.vcpus[vcpu_id] = vcpu
             self.online_vcpus += 1
         
