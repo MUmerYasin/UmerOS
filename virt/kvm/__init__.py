@@ -45,6 +45,8 @@ from .coalesced_mmio import (
     KVM_COALESCED_MMIO_MAX,
     kvm_coalesced_mmio_init,
     kvm_coalesced_mmio_free,
+    kvm_vm_ioctl_register_coalesced_mmio,
+    kvm_vm_ioctl_unregister_coalesced_mmio,
 )
 
 from .binary_stats import (
@@ -141,6 +143,8 @@ __all__ = [
     "KVM_COALESCED_MMIO_MAX",
     "kvm_coalesced_mmio_init",
     "kvm_coalesced_mmio_free",
+    "kvm_vm_ioctl_register_coalesced_mmio",
+    "kvm_vm_ioctl_unregister_coalesced_mmio",
     # Binary Stats
     "KVMStatsHeader",
     "KVMStatsDesc",

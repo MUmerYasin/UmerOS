@@ -18,7 +18,7 @@
 ## Remediation status
 - **RED blockers: ALL CLOSED (sessions 1–33).**
 - **YELLOW sweep in progress (session 36+).** Large drift-recon resolutions: cloud/ fully 🟢 (H46,H154,H47,H48,H49). Many earlier H-items (H4,H5,H6,H7,H8,H9,H11,H13,H14,H15,H16,H19,H20,H23,H24,H26,H30) were RESOLVED with the premise proven stale/overstated — detail lives in the standard §9 + per-session overview files, not re-duplicated here.
-**Current pointer (session 77):** `compatibility/` + `core/` + `dev/` COMPLETE; `drivers/` sweep in progress — **H62 RESOLVED** (all 75 modules `[TODAY]` tier label; 3 broken modules fixed), **H63 RESOLVED** (premise overstated: 75/75 modules already carry GPLv3 headers). Next 💭 **H65** - `drivers/device_io.py:12`, `drivers/irq.py:11` (dead `import ctypes`). Say **'continues'** for H65.
+**Current pointer (session 78):** `compatibility/` + `core/` + `dev/` COMPLETE; `drivers/` sweep in progress — H62 RESOLVED (tier labels), H63 RESOLVED (premise overstated: 75/75 GPLv3 headers), **H65 RESOLVED** (dead `import ctypes` removed from `device_io.py`/`irq.py`). Next 🟡 **H66** - `drivers/*` no capability gating on privileged driver ops (MMIO/port I/O/DMA, PCI region claim). Say **'continues'** for H66.
 - H1 standing user action (not mine): user must rotate the leaked OpenRouter key + purge git history.
 
 ## Folder scope map — hotspots (🟢 fixed / 🟡 yellow / 💭 nit)

@@ -22,7 +22,6 @@ and simulated UART/SPI/I2C devices.
 
 from __future__ import annotations
 
-import ctypes
 import struct
 import threading
 from dataclasses import dataclass, field

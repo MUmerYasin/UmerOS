@@ -21,7 +21,6 @@ IRQ domains, affinity, masking, and simulated GIC/IOAPIC controllers.
 
 from __future__ import annotations
 
-import ctypes
 import logging
 import threading
 import time

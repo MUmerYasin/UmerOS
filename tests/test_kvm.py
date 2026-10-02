@@ -148,12 +148,14 @@ class TestKVMAsyncPF(unittest.TestCase):
         self.assertEqual(vcpu.async_pf.queued, 0)
     
     def test_async_pf_setup(self):
+        from virt.kvm.async_pf import _async_pf_manager
+        
         kvm = KVM()
         vcpu = kvm.create_vcpu(0)
         kvm_async_pf_vcpu_init(vcpu)
         
         # Try to setup async PF
-        result = kvm._async_pf_manager.alloc_work() is not None
+        result = _async_pf_manager.alloc_work() is not None
         self.assertTrue(result)
 
 
