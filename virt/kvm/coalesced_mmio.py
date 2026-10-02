@@ -18,7 +18,7 @@ KVM_COALESCED_MMIO_MAX = 64  # Maximum entries in ring
 
 
 @dataclass
-class KVMC coalescedMMIOZone:
+class KVMCoalescedMMIOZone:
     """Coalesced MMIO zone"""
     addr: int = 0           # Guest physical address
     size: int = 0           # Size in bytes
@@ -26,7 +26,7 @@ class KVMC coalescedMMIOZone:
 
 
 @dataclass
-class KVMC coalescedMMIOEntry:
+class KVMCoalescedMMIOEntry:
     """Single coalesced MMIO entry"""
     phys_addr: int = 0
     len: int = 0
@@ -35,27 +35,27 @@ class KVMC coalescedMMIOEntry:
 
 
 @dataclass
-class KVMC coalescedMMIORing:
+class KVMCoalescedMMIORing:
     """Coalesced MMIO ring buffer"""
     first: int = 0
     last: int = 0
-    coalesced_mmio: List[KVMC coalescedMMIOEntry] = field(default_factory=list)
+    coalesced_mmio: List['KVMCoalescedMMIOEntry'] = field(default_factory=list)
     
     def __post_init__(self):
         if not self.coalesced_mmio:
-            self.coalesced_mmio = [KVMC coalescedMMIOEntry() for _ in range(KVM_COALESCED_MMIO_MAX)]
+            self.coalesced_mmio = [KVMCoalescedMMIOEntry() for _ in range(KVM_COALESCED_MMIO_MAX)]
 
 
 @dataclass
-class KVMC coalescedMMIODev:
+class KVMCoalescedMMIODev:
     """Coalesced MMIO device"""
     dev: Any = None  # Would be KVMIODevice in real implementation
     kvm: Optional['KVM'] = None
-    zone: KVMC coalescedMMIOZone = field(default_factory=KVMC coalescedMMIOZone)
+    zone: KVMCoalescedMMIOZone = field(default_factory=KVMCoalescedMMIOZone)
     list_node: Any = None  # For linked list
 
 
-def coalesced_mmio_in_range(dev: KVMC coalescedMMIODev, addr: int, length: int) -> bool:
+def coalesced_mmio_in_range(dev: KVMCoalescedMMIODev, addr: int, length: int) -> bool:
     """Check if address range is within coalesced zone"""
     if length < 0:
         return False
@@ -71,7 +71,7 @@ def coalesced_mmio_in_range(dev: KVMC coalescedMMIODev, addr: int, length: int) 
 def coalesced_mmio_write(vcpu: Any, dev: Any, addr: int, 
                          length: int, val: bytes) -> int:
     """Write to coalesced MMIO"""
-    mmio_dev = dev  # In real: container_of(dev, KVMC coalescedMMIODev, dev)
+    mmio_dev = dev  # In real: container_of(dev, KVMCoalescedMMIODev, dev)
     kvm = mmio_dev.kvm
     
     if not kvm or not kvm.coalesced_mmio_ring:
@@ -128,7 +128,7 @@ class KVMCoalescedMMIOOps:
 def kvm_coalesced_mmio_init(kvm: 'KVM') -> int:
     """Initialize coalesced MMIO for a VM"""
     # Allocate ring buffer (one page)
-    ring = KVMC coalescedMMIORing()
+    ring = KVMCoalescedMMIORing()
     kvm.coalesced_mmio_ring = ring
     
     # Initialize ring lock
@@ -146,12 +146,12 @@ def kvm_coalesced_mmio_free(kvm: 'KVM'):
 
 
 def kvm_vm_ioctl_register_coalesced_mmio(kvm: 'KVM', 
-                                          zone: KVMC coalescedMMIOZone) -> int:
+                                          zone: KVMCoalescedMMIOZone) -> int:
     """Register a coalesced MMIO zone"""
     if zone.pio not in (0, 1):
         return -22  # EINVAL
     
-    dev = KVMC coalescedMMIODev()
+    dev = KVMCoalescedMMIODev()
     dev.kvm = kvm
     dev.zone = zone
     
@@ -167,7 +167,7 @@ def kvm_vm_ioctl_register_coalesced_mmio(kvm: 'KVM',
 
 
 def kvm_vm_ioctl_unregister_coalesced_mmio(kvm: 'KVM',
-                                            zone: KVMC coalescedMMIOZone) -> int:
+                                            zone: KVMCoalescedMMIOZone) -> int:
     """Unregister a coalesced MMIO zone"""
     if zone.pio not in (0, 1):
         return -22  # EINVAL
@@ -185,18 +185,3 @@ def kvm_vm_ioctl_unregister_coalesced_mmio(kvm: 'KVM',
             coalesced_mmio_destructor(dev)
     
     return 0
-
-
-# Export main classes with corrected names
-KVMCoalescedMMIOZone = KVMC coalescedMMIOZone
-KVMCoalescedMMIOEntry = KVMC coalescedMMIOEntry
-KVMCoalescedMMIORing = KVMC coalescedMMIORing
-KVMCoalescedMMIODev = KVMC coalescedMMIODev
-
-# Fix the class names
-import sys
-this_module = sys.modules[__name__]
-this_module.KVMCoalescedMMIOZone = KVMCoalescedMMIOZone
-this_module.KVMCoalescedMMIOEntry = KVMCoalescedMMIOEntry
-this_module.KVMCoalescedMMIORing = KVMCoalescedMMIORing
-this_module.KVMCoalescedMMIODev = KVMCoalescedMMIODev

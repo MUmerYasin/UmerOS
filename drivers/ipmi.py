@@ -35,7 +35,7 @@ import time
 
 IPMI_MAX_NAME_LENGTH: int = 32
 IPMI_INVALID_CHANNEL: int = 0xFF
-IPMI BMC LUN: int = 0
+IPMI_BMC_LUN: int = 0
 
 # NetFn definitions
 IPMI_NETFN_CHassis: int = 0x00

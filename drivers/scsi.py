@@ -79,7 +79,7 @@ class SCSIStatus(IntEnum):
     CHECK_CONDITION: int = 0x02
 
 
-class SCSI SenseKey(IntEnum):
+class SCSISenseKey(IntEnum):
     """SCSI sense keys."""
     NO_SENSE: int = 0x00
     RECOVERED_ERROR: int = 0x01
@@ -123,16 +123,16 @@ class SCSICmd:
 class SCSISense:
     """SCSI sense response."""
     response_code: int = 0x70
-    sense_key: SCSI SenseKey = SCSI SenseKey.NO_SENSE
+    sense_key: SCSISenseKey = SCSISenseKey.NO_SENSE
     asc: int = 0  # Additional Sense Code
     ascq: int = 0  # Additional Sense Code Qualifier
     additional_data: bytes = b''
 
     @property
     def is_valid(self) -> bool:
-        return self.sense_key != SCSI SenseKey.NO_SENSE
+        return self.sense_key != SCSISenseKey.NO_SENSE
 
-    def set_check_condition(self, key: SCSI SenseKey, asc: int = 0, ascq: int = 0) -> None:
+    def set_check_condition(self, key: SCSISenseKey, asc: int = 0, ascq: int = 0) -> None:
         self.response_code = 0x70
         self.sense_key = key
         self.asc = asc

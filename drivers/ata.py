@@ -209,7 +209,7 @@ class ATADevice:
     lba_mode: int = 48  # 28 or 48
     spindle_speed: int = 7200
     power_state: str = "active"
-   SMART_data: Dict[str, Any] = field(default_factory=dict)
+    SMART_data: Dict[str, Any] = field(default_factory=dict)
 
     def identify(self) -> int:
         if not self.port:

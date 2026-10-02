@@ -33,12 +33,18 @@ from .async_pf import (
     KVMAsyncPF,
     KVMAsyncPFWork,
     ASYNC_PF_PER_VCPU,
+    kvm_async_pf_init,
+    kvm_async_pf_deinit,
+    kvm_async_pf_vcpu_init,
 )
 
 from .coalesced_mmio import (
+    KVMCoalescedMMIOZone,
     KVMCoalescedMMIODev,
     KVMCoalescedMMIORing,
     KVM_COALESCED_MMIO_MAX,
+    kvm_coalesced_mmio_init,
+    kvm_coalesced_mmio_free,
 )
 
 from .binary_stats import (
@@ -46,6 +52,8 @@ from .binary_stats import (
     KVMStatsDesc,
     KVM_STATS_NAME_SIZE,
     kvm_stats_read,
+    KVM_STATS_TYPE_CUMULATIVE,
+    KVM_STATS_UNIT_BYTES,
 )
 
 from .dirty_ring import (
@@ -77,6 +85,8 @@ from .guest_memfd import (
     KVMGuestMemfd,
     KVMCreateGuestMemfd,
     KVM_GMEM_FLAGS,
+    kvm_gmem_init,
+    kvm_gmem_exit,
 )
 
 from .pfncache import (
@@ -84,6 +94,9 @@ from .pfncache import (
     KVM_PFN_ERR_FAULT,
     INVALID_GPA,
     KVM_HVA_ERR_BAD,
+    kvm_gpc_init,
+    kvm_gpc_activate,
+    kvm_gpc_deactivate,
 )
 
 from .vfio import (
@@ -118,15 +131,23 @@ __all__ = [
     "KVMAsyncPF",
     "KVMAsyncPFWork",
     "ASYNC_PF_PER_VCPU",
+    "kvm_async_pf_init",
+    "kvm_async_pf_deinit",
+    "kvm_async_pf_vcpu_init",
     # Coalesced MMIO
+    "KVMCoalescedMMIOZone",
     "KVMCoalescedMMIODev",
     "KVMCoalescedMMIORing",
     "KVM_COALESCED_MMIO_MAX",
+    "kvm_coalesced_mmio_init",
+    "kvm_coalesced_mmio_free",
     # Binary Stats
     "KVMStatsHeader",
     "KVMStatsDesc",
     "KVM_STATS_NAME_SIZE",
     "kvm_stats_read",
+    "KVM_STATS_TYPE_CUMULATIVE",
+    "KVM_STATS_UNIT_BYTES",
     # Dirty Ring
     "KVMDirtyRing",
     "KVMDirtyGFN",
@@ -150,11 +171,16 @@ __all__ = [
     "KVMGuestMemfd",
     "KVMCreateGuestMemfd",
     "KVM_GMEM_FLAGS",
+    "kvm_gmem_init",
+    "kvm_gmem_exit",
     # PFN Cache
     "GFNToPFNCache",
     "KVM_PFN_ERR_FAULT",
     "INVALID_GPA",
     "KVM_HVA_ERR_BAD",
+    "kvm_gpc_init",
+    "kvm_gpc_activate",
+    "kvm_gpc_deactivate",
     # VFIO
     "KVMVFIO",
     "KVMVFIOFile",
