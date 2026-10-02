@@ -349,6 +349,93 @@ def GetVersionExA() -> Tuple[int, int, int, int]:
 
 
 # ---------------------------------------------------------------------------
+# Environment variables
+# ---------------------------------------------------------------------------
+#
+# Win32 env functions dispatch to :mod:`compatibility.environment`.
+# We import lazily so the win_kernel32 module stays import-safe when
+# the env module is in the middle of an upgrade.
+
+def _env():
+    from . import environment
+    return environment
+
+
+def GetEnvironmentVariableA(name: str, buf: Optional[str] = None) -> Optional[str]:
+    """Win32 ``GetEnvironmentVariableA`` semantics.
+
+    Returns the value as a Python ``str`` (or ``None`` if the variable
+    is not set -- matches the Win32 contract that distinguishes a
+    missing variable from an empty one).
+
+    The Win32 signature is::
+
+            GetEnvironmentVariableA(lpName, lpBuffer, nSize)
+
+    but when called from :mod:`compatibility.win32_runner` the buffer
+    pointer is irrelevant -- the emulator pulls the result out of the
+    Python return.
+    """
+    return _env().GetEnvironmentVariableA(name)
+
+
+def SetEnvironmentVariableA(name: str, value: Optional[str]) -> bool:
+    """Win32 ``SetEnvironmentVariableA`` semantics."""
+    return _env().SetEnvironmentVariableA(name, value)
+
+
+def GetEnvironmentStringsA() -> bytes:
+    """Win32 ``GetEnvironmentStringsA`` -- returns the
+    double-null-terminated wide-char block as bytes."""
+    return _env().GetEnvironmentStringsA()
+
+
+def ExpandEnvironmentStringsA(s: str) -> str:
+    """Win32 ``ExpandEnvironmentStringsA`` -- substitute ``%NAME%``
+    references in ``s``."""
+    return _env().ExpandEnvironmentStringsA(s)
+
+
+def GetEnvironmentVariableW(name: str) -> Optional[str]:
+    return _env().GetEnvironmentVariableW(name)
+
+
+def SetEnvironmentVariableW(name: str, value: Optional[str]) -> bool:
+    return _env().SetEnvironmentVariableW(name, value)
+
+
+def ExpandEnvironmentStringsW(s: str) -> str:
+    return _env().ExpandEnvironmentStringsW(s)
+
+
+def GetCurrentDirectoryA(buf_size: int = 4096) -> str:
+    """Win32 ``GetCurrentDirectoryA`` -- return the current
+    working directory."""
+    return os.getcwd()
+
+
+def SetCurrentDirectoryA(path: str) -> bool:
+    """Win32 ``SetCurrentDirectoryA`` -- change the current
+    working directory."""
+    try:
+        os.chdir(path)
+        return True
+    except (OSError, FileNotFoundError):
+        return False
+
+
+def GetComputerNameA() -> str:
+    """Win32 ``GetComputerNameA`` -- return the host name."""
+    import socket
+    return socket.gethostname()
+
+
+def GetUserNameA() -> str:
+    """Win32 ``GetUserNameA`` -- return the current user name."""
+    return os.environ.get("USERNAME") or os.environ.get("USER") or "User"
+
+
+# ---------------------------------------------------------------------------
 # Aggregate public surface
 # ---------------------------------------------------------------------------
 
@@ -378,6 +465,18 @@ EXPORTS: Dict[str, Any] = {
     "GetVersionExA": GetVersionExA,
     "GetLastError": GetLastError,
     "SetLastError": SetLastError,
+    # ---- environment variables
+    "GetEnvironmentVariableA": GetEnvironmentVariableA,
+    "SetEnvironmentVariableA": SetEnvironmentVariableA,
+    "GetEnvironmentStringsA": GetEnvironmentStringsA,
+    "ExpandEnvironmentStringsA": ExpandEnvironmentStringsA,
+    "GetEnvironmentVariableW": GetEnvironmentVariableW,
+    "SetEnvironmentVariableW": SetEnvironmentVariableW,
+    "ExpandEnvironmentStringsW": ExpandEnvironmentStringsW,
+    "GetCurrentDirectoryA": GetCurrentDirectoryA,
+    "SetCurrentDirectoryA": SetCurrentDirectoryA,
+    "GetComputerNameA": GetComputerNameA,
+    "GetUserNameA": GetUserNameA,
 }
 
 

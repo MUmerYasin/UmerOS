@@ -240,6 +240,20 @@ _IMPORT_PLAN = {
     "win32_runner":         ("Win32Runner", "RunResult",
                              "build_test_pe_gettickcount",
                              "build_gettickcount_pe"),
+    # ---- Environment variables ----
+    "environment":          ("EnvironmentBlock", "EnvScope",
+                             "DEFAULT_SEED", "WIN10_RECOGNISED",
+                             "DYNAMIC_NAMES",
+                             "GetEnvironmentVariableA",
+                             "SetEnvironmentVariableA",
+                             "GetEnvironmentVariableW",
+                             "SetEnvironmentVariableW",
+                             "ExpandEnvironmentStringsA",
+                             "ExpandEnvironmentStringsW",
+                             "GetEnvironmentStringsA",
+                             "get_default_block", "get_default_var",
+                             "build_block", "parse_path", "join_path",
+                             "set_errorlevel", "set_cmdcmdline"),
 }
 
 

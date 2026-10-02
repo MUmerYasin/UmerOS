@@ -1247,6 +1247,125 @@ class TestMsiRuntime(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Environment variables
+# ---------------------------------------------------------------------------
+
+class TestEnvironment(unittest.TestCase):
+    """Win32 environment-variable handling."""
+
+    def test_selftest_passes(self) -> None:
+        from compatibility import environment
+        self.assertTrue(environment._selftest())
+
+    def test_canonical_win10_vars_present(self) -> None:
+        from compatibility import environment
+        d = environment.get_default_block()
+        for name in ("SystemRoot", "ComSpec", "OS", "PATHEXT",
+                     "AppData", "LocalAppData", "ProgramData",
+                     "Public", "ProgramFiles", "ProgramFiles(x86)",
+                     "USERPROFILE", "HomeDrive", "HomePath",
+                     "NUMBER_OF_PROCESSORS", "PROCESSOR_ARCHITECTURE"):
+            self.assertIsNotNone(d.get(name), f"missing canonical var {name}")
+
+    def test_case_insensitive_lookup(self) -> None:
+        from compatibility import environment
+        blk = environment.EnvironmentBlock()
+        blk["PATH"] = r"C:\Windows"
+        blk["Path"] = r"C:\Windows;overridden"
+        self.assertEqual(blk["PATH"], r"C:\Windows;overridden")
+        self.assertEqual(blk["path"], r"C:\Windows;overridden")
+        self.assertEqual(len(blk), 1)
+
+    def test_get_and_set_win32_a(self) -> None:
+        from compatibility import environment
+        blk = environment.EnvironmentBlock()
+        self.assertIsNone(environment.GetEnvironmentVariableA("MISSING", blk))
+        self.assertTrue(environment.SetEnvironmentVariableA("X", "1", blk))
+        self.assertEqual(environment.GetEnvironmentVariableA("X", blk), "1")
+        self.assertTrue(environment.SetEnvironmentVariableA("X", None, blk))
+        self.assertIsNone(environment.GetEnvironmentVariableA("X", blk))
+
+    def test_expand_environment_strings(self) -> None:
+        from compatibility import environment
+        blk = environment.EnvironmentBlock()
+        blk["FOO"] = "%BAR%"
+        blk["bar"] = "baz"
+        self.assertEqual(environment.ExpandEnvironmentStringsA("%FOO%!", blk),
+                         "baz!")
+        # Unresolvable: stays as literal.
+        self.assertEqual(environment.ExpandEnvironmentStringsA(
+            "a %NOPE% b", blk), "a %NOPE% b")
+        # Recursive.
+        blk["A"] = "%B%"
+        blk["B"] = "%C%"
+        blk["C"] = "leaf"
+        self.assertEqual(environment.ExpandEnvironmentStringsA("%A%", blk),
+                         "leaf")
+        # Cyclic guard.
+        blk["LOOP"] = "%LOOP%"
+        # Must not stack-overflow -- the cap kicks in and the literal
+        # is returned.
+        result = environment.ExpandEnvironmentStringsA("%LOOP%", blk)
+        self.assertEqual(result, "%LOOP%")
+
+    def test_pathext_match(self) -> None:
+        from compatibility import environment
+        blk = environment.EnvironmentBlock()
+        blk["PATHEXT"] = ".COM;.EXE;.BAT"
+        self.assertTrue(blk.matches_pathext("foo.EXE"))
+        self.assertTrue(blk.matches_pathext("bar.bat"))
+        self.assertFalse(blk.matches_pathext("readme.txt"))
+
+    def test_path_add_remove(self) -> None:
+        from compatibility import environment
+        blk = environment.EnvironmentBlock()
+        blk["PATH"] = r"C:\A;C:\B"
+        self.assertTrue(blk.add_path_entry(r"C:\C"))
+        self.assertEqual(blk.get("PATH"), r"C:\A;C:\B;C:\C")
+        # Duplicate -> no-op.
+        self.assertFalse(blk.add_path_entry(r"C:\C"))
+        # at_front moves the entry to the head.
+        self.assertTrue(blk.add_path_entry(r"C:\Z", at_front=True))
+        self.assertEqual(blk.get("PATH"), r"C:\Z;C:\A;C:\B;C:\C")
+        self.assertTrue(blk.remove_path_entry(r"C:\A"))
+        self.assertEqual(blk.get("PATH"), r"C:\Z;C:\B;C:\C")
+
+    def test_to_zz_block_round_trip(self) -> None:
+        from compatibility import environment
+        blk = environment.EnvironmentBlock()
+        blk["PATH"] = r"C:\Windows;overridden"
+        z = blk.to_zz_block()
+        # The block ends with the empty terminator.
+        self.assertTrue(z.endswith(b"\x00\x00\x00\x00"))
+        # The decoded form should be "PATH=C:\Windows;overridden".
+        decoded = z[:-2].decode("utf-16-le")
+        parts = [p for p in decoded.split("\x00") if p]
+        self.assertEqual(parts, [r"PATH=C:\Windows;overridden"])
+
+    def test_dynamic_cd_resolves_to_cwd(self) -> None:
+        from compatibility import environment
+        s = environment.ExpandEnvironmentStringsA("cwd=%CD%")
+        self.assertTrue(s.startswith("cwd="))
+        self.assertGreater(len(s), 4)
+
+    def test_set_errorlevel_then_expand(self) -> None:
+        from compatibility import environment
+        environment.set_errorlevel(42)
+        s = environment.ExpandEnvironmentStringsA("rc=%ERRORLEVEL%")
+        self.assertEqual(s, "rc=42")
+        environment.set_errorlevel(0)
+
+    def test_scopes_distinct(self) -> None:
+        from compatibility import environment
+        blk = environment.EnvironmentBlock()
+        blk["X"] = "process"
+        self.assertEqual(blk.scope_of("X"), environment.EnvScope.PROCESS)
+        blk["Y"] = "system"
+        blk._scopes["Y"] = environment.EnvScope.SYSTEM
+        self.assertEqual(blk.scope_of("Y"), environment.EnvScope.SYSTEM)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
