@@ -130,8 +130,8 @@ from .kvm_mm import (
 )
 
 __version__ = "1.0.0"
-__author__ = "UmerOS Team"
-__license__ = "GPL-2.0"
+__author__ = "UmerOS"
+__license__ = "GPL-3.0"
 
 __all__ = [
     # Main KVM types

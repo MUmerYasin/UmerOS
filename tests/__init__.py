@@ -20,11 +20,13 @@ UmerOS /tests — Test-suite package marker.
 The individual ``test_*.py`` files contain the actual test cases;
 this package marker exists only so that ``import tests`` is a no-op
 rather than an error.
+UmerOS — a Python-based hybrid classical + quantum OS simulation.
 """
 
 from __future__ import annotations
 
 __version__ = "1.0.0"
+__author__ = "UmerOS"
 __all__: list[str] = []
 
 # Intentionally empty.  See module docstring.

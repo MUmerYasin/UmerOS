@@ -27,7 +27,7 @@ UmerOS /legal — Legal, Disclaimer, Consent & Compliance Subsystem.
 
 from __future__ import annotations
 
-__version__ = "1.1.0"
+__version__ = "1.0.0"
 __all__: list[str] = []
 
 # All imports are best-effort with try/except so a partially-built

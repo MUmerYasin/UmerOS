@@ -89,8 +89,8 @@ License: GPL-3.0 (GNU General Public License v3)
 
 from __future__ import annotations
 
-__version__ = "2.0.0"
-__author__ = "UmerOS Development Team"
+__version__ = "1.0.0"
+__author__ = "UmerOS"
 
 # Core imports
 from .kernel_image import (

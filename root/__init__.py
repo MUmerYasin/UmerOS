@@ -68,7 +68,7 @@ License: GPL-3.0 (GNU General Public License Version 3)
 
 from __future__ import annotations
 
-__version__ = "2.0.0"
+__version__ = "1.0.0"
 
 from root.dotfiles import (
     DEFAULT_TEMPLATES,

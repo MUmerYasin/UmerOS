@@ -21,7 +21,7 @@ import logging
 from typing import List
 
 __version__ = "1.0.0"
-__author__ = "UmerOS Development Team"
+__author__ = "UmerOS"
 __all__: list[str] = []
 
 log = logging.getLogger("UmerOS.Opt")

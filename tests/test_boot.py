@@ -607,7 +607,7 @@ class TestKernelSigning:
 class TestPackageImports:
     def test_version(self):
         from boot import __version__
-        assert __version__ == "2.0.0"
+        assert __version__ == "1.0.0"
 
     def test_author(self):
         from boot import __author__

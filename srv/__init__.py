@@ -24,7 +24,7 @@ UmerOS /srv — Site-Specific Service Data Hierarchy.
 
 from __future__ import annotations
 
-__version__ = "1.1.0"
+__version__ = "1.0.0"
 __all__: list[str] = []
 
 # Best-effort imports.  The previous sys.path self-injection was removed
