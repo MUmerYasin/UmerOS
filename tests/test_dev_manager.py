@@ -24,6 +24,7 @@ Locks the remediation adopted in H60:
 
 import os
 import tempfile
+import threading
 import unittest
 
 from dev.core import DeviceManager, DeviceNode, DeviceType
@@ -97,6 +98,33 @@ class _DevManagerGateTest(unittest.TestCase):
                 self.assertTrue(any("REFUSED" in rec for rec in cm.output))
         finally:
             self._restore_gate(state)
+
+
+class _DevManagerRegistryTest(unittest.TestCase):
+    """H61 regression — DeviceManager registry/singleton are lock-guarded."""
+
+    def test_registry_lock_present(self):
+        mgr = DeviceManager(dev_root="/dev")
+        self.assertTrue(hasattr(mgr, "_lock"))
+        self.assertIsInstance(mgr._lock, threading.Lock)
+        self.assertTrue(hasattr(DeviceManager, "_instance_lock"))
+        self.assertIsInstance(DeviceManager._instance_lock, threading.Lock)
+
+    def test_get_instance_is_singleton(self):
+        a = DeviceManager.get_instance()
+        b = DeviceManager.get_instance()
+        self.assertIs(a, b)
+
+    def test_create_remove_node_functional_under_lock(self):
+        mgr = DeviceManager(dev_root="/dev")
+        node = DeviceNode(name="ttyS0", path="/dev/ttyS0",
+                          dev_type=DeviceType.CHAR, major=4, minor=64, mode=0o640)
+        self.assertTrue(mgr.create_node(node))
+        self.assertIsNotNone(mgr.get_node("/dev/ttyS0"))
+        self.assertFalse(mgr.create_node(node))  # duplicate refused
+        self.assertTrue(mgr.remove_node("/dev/ttyS0"))
+        self.assertIsNone(mgr.get_node("/dev/ttyS0"))
+        self.assertFalse(mgr.remove_node("/dev/ttyS0"))  # already gone
 
 
 if __name__ == "__main__":

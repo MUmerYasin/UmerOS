@@ -29,6 +29,7 @@ import enum
 import logging
 import os
 import stat as stat_mod
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -141,6 +142,7 @@ class DeviceManager:
     """
 
     _instance: Optional["DeviceManager"] = None
+    _instance_lock: "threading.Lock" = threading.Lock()  # [FIX H61] guards singleton creation (double-checked)
 
     def __init__(self, dev_root: str = "/dev"):
         self.dev_root = dev_root
@@ -148,39 +150,44 @@ class DeviceManager:
         self._by_major: Dict[int, List[DeviceNode]] = {}
         self._by_name: Dict[str, DeviceNode] = {}     # name -> DeviceNode
         self._symlinks: Dict[str, str] = {}            # symlink_path -> target
+        self._lock = threading.Lock()  # [FIX H61] guards the registry dicts against concurrent registration/hotplug
         log.info("DeviceManager initialized (root=%s)", dev_root)
 
     @classmethod
     def get_instance(cls) -> "DeviceManager":
-        if cls._instance is None:
-            cls._instance = cls()
+        if cls._instance is None:                       # [FIX H61] double-checked locking
+            with cls._instance_lock:
+                if cls._instance is None:
+                    cls._instance = cls()
         return cls._instance
 
     # ── CRUD ──────────────────────────────────────────────────────────────
 
     def create_node(self, node: DeviceNode) -> bool:
-        if node.path in self._nodes:
-            log.warning("Device node already exists: %s", node.path)
-            return False
-        self._nodes[node.path] = node
-        self._by_name[node.name] = node
-        if node.major:
-            self._by_major.setdefault(node.major, []).append(node)
-        if node.dev_type == DeviceType.SYMLINK:
-            self._symlinks[node.path] = node.symlink_target
+        with self._lock:                                # [FIX H61] registry mutation is atomic
+            if node.path in self._nodes:
+                log.warning("Device node already exists: %s", node.path)
+                return False
+            self._nodes[node.path] = node
+            self._by_name[node.name] = node
+            if node.major:
+                self._by_major.setdefault(node.major, []).append(node)
+            if node.dev_type == DeviceType.SYMLINK:
+                self._symlinks[node.path] = node.symlink_target
         log.debug("Created device node: %s (%s %d,%d)", node.path, node.dev_type.value, node.major, node.minor)
         return True
 
     def remove_node(self, path: str) -> bool:
-        node = self._nodes.pop(path, None)
-        if node is None:
-            return False
-        self._by_name.pop(node.name, None)
-        if node.major and node.major in self._by_major:
-            self._by_major[node.major] = [n for n in self._by_major[node.major] if n.path != path]
-            if not self._by_major[node.major]:
-                del self._by_major[node.major]
-        self._symlinks.pop(path, None)
+        with self._lock:                                # [FIX H61] registry mutation is atomic
+            node = self._nodes.pop(path, None)
+            if node is None:
+                return False
+            self._by_name.pop(node.name, None)
+            if node.major and node.major in self._by_major:
+                self._by_major[node.major] = [n for n in self._by_major[node.major] if n.path != path]
+                if not self._by_major[node.major]:
+                    del self._by_major[node.major]
+            self._symlinks.pop(path, None)
         log.debug("Removed device node: %s", path)
         return True
 
@@ -239,7 +246,9 @@ class DeviceManager:
 
         created = 0
         dev_root = Path(self.dev_root).resolve()
-        for node in self._nodes.values():
+        with self._lock:                                # [FIX H61] snapshot under lock; never hold it across I/O
+            nodes = list(self._nodes.values())
+        for node in nodes:
             p = Path(node.path)
             # [FIX H60] confine node to the virtual dev root (CWE-22)
             try:
