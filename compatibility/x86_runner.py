@@ -200,7 +200,7 @@ class Memory:
         return struct.unpack("<Q", self.read(addr, 8))[0]
 
     def write_u64(self, addr: int, value: int) -> None:
-        self.write(addr, struct.pack("<Q", value))
+        self.write(addr, struct.pack("<Q", value & 0xFFFFFFFFFFFFFFFF))
 
     def read_u32(self, addr: int) -> int:
         return struct.unpack("<I", self.read(addr, 4))[0]
@@ -272,7 +272,20 @@ class Emulator:
             raise EmulatorError(f"unknown thunk at 0x{addr:x}")
         name, callable_ = info
         log.debug("thunk call: %s @ 0x%016x", name, self.regs.get(REG_RIP))
-        callable_(self)
+        # Tolerate both ``callable_()`` (kernel32 plain functions) and
+        # ``callable_(emu)`` (stubs that want the emulator).
+        import inspect as _inspect
+        try:
+            sig = _inspect.signature(callable_)
+        except (TypeError, ValueError):
+            sig = None
+        if sig is not None and len(sig.parameters) == 0:
+            result = callable_()
+        else:
+            result = callable_(self)
+        # Place the return value (if it's a Win32-ish integer) in rax.
+        if isinstance(result, (int, bool)):
+            self.regs.set(0, int(result) & 0xFFFFFFFFFFFFFFFF)
         # The thunk is reached via a Win32 ``call [IAT]`` which
         # pushed a return address onto the stack.  Pop it now and
         # resume execution at the caller.
@@ -317,12 +330,22 @@ class Emulator:
             idx = (sib >> 3) & 7
             base = sib & 7
             if base == 5 and mod == 0:
+                # ModR/M=00 r/m=5 (i.e. SIB base=5) -> no base reg,
+                # displacement is 32 bits.
                 disp = self._signed(self.mem.read_u32(addr + n), 32)
                 n += 4
                 base_idx = None
             else:
                 base_idx = base
-                disp = 0
+                # Read the displacement according to mod.
+                if mod == 1:
+                    disp = self._signed(self.mem.read_u8(addr + n), 8)
+                    n += 1
+                elif mod == 2:
+                    disp = self._signed(self.mem.read_u32(addr + n), 32)
+                    n += 4
+                else:
+                    disp = 0
             # Apply REX.X to index, REX.B to base.
             if rex_b and base_idx is not None:
                 base_idx = (base_idx + 8) & 0xF
@@ -406,9 +429,12 @@ class Emulator:
         # the next instruction.
         # BUT we read the opcode byte at this address.
         b0 = self.mem.read_u8(ip)
-        # Parse any REX prefix.
+        # Parse (possibly multiple) REX prefixes.  Strict-mode Intel
+        # only allows one but MSVC and GCC occasionally emit redundant
+        # ones (``40 48 ...``) which CPUs tolerate by letting the last
+        # REX win.  We mimic that behaviour.
         rex = 0
-        if 0x40 <= b0 <= 0x4F:
+        while 0x40 <= b0 <= 0x4F:
             rex = b0 - 0x40
             self._rex = rex
             ip += 1
@@ -495,10 +521,53 @@ class Emulator:
         if op == 0x90:
             self.regs.set(15, ip)
             return
+        if op == 0x6C:
+            # insb -- port I/O; we have no hardware emulation, so this
+            # is a no-op (the caller does not check the byte).
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0x6E:
+            # outsb -- port I/O; no-op.
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0xF2:
+            # REP prefix (F2 or F3) -- simplest interpretation: ignore
+            # the prefix and decode the next instruction.  This is
+            # safe for ``repz retn`` etc.
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0xF3:
+            # REP / REPZ (3) prefix -- ignore.
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0xF8:
+            # clc
+            self.regs.cf = 0
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0xF9:
+            # stc
+            self.regs.cf = 1
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0xFC:
+            # cld
+            self.regs.df = 0
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0xFD:
+            # std
+            self.regs.df = 1
+            self.regs.set(15, ip + 1)
+            return
         if op == 0xCC:
             # int 3 - signal breakpoint; the thunk dispatcher handles this.
             cur_rip = self.regs.get(15)
             self._invoke_thunk(cur_rip)
+            return
+        if op == 0xF1:
+            # int1 / icebp -- skip.
+            self.regs.set(15, ip + 1)
             return
         if op == 0xF4:
             # hlt -- terminate cleanly.
@@ -508,6 +577,12 @@ class Emulator:
             disp, _ = self._read_imm(ip, 4)
             target = (ip + 4) + self._signed(disp, 32)
             self.regs.set(15, target)
+            return
+        if op == 0xEA:
+            # jmp far ptr -- in 64-bit flat mode the segment selector
+            # is ignored, so we just jump to the absolute offset.
+            offset = struct.unpack("<Q", self.mem.read(ip, 8))[0]
+            self.regs.set(15, offset)
             return
         if op == 0xE8:
             # call near rel32 -- push return address then jump.
@@ -659,6 +734,33 @@ class Emulator:
                 self.regs.set(val, res)
             self.regs.set(15, rm_addr + n)
             return
+        if op == 0x09:
+            # or r/m, r
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            if kind == "reg":
+                self.regs.set(val, self.regs.get(val) | self.regs.get(op_reg))
+            elif kind == "mem64":
+                self.mem.write_u64(val,
+                                    self.mem.read_u64(val) | self.regs.get(op_reg))
+            elif kind == "mem32":
+                self.mem.write_u32(val,
+                                    self.mem.read_u32(val)
+                                    | (self.regs.get(op_reg) & 0xFFFFFFFF))
+            self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x0B:
+            # or r, r/m
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            if kind == "reg":
+                src = self.regs.get(val)
+            elif kind == "mem64":
+                src = self.mem.read_u64(val)
+            else:
+                src = self.mem.read_u32(val)
+            mask = (1 << (op_size * 8)) - 1
+            self.regs.set(op_reg, (self.regs.get(op_reg) | src) & mask)
+            self.regs.set(15, rm_addr + n)
+            return
         if op == 0x2B:
             # sub r, r/m
             kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
@@ -699,6 +801,54 @@ class Emulator:
             self._cmp(self.regs.get(REG_RAX), imm, op_size)
             self.regs.set(15, ip + n)
             return
+        if op == 0x05:
+            # add eax, imm32 (or rax, imm32 with REX.W)
+            imm, n = self._read_imm(ip, 4 if not rex_w else 8)
+            mask = (1 << (op_size * 8)) - 1
+            old = self.regs.get(REG_RAX)
+            new = (old + imm) & mask
+            self.regs.set(REG_RAX, new)
+            self._cmp_arith(old, imm, new, op_size)
+            self.regs.set(15, ip + n)
+            return
+        if op == 0x0D:
+            # or eax, imm32 (or rax with REX.W)
+            imm, n = self._read_imm(ip, 4 if not rex_w else 8)
+            mask = (1 << (op_size * 8)) - 1
+            self.regs.set(REG_RAX, (self.regs.get(REG_RAX) | imm) & mask)
+            self.regs.cf = 0
+            self.regs.of = 0
+            self.regs.set(15, ip + n)
+            return
+        if op == 0x25:
+            # and eax, imm32 (or rax with REX.W)
+            imm, n = self._read_imm(ip, 4 if not rex_w else 8)
+            self._cmp(self.regs.get(REG_RAX), imm, op_size)
+            mask = (1 << (op_size * 8)) - 1
+            self.regs.set(REG_RAX, (self.regs.get(REG_RAX) & imm) & mask)
+            self.regs.cf = 0
+            self.regs.of = 0
+            self.regs.set(15, ip + n)
+            return
+        if op == 0x2D:
+            # sub eax, imm32 (or rax with REX.W)
+            imm, n = self._read_imm(ip, 4 if not rex_w else 8)
+            mask = (1 << (op_size * 8)) - 1
+            old = self.regs.get(REG_RAX)
+            new = (old - imm) & mask
+            self.regs.set(REG_RAX, new)
+            self._cmp_arith(old, imm, new, op_size)
+            self.regs.set(15, ip + n)
+            return
+        if op == 0x35:
+            # xor eax, imm32 (or rax with REX.W)
+            imm, n = self._read_imm(ip, 4 if not rex_w else 8)
+            mask = (1 << (op_size * 8)) - 1
+            self.regs.set(REG_RAX, (self.regs.get(REG_RAX) ^ imm) & mask)
+            self.regs.cf = 0
+            self.regs.of = 0
+            self.regs.set(15, ip + n)
+            return
         if op == 0x3B:
             # cmp r, r/m
             kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
@@ -709,6 +859,37 @@ class Emulator:
             self._cmp(self.regs.get(op_reg), src, op_size)
             self.regs.set(15, rm_addr + n)
             return
+        if op == 0x84:
+            # test r/m8, r8
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, 1)
+            src = (self.regs.get(val) & 0xFF) if kind == "reg" else self.mem.read_u8(val)
+            self._cmp(self.regs.get(op_reg) & 0xFF, src, 1)
+            self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x85:
+            # test r/m, r
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            if kind == "reg":
+                src = self.regs.get(val)
+            elif kind == "mem64":
+                src = self.mem.read_u64(val)
+            else:
+                src = self.mem.read_u32(val)
+            self._cmp(self.regs.get(op_reg), src, op_size)
+            self.regs.set(15, rm_addr + n)
+            return
+        if op == 0xA8:
+            # test al, imm8
+            imm, _ = self._read_imm(ip, 1)
+            self._cmp(self.regs.get(op_reg) & 0xFF, imm, 1)
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0xA9:
+            # test eax, imm32 (or rax with REX.W)
+            imm, _ = self._read_imm(ip, 4)
+            self._cmp(self.regs.get(op_reg), imm, op_size)
+            self.regs.set(15, ip + 4)
+            return
         if op == 0x39:
             # cmp r/m, r
             kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
@@ -718,6 +899,39 @@ class Emulator:
                 tgt = self.mem.read_u64(val)
             self._cmp(tgt, self.regs.get(op_reg), op_size)
             self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x22:
+            # and r8, r/m8 (8-bit)
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, 1)
+            src = (self.regs.get(val) & 0xFF) if kind == "reg" else self.mem.read_u8(val)
+            res = (self.regs.get(op_reg) & 0xFF) & src
+            self.regs.set(op_reg, (self.regs.get(op_reg) & ~0xFF) | res)
+            self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x23:
+            # and r, r/m
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            if kind == "reg":
+                src = self.regs.get(val)
+            elif kind == "mem64":
+                src = self.mem.read_u64(val)
+            else:
+                src = self.mem.read_u32(val)
+            mask = (1 << (op_size * 8)) - 1
+            self.regs.set(op_reg, self.regs.get(op_reg) & src & mask)
+            self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x24:
+            # and al, imm8
+            imm, _ = self._read_imm(ip, 1)
+            self.regs.set(op_reg, (self.regs.get(op_reg) & ~0xFF) | ((self.regs.get(op_reg) & 0xFF) & imm))
+            self.regs.set(15, ip + 1)
+            return
+        if op == 0x25:
+            # and eax, imm32 (or rax with REX.W)
+            imm, _ = self._read_imm(ip, 4)
+            self.regs.set(op_reg, self.regs.get(op_reg) & imm)
+            self.regs.set(15, ip + 4)
             return
         if op == 0x8D:
             # lea r, [m]
@@ -757,17 +971,167 @@ class Emulator:
                 self._push(src)
                 self.regs.set(15, rm_addr + n)
                 return
-        if op == 0xC7:
-            # mov r/m, imm (size determined by op_size)
+        if op == 0x81:
+            # Immediate group 1: /0 add, /1 or, /2 adc, /3 sbb,
+            # /4 and, /5 sub, /6 xor, /7 cmp.  Operands are 16/32/64.
             kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
-            imm, m = self._read_imm(rm_addr + n, op_size)
-            if kind == "mem64":
-                self.mem.write_u64(val, imm)
+            imm, m = self._read_imm(rm_addr + n, 4)
+            sign_ext = self._signed(imm, 32) if op_size == 8 else imm
+            mask = (1 << (op_size * 8)) - 1
+            if kind == "reg":
+                tgt = self.regs.get(val)
+            elif kind == "mem64":
+                tgt = self.mem.read_u64(val)
             elif kind == "mem32":
-                self.mem.write_u32(val, imm)
-            elif kind == "reg":
-                self.regs.set(val, imm)
+                tgt = self.mem.read_u32(val)
+            else:
+                tgt = 0
+            if reg == 0:        # add
+                res = (tgt + sign_ext) & mask
+                self._cmp_arith(tgt, sign_ext, res, op_size)
+            elif reg == 1:    # or
+                res = (tgt | sign_ext) & mask
+            elif reg == 2:    # adc (carry -- treat as add)
+                res = (tgt + sign_ext + self.regs.cf) & mask
+                self._cmp_arith(tgt, sign_ext + self.regs.cf, res, op_size)
+            elif reg == 3:    # sbb (borrow -- treat as sub)
+                res = (tgt - sign_ext - self.regs.cf) & mask
+                self._cmp_arith(tgt, sign_ext + self.regs.cf, res, op_size)
+            elif reg == 4:    # and
+                res = (tgt & sign_ext) & mask
+                self._cmp(tgt, sign_ext, op_size)
+            elif reg == 5:    # sub
+                res = (tgt - sign_ext) & mask
+                self._cmp_arith(tgt, sign_ext, res, op_size)
+            elif reg == 6:    # xor
+                res = (tgt ^ sign_ext) & mask
+            elif reg == 7:    # cmp
+                self._cmp(tgt, sign_ext, op_size)
+                res = tgt
+            else:
+                res = tgt
+            if reg != 7:
+                if kind == "reg":
+                    self.regs.set(val, res)
+                elif kind == "mem64":
+                    self.mem.write_u64(val, res)
+                elif kind == "mem32":
+                    self.mem.write_u32(val, res)
             self.regs.set(15, rm_addr + n + m)
+            return
+        if op == 0xC7:
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            imm, m = self._read_imm(rm_addr + n, 4)
+            if kind == "mem64":
+                self.mem.write_u64(val, self._signed(imm, 32))
+            elif kind == "mem32":
+                self.mem.write_u32(val, imm & 0xFFFFFFFF)
+            elif kind == "mem16":
+                self.mem.write_u16(val, imm & 0xFFFF)
+            elif kind == "mem8":
+                self.mem.write_u8(val, imm & 0xFF)
+            elif kind == "reg":
+                # For register operand, sign-extend imm32 to op_size.
+                if op_size == 8:
+                    self.regs.set(val, self._signed(imm, 32))
+                else:
+                    self.regs.set(val, imm & ((1 << (op_size * 8)) - 1))
+            self.regs.set(15, rm_addr + n + m)
+            return
+        if op == 0xC6:
+            # mov r/m8, imm8 (/0).  Other reg fields are illegal.
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, 1)
+            imm, m = self._read_imm(rm_addr + n, 1)
+            if kind == "mem8" or kind == "mem":
+                self.mem.write_u8(val, imm & 0xFF)
+            elif kind == "reg":
+                self.regs.set(val, (self.regs.get(val) & ~0xFF) | (imm & 0xFF))
+            self.regs.set(15, rm_addr + n + m)
+            return
+        if op == 0xC1:
+            # Shift group 2 by imm8: /0 rol, /1 ror, /2 rcl,
+            # /3 rcr, /4 shl, /5 shr, /7 sar.  Operands are 16/32/64.
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            imm, m = self._read_imm(rm_addr + n, 1)
+            shift = imm & 0x3F
+            mask = (1 << (op_size * 8)) - 1
+            if kind == "reg":
+                tgt = self.regs.get(val)
+            elif kind == "mem64":
+                tgt = self.mem.read_u64(val)
+            else:
+                tgt = self.mem.read_u32(val) if kind == "mem32" else 0
+            if reg == 4:        # shl
+                res = (tgt << shift) & mask
+            elif reg == 5:    # shr (logical)
+                res = (tgt >> shift) & mask if shift < op_size * 8 else 0
+            elif reg == 7:    # sar (arithmetic)
+                # Replicate sign bit.
+                sign_bit = 1 << (op_size * 8 - 1)
+                if tgt & sign_bit:
+                    # Negative number: arithmetic shift preserves sign.
+                    sign_mask = ((1 << shift) - 1) << (op_size * 8 - shift)
+                    res = ((tgt >> shift) | sign_mask) & mask
+                else:
+                    res = (tgt >> shift) & mask
+            elif reg == 0:    # rol
+                res = ((tgt << shift) | (tgt >> (op_size * 8 - shift))) & mask \
+                    if shift else tgt
+            elif reg == 1:    # ror
+                res = ((tgt >> shift) | (tgt << (op_size * 8 - shift))) & mask \
+                    if shift else tgt
+            else:            # rcl, rcr -- not implemented, return tgt
+                res = tgt
+            if kind == "reg":
+                self.regs.set(val, res)
+            elif kind == "mem64":
+                self.mem.write_u64(val, res)
+            elif kind == "mem32":
+                self.mem.write_u32(val, res)
+            self.regs.set(15, rm_addr + n + m)
+            return
+        if op == 0xF7:
+            # Group 3 (r/m, /0 test; /4 mul; /5 imul; /6 div; /7 idiv;
+            # /2 not; /3 neg).  Operand size is 16/32/64.
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            if kind == "reg":
+                tgt = self.regs.get(val)
+            elif kind == "mem64":
+                tgt = self.mem.read_u64(val)
+            else:
+                tgt = self.mem.read_u32(val) if kind == "mem32" else self.mem.read_u16(val)
+            mask = (1 << (op_size * 8)) - 1
+            if reg == 0:
+                # test r/m, imm32 (sign-extended in 64-bit)
+                imm, m = self._read_imm(rm_addr + n, 4)
+                self._cmp(tgt, self._signed(imm, 32) if op_size == 8 else imm,
+                          op_size)
+                self.regs.set(15, rm_addr + n + m)
+                return
+            if reg == 2:
+                res = (~tgt) & mask        # NOT
+            elif reg == 3:
+                res = (-tgt) & mask        # NEG
+            elif reg == 4:
+                # MUL r/m -- rax = rax * r/m, of/cf set
+                res_full = (self.regs.get(0) * tgt) & ((mask << (op_size // 2)) | mask)
+                self.regs.set(0, res_full & mask)
+                if op_size == 8:
+                    self.regs.set(REG_RDX, (res_full >> 64) & mask)
+                self.regs.set(15, rm_addr + n)
+                return
+            else:
+                # div / idiv / imul -- treat as identity
+                res = tgt
+            if kind == "reg":
+                self.regs.set(val, res)
+            elif kind == "mem64":
+                self.mem.write_u64(val, res)
+            elif kind == "mem32":
+                self.mem.write_u32(val, res)
+            elif kind == "mem16":
+                self.mem.write_u16(val, res)
+            self.regs.set(15, rm_addr + n)
             return
         if op == 0x83:
             # /0 add r/m, imm8 /1 or r/m, imm8 /5 sub r/m, imm8 /7 cmp r/m, imm8
@@ -834,6 +1198,29 @@ class Emulator:
             else:
                 self.regs.set(15, ip)
             return
+        if op == 0xA2:
+            # cpuid: returns processor info into eax/ebx/ecx/edx.
+            # Synthesize a generic x86-64 / AMD64 result.
+            leaf = self.regs.get(REG_RAX)
+            if leaf == 0:
+                # Highest leaf + vendor ID.
+                self.regs.set(REG_RAX, 0x00000020)
+                self.regs.set(REG_RBX, 0x68747541)        # 'htuA' (Auth)
+                self.regs.set(REG_RCX, 0x444D4163)        # 'DMAc' (AMD)
+                self.regs.set(REG_RDX, 0x69746E65)        # 'itne' (enti)
+            elif leaf == 1:
+                # Family/model/stepping.
+                self.regs.set(REG_RAX, 0x00680F00)        # family 6, model 15, stepping 0
+                self.regs.set(REG_RBX, 0)
+                self.regs.set(REG_RCX, 0)
+                self.regs.set(REG_RDX, 0x078082AB)        # basic feature flags
+            else:
+                self.regs.set(REG_RAX, 0)
+                self.regs.set(REG_RBX, 0)
+                self.regs.set(REG_RCX, 0)
+                self.regs.set(REG_RDX, 0)
+            self.regs.set(15, ip + 1)
+            return
         if op == 0xB6:
             # movzx r, r/m8
             modrm = self.mem.read_u8(ip)
@@ -863,6 +1250,68 @@ class Emulator:
             else:
                 src = struct.unpack("<H", self.mem.read(val, 2))[0]
             self.regs.set(op_reg, src)
+            self.regs.set(15, rm_addr + n)
+            return
+        # CMOVcc -- conditional move.
+        if 0x40 <= op <= 0x4F:
+            modrm = self.mem.read_u8(ip)
+            rm_addr = ip + 1
+            mod = (modrm >> 6) & 3
+            reg = (modrm >> 3) & 7
+            rm = modrm & 7
+            op_reg = (reg + rex_r) & 0xF if (rex & 0x4) else reg
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            if kind == "reg":
+                src = self.regs.get(val)
+            elif kind == "mem64":
+                src = self.mem.read_u64(val)
+            elif kind == "mem32":
+                src = self.mem.read_u32(val)
+            elif kind == "mem16":
+                src = struct.unpack("<H", self.mem.read(val, 2))[0]
+            elif kind == "mem8":
+                src = self.mem.read_u8(val)
+            else:
+                src = 0
+            taken = False
+            low = op & 0xF
+            # OF SF ZF CF are read from RFLAGS.
+            if low == 0x0:    # CMOVO
+                taken = self.regs.of == 1
+            elif low == 0x1:  # CMOVNO
+                taken = self.regs.of == 0
+            elif low == 0x2:  # CMOVB / CMOVC / CMOVNAE
+                taken = self.regs.cf == 1
+            elif low == 0x3:  # CMOVNB / CMOVNC / CMOVAE
+                taken = self.regs.cf == 0
+            elif low == 0x4:  # CMOVE / CMOVZ
+                taken = self.regs.zf == 1
+            elif low == 0x5:  # CMOVNE / CMOVNZ
+                taken = self.regs.zf == 0
+            elif low == 0x6:  # CMOVBE / CMOVNA
+                taken = self.regs.cf == 1 or self.regs.zf == 1
+            elif low == 0x7:  # CMOVNBE / CMOVA
+                taken = self.regs.cf == 0 and self.regs.zf == 0
+            elif low == 0x8:  # CMOVS
+                taken = self.regs.sf == 1
+            elif low == 0x9:  # CMOVNS
+                taken = self.regs.sf == 0
+            elif low == 0xA:  # CMOVP / CMOVPE
+                taken = self.regs.pf == 1
+            elif low == 0xB:  # CMOVNP / CMOVPO
+                taken = self.regs.pf == 0
+            elif low == 0xC:  # CMOVL / CMOVNGE
+                taken = self.regs.sf != self.regs.of
+            elif low == 0xD:  # CMOVNL / CMOVGE
+                taken = self.regs.sf == self.regs.of
+            elif low == 0xE:  # CMOVLE / CMOVNG
+                taken = self.regs.zf == 1 or self.regs.sf != self.regs.of
+            elif low == 0xF:  # CMOVNLE / CMOVG
+                taken = self.regs.zf == 0 and self.regs.sf == self.regs.of
+            if taken:
+                # Mask src to op_size before storing in destination.
+                mask = (1 << (op_size * 8)) - 1
+                self.regs.set(op_reg, src & mask)
             self.regs.set(15, rm_addr + n)
             return
         raise EmulatorDecodeError(

@@ -343,6 +343,11 @@ def GetCommandLineA() -> str:
     return "umeros"
 
 
+def GetCommandLineW() -> str:
+    """Win32 ``GetCommandLineW`` -- Unicode flavour of GetCommandLineA."""
+    return "umeros"
+
+
 def GetVersionExA() -> Tuple[int, int, int, int]:
     """Return (major, minor, build, platform_id)."""
     return (10, 0, 19045, 2)   # VER_PLATFORM_WIN32_NT
@@ -436,6 +441,417 @@ def GetUserNameA() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Time / date
+# ---------------------------------------------------------------------------
+
+def GetSystemTimeAsFileTime(t: Optional[bytes] = None) -> bytes:
+    """Win32 ``GetSystemTimeAsFileTime`` -- write a 64-bit FILETIME
+    representing the current time into ``t`` (a 16-byte buffer).
+    The FILETIME is the number of 100-ns intervals since 1601-01-01 UTC."""
+    import time as _t
+    # Convert epoch (1970) to FILETIME epoch (1601).
+    epoch_diff = 116444736000000000
+    filetime = int(_t.time() * 1000000) + epoch_diff
+    blob = struct.pack("<Q", filetime)
+    if t is not None:
+        # In a real Win32, ``t`` would be a pointer; our Python
+        # compatibility layer writes to a placeholder ``bytes`` arg.
+        return blob
+    return blob
+
+
+def GetTickCount64() -> int:
+    """Win32 ``GetTickCount64`` -- monotonic 64-bit millisecond counter."""
+    import time as _t
+    return int(_t.monotonic() * 1000)
+
+
+# ---------------------------------------------------------------------------
+# Process / thread
+# ---------------------------------------------------------------------------
+
+def GetCurrentProcessId() -> int:
+    """Win32 ``GetCurrentProcessId`` -- return the host process id."""
+    return os.getpid()
+
+
+def GetCurrentThreadId() -> int:
+    """Win32 ``GetCurrentThreadId`` -- return a fake thread id."""
+    import threading
+    return threading.get_ident() & 0xFFFFFFFF
+
+
+def GetCurrentProcess() -> int:
+    """Win32 ``GetCurrentProcess`` -- return the pseudo-handle ``-1``."""
+    return 0xFFFFFFFFFFFFFFFF
+
+
+def ExitProcess(code: int) -> None:
+    """Win32 ``ExitProcess`` -- sets the emulator's exit code and halts."""
+    from .x86_runner import EmulatorHalt
+    raise EmulatorHalt(code)
+
+
+def TerminateProcess(handle: int, code: int) -> bool:
+    """Win32 ``TerminateProcess`` -- return ``True`` after setting exit code."""
+    from .x86_runner import EmulatorHalt
+    raise EmulatorHalt(code)
+
+
+def IsProcessorFeaturePresent(feat: int) -> bool:
+    """Win32 ``IsProcessorFeaturePresent`` -- return ``True`` for the
+    x86 features we emulate."""
+    return True
+
+
+def IsDebuggerPresent() -> bool:
+    """Win32 ``IsDebuggerPresent`` -- return ``False``."""
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Synchronization (critical sections)
+# ---------------------------------------------------------------------------
+
+class _CritSec:
+    """Placeholder for ``CRITICAL_SECTION`` -- we don't actually lock."""
+
+    def __init__(self) -> None:
+        self.locked = False
+
+
+def InitializeCriticalSectionEx(crit: Optional[dict] = None,
+                                spin: int = 0, flags: int = 0) -> bool:
+    if crit is not None:
+        crit.clear()
+        crit["locked"] = False
+    return True
+
+
+def EnterCriticalSection(crit: Optional[dict] = None) -> None:
+    if crit is not None:
+        crit["locked"] = True
+
+
+def LeaveCriticalSection(crit: Optional[dict] = None) -> None:
+    if crit is not None:
+        crit["locked"] = False
+
+
+def DeleteCriticalSection(crit: Optional[dict] = None) -> None:
+    if crit is not None:
+        crit.clear()
+
+
+# ---------------------------------------------------------------------------
+# Structured exception handling (SEH) -- all stubs
+# ---------------------------------------------------------------------------
+
+def InitializeSListHead(native: Optional[dict] = None) -> None:
+    """Win32 ``InitializeSListHead`` -- initialise a singly-linked list."""
+    if native is not None:
+        native.clear()
+        native["head"] = 0
+
+
+def SetUnhandledExceptionFilter(handler: int = 0) -> int:
+    """Win32 ``SetUnhandledExceptionFilter`` -- return the previous filter."""
+    return 0
+
+
+def UnhandledExceptionFilter(exc: int = 0) -> int:
+    """Win32 ``UnhandledExceptionFilter`` -- return ``EXCEPTION_EXECUTE_HANDLER``."""
+    return 0
+
+
+def RtlUnwindEx(target_frame: int = 0, target_ip: int = 0,
+               exc_record: int = 0, retval: int = 0,
+               context: int = 0, history: int = 0) -> None:
+    """ntdll ``RtlUnwindEx`` -- no-op stub."""
+    return None
+
+
+def RaiseException(code: int, flags: int = 0, nargs: int = 0,
+                   args: int = 0) -> None:
+    """Win32 ``RaiseException`` -- return immediately (no exception)."""
+    return None
+
+
+def EncodePointer(ptr: int) -> int:
+    """Win32 ``EncodePointer`` -- XOR with a per-process cookie (we use 0)."""
+    return ptr
+
+
+def RtlLookupFunctionEntryEntry() -> int:
+    """ntdll ``RtlLookupFunctionEntry`` -- no unwind info => return 0."""
+    return 0
+
+
+def RtlPcToFileHeader(pc: int, base_out: int = 0) -> int:
+    """ntdll ``RtlPcToFileHeader`` -- return 0 (no image header)."""
+    return 0
+
+
+def RtlCaptureContext(ctx: int = 0) -> None:
+    """ntdll ``RtlCaptureContext`` -- no-op."""
+    return None
+
+
+def RtlVirtualUnwind(flags: int = 0, target_ip: int = 0,
+                      context: int = 0, history: int = 0,
+                      handler_data: int = 0) -> int:
+    """ntdll ``RtlVirtualUnwind`` -- return 0."""
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Thread-local storage
+# ---------------------------------------------------------------------------
+
+def FlsAlloc(callback: int = 0) -> int:
+    """Win32 ``FlsAlloc`` -- allocate a fake TLB index."""
+    return 1
+
+
+def FlsGetValue(index: int) -> int:
+    """Win32 ``FlsGetValue`` -- return 0 (no slot stored)."""
+    return 0
+
+
+def FlsSetValue(index: int, value: int) -> bool:
+    """Win32 ``FlsSetValue`` -- always return ``True``."""
+    return True
+
+
+def FlsFree(index: int) -> bool:
+    """Win32 ``FlsFree`` -- return ``True``."""
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Heap
+# ---------------------------------------------------------------------------
+
+def HeapSize(heap: int, flags: int, ptr: int) -> int:
+    """Win32 ``HeapSize`` -- return a fake size of 16 bytes."""
+    return 16
+
+
+def HeapReAlloc(heap: int, flags: int, ptr: int, size: int) -> int:
+    """Win32 ``HeapReAlloc`` -- return the original pointer (no-op)."""
+    return ptr
+
+
+# ---------------------------------------------------------------------------
+# Console I/O
+# ---------------------------------------------------------------------------
+
+def GetConsoleOutputCP() -> int:
+    """Win32 ``GetConsoleOutputCP`` -- return the host's console codepage."""
+    import sys
+    return 0 if not sys.stdout else 0x6500 / 0x100  # cp -> 6500 (UTF-8 in Win10)
+
+
+def GetConsoleMode(handle: int) -> int:
+    """Win32 ``GetConsoleMode`` -- return ``0`` (no flags)."""
+    return 0
+
+
+def WriteConsoleW(handle: int, text: str, length: int,
+                  written: int = 0, reserved: int = 0) -> bool:
+    """Win32 ``WriteConsoleW`` -- write the UTF-16 text to stdout."""
+    if handle == 0xFFFFFFF5 or handle == 0xFFFFFFF6:        # stdout/stderr
+        sys.stdout.write(text)
+        sys.stdout.flush()
+        return True
+    return False
+
+
+def GetStdHandle(which: int) -> int:
+    """Win32 ``GetStdHandle`` -- return pseudo-handles."""
+    if which == -11:
+        return 0xFFFFFFF5        # stdin
+    if which == -12:
+        return 0xFFFFFFF6        # stdout
+    if which == -15:
+        return 0xFFFFFFF7        # stderr
+    return 0xFFFFFFFFFFFFFFFF
+
+
+def SetStdHandle(which: int, handle: int) -> bool:
+    """Win32 ``SetStdHandle`` -- return ``True``."""
+    return True
+
+
+def GetStartupInfoW(info: int = 0) -> None:
+    """Win32 ``GetStartupInfoW`` -- no-op stub."""
+    return None
+
+
+def GetModuleHandleExW(which: int, name: int = 0, handle_out: int = 0) -> int:
+    """Win32 ``GetModuleHandleExW`` -- return ``0``."""
+    return 0
+
+
+def GetModuleFileNameW(handle: int, buf: int = 0, size: int = 0) -> int:
+    """Win32 ``GetModuleFileNameW`` -- return ``0``."""
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# File I/O (Unicode)
+# ---------------------------------------------------------------------------
+
+def CreateFileW(path: str, access: int = 0, share: int = 0,
+                security: int = 0, creation: int = 0,
+                attrs: int = 0, template: int = 0) -> int:
+    """Win32 ``CreateFileW`` -- wrap :func:`CreateFileA`."""
+    return CreateFileA(path, access, share, security, creation,
+                        attrs, template)
+
+
+def FindFirstFileExW(pattern: str, info_level: int = 0,
+                     data: int = 0, search_op: int = 0,
+                     reserved: int = 0) -> int:
+    """Win32 ``FindFirstFileExW`` -- return ``-1`` (no match)."""
+    return 0xFFFFFFFF
+
+
+def FindNextFileW(handle: int, data: int = 0) -> bool:
+    """Win32 ``FindNextFileW`` -- return ``False``."""
+    return False
+
+
+def FindClose(handle: int) -> bool:
+    """Win32 ``FindClose`` -- return ``True``."""
+    return True
+
+
+def GetFileType(handle: int) -> int:
+    """Win32 ``GetFileType`` -- return ``FILE_TYPE_UNKNOWN``."""
+    return 0
+
+
+def FlushFileBuffers(handle: int) -> bool:
+    """Win32 ``FlushFileBuffers`` -- return ``True``."""
+    return True
+
+
+def SetFilePointerEx(handle: int, distance: int, new_pos: int = 0,
+                     method: int = 0) -> bool:
+    """Win32 ``SetFilePointerEx`` -- return ``True``."""
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Memory protection
+# ---------------------------------------------------------------------------
+
+def VirtualProtect(addr: int, size: int, new_protect: int,
+                   old_protect: int = 0) -> bool:
+    """Win32 ``VirtualProtect`` -- return ``True``."""
+    return True
+
+
+def LoadLibraryExW(path: str, file: int = 0, flags: int = 0) -> int:
+    """Win32 ``LoadLibraryExW`` -- return a fake handle."""
+    return _new_handle("library", path)
+
+
+# ---------------------------------------------------------------------------
+# Codepage / locale
+# ---------------------------------------------------------------------------
+
+def IsValidCodePage(cp: int) -> bool:
+    """Win32 ``IsValidCodePage`` -- only UTF-16 and 1252 supported."""
+    return cp in (65001, 1252, 0, 437, 850)
+
+
+def GetACP() -> int:
+    """Win32 ``GetACP`` -- return the host ANSI codepage."""
+    import sys
+    return 1252
+
+
+def GetOEMCP() -> int:
+    """Win32 ``GetOEMCP`` -- return the host OEM codepage."""
+    return 437
+
+
+def GetCPInfo(cp: int, info: int = 0) -> bool:
+    """Win32 ``GetCPInfo`` -- return ``True`` for supported codepages."""
+    return IsValidCodePage(cp)
+
+
+def MultiByteToWideChar(cp: int, flags: int, src: bytes,
+                        src_len: int, dst: int = 0, dst_len: int = 0) -> int:
+    """Win32 ``MultiByteToWideChar`` -- return the number of wide chars."""
+    try:
+        text = src[:src_len].decode("cp" + str(cp) if cp else "ascii",
+                                       errors="replace")
+    except (LookupError, UnicodeDecodeError):
+        text = src[:src_len].decode("ascii", errors="replace")
+    return len(text)
+
+
+def WideCharToMultiByte(cp: int, flags: int, src: str,
+                        src_len: int, dst: int = 0, dst_len: int = 0,
+                        default_char: int = 0,
+                        used_default: int = 0) -> int:
+    """Win32 ``WideCharToMultiByte`` -- return the number of bytes."""
+    if not src:
+        return 0
+    try:
+        encoded = src[:src_len].encode("cp" + str(cp) if cp else "ascii",
+                                        errors="replace")
+    except (LookupError, UnicodeEncodeError):
+        encoded = src[:src_len].encode("ascii", errors="replace")
+    return len(encoded)
+
+
+def GetStringTypeW(type_: int, src: str, src_len: int,
+                  char_type: int = 0) -> int:
+    """Win32 ``GetStringTypeW`` -- return 0 (no info)."""
+    return 0
+
+
+def CompareStringW(locale: int, flags: int, s1: str, n1: int,
+                   s2: str, n2: int) -> int:
+    """Win32 ``CompareStringW`` -- return CSTR_EQUAL when the entries are equal."""
+    if s1[:n1] == s2[:n2]:
+        return 3   # CSTR_EQUAL
+    return 1   # CSTR_LESS_THAN
+
+
+def LCMapStringW(locale: int, flags: int, src: str, src_len: int,
+                 dst: int = 0, dst_len: int = 0) -> int:
+    """Win32 ``LCMapStringW`` -- return ``src_len`` (no mapping)."""
+    return src_len
+
+
+# ---------------------------------------------------------------------------
+# QueryPerformance
+# ---------------------------------------------------------------------------
+
+def QueryPerformanceCounter(counter: int = 0) -> bool:
+    """Win32 ``QueryPerformanceCounter`` -- return ``True`` and write a fake count."""
+    import time as _t
+    return True
+
+
+def QueryPerformanceFrequency(freq: int = 0) -> bool:
+    """Win32 ``QueryPerformanceFrequency`` -- return ``True``."""
+    return True
+
+
+# ---------------------------------------------------------------------------
+# Imports
+# ---------------------------------------------------------------------------
+
+import struct  # noqa: E402  -- used by many stubs in this section
+
+
+# ---------------------------------------------------------------------------
 # Aggregate public surface
 # ---------------------------------------------------------------------------
 
@@ -449,6 +865,8 @@ EXPORTS: Dict[str, Any] = {
     "GetProcessHeap": GetProcessHeap,
     "HeapAlloc": HeapAlloc,
     "HeapFree": HeapFree,
+    "HeapSize": HeapSize,
+    "HeapReAlloc": HeapReAlloc,
     "CreateFileA": CreateFileA,
     "ReadFile": ReadFile,
     "WriteFile": WriteFile,
@@ -459,9 +877,11 @@ EXPORTS: Dict[str, Any] = {
     "GetProcAddress": GetProcAddress,
     "FreeLibrary": FreeLibrary,
     "GetTickCount": GetTickCount,
+    "GetTickCount64": GetTickCount64,
     "Sleep": Sleep,
     "Beep": Beep,
     "GetCommandLineA": GetCommandLineA,
+    "GetCommandLineW": GetCommandLineW,
     "GetVersionExA": GetVersionExA,
     "GetLastError": GetLastError,
     "SetLastError": SetLastError,
@@ -477,6 +897,58 @@ EXPORTS: Dict[str, Any] = {
     "SetCurrentDirectoryA": SetCurrentDirectoryA,
     "GetComputerNameA": GetComputerNameA,
     "GetUserNameA": GetUserNameA,
+    "GetEnvironmentStringsW": GetEnvironmentStringsA,
+    "FreeEnvironmentStringsW": lambda h: True,
+    "GetSystemTimeAsFileTime": GetSystemTimeAsFileTime,
+    "InitializeSListHead": InitializeSListHead,
+    "SetUnhandledExceptionFilter": SetUnhandledExceptionFilter,
+    "UnhandledExceptionFilter": UnhandledExceptionFilter,
+    "RtlUnwindEx": RtlUnwindEx,
+    "RaiseException": RaiseException,
+    "EncodePointer": EncodePointer,
+    "RtlLookupFunctionEntry": RtlLookupFunctionEntryEntry,
+    "RtlPcToFileHeader": RtlPcToFileHeader,
+    "RtlCaptureContext": RtlCaptureContext,
+    "RtlVirtualUnwind": RtlVirtualUnwind,
+    "FlsAlloc": FlsAlloc,
+    "FlsGetValue": FlsGetValue,
+    "FlsSetValue": FlsSetValue,
+    "FlsFree": FlsFree,
+    "EnterCriticalSection": EnterCriticalSection,
+    "LeaveCriticalSection": LeaveCriticalSection,
+    "InitializeCriticalSectionEx": InitializeCriticalSectionEx,
+    "DeleteCriticalSection": DeleteCriticalSection,
+    "GetStdHandle": GetStdHandle,
+    "WriteConsoleW": WriteConsoleW,
+    "GetConsoleOutputCP": GetConsoleOutputCP,
+    "GetConsoleMode": GetConsoleMode,
+    "SetStdHandle": SetStdHandle,
+    "GetStartupInfoW": GetStartupInfoW,
+    "GetModuleHandleExW": GetModuleHandleExW,
+    "GetModuleFileNameW": GetModuleFileNameW,
+    "CreateFileW": CreateFileW,
+    "FindFirstFileExW": FindFirstFileExW,
+    "FindNextFileW": FindNextFileW,
+    "FindClose": FindClose,
+    "GetFileType": GetFileType,
+    "FlushFileBuffers": FlushFileBuffers,
+    "SetFilePointerEx": SetFilePointerEx,
+    "VirtualProtect": VirtualProtect,
+    "LoadLibraryExW": LoadLibraryExW,
+    "IsProcessorFeaturePresent": IsProcessorFeaturePresent,
+    "IsDebuggerPresent": IsDebuggerPresent,
+    "TerminateProcess": TerminateProcess,
+    "IsValidCodePage": IsValidCodePage,
+    "GetACP": GetACP,
+    "GetOEMCP": GetOEMCP,
+    "GetCPInfo": GetCPInfo,
+    "MultiByteToWideChar": MultiByteToWideChar,
+    "WideCharToMultiByte": WideCharToMultiByte,
+    "GetStringTypeW": GetStringTypeW,
+    "CompareStringW": CompareStringW,
+    "LCMapStringW": LCMapStringW,
+    "QueryPerformanceCounter": QueryPerformanceCounter,
+    "QueryPerformanceFrequency": QueryPerformanceFrequency,
 }
 
 

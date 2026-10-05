@@ -8,7 +8,7 @@
 [![Status](https://img.shields.io/badge/Status-Pre--Alpha-orange.svg)](https://github.com/MUmerYasin/UmerOS)
 [![CI](https://github.com/MUmerYasin/UmerOS/actions/workflows/ci.yml/badge.svg)](https://github.com/MUmerYasin/UmerOS/actions/workflows/ci.yml)
 
-UmerOS is a ** research-based and educational systems project**, a production replacement for Linux, Windows, macOS, or Android. Its purpose is to provide a coherent laboratory for exploring operating-system abstractions, quantum-computing simulation, AI-assisted resource management, security governance, storage, device frameworks, and cross-platform user experience—all in a codebase whose primary implementation language is **Python**, with the canonical frontend implemented in **Flutter/Dart**.
+UmerOS is a **research-based and educational systems project**, a production replacement for Linux, Windows, macOS, or Android. Its purpose is to provide a coherent laboratory for exploring operating-system abstractions, quantum-computing simulation, AI-assisted resource management, security governance, storage, device frameworks, and cross-platform user experience—all in a codebase whose primary implementation language is **Python**, with the canonical frontend implemented in **Flutter/Dart**.
 
 > **Reality boundary:** UmerOS currently simulates or prototypes many OS mechanisms in user space. Quantum hardware execution, production-grade isolation, native boot-time kernel execution, and broad binary compatibility remain research or future work. Read the status labels before relying on a feature.
 
@@ -47,11 +47,12 @@ If you are new to operating systems or quantum computing, start here:
 4. Explore [`quantum/`](quantum) with [`docs/quantum_tutorial.md`](docs/quantum_tutorial.md).
 5. Open the Flutter shell in [`ui/flutter_ui/`](ui/flutter_ui) and begin at `lib/main.dart`.
 6. Use the feature labels below: **TODAY** means an implemented prototype, **EXPERIMENTAL** means incomplete or environment-dependent, **FUTURE** means planned, and **BLOCKED** means currently unavailable.
+7. Read [`docs/HARDWARE_REQUIREMENTS.md`](docs/HARDWARE_REQUIREMENTS.md) hardware checklist before install UmerOS.
 
 ### The short version
 
 | Question | Answer |
-|---|---|
+| --- | --- |
 | What is it? | A Python-First, Next-Generation Hybrid Classical-Quantum, AI-Native Operating System |
 | Is it a bootable commercial OS? | No; most kernel facilities are user-space simulations/prototypes |
 | What does Python implement? | Kernel model, services, quantum simulation, AI, storage, networking, security, drivers, tools |
@@ -64,7 +65,7 @@ If you are new to operating systems or quantum computing, start here:
 UmerOS deliberately separates implemented mechanisms from architectural goals:
 
 | Tier | Meaning | Examples in this repository |
-|---|---|---|
+| --- | --- | --- |
 | ✅ **TODAY** | Runs as Python or Flutter code on ordinary development hardware | State-vector simulation, HMAC IPC bus, capability registry, QFS prototype, initrd builder/runtime, Flutter shell |
 | 🔬 **EXPERIMENTAL** | Implemented but incomplete, optional, heuristic, or environment-dependent | AI prediction and self-healing decisions, cloud quantum providers, PE loading/auditing, hardware bindings, container adapters |
 | 🔮 **FUTURE** | Design target rather than a production capability | Fault-tolerant QPU integration, native boot kernel, broad syscall compatibility, fully autonomous repair |
@@ -178,7 +179,7 @@ score(task) = quantum_probability × priority / (cpu_time + ε)
 The `kernel/` package contains the Python microkernel model and supporting primitives. Important facilities include:
 
 | Area | Representative implementation | Responsibility |
-|---|---|---|
+| --- | --- | --- |
 | Orchestration | `kernel/umer_kernel.py` | Kernel lifecycle, process/task coordination, status and shutdown |
 | Scheduling | `kernel/scheduler.py` | Tasks, priorities, readiness, hybrid/quantum-inspired selection |
 | Memory | `kernel/memory_manager.py` | Page-aligned simulated allocation, ownership, compaction and statistics |
@@ -321,7 +322,7 @@ Additional root folders (`bin`, `build`, `dev`, `etc`, `home`, `HostFiles`, `leg
 UmerOS has two implementation languages with a deliberate boundary:
 
 | Layer | Language | Location | Role |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | System model and services | Python 3.12+ | Root packages, `kernel/`, `ai/`, `quantum/`, `drivers/`, etc. | Runtime prototypes, APIs, simulation, orchestration and tests |
 | User interface | Dart via Flutter | `ui/flutter_ui/` | Canonical desktop shell, apps, state, theme, services and widgets |
 
@@ -583,7 +584,7 @@ The `initrd/` package models an eight-phase flow:
 The compatibility package's current conservative contract is:
 
 | Capability | Scope |
-|---|---|
+| --- | --- |
 | MZ/NE/PE parsing | Header and image metadata inspection |
 | Import/export handling | Pure-Python IAT audit and host export lookup |
 | Registry | In-memory view plus hive/path models |
@@ -596,7 +597,7 @@ Use `python -m compatibility selftest` and the package README before assuming a 
 ## Documentation and research materials
 
 | Document | Purpose |
-|---|---|
+| --- | --- |
 | [`docs/architecture.md`](docs/architecture.md) | System diagrams, boot sequence, IPC, memory, quantum, AI, QFS and test map |
 | [`docs/api_reference.md`](docs/api_reference.md) | Quick import guide and public method contracts |
 | [`docs/developer_guide.md`](docs/developer_guide.md) | Kernel, quantum, AI, security, QFS, compatibility, tests and driver guidance |

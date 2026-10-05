@@ -58,8 +58,11 @@ from .pe_loader import PeFile
 _IMPORT_DESC_SIZE = 20
 
 #: ``ORIGINAL_FIRST_THUNK`` / ``FIRST_THUNK`` value indicating
-#: the entry is a *by-ordinal* import (high bit set).
-IMPORT_ORDINAL_FLAG = 0x80000000
+#: the entry is a *by-ordinal* import (high bit set).  PE32+ uses 64-bit
+#: thunk entries with bit 63 set, while PE32 uses 32-bit entries with
+#: bit 31 set.
+IMPORT_ORDINAL_FLAG_32 = 0x80000000
+IMPORT_ORDINAL_FLAG_64 = 0x8000000000000000
 #: Mask to extract the 16-bit ordinal value.
 IMPORT_ORDINAL_MASK = 0x0000FFFF
 
@@ -128,46 +131,24 @@ def parse_imports(pe: PeFile) -> List[ImportedDll]:
         except ValueError:
             name = "<unresolvable>"
 
-        # Import Name Table (the *original* one, if present; else
-        # the IAT itself acts as the lookup table after loader fixup).
+        # The Import Name Table (INT) is the *original* hint-name
+        # lookup table.  Some linkers (e.g. CMake's binutils
+        # ``-Wl,--old-style`` mode) ship an *empty* INT and put the
+        # full hint-name list directly in the IAT (FirstThunk) so the
+        # loader can find every symbol by walking the IAT chain
+        # instead.
+        #
+        # We therefore walk both chains and keep the longer list --
+        # that way we count the symbols the loader would actually resolve.
         int_rva = oft_or_char or first_thunk
         symbols: List[ImportedSymbol] = []
         if int_rva:
-            try:
-                int_off, avail = pe.rva_to_offset(int_rva)
-                cursor = int_off
-                while True:
-                    if cursor + 4 > int_off + avail:
-                        break
-                    entry = struct.unpack_from("<I", pe.raw, cursor)[0]
-                    if entry == 0:
-                        break
-                    cursor += 4
-                    if entry & IMPORT_ORDINAL_FLAG:
-                        ordinal = entry & IMPORT_ORDINAL_MASK
-                        symbols.append(ImportedSymbol(
-                            name=None, ordinal=ordinal,
-                            hint=0, is_ordinal_only=True,
-                        ))
-                    else:
-                        # By-name: 2-byte hint + ASCII name.
-                        try:
-                            ent_off, ent_avail = pe.rva_to_offset(entry)
-                        except ValueError:
-                            continue
-                        if ent_off + 2 > len(pe.raw):
-                            continue
-                        hint = struct.unpack_from("<H", pe.raw, ent_off)[0]
-                        sym_name = _read_cstring(
-                            pe.raw, ent_off + 2,
-                            len(pe.raw) - ent_off - 2,
-                        )
-                        symbols.append(ImportedSymbol(
-                            name=sym_name, ordinal=hint,
-                            hint=hint, is_ordinal_only=False,
-                        ))
-            except ValueError:
-                pass
+            symbols.extend(_walk_int(pe, int_rva))
+        # Walk the IAT chain too -- if it's longer, prefer it.
+        if first_thunk and first_thunk != int_rva:
+            iat_symbols = _walk_int(pe, first_thunk)
+            if len(iat_symbols) > len(symbols):
+                symbols = iat_symbols
 
         dlls.append(ImportedDll(
             name=name,
@@ -179,6 +160,55 @@ def parse_imports(pe: PeFile) -> List[ImportedDll]:
         ))
         off += _IMPORT_DESC_SIZE
     return dlls
+
+
+def _walk_int(pe: PeFile, int_rva: int) -> List[ImportedSymbol]:
+    """Walk a thunk chain (``IMAGE_THUNK_DATA32`` for PE32, ``IMAGE_THUNK_DATA64``
+    for PE32+) and return the symbols it references.
+
+    The chain is terminated by a zero entry; ordinal imports are
+    recognised by the high bit set.
+    """
+    symbols: List[ImportedSymbol] = []
+    try:
+        int_off, avail = pe.rva_to_offset(int_rva)
+    except ValueError:
+        return symbols
+    is_pe32_plus = pe.optional_header.magic == 0x20B        # PE32+ magic
+    entry_size = 8 if is_pe32_plus else 4
+    fmt = "<Q" if is_pe32_plus else "<I"
+    ord_flag = IMPORT_ORDINAL_FLAG_64 if is_pe32_plus else IMPORT_ORDINAL_FLAG_32
+    cursor = int_off
+    while True:
+        if cursor + entry_size > int_off + avail:
+            break
+        entry = struct.unpack_from(fmt, pe.raw, cursor)[0]
+        if entry == 0:
+            break
+        cursor += entry_size
+        if entry & ord_flag:
+            ordinal = entry & IMPORT_ORDINAL_MASK
+            symbols.append(ImportedSymbol(
+                name=None, ordinal=ordinal,
+                hint=0, is_ordinal_only=True,
+            ))
+        else:
+            try:
+                ent_off, ent_avail = pe.rva_to_offset(entry)
+            except ValueError:
+                continue
+            if ent_off + 2 > len(pe.raw):
+                continue
+            hint = struct.unpack_from("<H", pe.raw, ent_off)[0]
+            sym_name = _read_cstring(
+                pe.raw, ent_off + 2,
+                len(pe.raw) - ent_off - 2,
+            )
+            symbols.append(ImportedSymbol(
+                name=sym_name, ordinal=hint,
+                hint=hint, is_ordinal_only=False,
+            ))
+    return symbols
 
 
 def _read_cstring(data: bytes, off: int, max_len: int) -> str:

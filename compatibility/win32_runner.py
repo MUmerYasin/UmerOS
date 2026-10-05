@@ -96,6 +96,8 @@ class Win32Runner:
         # Public hook for tests: ``imports`` overrides the default
         # compatibility-layer lookup when set.
         self._imports = imports
+        # Whether the loaded PE is 64-bit (PE32+) -- affects IAT stride.
+        self._pe_is_64: bool = True
 
     # ------------------------------------------------------------------
     # Image loading
@@ -104,8 +106,10 @@ class Win32Runner:
     def load_pe(self, pe: PeFile, raw_image: bytes = b"") -> None:
         if pe.optional_header.pe_class == PeClass.PE32_PLUS:
             image_base = pe.optional_header.image_base
+            self._pe_is_64 = True
         else:
             image_base = pe.optional_header.image_base
+            self._pe_is_64 = False
         # Place the image at the requested base.  The emulator's
         # ``base`` defaults to 0x400000, matching the linker default.
         self.emulator.base = image_base
@@ -165,10 +169,14 @@ class Win32Runner:
                 thunk_addr = self.emulator.install_thunk(
                     f"{desc.name}!{name}", target)
                 # The IAT slot for symbol index N lives at
-                # ``first_thunk + N * 4`` (each entry is a 32/64-bit
-                # RVA-or-thunk pointer, here treated as 64-bit).
-                iat_rva = desc.first_thunk + sym_index * 4
-                self.emulator.mem.write_u64(iat_rva, thunk_addr)
+                # ``first_thunk + N * stride`` where the stride is 4
+                # for PE32 (32-bit thunk entries) and 8 for PE32+
+                # (64-bit thunk entries).  The IAT lives inside the
+                # loaded image, so the address is RVA + image_base.
+                stride = 8 if self._pe_is_64 else 4
+                iat_rva = desc.first_thunk + sym_index * stride
+                iat_addr = self.emulator.base + iat_rva
+                self.emulator.mem.write_u64(iat_addr, thunk_addr)
 
     def _install_missing_stub(self, name: str) -> Callable:
         """Return a stub that the thunk dispatcher calls when an

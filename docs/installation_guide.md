@@ -2,24 +2,12 @@
 
 ## Quick Reference
 
-| Platform | Method | Status |
-|---|---|---|
-| Desktop / Laptop (x86_64) | Python installer | ✅ TODAY |
-| Raspberry Pi 4 / 5 (ARM64) | dd image to SD | ✅ TODAY |
-| NVIDIA Jetson (ARM64) | dd image to SD | ✅ TODAY |
-| Android phone (AArch64) | fastboot + TWRP | 🔬 EXPERIMENTAL |
-| Smart TV (Android base) | ADB sideload | 🔬 EXPERIMENTAL |
-| QEMU (development) | qemu-system-x86_64 | ✅ TODAY |
-| iPhone / iPad | Not supported | ❌ BLOCKED |
+1. Read [`docs/HARDWARE_REQUIREMENTS.md`](docs/HARDWARE_REQUIREMENTS.md) hardware checklist before install UmerOS.
 
 ## Step-by-Step: Desktop / Laptop
 
-### Prerequisites
-- Python 3.10+ installed
-- 512 MB free RAM, 500 MB free disk
-- Terminal / Command Prompt access
-
 ### Installation Steps
+
 ```bash
 # 1. Extract archive
 unzip UmerOS.zip && cd UmerOS
@@ -37,6 +25,7 @@ python installer/installer.py
 ```
 
 ### What the Installer Does
+
 1. Displays full EULA (you must type I AGREE exactly)
 2. Detects your hardware
 3. Creates backup of boot configuration
@@ -94,7 +83,7 @@ sudo rm -rf /opt/umer_os
 ## Troubleshooting
 
 | Problem | Solution |
-|---|---|
+| --- | --- |
 | `python: command not found` | Install Python 3.10+ from python.org |
 | `No module named numpy` | `pip install numpy` |
 | `305 tests FAIL` | Check Python version: `python --version` |
