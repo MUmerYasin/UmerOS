@@ -520,27 +520,49 @@ class _CritSec:
         self.locked = False
 
 
-def InitializeCriticalSectionEx(crit: Optional[dict] = None,
-                                spin: int = 0, flags: int = 0) -> bool:
-    if crit is not None:
+def InitializeCriticalSectionEx(crit=None, spin: int = 0,
+                                flags: int = 0) -> bool:
+    """Win32 ``InitializeCriticalSectionEx`` -- we treat the
+    ``crit`` argument as a pass-by-reference pointer.  When the caller
+    passes a concrete mutable container we populate it; otherwise we
+    return ``True`` without touching memory (the emulator's Win32
+    caller expects us to never raise)."""
+    if crit is None:
+        return True
+    try:
         crit.clear()
         crit["locked"] = False
+    except (AttributeError, TypeError):
+        # Treat unknown ``crit`` as no-op.
+        pass
     return True
 
 
-def EnterCriticalSection(crit: Optional[dict] = None) -> None:
-    if crit is not None:
+def EnterCriticalSection(crit=None) -> None:
+    if crit is None:
+        return
+    try:
         crit["locked"] = True
+    except (TypeError, KeyError):
+        pass
 
 
-def LeaveCriticalSection(crit: Optional[dict] = None) -> None:
-    if crit is not None:
+def LeaveCriticalSection(crit=None) -> None:
+    if crit is None:
+        return
+    try:
         crit["locked"] = False
+    except (TypeError, KeyError):
+        pass
 
 
-def DeleteCriticalSection(crit: Optional[dict] = None) -> None:
-    if crit is not None:
+def DeleteCriticalSection(crit=None) -> None:
+    if crit is None:
+        return
+    try:
         crit.clear()
+    except (AttributeError, TypeError):
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -691,6 +713,11 @@ def GetStartupInfoW(info: int = 0) -> None:
 def GetModuleHandleExW(which: int, name: int = 0, handle_out: int = 0) -> int:
     """Win32 ``GetModuleHandleExW`` -- return ``0``."""
     return 0
+
+
+def GetModuleHandleW(name: int = 0) -> int:
+    """Win32 ``GetModuleHandleW`` -- return the process module handle."""
+    return _store_handle(_new_handle("module", "module"))
 
 
 def GetModuleFileNameW(handle: int, buf: int = 0, size: int = 0) -> int:
@@ -925,6 +952,7 @@ EXPORTS: Dict[str, Any] = {
     "SetStdHandle": SetStdHandle,
     "GetStartupInfoW": GetStartupInfoW,
     "GetModuleHandleExW": GetModuleHandleExW,
+    "GetModuleHandleW": GetModuleHandleW,
     "GetModuleFileNameW": GetModuleFileNameW,
     "CreateFileW": CreateFileW,
     "FindFirstFileExW": FindFirstFileExW,
