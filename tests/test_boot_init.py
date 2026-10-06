@@ -88,6 +88,43 @@ class TestDisplayWaiverFailClosed:
             loader.display_waiver(accept_eula=False)
         assert exc.value.code == 1
 
+    def test_unreadable_tty_aborts_cleanly_instead_of_crashing(self, monkeypatch, capsys):
+        """A stdin that claims to be a TTY but yields EOF must fail closed.
+
+        ``sys.stdin.isatty()`` returns True for the Windows NUL device and for a
+        TTY whose peer has closed, so ``input()`` raised an unhandled EOFError
+        and ``python main.py`` died with a traceback instead of refusing to boot.
+        """
+        from boot.init import Bootloader
+
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+
+        def _eof(*_a, **_k):
+            raise EOFError("EOF when reading a line")
+
+        monkeypatch.setattr(builtins, "input", _eof)
+        loader = Bootloader()
+        with pytest.raises(SystemExit) as exc:
+            loader.display_waiver(accept_eula=False)
+        assert exc.value.code == 1
+        assert "explicit consent" in capsys.readouterr().out
+
+    def test_interrupt_at_the_prompt_aborts_cleanly(self, monkeypatch, capsys):
+        """Ctrl-C at the waiver prompt is a refusal, not a traceback."""
+        from boot.init import Bootloader
+
+        monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+
+        def _interrupt(*_a, **_k):
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(builtins, "input", _interrupt)
+        loader = Bootloader()
+        with pytest.raises(SystemExit) as exc:
+            loader.display_waiver(accept_eula=False)
+        assert exc.value.code == 1
+        assert "explicit consent" in capsys.readouterr().out
+
     def test_opt_in_flag_overrides_non_tty_without_prompt(self, monkeypatch):
         """Opt-in flag must work even when input() would otherwise be called."""
         from boot.init import Bootloader

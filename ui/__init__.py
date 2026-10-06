@@ -11,6 +11,8 @@
 # -------
 # fluidic_ui - FluidicShell (CLI shell).
 # theme      - Theme dataclass.
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /ui — Legacy user interface (Tkinter / Kivy / CLI).
 """

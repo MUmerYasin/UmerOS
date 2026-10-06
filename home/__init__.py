@@ -6,6 +6,8 @@
 # is the user-local install prefix; ~/.ssh is the per-user SSH
 # directory.  This package covers the full spec plus operations
 # like backup / restore, quota tracking, and dotfile templating.
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /home — User home-directory management.
 """

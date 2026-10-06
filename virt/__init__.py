@@ -1,3 +1,5 @@
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS Virt - Virtualization Subsystem
 ======================================

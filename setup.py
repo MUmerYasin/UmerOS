@@ -134,7 +134,10 @@ setup(
     entry_points={
         "console_scripts": [
             "umer-pkg=packages.umer_pkg:main",
-            "umeros=main:boot",
+            # [FIX] Was ``main:boot``, which calls boot() with no arguments and
+            # so could never pass --accept-eula (the same defect main.py had).
+            # ``main:main`` parses argv and forwards consent.
+            "umeros=main:main",
         ],
     },
     python_requires=">=3.12",

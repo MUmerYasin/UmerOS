@@ -97,11 +97,13 @@ if __name__ == "__main__":
 
 **[verified]** The `AttributeError: 'UmerKernel' object has no attribute 'start'` bug recorded in `MainTask/codex_project_context.md:42` **no longer exists** — `async def boot()` is defined inside the class at `kernel/umer_kernel.py:931`. That context file (dated 2026-06-22) is stale on this and on three other points: it names `bootloader/` (now `boot/`), `filesystem/` (now `fs/`), and `ai/assistant.py` as the AI entry point (now `ai/umer_ai.py`).
 
-Three live problems on this path:
+Three live problems were found on this path — **all three are now fixed** (see §11):
 
-1. **Non-interactive boot aborts by design.** `boot/init.py:55-67` fails closed unless stdin is a TTY or `--accept-eula` is passed. But `main.py:17` calls `boot()` with no arguments, and the flag is only parsed in `boot/init.py:91` under `if __name__ == "__main__"`. So `python main.py` **cannot** be run non-interactively (CI, containers, service managers), and if it *is* given the flag via `python -m boot.init`, `interactive=False` (`kernel/umer_kernel.py:1039`) means the shell never starts and the idle loop at `:1044` never exits — **the boot hangs forever**.
-2. `lib.lostfound` is imported under `try/except` (`kernel/umer_kernel.py:62-71`) and *does* exist, but the failure path is silent — the whole fsck/`/lost+found` sequence (`:993-1007`) is skipped with no log if the import ever fails.
-3. `kernel/umer_kernel.py:915` calls `self.taint.add("TAINT_KERNEL_PANIC")`, but `kernel/taint.py:55-64` defines no such flag and `add` raises `ValueError:104-105`. **The panic handler crashes instead of panicking.**
+1. ~~**Non-interactive boot aborts by design.**~~ `boot/init.py` fails closed unless stdin is a TTY or `--accept-eula` is passed — that part is correct and stays. But `main.py` called `boot()` with no arguments, so the flag was unreachable from the documented entry point; and with a genuine non-TTY stdin no shell starts, so nothing ever requested shutdown and **the boot hung forever**. `main.py` now has a real CLI (`--accept-eula`, `--exit-after-boot`, `--version`), headless runs install SIGINT/SIGTERM handlers, and the `EOFError`-from-an-unreadable-stdin path fails closed cleanly instead of raising. Verified: `python main.py` → exit 1, zero bytes on stderr; `python main.py --accept-eula --exit-after-boot` → exit 0.
+2. `lib.lostfound` is imported under `try/except` (`kernel/umer_kernel.py:62-71`) and *does* exist, but the failure path is silent — the whole fsck/`/lost+found` sequence is skipped with no log if the import ever fails. **(still open)**
+3. `kernel/umer_kernel.py` calls `self.taint.add("TAINT_KERNEL_PANIC")`, but `kernel/taint.py:55-64` defines no such flag and `add` raises `ValueError`. **The panic handler crashes instead of panicking. (still open)**
+
+Two further fatal defects sat on this path and are also fixed: `self.vfs.mkdir("/tmp")` raised `FileExistsError` (the VFS constructor had already created `/tmp`), and `self.crypto.decrypt(nonce, ciphertext)` passed two arguments to a method that unpacks a tuple. Before those fixes, `python main.py` crashed on **every** run.
 
 ---
 
@@ -403,9 +405,27 @@ While verifying that the kernel changes did not break boot, `python main.py` was
 1. `kernel/umer_kernel.py` — `self.vfs.mkdir("/tmp")` raised `FileExistsError`, because `VirtualFileSystem.__init__` already pre-populates `/tmp`. Fixed by using the idempotent `parents=True` form (which the constructor itself uses).
 2. `kernel/umer_kernel.py` — `self.crypto.decrypt(nonce, ciphertext)` passed two arguments to a method that unpacks `(nonce, ciphertext)` from **one**. Fixed to `decrypt((nonce, ciphertext))`.
 
-`tests/test_boot_smoke.py` (new) now runs the real entry point in a subprocess and asserts a clean exit plus ordered boot checkpoints, and separately asserts the gate is wired during the kernel's life and released after shutdown. It was confirmed by hand: boot now reaches the shell and exits 0.
+`tests/test_boot_smoke.py` (new) now runs the real entry point in a subprocess and asserts a clean exit plus ordered boot checkpoints, and separately asserts the gate is wired during the kernel's life and released after shutdown.
 
-*Note: the study's earlier claim that non-interactive boot hangs is wrong for the redirected-stdin case — the shell receives EOF and shuts down cleanly. It remains true that `main.py` cannot forward `--accept-eula`.*
+### The entry point itself — how it was made usable
+
+Verifying the two fixes above exposed that the documented entry point was still unusable non-interactively. Three further defects, all fixed:
+
+3. **`main.py` could not forward flags.** It was 17 lines that called `boot()` with no arguments, so `--accept-eula` was unreachable; the flag was only parsed inside `boot/init.py`'s own `__main__` guard. `main.py` now has an argparse CLI exposing `--accept-eula`, `--exit-after-boot` and `--version`, and forwards consent explicitly. `setup.py`'s `umeros` console script was repointed from `main:boot` to `main:main` — it had the identical defect through a different door.
+
+4. **An unreadable stdin crashed instead of failing closed.** `sys.stdin.isatty()` returns **True for the Windows `NUL` device** and for a TTY whose peer has closed, so `input()` raised `EOFError` out of `boot/init.py` as an unhandled traceback. `python main.py` with no flag now exits 1 with the documented message and **zero bytes on stderr**.
+
+5. **A real non-TTY stdin hung the kernel forever.** With a pipe or file on stdin, `interactive=False`, so no shell starts — and with no shell there is nothing to type `exit` into, so the idle loop at `kernel/umer_kernel.py` spun indefinitely. Two remedies: headless runs now install SIGINT/SIGTERM handlers for a graceful shutdown, and `--exit-after-boot` gives CI and verification runs a deterministic exit.
+
+Also hardened in passing: `FluidicShell` now keeps a strong reference to its input task (the event loop holds only a weak one, so it could be garbage-collected mid-run), and the input read runs via `asyncio.to_thread` so a blocking `input()` no longer freezes the event loop while waiting.
+
+**Correcting the record:** the study's original claim that *non-interactive boot hangs* was right, and the later "correction" in the previous revision was wrong. `stdin=DEVNULL` happens to take the *interactive* branch on Windows (because `NUL` reports `isatty() == True`), which is why it exited cleanly; a genuine non-TTY stdin hung. Both the hang and the flag-forwarding gap are now fixed and covered by `tests/test_boot_smoke.py` (16 tests, including a headless run on a real empty-file stdin).
+
+### Observed verification of the drift guard
+
+Between writing the `[REFERENCE-ONLY]` markers and the final verification pass, an external process rewrote 20 of the 31 package `__init__.py` files one at a time (mtimes 15:33:20 → 15:35:38, in near-reverse-alphabetical order), reverting each to its committed state and dropping the marker. Nothing in the repository did this — it was a concurrent external edit.
+
+The important part is the outcome: `scripts/check_layer_reachability.py` and `tests/test_layer_reachability.py` **failed immediately and named the exact files**. Re-running the idempotent `scripts/mark_reference_packages.py` restored the 20 markers and the suite went green. This is precisely the drift the guard exists to catch, and it caught it in the wild on its first day.
 
 ### Still open
 
@@ -424,11 +444,12 @@ While verifying that the kernel changes did not break boot, `python main.py` was
 | --- | --- |
 | Python files / non-blank LOC | 849 / 238,789 |
 | Dart files (`flutter_ui/lib`) | 53 |
-| Tests collected / result | 2,364 / **2,308 passed, 56 skipped, 0 failed** |
+| Tests collected / result | 2,380 / **2,324 passed, 56 skipped, 0 failed** |
 | Coverage | 39 % of 120,178 statements |
 | `flutter analyze` / `flutter test` | 2 errors, 4 warnings / 39 passed, 3 files fail to compile |
 | Default branch / CI trigger | `master` / `main` → **CI never runs** |
-| Boot entry | `main.py` → `boot.init.boot()` → `UmerKernel.boot()` — **[verified working, exit 0]** |
+| Boot entry | `python main.py [--accept-eula] [--exit-after-boot]` — **[verified: exit 0]** |
+| Headless boot | SIGINT/SIGTERM graceful shutdown; `--exit-after-boot` for CI |
 | Live runtime | `boot`, `core`, `kernel`, `lib` only (see `docs/reference_corpus.md`) |
 | Service ports | AI `127.0.0.1:8421` (`UMEROS_AI_PORT`), quantum `:8420` |
 | Declared Python | `>=3.12` (host has 3.14.6 only) |

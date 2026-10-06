@@ -53,11 +53,21 @@ class Bootloader:
             return
 
         if sys.stdin.isatty():
-            response = input("Type 'I AGREE' to boot: ")
-            if response.strip() != "I AGREE":
+            # [FIX] ``isatty()`` can report True for a stdin that is nonetheless
+            # unreadable — the Windows NUL device, a TTY whose peer has closed,
+            # or Ctrl-C (KeyboardInterrupt). Previously that let EOFError escape
+            # as an unhandled traceback from `python main.py`. Treat "could not
+            # read an answer" as the non-interactive case and fail closed
+            # through the shared message below.
+            try:
+                response = input("Type 'I AGREE' to boot: ")
+            except (EOFError, KeyboardInterrupt):
+                response = ""
+            if response.strip() == "I AGREE":
+                return
+            if response.strip():
                 print("Boot aborted.")
                 sys.exit(1)
-            return
 
         # Non-interactive and no explicit opt-in: fail-closed — do NOT boot.
         print(
@@ -74,19 +84,30 @@ class Bootloader:
         # placeholder with NO ctypes binding — do not claim UEFI init happened.
         print("[BOOT] UEFI hardware layer not wired (placeholder scaffold only)")
         
-    async def load_kernel(self):
+    async def load_kernel(self, exit_after_boot: bool = False):
         print("[BOOT] Handing off to Umer Microkernel...")
         kernel = UmerKernel()
-        await kernel.boot()
+        await kernel.boot(exit_after_boot=exit_after_boot)
 
-def boot(accept_eula: bool = False):
+def boot(accept_eula: bool = False, exit_after_boot: bool = False):
+    """Boot UmerOS.
+
+    Args:
+        accept_eula:     Record explicit consent to the liability waiver and
+            skip the interactive prompt. Required when stdin is not a TTY —
+            without it the boot aborts fail-closed.
+        exit_after_boot: Shut down once boot completes instead of idling. Use
+            for CI / verification runs that need a deterministic exit; an
+            ordinary headless run stays up until SIGINT/SIGTERM.
+    """
     loader = Bootloader()
     loader.display_waiver(accept_eula=accept_eula)
     loader.check_hardware()
-    asyncio.run(loader.load_kernel())
+    asyncio.run(loader.load_kernel(exit_after_boot=exit_after_boot))
 
 if __name__ == "__main__":
     # [FIX H29] Explicit opt-in flag for non-interactive boot consent.
     # No flag (and no TTY) => display_waiver() fails-closed and aborts.
     _accept = "--accept-eula" in sys.argv[1:]
-    boot(accept_eula=_accept)
+    _exit_after = "--exit-after-boot" in sys.argv[1:]
+    boot(accept_eula=_accept, exit_after_boot=_exit_after)

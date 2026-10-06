@@ -5,6 +5,8 @@
 # /sbin implementation: system administration,
 # maintenance, boot, hardware config, and filesystem management
 # programs.
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /sbin — System binaries.
 """

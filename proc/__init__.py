@@ -8,6 +8,8 @@
 #
 # Author: UmerOS Project
 # License: GPL-3.0 (GNU General Public License Version 3)
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /proc — Virtual /proc filesystem (procfs).
 """

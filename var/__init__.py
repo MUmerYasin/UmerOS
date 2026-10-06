@@ -7,6 +7,8 @@
 # ``safe_child`` / ``PathTraversalError`` helpers from ``_path_guard``
 # so they can be used as a drop-in for any ``/var`` write that
 # needs path-traversal protection.
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /var — Log management, spool dirs, variable state.
 """

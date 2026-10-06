@@ -570,6 +570,7 @@ class FluidicShell:
         self.kernel = kernel
         self.current_user = "umer"  # Default simulated user
         self.history = []
+        self._input_task = None  # [FIX] strong ref to the input reader task
         
         # Load Command Registry
         try:
@@ -584,7 +585,10 @@ class FluidicShell:
     def start(self, interactive=True):
         if interactive:
             print("\n[KERNEL] System Idle. Waiting for user input. Type 'help' or 'exit'.")
-            asyncio.create_task(self._listen_for_input_async())
+            # [FIX] Keep a strong reference. The event loop holds only a weak
+            # reference to tasks, so an unreferenced input task can be garbage
+            # collected mid-run and the shell silently stops reading.
+            self._input_task = asyncio.create_task(self._listen_for_input_async())
 
     async def _listen_for_input_async(self):
         """Asynchronous version of the input listener."""
@@ -594,7 +598,13 @@ class FluidicShell:
                 print(prompt_str, end='', flush=True)
                 
                 try:
-                    raw_input = input("").strip()
+                    # [FIX] Read stdin off the event loop. A bare ``input()``
+                    # blocked the whole loop while waiting for a line, so the
+                    # idle loop, other tasks and signal handling could not run
+                    # until the user pressed Enter — a hard hang on a stdin pipe
+                    # that never closes. ``to_thread`` also surfaces EOFError
+                    # from the worker thread exactly as before.
+                    raw_input = (await asyncio.to_thread(input, "")).strip()
                     if not raw_input: continue
                     
                     self.history.append(raw_input)
@@ -950,7 +960,14 @@ class UmerKernel:
             self.running = False
             self._shutdown_requested = True
 
-    async def boot(self):
+    async def boot(self, exit_after_boot: bool = False):
+        """Boot the kernel.
+
+        Args:
+            exit_after_boot: When True, shut down as soon as boot completes
+                instead of idling until a shell ``exit`` or a signal. Intended
+                for CI and verification runs that need a deterministic exit.
+        """
         print("[KERNEL] Boot sequence initiated.")
         self.running = True
 
@@ -1070,6 +1087,23 @@ class UmerKernel:
         shell = FluidicShell(self)
         shell.start(interactive=interactive)
 
+        if not interactive:
+            # [FIX] With no shell there is nothing to type "exit" into, so the
+            # idle loop below could previously only be stopped by killing the
+            # process outright (a real non-TTY stdin hangs forever). Make a
+            # headless run stoppable with Ctrl-C / SIGTERM.
+            self._install_shutdown_signal_handlers()
+            print(
+                "[KERNEL] Headless run: no interactive shell attached. "
+                "Stop with Ctrl-C / SIGTERM, or pass --exit-after-boot."
+            )
+
+        if exit_after_boot:
+            # [FIX] Deterministic termination for CI and verification runs:
+            # boot, report, and shut down instead of idling indefinitely.
+            print("[KERNEL] exit-after-boot requested; shutting down.")
+            self._shutdown_requested = True
+
         # --- MAIN KERNEL LOOP (handles shutdown request) ---
         while self.running and not self._shutdown_requested:
             # Simulate some background kernel activity
@@ -1078,6 +1112,29 @@ class UmerKernel:
         # Shutdown requested by shell or external signal
         print("\n[KERNEL] Shutdown signal received. Cleaning up...")
         await self.shutdown()
+
+    def _install_shutdown_signal_handlers(self) -> None:
+        """Stop a headless run gracefully on SIGINT/SIGTERM.
+
+        Installed only when no interactive shell is attached, so an interactive
+        session keeps the default Ctrl-C behaviour for the shell itself.
+        """
+        import signal
+
+        def _handler(signum, _frame):
+            print(f"\n[KERNEL] Received signal {signum}; requesting shutdown.")
+            self._shutdown_requested = True
+
+        for name in ("SIGINT", "SIGTERM"):
+            sig = getattr(signal, name, None)
+            if sig is None:
+                continue
+            try:
+                signal.signal(sig, _handler)
+            except (ValueError, OSError):
+                # Not running in the main thread, or the platform has no such
+                # signal — the run stays killable, just not gracefully.
+                pass
 
 
     async def run_loop(self):

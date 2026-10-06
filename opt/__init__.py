@@ -11,6 +11,8 @@
 # manager     - OptManager (the main entry point).
 # package     - OptPackage (one installed package).
 # config      - OptConfig (host-specific configuration).
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /opt — Add-on software package management.
 """
