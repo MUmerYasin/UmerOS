@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import 'python_interpreter_app.dart';
+import 'virt_kvm_app.dart';
 
 class TerminalApp extends StatefulWidget {
   const TerminalApp({super.key});
@@ -109,6 +110,16 @@ class _TerminalAppState extends State<TerminalApp> {
         );
         _addOutput('Python Interpreter launched.');
         break;
+      case 'virt':
+      case 'kvm':
+        context.read<AppState>().openWindow(
+          id: 'virt',
+          title: 'Virt / KVM Manager',
+          icon: Icons.memory,
+          child: const VirtKvmApp(),
+        );
+        _addOutput('Virt / KVM Manager launched.');
+        break;
       default:
         _addOutput('Command not found: $command\nType "help" for available commands.');
     }
@@ -151,6 +162,7 @@ UmerOS Terminal Commands:
   ai            AI integration commands
   process       Process management
   memory        Memory management
+  virt / kvm    Launch Virt / KVM Manager
 ─────────────────────────────────
 ''';
   }

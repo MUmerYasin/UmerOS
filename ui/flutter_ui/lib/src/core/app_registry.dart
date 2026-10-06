@@ -44,6 +44,7 @@ import '../apps/system_monitor_app.dart';
 import '../apps/terminal_app.dart';
 import '../apps/text_editor_app.dart';
 import '../apps/python_interpreter_app.dart';
+import '../apps/virt_kvm_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -258,6 +259,15 @@ abstract final class AppRegistry {
       color: Colors.teal,
       category: AppCategory.development,
       builder: (_) => const PythonInterpreterApp(),
+    ),
+    AppDefinition(
+      id: 'virt',
+      title: 'Virt / KVM Manager',
+      description: 'Create VMs, map memory slots, route IRQs and inspect KVM stats.',
+      icon: Icons.memory,
+      color: Colors.indigo,
+      category: AppCategory.development,
+      builder: (_) => const VirtKvmApp(),
     ),
     AppDefinition(
       id: 'packages',
