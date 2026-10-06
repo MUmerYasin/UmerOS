@@ -91,7 +91,12 @@ class CpioEntry:
 
     name: str
     data: bytes = b""
-    mode: int = 0o644
+    # [FIX] The newc ``mode`` field carries the file-type bits as well as the
+    # permission bits.  Defaulting to a bare 0o644 made ``is_regular()`` False,
+    # so ``CpioEntry(name="x", data=b"...")`` silently wrote a 0-length payload.
+    # Default to a regular file; the ``newc_*`` helpers still OR in their own
+    # type bits, and the trailer passes ``mode=0`` explicitly.
+    mode: int = C_ISREG | 0o644
     uid: int = 0
     gid: int = 0
     ino: int = 0
@@ -155,7 +160,7 @@ class CpioEntry:
         out += self._header_bytes()
         name_bytes = self.name.encode("utf-8") + b"\x00"
         out += name_bytes
-        out += _align(len(name_bytes), 4)
+        out += _name_padding(len(name_bytes))
 
         if self.is_regular():
             out += self.data
@@ -169,15 +174,38 @@ class CpioEntry:
 
 
 # ---------------------------------------------------------------------------
-# Alignment helper
+# Alignment helpers
 # ---------------------------------------------------------------------------
 
 def _align(n: int, multiple: int) -> bytes:
-    """Return the pad bytes required to bring ``n`` up to a multiple of 4."""
+    """Return the pad bytes required to bring ``n`` up to a multiple of 4.
+
+    Use this only for a field that already starts on a ``multiple`` boundary
+    (i.e. the file data), where the field offset is the stream offset.
+    """
     rem = n % multiple
     if rem == 0:
         return b""
     return b"\x00" * (multiple - rem)
+
+
+def _name_padding(namesize: int) -> bytes:
+    """Return the pad bytes that follow the file-name field of a newc record.
+
+    The newc format pads **the record** to a 4-byte boundary, and a record
+    begins with the 110-byte header.  Because ``110 % 4 == 2``, padding the name
+    field in isolation yields a record two bytes short of the layout the Linux
+    kernel expects, and the whole stream desynchronises from the first entry:
+
+        Linux ``init/initramfs.c`` uses
+        ``#define N_ALIGN(len) ((((len) + 1) & ~3) + 2)``
+        and then advances to the next multiple of 4 from the record start.
+
+    So the header offset has to be part of the calculation.  The file-data
+    field needs no such correction: by the time it is written the stream offset
+    is already a multiple of 4.
+    """
+    return b"\x00" * (-(HEADER_SIZE + namesize) % 4)
 
 
 # ---------------------------------------------------------------------------
@@ -224,7 +252,9 @@ def _read_header(stream: io.BufferedIOBase) -> Optional[CpioEntry]:
     name_raw = stream.read(int(namesize, 16))
     if len(name_raw) < int(namesize, 16):
         raise ValueError("cpio: truncated name")
-    pad = _align(int(namesize, 16), 4)
+    # [FIX] padding is relative to the start of the 110-byte header, not to the
+    # name field itself (see _name_padding).
+    pad = _name_padding(int(namesize, 16))
     if pad:
         stream.read(len(pad))
     name = name_raw.rstrip(b"\x00").decode("utf-8", errors="replace")

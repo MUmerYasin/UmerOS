@@ -1,6 +1,7 @@
 # tests/test_grub_cli.py
 " Unit tests for the GRUB configuration parser."
 
+import shutil
 import sys
 import pathlib
 
@@ -10,8 +11,17 @@ sys.path.append(str(project_root))
 
 from backup.grub_cli import parse_grub_cfg
 
-def test_parse_grub_cfg():
-    root = str(project_root)
+# The fixture lives beside this test file; ``parse_grub_cfg`` resolves
+# ``<root>/boot/grub.cfg``, so the fixture is staged into a temporary
+# project root instead of relying on a ``boot/grub.cfg`` in the repo
+# (there is none, and creating one would look like a real GRUB config).
+FIXTURE = pathlib.Path(__file__).resolve().parent / "grub.cfg"
+
+
+def test_parse_grub_cfg(tmp_path):
+    (tmp_path / "boot").mkdir()
+    shutil.copyfile(FIXTURE, tmp_path / "boot" / "grub.cfg")
+    root = str(tmp_path)
     result = parse_grub_cfg(root)
     expected = {
         "default_entry": None,

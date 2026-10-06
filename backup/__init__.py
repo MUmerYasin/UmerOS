@@ -3,6 +3,8 @@
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS Backup & Factory Reset Subsystem
 =======================================

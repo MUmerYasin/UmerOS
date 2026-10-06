@@ -15,6 +15,8 @@
 # media, pwrseq, hsi, interconnect, ntb, nvme, soundwire, virtio,
 # remoteproc, rpmsg, phy, led, …  (subsystem drivers).
 # driver_service     - HTTP /proc API (H64 fail-closed).
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /drivers — Kernel driver subsystem.
 """

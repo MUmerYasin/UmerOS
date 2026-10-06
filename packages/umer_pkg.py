@@ -47,6 +47,7 @@ import sys
 import tarfile
 import tempfile
 import time
+from pathlib import Path  # [FIX] remove() used Path without importing it
 from typing import Dict, List, Optional, Set, Union
 
 # [FIX H194/H195] Guard against path traversal (CWE-22) in package install /
@@ -850,3 +851,197 @@ class UmerPackageManager:
             "in_registry": len(self._registry),
             "install_dir": self._install_dir,
         }
+
+
+# ─── Command-line interface (umer-pkg) ──────────────────────────────────────
+#
+# [FIX] ``setup.py`` registers ``umer-pkg=packages.umer_pkg:main``, but no
+# ``main`` existed anywhere in this module, so the advertised console script
+# raised ``AttributeError`` at import and could never run.  The manager beneath
+# it is the most complete subsystem in the tree (real Ed25519 chain-of-trust,
+# fail-closed verification, transactional install with snapshot + rollback), so
+# the entry point is implemented here rather than withdrawn from ``setup.py``.
+#
+# Exit status is POSIX: 0 on success, 1 on any failure or refusal.  A refusal is
+# a normal outcome (unsigned / untrusted package), not a crash — the manager's
+# ``bool`` returns are mapped onto the exit code and nothing is swallowed.
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """``umer-pkg`` console entry point.
+
+    Args:
+        argv: Argument vector without the program name; defaults to
+            ``sys.argv[1:]``.
+
+    Returns:
+        Process exit status (0 success, 1 failure/refusal).
+    """
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="umer-pkg",
+        description="UmerOS package manager — signed .umerpkg archives.",
+    )
+    parser.add_argument("--json", action="store_true",
+                        help="emit machine-readable JSON")
+    parser.add_argument("--install-dir", default=DEFAULT_INSTALL_DIR,
+                        help=f"installation root (default: {DEFAULT_INSTALL_DIR})")
+    parser.add_argument("--registry-dir", default=DEFAULT_REGISTRY,
+                        help=f"local .umerpkg registry (default: {DEFAULT_REGISTRY})")
+    parser.add_argument("--cache-dir", default=DEFAULT_CACHE_DIR,
+                        help=f"extraction cache (default: {DEFAULT_CACHE_DIR})")
+
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p = sub.add_parser("install", help="install a package")
+    p.add_argument("name")
+    p.add_argument("--file", dest="pkg_path", default=None,
+                   help="explicit .umerpkg path (default: registry lookup)")
+
+    p = sub.add_parser("remove", help="remove an installed package")
+    p.add_argument("name")
+
+    p = sub.add_parser("update", help="update one package, or every package")
+    p.add_argument("name", nargs="?", default=None)
+
+    p = sub.add_parser("search", help="search the local registry")
+    p.add_argument("query")
+
+    p = sub.add_parser("info", help="show metadata for a package")
+    p.add_argument("name")
+
+    sub.add_parser("list", help="list installed packages")
+
+    p = sub.add_parser("verify", help="verify signature + integrity hash")
+    p.add_argument("path")
+
+    sub.add_parser("stats", help="show package manager statistics")
+
+    p = sub.add_parser("build", help="build a .umerpkg archive")
+    p.add_argument("source_dir")
+    p.add_argument("--name", required=True)
+    p.add_argument("--version", required=True)
+    p.add_argument("--description", default="")
+    p.add_argument("--output", default=".")
+    p.add_argument("--sign-key", default=None,
+                   help="file holding a raw 32-byte Ed25519 private key")
+    p.add_argument("--key-id", default=None)
+
+    args = parser.parse_args(argv)
+
+    def emit(payload: object) -> None:
+        if args.json:
+            print(json.dumps(payload, indent=2, sort_keys=True, default=str))
+
+    try:
+        pm = UmerPackageManager(
+            install_dir=args.install_dir,
+            registry_dir=args.registry_dir,
+            cache_dir=args.cache_dir,
+        )
+
+        if args.command == "install":
+            ok = pm.install(args.name, args.pkg_path)
+            emit({"command": "install", "name": args.name, "ok": bool(ok)})
+            if not args.json:
+                print(f"{'installed' if ok else 'REFUSED'}: {args.name}")
+            return 0 if ok else 1
+
+        if args.command == "remove":
+            ok = pm.remove(args.name)
+            emit({"command": "remove", "name": args.name, "ok": bool(ok)})
+            if not args.json:
+                print(f"{'removed' if ok else 'not installed'}: {args.name}")
+            return 0 if ok else 1
+
+        if args.command == "update":
+            results = pm.update(args.name)
+            emit({"command": "update", "results": results})
+            if not args.json:
+                if not results:
+                    print("nothing to update")
+                for name, ok in results.items():
+                    print(f"{'updated' if ok else 'FAILED'}: {name}")
+            return 0 if results and all(results.values()) else 1
+
+        if args.command == "search":
+            hits = pm.search(args.query)
+            emit({"command": "search", "query": args.query, "results": hits})
+            if not args.json:
+                if not hits:
+                    print(f"no packages match '{args.query}'")
+                for hit in hits:
+                    print(f"{hit.get('name', '?')}\t{hit.get('version', '?')}\t"
+                          f"{hit.get('description', '')}".rstrip())
+            return 0
+
+        if args.command == "info":
+            details = pm.info(args.name)
+            if details is None:
+                emit({"command": "info", "name": args.name, "found": False})
+                if not args.json:
+                    print(f"umer-pkg: no such package: {args.name}", file=sys.stderr)
+                return 1
+            emit({"command": "info", "name": args.name, "found": True,
+                  "package": details})
+            if not args.json:
+                for key in sorted(details):
+                    print(f"{key}: {details[key]}")
+            return 0
+
+        if args.command == "list":
+            installed = pm.list_installed()
+            emit({"command": "list", "packages": installed})
+            if not args.json:
+                if not installed:
+                    print("no packages installed")
+                for pkg in installed:
+                    print(f"{pkg['name']}\t{pkg['version']}\t{pkg['path']}")
+            return 0
+
+        if args.command == "verify":
+            ok = pm.verify_package(args.path)
+            emit({"command": "verify", "path": args.path, "verified": bool(ok)})
+            if not args.json:
+                print(f"{'verified' if ok else 'REFUSED'}: {args.path}")
+            return 0 if ok else 1
+
+        if args.command == "stats":
+            info = pm.stats()
+            emit({"command": "stats", "stats": info})
+            if not args.json:
+                for key in sorted(info):
+                    print(f"{key}: {info[key]}")
+            return 0
+
+        if args.command == "build":
+            signing_key = None
+            if args.sign_key:
+                with open(args.sign_key, "rb") as fh:
+                    signing_key = fh.read()
+            path = pm.build(
+                source_dir=args.source_dir,
+                manifest={
+                    "name": args.name,
+                    "version": args.version,
+                    "description": args.description,
+                },
+                output_dir=args.output,
+                signing_key=signing_key,
+                key_id=args.key_id,
+            )
+            emit({"command": "build", "path": path})
+            if not args.json:
+                print(path)
+            return 0
+
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        print(f"umer-pkg: {exc}", file=sys.stderr)
+        return 1
+
+    parser.error(f"unknown command: {args.command}")  # pragma: no cover
+    return 2  # pragma: no cover
+
+
+if __name__ == "__main__":
+    sys.exit(main())

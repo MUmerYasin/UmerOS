@@ -54,6 +54,7 @@ from initrd.archivers import (
 )
 from initrd.builder import BuildRequest, InitrdBuilder, OutputFormat
 from initrd.cpio import (
+    CpioEntry,
     newc_dir,
     newc_file,
     newc_symlink,
@@ -166,6 +167,64 @@ class TestCpio(unittest.TestCase):
         rt = unpack_archive(blob)
         self.assertEqual(len(rt), 1)
         self.assertEqual(rt[0].name, "a")
+
+    def test_every_record_starts_on_a_4_byte_boundary(self):
+        """newc pads each record relative to its 110-byte header.
+
+        Linux ``init/initramfs.c`` uses ``N_ALIGN(len) = ((len + 1) & ~3) + 2``
+        and advances to the next multiple of 4 measured from the **record
+        start**.  Padding the name field in isolation made every record two
+        bytes short, so a real kernel rejected the stream after the first entry
+        (and the reader mis-parsed genuine dracut images).  This walks the
+        archive and asserts the invariant directly instead of round-tripping.
+        """
+        entries = [
+            newc_dir("etc"),
+            newc_file("etc/hostname", b"umer-os\n"),   # 13-byte name (odd case)
+            newc_file("a", b"x"),                      # 2-byte name (aligned case)
+            newc_symlink("bin/sh", "bin/busybox"),
+        ]
+        blob = pack_archive(entries)
+
+        offsets: list[int] = []
+        names: list[str] = []
+        pos = 0
+        while pos + 110 <= len(blob):
+            self.assertEqual(blob[pos:pos + 6], b"070701", f"bad magic at {pos}")
+            offsets.append(pos)
+            namesize = int(blob[pos + 94:pos + 102], 16)
+            filesize = int(blob[pos + 54:pos + 62], 16)
+            name = blob[pos + 110:pos + 110 + namesize].rstrip(b"\x00").decode()
+            names.append(name)
+            pos += 110 + namesize
+            pos += -(pos) % 4          # name padding, relative to the record start
+            pos += filesize
+            pos += -(pos) % 4          # data padding
+            if name == "TRAILER!!!":
+                break
+
+        self.assertTrue(all(o % 4 == 0 for o in offsets),
+                        f"records not 4-byte aligned: {offsets}")
+        self.assertEqual(names, ["etc", "etc/hostname", "a", "bin/sh", "TRAILER!!!"])
+        self.assertEqual(pos, len(blob), "archive has trailing bytes")
+
+    def test_trailer_record_length_matches_linux_n_align(self):
+        """The trailer record is exactly 124 bytes: 110 + N_ALIGN(11)."""
+        blob = pack_archive([])
+        self.assertEqual(len(blob), 110 + len(b"TRAILER!!!\x00") + 3)
+
+    def test_bare_entry_is_a_regular_file_and_keeps_its_data(self):
+        """``CpioEntry(name, data)`` must not silently drop the payload.
+
+        The newc ``mode`` field needs its file-type bits; with a bare
+        permission default ``is_regular()`` was False and the data was written
+        as a zero-length body.
+        """
+        entry = CpioEntry(name="x", data=b"hello")
+        self.assertTrue(entry.is_regular(), "default mode must mark a regular file")
+        blob = pack_archive([entry])
+        rt = {e.name: e for e in unpack_archive(blob)}
+        self.assertEqual(rt["x"].data, b"hello")
 
     def test_directory_mode_preserved(self):
         entries = [newc_dir("run", mode=0o775)]

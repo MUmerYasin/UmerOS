@@ -137,5 +137,8 @@ class TestVerifyKernelFailClosed:
         data = b"fake-kernel-bytes"
         f = tmp_path / "kernel.img"
         f.write_bytes(data)
-        digest = hashlib.sha3_256(data).hexdigest()
+        # [FIX] ``verify_kernel`` digests with SHA3-512 (boot/bootloader.py:188),
+        # so the expected hash must be a 128-char SHA3-512 digest. This test
+        # previously used SHA3-256 and could never pass.
+        digest = hashlib.sha3_512(data).hexdigest()
         assert verify_kernel(str(f), expected_hash=digest, required=True) is True

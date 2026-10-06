@@ -17,6 +17,8 @@
 #
 # Author: Muhammad Umer Yasin / UmerOS Project
 # License: GPL-3.0 (GNU General Public License Version 3)
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /feedback — Community Feedback, Bug Reports & GNU FDL Subsystem.
 """

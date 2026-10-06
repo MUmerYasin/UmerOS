@@ -14,12 +14,22 @@ Why a bridge instead of importing CapabilityManager directly?
     and every privileged call is then enforced fail-closed (no capability -> the
     manager raises ``PermissionError``).
 
+Principal (who is asking?)
+  * ``wire(manager, principal=PID)`` records the identity that unqualified
+    ``require()`` / ``query()`` calls are evaluated against.  The kernel wires
+    itself as ``SYSTEM_PID`` (its own privileges).  Without a principal the
+    caller's OS PID is used, which is the right default for a standalone CLI.
+
 Fail-closed vs. usable (important design choice):
   * When a CapabilityManager IS wired  -> enforce against it (truly fail-closed).
   * When NO manager is wired (standalone scripts, CLI tools, unit tests) the gate
     defaults to *permissive* but logs a warning, so existing workflows do not
     break.  Hardened deployments (or tests proving the fail-closed path) can call
     ``gate.set_strict(True)`` to deny outright when no trust source is present.
+  * A hardened deployment can also set ``UMEROS_STRICT_GATE=1`` in the
+    environment to make that fail-closed posture the process default.
+  * ``snapshot()`` / ``restore()`` exist so embedders and tests can save and
+    reinstate the posture instead of leaking it across components.
 
 Author: UmerOS Project
 License: GPL-3.0
@@ -30,9 +40,20 @@ from __future__ import annotations
 import logging
 import os
 import threading
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 log = logging.getLogger("UmerOS.CapabilityGate")
+
+
+def _strict_from_environment() -> bool:
+    """True when ``UMEROS_STRICT_GATE`` requests a fail-closed default.
+
+    Set ``UMEROS_STRICT_GATE=1`` (or ``true``/``yes``/``on``) to make an
+    unwired gate deny privileged operations instead of warning and allowing.
+    """
+    return os.environ.get("UMEROS_STRICT_GATE", "").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
 
 # ── Capability name constants ───────────────────────────────────────────────
 # Re-declared locally so the gate can be imported from anywhere without a hard
@@ -59,22 +80,62 @@ class CapabilityGate:
 
     def __init__(self) -> None:
         self._manager: Any = None
-        self._strict: bool = False
+        self._principal: Optional[int] = None
+        self._strict: bool = _strict_from_environment()
         self._lock: threading.Lock = threading.Lock()
 
     # ── Wiring ───────────────────────────────────────────────────────────────
 
-    def wire(self, manager: Any) -> None:
+    def wire(self, manager: Any, principal: Optional[int] = None) -> None:
         """Attach the kernel's CapabilityManager (or any object exposing
         ``query(pid, cap)``).  Once wired, every ``require`` is enforced against
-        it (fail-closed)."""
+        it (fail-closed).
+
+        Args:
+            manager:   The trust source (``CapabilityManager`` or compatible).
+            principal: Identity that unqualified ``require()``/``query()`` calls
+                are evaluated as.  The kernel passes ``SYSTEM_PID``.  When
+                omitted the caller's OS PID is used.
+        """
         with self._lock:
             self._manager = manager
-        log.info("CapabilityGate wired to %r.", type(manager).__name__)
+            if principal is not None:
+                self._principal = principal
+        log.info(
+            "CapabilityGate wired to %r (principal=%s).",
+            type(manager).__name__, principal if principal is not None else "os.getpid()",
+        )
 
     def unwire(self) -> None:
         with self._lock:
             self._manager = None
+            self._principal = None
+
+    def set_principal(self, pid: Optional[int]) -> None:
+        """Set (or clear) the identity used for unqualified checks."""
+        with self._lock:
+            self._principal = pid
+
+    @property
+    def principal(self) -> Optional[int]:
+        with self._lock:
+            return self._principal
+
+    def snapshot(self) -> Dict[str, Any]:
+        """Capture the current posture so it can be reinstated with ``restore``."""
+        with self._lock:
+            return {
+                "manager": self._manager,
+                "principal": self._principal,
+                "strict": self._strict,
+            }
+
+    def restore(self, state: Dict[str, Any]) -> None:
+        """Reinstate a posture previously returned by ``snapshot``."""
+        with self._lock:
+            self._manager = state.get("manager")
+            self._principal = state.get("principal")
+            self._strict = bool(state.get("strict", False))
 
     def set_strict(self, value: bool) -> None:
         """When True, deny privileged ops if no manager is wired (fail-closed)."""
@@ -100,9 +161,18 @@ class CapabilityGate:
 
     # ── Query / enforcement ──────────────────────────────────────────────────
 
+    def _resolve_pid(self, pid: Optional[int]) -> int:
+        """Explicit pid wins; else the wired principal; else the OS process id."""
+        if pid is not None:
+            return pid
+        with self._lock:
+            if self._principal is not None:
+                return self._principal
+        return os.getpid()
+
     def query(self, cap: str, pid: Optional[int] = None) -> bool:
         """Boolean test for a capability (never raises)."""
-        pid = os.getpid() if pid is None else pid
+        pid = self._resolve_pid(pid)
         with self._lock:
             mgr = self._manager
         if mgr is not None:
@@ -113,17 +183,18 @@ class CapabilityGate:
         return not self._strict  # permissive when no trust source + non-strict
 
     def require(self, cap: str, pid: Optional[int] = None) -> None:
-        """Assert the current process holds ``cap``; raise PermissionError otherwise.
+        """Assert the current principal holds ``cap``; raise ``PermissionError``.
 
         Args:
             cap: Required capability string.
-            pid: Optional explicit PID (defaults to the current process).
+            pid: Optional explicit PID (defaults to the wired principal, or to
+                the current OS process when no principal is set).
 
         Raises:
             PermissionError: If the capability is not held (and a trust source
                 is wired, or strict mode is on with no trust source).
         """
-        pid = os.getpid() if pid is None else pid
+        pid = self._resolve_pid(pid)
         with self._lock:
             mgr = self._manager
             strict = self._strict

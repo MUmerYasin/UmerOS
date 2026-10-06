@@ -21,7 +21,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 import '../services/kvm_service.dart';
 import '../widgets/auto_adjust_box.dart';
@@ -53,7 +52,6 @@ class _VirtKvmAppState extends State<VirtKvmApp> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return StreamBuilder<void>(
       stream: KVMService.instance.vmsStream,
       builder: (context, _) {
@@ -206,7 +204,7 @@ class _VirtKvmAppState extends State<VirtKvmApp> {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: vmList.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final vm = vmList[index];
         final selected = vm.config.id == _selectedVmId;
@@ -331,9 +329,8 @@ class _VirtKvmAppState extends State<VirtKvmApp> {
           if (counters.isNotEmpty)
             LayoutBuilder(
               builder: (context, constraints) {
-                final cols = constraints.maxWidth > 640 ? 3 : 2;
-                final rows = (counters.length / cols).ceil();
-                return GridView.builder(
+          final cols = constraints.maxWidth > 640 ? 3 : 2;
+          return GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -415,7 +412,7 @@ class _VirtKvmAppState extends State<VirtKvmApp> {
           padding: const EdgeInsets.all(12),
           reverse: false,
           itemCount: entries.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 2),
+          separatorBuilder: (_, _) => const SizedBox(height: 2),
           itemBuilder: (context, i) {
             final e = entries[i];
             return _LogTile(entry: e);
@@ -569,7 +566,7 @@ class _VirtKvmAppState extends State<VirtKvmApp> {
               TextField(controller: gsiCtrl, keyboardType: TextInputType.number),
               const SizedBox(height: 12),
               const _DialogLabel('IRQ chip'),
-              DropdownButtonFormField<String>(
+              DropdownButton<String>(
                 value: chip,
                 items: const [
                   DropdownMenuItem(value: 'ioapic', child: Text('IOAPIC')),
@@ -731,7 +728,7 @@ class _SectionTitle extends StatelessWidget {
                 fontSize: 15, fontWeight: FontWeight.w600),
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }
@@ -1085,7 +1082,7 @@ class _VCPUTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: ListTile(
-        leading: Icon(Icons.chip, color: color),
+        leading: Icon(Icons.hardware, color: color),
         title: Text('vCPU #${vcpu.id}',
             style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
         subtitle: Text('State: ${vcpu.state}'),
@@ -1300,7 +1297,7 @@ class _LogTile extends StatelessWidget {
         children: [
           Text('$time ',
               style: GoogleFonts.firaCode(fontSize: 11, color: Colors.grey)),
-          Container(
+          SizedBox(
             width: 46,
             child: Text(entry.label,
                 style: GoogleFonts.firaCode(

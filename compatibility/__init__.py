@@ -37,6 +37,8 @@
 #     H52) via ``SyscallTranslator``.
 # Keep the two paths SEPARATE - do not merge their capability gates or
 # syscall shims.
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /compatibility — Windows compatibility layer (pure Python).
 

@@ -20,6 +20,7 @@ UmerOS is a **research-based and educational systems project**, a production rep
 - [Architecture](#architecture)
 - [Subsystems](#subsystems)
 - [Repository map](#repository-map)
+- [Live runtime vs. reference corpus](#repository-map)
 - [Python and Flutter boundary](#python-and-flutter-boundary)
 - [Installation](#installation)
 - [Run the Python services](#run-the-python-services)
@@ -41,13 +42,17 @@ UmerOS is a **research-based and educational systems project**, a production rep
 
 If you are new to operating systems or quantum computing, start here:
 
-1. Read [`docs/user_manual.md`](docs/user_manual.md) for the user-facing mental model.
-2. Read [`docs/architecture.md`](docs/architecture.md) for the boot flow, IPC flow, memory model, QFS flow, and dependency graph.
-3. Run the Python tests before changing code.
-4. Explore [`quantum/`](quantum) with [`docs/quantum_tutorial.md`](docs/quantum_tutorial.md).
-5. Open the Flutter shell in [`ui/flutter_ui/`](ui/flutter_ui) and begin at `lib/main.dart`.
-6. Use the feature labels below: **TODAY** means an implemented prototype, **EXPERIMENTAL** means incomplete or environment-dependent, **FUTURE** means planned, and **BLOCKED** means currently unavailable.
-7. Read [`docs/HARDWARE_REQUIREMENTS.md`](docs/HARDWARE_REQUIREMENTS.md) hardware checklist before install UmerOS.
+1. Read [`docs/reference_corpus.md`](docs/reference_corpus.md) **first**. Only
+   `boot/`, `core/`, `kernel/` and `lib/lostfound` are reachable from `main.py`;
+   the other 31 packages are reference corpus that nothing on the boot path
+   imports. Knowing which layer you are looking at prevents most confusion.
+2. Read [`docs/user_manual.md`](docs/user_manual.md) for the user-facing mental model.
+3. Read [`docs/architecture.md`](docs/architecture.md) for the boot flow, IPC flow, memory model, QFS flow, and dependency graph.
+4. Run the Python tests before changing code.
+5. Explore [`quantum/`](quantum) with [`docs/quantum_tutorial.md`](docs/quantum_tutorial.md).
+6. Open the Flutter shell in [`ui/flutter_ui/`](ui/flutter_ui) and begin at `lib/main.dart`.
+7. Use the feature labels below: **TODAY** means an implemented prototype, **EXPERIMENTAL** means incomplete or environment-dependent, **FUTURE** means planned, and **BLOCKED** means currently unavailable.
+8. Read [`docs/HARDWARE_REQUIREMENTS.md`](docs/HARDWARE_REQUIREMENTS.md) hardware checklist before install UmerOS.
 
 ### The short version
 
@@ -284,38 +289,50 @@ The compatibility README is the most precise reference for the PE parser's suppo
 
 ## Repository map
 
+> **Live runtime vs. reference corpus.** Only `boot/`, `core/`, `kernel/` and
+> `lib/lostfound` are reachable from `main.py`; everything else is **reference
+> corpus** — it is exercised by its own unit tests and by nothing else. The tree
+> below marks each entry `[LIVE]` or `[REF]`. This is a *reachability*
+> classification and is orthogonal to the maturity tiers (a module can be
+> `[TODAY]`-quality finished code that nothing runs). See
+> [`docs/reference_corpus.md`](docs/reference_corpus.md) for the measured
+> evidence and the promotion procedure; `scripts/check_layer_reachability.py`
+> enforces it in CI.
+
 ```text
 UmerOS/
-├── ai/                 Local-first AI, providers, consent and model management
-├── boot/               Python bootloader and initialization experiments
-├── cloud/              Sync, OTA and cloud-service abstractions
-├── compatibility/      PE/NE parsing, Win32/NT stubs and app adapters
-├── core/               Cross-cutting capability and policy gates
-├── drivers/            Python device, bus, power, storage and I/O frameworks
-├── docs/               Architecture, API, installation, user and quantum guides
-├── fs/                 QFS, CAS, compression, indexing and snapshots
-├── initrd/             Initramfs builder, runtime, hooks and boot phases
-├── installer/          Installation, deployment, backup and rollback tools
-├── kernel/             Kernel lifecycle, scheduler, memory, IPC and primitives
-├── MainTask/           Design context, prompts and source research material
-├── network/            Networking, discovery, VPN and protocol experiments
-├── packages/           Package manager and registry client
-├── quantum/            Simulator, circuits, compilers, providers, QKD and cloud
-├── sdk/                Developer-facing re-exported APIs
-├── security/           Sandbox, authentication and security services
-├── tests/              Python tests and fixtures
-├── ui/                 Python-era prototypes plus canonical Flutter frontend
-│   └── flutter_ui/     Flutter/Dart desktop application
-├── examples/           Demonstrations and integration examples
-├── scripts/            Maintenance and repository checks
-├── pyproject.toml      Ruff, Mypy, pytest and coverage configuration
-├── setup.py            Package metadata, extras and console entry points
-├── requirements.txt    Bounded Python dependency requirements
-├── Dockerfile          Python service container image
-└── docker-compose.yml  App + Caddy deployment composition
+├── ai/                 [REF]  Local-first AI, providers, consent and model management
+├── boot/               [LIVE] Python bootloader and initialization experiments
+├── cloud/              [REF]  Sync, OTA and cloud-service abstractions
+├── compatibility/      [REF]  PE/NE parsing, Win32/NT stubs and app adapters
+├── core/               [LIVE] Cross-cutting capability and policy gates
+├── drivers/            [REF]  Python device, bus, power, storage and I/O frameworks
+├── docs/                      Architecture, API, installation, user and quantum guides
+├── fs/                 [REF]  QFS, CAS, compression, indexing and snapshots
+├── initrd/             [REF]  Initramfs builder, runtime, hooks and boot phases
+├── installer/          [REF]  Installation, deployment, backup and rollback tools
+├── kernel/             [LIVE] Kernel lifecycle, scheduler, memory, IPC and primitives
+├── lib/                       [LIVE] lib/lostfound only; rest is [REF]
+├── MainTask/                  Design context, prompts and source research material
+├── network/            [REF]  Networking, discovery, VPN and protocol experiments
+├── packages/           [REF]  Package manager and registry client (reached by the
+│                              `umer-pkg` console script, not by main.py)
+├── quantum/            [REF]  Simulator, circuits, compilers, providers, QKD and cloud
+├── sdk/                [REF]  Developer-facing re-exported APIs
+├── security/           [REF]  Sandbox, authentication and security services
+├── tests/                     Python tests and fixtures
+├── ui/                 [REF]  Python-era prototypes plus canonical Flutter frontend
+│   └── flutter_ui/            Flutter/Dart desktop application
+├── examples/           [REF]  Demonstrations and integration examples
+├── scripts/                   Maintenance and repository checks
+├── pyproject.toml             Ruff, Mypy, pytest and coverage configuration
+├── setup.py                   Package metadata, extras and console entry points
+├── requirements.txt           Bounded Python dependency requirements
+├── Dockerfile                 Python service container image
+└── docker-compose.yml         App + Caddy deployment composition
 ```
 
-Additional root folders (`bin`, `build`, `dev`, `etc`, `home`, `HostFiles`, `legal`, `lib`, `media`, `mnt`, `opt`, `proc`, `root`, `sbin`, `sources`, `srv`, `tmp`, `usr`, and `var`) represent OS layout, build/development assets, fixtures, or deployment placeholders. `node_modules/` is third-party JavaScript material and is not part of the Python runtime. The historical prompt and raw-data files in `MainTask/` are design/research inputs, not executable OS services.
+Additional root folders (`bin`, `build`, `dev`, `etc`, `home`, `HostFiles`, `legal`, `media`, `mnt`, `opt`, `proc`, `root`, `sbin`, `sources`, `srv`, `tmp`, `usr`, and `var`) represent OS layout, build/development assets, fixtures, or deployment placeholders — all `[REF]`. `node_modules/` is third-party JavaScript material and is not part of the Python runtime. The historical prompt and raw-data files in `MainTask/` are design/research inputs, not executable OS services.
 
 ## Python and Flutter boundary
 

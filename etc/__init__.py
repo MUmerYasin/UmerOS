@@ -4,6 +4,8 @@
 #
 # /etc: system configuration files (passwd, group, shadow,
 # fstab, profile, hostname, …) plus per-service config managers.
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /etc — System configuration managers.
 """

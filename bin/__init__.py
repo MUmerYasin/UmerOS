@@ -22,6 +22,8 @@
 # csh                - csh (C Shell)
 # ed                 - ed (line editor)
 # bin_manager        - command registry, FHS audit
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /bin — Essential command binaries.  [TODAY]
 """

@@ -125,3 +125,8 @@ jobs:
         # H14: fail if README code examples import a module absent from the tree
         # (phantom-module regression). Planned modules are allowlisted in the script.
         run: python scripts/check_readme_drift.py
+      - name: Check live-runtime vs reference-corpus classification
+        # Fails if a package declared non-executable becomes reachable from
+        # main.py, or if a reference package loses its [REFERENCE-ONLY] marker.
+        # See docs/reference_corpus.md.
+        run: python scripts/check_layer_reachability.py

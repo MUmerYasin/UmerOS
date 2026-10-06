@@ -7,6 +7,8 @@
 # qfs - CASStore (SHA-3 content-addressable), QFSCompressor, AIFileIndexer,
 #       QFS facade (write/read/delete/snapshot/restore/search).
 # vfs - VirtualFileSystem (POSIX-path → QFS shim).
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /fs — Virtual filesystem over a quantum content-addressable store.
 """

@@ -83,6 +83,34 @@ class ChgrpError(Exception):
         super().__init__(f"chgrp: {message}")
 
 
+# ─── POSIX identity lookups (pwd / grp) ─────────────────────────────────────
+
+def _posix_lookup(module_name: str, func_name: str, key: Any, attr: str) -> Any:
+    """Look ``key`` up through a POSIX-only stdlib module, or return ``None``.
+
+    ``pwd`` and ``grp`` do not exist on Windows, and on non-POSIX hosts the test
+    suite injects empty stub modules of those names into ``sys.modules`` so that
+    POSIX-only modules remain importable.  Without this guard both cases raise
+    out of a command's ``execute()`` (``ImportError``, or ``AttributeError`` for
+    a stub with no lookup function) instead of reporting a normal command
+    failure.  Returning ``None`` for every "unavailable" and "unknown name" case
+    lets callers fall through to the UmerOS user database and finally report
+    ``invalid user`` / ``invalid group`` with exit code 1, which is the POSIX
+    behaviour.
+    """
+    try:
+        module = __import__(module_name)
+    except ImportError:
+        return None
+    func = getattr(module, func_name, None)
+    if func is None:
+        return None
+    try:
+        return getattr(func(key), attr)
+    except (KeyError, OSError, TypeError, ValueError):
+        return None
+
+
 # ─── Symbolic Mode Parser ───────────────────────────────────────────────────
 
 @dataclass
@@ -657,18 +685,23 @@ class ChownCommand:
                 from_spec = UserSpec.parse(from_owner)
                 if from_spec.user is not None:
                     # Check if current owner matches
-                    try:
-                        import pwd
-                        current_user = pwd.getpwuid(current_uid).pw_name
-                    except (ImportError, KeyError):
+                    current_user = _posix_lookup(
+                        "pwd", "getpwuid", current_uid, "pw_name"
+                    )
+                    if current_user is None:
                         current_user = str(current_uid)
 
                     if from_spec.user != current_user:
                         return 0  # Skip, doesn't match
 
             # Resolve new uid/gid
-            new_uid = self._resolve_uid(user_spec.user, current_uid)
-            new_gid = self._resolve_gid(user_spec.group, current_gid, user_spec.has_colon)
+            try:
+                new_uid = self._resolve_uid(user_spec.user, current_uid)
+                new_gid = self._resolve_gid(user_spec.group, current_gid, user_spec.has_colon)
+            except ChownError as e:
+                if not silent:
+                    print(str(e), file=sys.stderr)
+                return e.exit_code
 
             # Only change if something actually changed
             if new_uid == current_uid and new_gid == current_gid:
@@ -752,12 +785,10 @@ class ChownCommand:
         except ValueError:
             pass
 
-        # Try to look up by name
-        try:
-            import pwd
-            return pwd.getpwnam(user).pw_uid
-        except (ImportError, KeyError):
-            pass
+        # Try to look up by name (POSIX only; absent or stubbed elsewhere).
+        uid = _posix_lookup("pwd", "getpwnam", user, "pw_uid")
+        if uid is not None:
+            return int(uid)
 
         # Try UmerOS user database
         try:
@@ -784,12 +815,10 @@ class ChownCommand:
         except ValueError:
             pass
 
-        # Try to look up by name
-        try:
-            import grp
-            return grp.getgrnam(group).gr_gid
-        except (ImportError, KeyError):
-            pass
+        # Try to look up by name (POSIX only; absent or stubbed elsewhere).
+        gid = _posix_lookup("grp", "getgrnam", group, "gr_gid")
+        if gid is not None:
+            return int(gid)
 
         # Try UmerOS group database
         try:
@@ -970,17 +999,22 @@ class ChgrpCommand:
 
             # Check --from constraint
             if from_group:
-                try:
-                    import grp
-                    current_group_name = grp.getgrgid(current_gid).gr_name
-                except (ImportError, KeyError):
+                current_group_name = _posix_lookup(
+                    "grp", "getgrgid", current_gid, "gr_name"
+                )
+                if current_group_name is None:
                     current_group_name = str(current_gid)
 
                 if from_group != current_group_name:
                     return 0  # Skip, doesn't match
 
             # Resolve new gid
-            new_gid = self._resolve_gid(group)
+            try:
+                new_gid = self._resolve_gid(group)
+            except ChgrpError as e:
+                if not silent:
+                    print(str(e), file=sys.stderr)
+                return e.exit_code
 
             # Only change if actually different
             if new_gid == current_gid:
@@ -1058,12 +1092,10 @@ class ChgrpCommand:
         except ValueError:
             pass
 
-        # Try to look up by name
-        try:
-            import grp
-            return grp.getgrnam(group).gr_gid
-        except (ImportError, KeyError):
-            pass
+        # Try to look up by name (POSIX only; absent or stubbed elsewhere).
+        gid = _posix_lookup("grp", "getgrnam", group, "gr_gid")
+        if gid is not None:
+            return int(gid)
 
         # Try UmerOS group database
         try:

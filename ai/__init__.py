@@ -15,6 +15,8 @@
 #
 # Author: UmerOS Project
 # License: GPLv3
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /ai — Local AI assistant, providers, governance.
 """

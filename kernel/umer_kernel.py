@@ -782,6 +782,28 @@ class UmerKernel:
         self.ipc = IPCBus()
         self.capabilities = CapabilityManager()
 
+        # [FIX H113] Zero-trust wiring: connect the process-global capability
+        # gate (core/capability_gate.py) to this real CapabilityManager. Until
+        # now no production code ever called gate.wire(), so every one of the
+        # ~70 `gate.require(...)` sites across srv/, tmp/, var/, usr/, root/,
+        # sbin/, etc/, dev/, mnt/, media/, network/, packages/ and installer/
+        # silently took the permissive branch — the "zero-trust" posture was
+        # advisory and `gate.enforcing` stayed False, which also disabled the
+        # SSRF destination filter in network/http_client.py.
+        #
+        # The kernel process acts as the system principal (SYSTEM_PID), which
+        # CapabilityManager already treats as privileged; any *other* identity
+        # is denied by default. shutdown() restores the previous posture, so
+        # library/CLI callers outside a running kernel keep the documented
+        # permissive default.
+        self._gate_prev_posture = None
+        try:
+            from core.capability_gate import gate as _cap_gate
+            self._gate_prev_posture = _cap_gate.snapshot()
+            _cap_gate.wire(self.capabilities, principal=SYSTEM_PID)
+        except Exception as exc:  # noqa: BLE001 - never abort boot on this
+            log.warning("Capability gate wiring failed: %s", exc)
+
         # --- STAGE 3: AI & Compatibility ---
         self.ai_firewall = AIFirewall()
         self.ai_assistant = LocalAIAssistant()
@@ -1004,19 +1026,27 @@ class UmerKernel:
                 for _entry in fsck_report.recovered_names:
                     print(f"[KERNEL]   recovered -> /lost+found/{_entry}")
             # Expose lost+found in the VFS tree as well.
-            self.vfs.mkdir("/lost+found")
+            self.vfs.mkdir("/lost+found", parents=True)
 
-        self.vfs.mkdir("/system")
-        self.vfs.mkdir("/user")
-        self.vfs.mkdir("/tmp")
-        self.vfs.mkdir("/packages")
+        # [FIX] Use the idempotent form here. VirtualFileSystem.__init__ already
+        # pre-populates "/tmp" (see the mkdir calls at the top of this class), so
+        # the previous bare mkdir("/tmp") raised FileExistsError and killed
+        # `python main.py` on every run. `parents=True` is `mkdir -p`, which is
+        # what the constructor itself uses.
+        self.vfs.mkdir("/system", parents=True)
+        self.vfs.mkdir("/user", parents=True)
+        self.vfs.mkdir("/tmp", parents=True)
+        self.vfs.mkdir("/packages", parents=True)
         self.vfs.write_file("/system/welcome.txt", b"Welcome to Umer OS v2.0.0-Quantum")
 
         # Crypto verification (placeholder)
         secret = b"Top-secret quantum state data"
         nonce, ciphertext = self.crypto.encrypt(secret)
         self.vfs.write_file("/system/secrets.enc", ciphertext)
-        decrypted = self.crypto.decrypt(nonce, ciphertext)
+        # [FIX] CryptoEngine.decrypt takes the (nonce, ciphertext) tuple returned
+        # by encrypt(); passing them as two positional arguments raised
+        # "too many values to unpack (expected 2)" and killed `python main.py`.
+        decrypted = self.crypto.decrypt((nonce, ciphertext))
         assert decrypted == secret, "Crypto round-trip failed!"
         print("[KERNEL] Crypto round-trip verification: PASS")
 
@@ -1141,6 +1171,21 @@ class UmerKernel:
         log.info("  Uptime: %.3fs", self.uptime())
         log.info("  PID allocator: %s", self.pid_allocator.stats())
         log.info("  Resource tree: %s", self.resources.status())
+
+        # Phase 6: Detach the capability gate so the post-kernel posture is the
+        # one that existed before boot (H113). Without this, a test or embedder
+        # that boots a kernel and forgets to shut down would leave the whole
+        # process fail-closed against a kernel principal.
+        log.info("[shutdown] Phase 6/6: Detaching capability gate...")
+        try:
+            from core.capability_gate import gate as _cap_gate
+            if self._gate_prev_posture is not None:
+                _cap_gate.restore(self._gate_prev_posture)
+                self._gate_prev_posture = None
+            else:
+                _cap_gate.unwire()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("[shutdown] Capability gate detach error: %s", exc)
 
         log.info("=== UmerKernel shut down cleanly ===")
     

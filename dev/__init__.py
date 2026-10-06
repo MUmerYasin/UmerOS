@@ -4,6 +4,8 @@
 #
 # /dev: device files (char/block/FIFO/socket/symlink),
 # devtmpfs population, MAKEDEV / mknod / udevadm / losetup commands.
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /dev — Device-file management.
 """

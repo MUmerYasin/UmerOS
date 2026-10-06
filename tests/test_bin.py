@@ -1362,7 +1362,20 @@ class TestLoginCommandH37(unittest.TestCase):
             import types
             for _mod in ("pwd", "spwd", "crypt"):
                 if _mod not in sys.modules:
-                    sys.modules[_mod] = types.ModuleType(_mod)
+                    stub = types.ModuleType(_mod)
+                    # [FIX] Make the stub behave like the real POSIX module for
+                    # names it cannot resolve (``KeyError``) instead of simply
+                    # lacking the lookup functions.  An API-less stub left in
+                    # ``sys.modules`` made unrelated callers (e.g.
+                    # bin/permissions.py chown/chgrp) fail with AttributeError.
+                    if _mod == "pwd":
+                        stub.getpwnam = lambda _n: (_ for _ in ()).throw(KeyError(_n))
+                        stub.getpwuid = lambda _u: (_ for _ in ()).throw(KeyError(_u))
+                    elif _mod == "spwd":
+                        stub.getspnam = lambda _n: (_ for _ in ()).throw(KeyError(_n))
+                    elif _mod == "crypt":
+                        stub.crypt = lambda *_a, **_k: None
+                    sys.modules[_mod] = stub
             sys.modules.pop("user_commands", None)
         from user_commands import LoginCommand
         cls.LoginCommand = LoginCommand

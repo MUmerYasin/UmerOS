@@ -6,6 +6,8 @@
 # ``installer.py`` (fix for H98/H106 — the previous non-functional
 # stub was removed).  The installer enforces the EULA "I AGREE" gate
 # and uses fail-closed rollback.
+# [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
+
 """
 UmerOS /installer — Deployment / installation surface.
 """
