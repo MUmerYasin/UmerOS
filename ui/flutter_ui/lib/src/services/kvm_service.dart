@@ -158,7 +158,7 @@ class IRQBypassPeer {
   final bool isProducer;
   bool connected;
 
-  const IRQBypassPeer({
+  IRQBypassPeer({
     required this.name,
     required this.isProducer,
     this.connected = false,
@@ -265,7 +265,7 @@ class KVMService {
   }
 
   void _seedIRQBypass() {
-    _irqBypassPeers.addAll(const [
+    _irqBypassPeers.addAll([
       IRQBypassPeer(name: 'virtio-net-prod', isProducer: true),
       IRQBypassPeer(name: 'virtio-blk-prod', isProducer: true),
       IRQBypassPeer(name: 'kvm-ioapic-cons', isProducer: false),

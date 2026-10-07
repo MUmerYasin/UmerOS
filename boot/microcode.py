@@ -124,30 +124,53 @@ class MicrocodeParser:
 
     @staticmethod
     def parse_intel_microcode_header(data: bytes) -> Optional[Dict[str, Any]]:
-        """Parse Intel microcode update header."""
+        """Parse an Intel microcode update header.
+
+        Layout of ``struct microcode_header_intel`` (48 bytes, all little-endian
+        u32) per the Intel SDM and Linux ``arch/x86/kernel/cpu/microcode/intel.c``::
+
+            0   hdrver        header version
+            4   rev           update revision
+            8   date          BCD release date (yyyymmdd)
+            12  sig           processor signature
+            16  cksum         checksum (sum of all dwords == 0)
+            20  ldrver        loader revision
+            24  pf_mask       processor flags
+            28  datasize      size of the encrypted data
+            32  totalsize     total size including this header
+            36  reserved[3]
+
+        The previous implementation read a non-Intel layout (u8 fields at 0/1
+        and mismatched positions from offset 4 onward), so every field it
+        reported was wrong.
+        """
         if len(data) < 48:
             return None
 
-        # Intel microcode update header format
-        header_version = struct.unpack_from("<B", data, 0)[0]
-        revision = struct.unpack_from("<B", data, 1)[0]
-        sig = struct.unpack_from("<I", data, 4)[0]
-        flags = struct.unpack_from("<I", data, 8)[0]
-        size = struct.unpack_from("<I", data, 12)[0]
-        da_size = struct.unpack_from("<I", data, 16)[0]
-        total_size = struct.unpack_from("<I", data, 20)[0]
-        reserved = struct.unpack_from("<16s", data, 24)[0]
-        checksum = struct.unpack_from("<I", data, 44)[0]
+        (
+            header_version,
+            revision,
+            date,
+            signature,
+            checksum,
+            loader_version,
+            processor_flags,
+            data_size,
+            total_size,
+        ) = struct.unpack_from("<9I", data, 0)
+        reserved = struct.unpack_from("<12s", data, 36)[0]
 
         return {
             "header_version": header_version,
             "revision": revision,
-            "signature": sig,
-            "flags": flags,
-            "update_size": size,
-            "data_size": da_size,
-            "total_size": total_size,
+            "date": date,
+            "signature": signature,
             "checksum": checksum,
+            "loader_version": loader_version,
+            "processor_flags": processor_flags,
+            "data_size": data_size,
+            "total_size": total_size,
+            "reserved": reserved,
         }
 
     @staticmethod

@@ -43,7 +43,9 @@ fields most useful to a bootloader or an installer:
 * ``efi_stub``               - True if a PE/COFF header is detected
 * ``xloadflags``             - raw ``xloadflags`` field (XLF_*) bitfield
 * ``pref_address``           - preferred load address
-* ``init_size``, ``init_addr`` - the initrd fields exposed by the kernel
+* ``init_size``              - protected-mode init size (0x260)
+* ``handover_offset``        - EFI handover entry point (0x264)
+* ``kernel_info_offset``     - kernel_info structure offset, proto 2.15+ (0x268)
 * ``type``                   - :class:`BzImageType` classification
 
 The parser is **read-only** - it does not link against libelf and does
@@ -99,6 +101,35 @@ XLF_CAN_HAVE_LOADER = 0x0020
 #: XLF_EFI_HANDOVER - bit 7: kernel supports the EFI handover protocol.
 XLF_EFI_HANDOVER = 0x0080
 
+# ---------------------------------------------------------------------------
+# setup_header field offsets
+# ---------------------------------------------------------------------------
+# Byte offsets of ``struct setup_header`` fields, measured from the start of
+# the boot sector (``setup_header`` itself begins at 0x1f1).  These are taken
+# from Linux ``arch/x86/include/uapi/asm/bootparam.h`` and the offsets table in
+# ``Documentation/arch/x86/boot.rst``.  They are named constants on purpose:
+# the parser previously hard-coded several of them wrong, and one field
+# (``init_addr``) did not exist in the protocol at all.
+#
+# Anchor values to sanity-check against the kernel documentation:
+#   code32_start 0x214, cmd_line_ptr 0x228, xloadflags 0x236,
+#   payload_offset 0x248, pref_address 0x258, init_size 0x260,
+#   handover_offset 0x264, kernel_info_offset 0x268.
+OFF_BOOT_FLAG = 0x1FE          # u16
+OFF_HDRS_MAGIC = 0x202         # u32 "HdrS"
+OFF_VERSION = 0x206            # u16 boot protocol version (BCD)
+OFF_SETUP_SECTS = 0x1F1        # u8
+OFF_CODE32_START = 0x214       # u32
+OFF_START_SYS_SEG = 0x20C      # u16 real-mode SYSSEG
+OFF_CMDLINE_PTR = 0x228        # u32
+OFF_XLOADFLAGS = 0x236         # u16 (NOT u32 — it is followed by cmdline_size)
+OFF_PAYLOAD_OFFSET = 0x248     # u32
+OFF_PAYLOAD_LENGTH = 0x24C     # u32
+OFF_PREF_ADDRESS = 0x258       # u64
+OFF_INIT_SIZE = 0x260          # u32
+OFF_HANDOVER_OFFSET = 0x264    # u32 (EFI handover protocol, proto 2.10+)
+OFF_KERNEL_INFO_OFFSET = 0x268  # u32 (proto 2.15+)
+
 
 class BzImageType(str, Enum):
     """Top-level classification of a Linux kernel image."""
@@ -129,28 +160,27 @@ class BzImageHeader:
     is_linux: bool
     type: BzImageType = BzImageType.UNKNOWN
     # Header magic
-    magic: int = 0                   # 0x53726448 == "HdrS"
-    version: int = 0                 # boot protocol version (BCD-ish: 0x020e = 2.14)
-    boot_flag: int = 0               # 0xAA55 if present
-    setup_sects: int = 0             # number of setup sectors; 0 means 4
+    magic: int = 0                   # 0x202 "HdrS"
+    version: int = 0                 # 0x206 boot protocol version (BCD: 0x020e = 2.14)
+    boot_flag: int = 0               # 0x1fe, 0xAA55 if present
+    setup_sects: int = 0             # 0x1f1; 0 means 4
     # Real-mode fields
-    realmode_swtch: int = 0          # offset 0x1f1
-    start_sys_seg: int = 0           # 0x1f6
+    realmode_swtch: int = 0          # 0x208 (4 bytes)
+    start_sys_seg: int = 0           # 0x20c (u16) real-mode SYSSEG
     kernel_version: str = ""         # "Linux version ..." string if present
     # Bootloader fields
-    payload_offset: int = 0          # byte offset of protected-mode kernel
-    payload_length: int = 0          # length of protected-mode kernel
-    # xloadflags (0x236)
+    payload_offset: int = 0          # 0x248 byte offset of protected-mode kernel
+    payload_length: int = 0          # 0x24c length of protected-mode kernel
+    # xloadflags (0x236, u16)
     xloadflags: int = 0
     is_64bit: bool = False
     can_have_loader: bool = False
     efi_handover: bool = False
     # x86 fields
-    pref_address: int = 0            # preferred load address (0x258)
-    init_size: int = 0               # 0x260
-    init_addr: int = 0               # 0x268
-    handover_offset: int = 0         # 0x26c
-    kernel_info_offset: int = 0      # 0x270
+    pref_address: int = 0            # 0x258 preferred load address (u64)
+    init_size: int = 0               # 0x260 (u32)
+    handover_offset: int = 0         # 0x264 (u32) EFI handover entry point
+    kernel_info_offset: int = 0      # 0x268 (u32) kernel_info structure, proto 2.15+
     # Misc
     efi_stub: bool = False           # True if MZ/PE header also found
     header_string: str = ""          # 4 raw bytes at 0x202 (debug)
@@ -171,13 +201,15 @@ class BzImageHeader:
     @property
     def protocol_minor(self) -> int:
         """BCD minor of the boot protocol version (e.g. 0x0e for 2.14)."""
-        return (self.version >> 8) & 0xFF if self.version else 0
+        # ``version`` is ``0xMMmm``: major in the high byte, minor in the low
+        # byte. This used to return the *major* byte, duplicating
+        # ``protocol_major`` and reporting 2.02 for a 2.14 kernel.
+        return self.version & 0xFF if self.version else 0
 
     @property
     def protocol_major(self) -> int:
         """BCD major of the boot protocol version (e.g. 0x02 for 2.14)."""
-        return (self.version >> 8) & 0xFF if self.version else 0  # placeholder
-        # NB: actually the major is the second byte - corrected below
+        return (self.version >> 8) & 0xFF if self.version else 0
 
     def protocol_string(self) -> str:
         """Return ``"X.YY"`` for the boot protocol version, or ``"?"``."""
@@ -208,8 +240,8 @@ class BzImageHeader:
             "efi_stub": self.efi_stub,
             "pref_address": f"0x{self.pref_address:016x}" if self.pref_address else "0x0",
             "init_size": self.init_size,
-            "init_addr": f"0x{self.init_addr:016x}" if self.init_addr else "0x0",
             "handover_offset": self.handover_offset,
+            "kernel_info_offset": self.kernel_info_offset,
             "kernel_version": self.kernel_version,
             "issues": list(self.issues),
         }
@@ -307,11 +339,13 @@ def parse_bzimage_header(path: str | os.PathLike,
         return hdr
 
     # 0x1fe: boot sector signature (0xAA55)
-    hdr.boot_flag = struct.unpack_from("<H", data, 0x1fe)[0]
+    hdr.boot_flag = struct.unpack_from("<H", data, OFF_BOOT_FLAG)[0]
 
     # 0x202: HdrS magic
-    hdr.magic = struct.unpack_from("<I", data, 0x202)[0]
-    hdr.header_string = data[0x202:0x206].decode("ascii", errors="replace")
+    hdr.magic = struct.unpack_from("<I", data, OFF_HDRS_MAGIC)[0]
+    hdr.header_string = data[OFF_HDRS_MAGIC:OFF_HDRS_MAGIC + 4].decode(
+        "ascii", errors="replace"
+    )
 
     if hdr.magic != HDRS_MAGIC:
         # Not a Linux image - check if it's a pure EFI stub / UKI.
@@ -332,46 +366,46 @@ def parse_bzimage_header(path: str | os.PathLike,
     hdr.is_linux = True
 
     # 0x206: version (2 bytes, little-endian, BCD 0xMM.mm)
-    hdr.version = struct.unpack_from("<H", data, 0x206)[0]
+    hdr.version = struct.unpack_from("<H", data, OFF_VERSION)[0]
 
     # 0x1f1: setup_sects
     hdr.setup_sects = _read_setup_sects(data)
 
-    # 0x1f6: start_sys_seg (real mode SYSSEG)
-    if len(data) >= 0x1f8:
-        hdr.start_sys_seg = struct.unpack_from("<H", data, 0x1f6)[0]
+    # 0x20c: start_sys_seg (u16, real-mode SYSSEG)
+    if len(data) >= OFF_START_SYS_SEG + 2:
+        hdr.start_sys_seg = struct.unpack_from("<H", data, OFF_START_SYS_SEG)[0]
 
-    # 0x236: xloadflags
-    if len(data) >= 0x238:
-        hdr.xloadflags = struct.unpack_from("<I", data, 0x236)[0]
+    # 0x236: xloadflags (u16 — the field after it is cmdline_size, so reading
+    # four bytes would fold cmdline_size's low half into the flags)
+    if len(data) >= OFF_XLOADFLAGS + 2:
+        hdr.xloadflags = struct.unpack_from("<H", data, OFF_XLOADFLAGS)[0]
         hdr.is_64bit = bool(hdr.xloadflags & XLF_KERNEL_64)
         hdr.can_have_loader = bool(hdr.xloadflags & XLF_CAN_HAVE_LOADER)
         hdr.efi_handover = bool(hdr.xloadflags & XLF_EFI_HANDOVER)
 
     # 0x248 / 0x24c: payload_offset / payload_length (newer protocol)
-    if len(data) >= 0x24c + 4:
-        hdr.payload_offset = struct.unpack_from("<I", data, 0x248)[0]
-        hdr.payload_length = struct.unpack_from("<I", data, 0x24c)[0]
+    if len(data) >= OFF_PAYLOAD_LENGTH + 4:
+        hdr.payload_offset = struct.unpack_from("<I", data, OFF_PAYLOAD_OFFSET)[0]
+        hdr.payload_length = struct.unpack_from("<I", data, OFF_PAYLOAD_LENGTH)[0]
 
     # 0x258: pref_address (8 bytes)
-    if len(data) >= 0x260:
-        hdr.pref_address = struct.unpack_from("<Q", data, 0x258)[0]
+    if len(data) >= OFF_PREF_ADDRESS + 8:
+        hdr.pref_address = struct.unpack_from("<Q", data, OFF_PREF_ADDRESS)[0]
 
     # 0x260: init_size (4 bytes)
-    if len(data) >= 0x264:
-        hdr.init_size = struct.unpack_from("<I", data, 0x260)[0]
+    if len(data) >= OFF_INIT_SIZE + 4:
+        hdr.init_size = struct.unpack_from("<I", data, OFF_INIT_SIZE)[0]
 
-    # 0x268: init_addr (8 bytes)
-    if len(data) >= 0x270:
-        hdr.init_addr = struct.unpack_from("<Q", data, 0x268)[0]
+    # 0x264: handover_offset (u32, EFI handover protocol entry point)
+    if len(data) >= OFF_HANDOVER_OFFSET + 4:
+        hdr.handover_offset = struct.unpack_from("<I", data, OFF_HANDOVER_OFFSET)[0]
 
-    # 0x26c: handover_offset (deprecated; some kernels set it)
-    if len(data) >= 0x270:
-        hdr.handover_offset = struct.unpack_from("<I", data, 0x26c)[0]
-
-    # 0x270: kernel_info_offset
-    if len(data) >= 0x274:
-        hdr.kernel_info_offset = struct.unpack_from("<I", data, 0x270)[0]
+    # 0x268: kernel_info_offset (u32, proto 2.15+). NOTE: there is no
+    # "init_addr" field in the x86 boot protocol; 0x268 is kernel_info_offset.
+    if len(data) >= OFF_KERNEL_INFO_OFFSET + 4:
+        hdr.kernel_info_offset = struct.unpack_from(
+            "<I", data, OFF_KERNEL_INFO_OFFSET
+        )[0]
 
     # 0x200: kernel_version string (legacy, but worth a try)
     hdr.kernel_version = _extract_kernel_version(data)
@@ -441,25 +475,31 @@ def _build_fake_bzimage(version: int = 0x020e, setup_sects: int = 4,
     """Build a synthetic bzImage header for tests."""
     buf = bytearray(8192)
     # 0x1fe: boot sector signature
-    struct.pack_into("<H", buf, 0x1fe, BOOT_FLAG_MAGIC)
+    struct.pack_into("<H", buf, OFF_BOOT_FLAG, BOOT_FLAG_MAGIC)
     # 0x1f1: setup_sects
-    buf[0x1f1] = setup_sects & 0xFF
+    buf[OFF_SETUP_SECTS] = setup_sects & 0xFF
     # 0x202: HdrS
-    struct.pack_into("<I", buf, 0x202, HDRS_MAGIC)
+    struct.pack_into("<I", buf, OFF_HDRS_MAGIC, HDRS_MAGIC)
     # 0x206: version
-    struct.pack_into("<H", buf, 0x206, version)
-    # 0x236: xloadflags (64-bit, can_have_loader, efi_handover)
+    struct.pack_into("<H", buf, OFF_VERSION, version)
+    # 0x20c: start_sys_seg (u16)
+    struct.pack_into("<H", buf, OFF_START_SYS_SEG, 0x1000)
+    # 0x236: xloadflags (u16 — 64-bit, can_have_loader)
     flags = XLF_KERNEL_64 | XLF_CAN_HAVE_LOADER
-    struct.pack_into("<I", buf, 0x236, flags)
+    struct.pack_into("<H", buf, OFF_XLOADFLAGS, flags)
+    # 0x238: cmdline_size — deliberately non-zero so a u32 read at 0x236 would
+    # be caught by the parser tests.
+    struct.pack_into("<I", buf, 0x238, 0x00002000)
     # 0x248: payload_offset / 0x24c: payload_length
-    struct.pack_into("<I", buf, 0x248, (setup_sects + 1) * 512)
-    struct.pack_into("<I", buf, 0x24c, payload_length)
+    struct.pack_into("<I", buf, OFF_PAYLOAD_OFFSET, (setup_sects + 1) * 512)
+    struct.pack_into("<I", buf, OFF_PAYLOAD_LENGTH, payload_length)
     # 0x258: pref_address
-    struct.pack_into("<Q", buf, 0x258, 0x1000000)
+    struct.pack_into("<Q", buf, OFF_PREF_ADDRESS, 0x1000000)
     # 0x260: init_size
-    struct.pack_into("<I", buf, 0x260, 0x800000)
-    # 0x268: init_addr
-    struct.pack_into("<Q", buf, 0x268, 0x2000000)
+    struct.pack_into("<I", buf, OFF_INIT_SIZE, 0x800000)
+    # 0x264: handover_offset / 0x268: kernel_info_offset (both u32)
+    struct.pack_into("<I", buf, OFF_HANDOVER_OFFSET, 0x1400)
+    struct.pack_into("<I", buf, OFF_KERNEL_INFO_OFFSET, 0x2000)
     if include_kver:
         kver = b"Linux version 6.8.0-umerOS (root@build) (gcc 14.2)"
         buf[0x300:0x300 + len(kver)] = kver

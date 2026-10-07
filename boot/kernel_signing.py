@@ -54,6 +54,10 @@ class SignatureStatus(Enum):
     VALID = "valid"
     INVALID = "invalid"
     UNSIGNED = "unsigned"
+    #: The image carries a signature, but it could not be checked against a
+    #: trust anchor. Distinct from UNSIGNED (nothing to check) and INVALID
+    #: (checked and failed). Callers must treat this as **not trusted**.
+    UNVERIFIED = "unverified"
     REVOKED = "revoked"
     UNKNOWN = "unknown"
 
@@ -124,6 +128,9 @@ class Signature:
     certificate_chain: List[str] = field(default_factory=list)
     timestamp: Optional[float] = None
     hash_algorithm: str = "sha256"
+    #: Human-readable explanation of how ``status`` was reached, and of anything
+    #: that could NOT be checked. Empty for a clean VALID result.
+    note: str = ""
 
     def as_dict(self) -> dict:
         return {
@@ -132,6 +139,7 @@ class Signature:
             "signer": self.signer,
             "chain_length": len(self.certificate_chain),
             "hash_algorithm": self.hash_algorithm,
+            "note": self.note,
         }
 
 
@@ -251,7 +259,96 @@ class PEParser:
 # Signature verification
 # -------------------------------------------------------------------
 
+#: PE optional-header offsets used to find the certificate table.
+_OPT_MAGIC_PE32 = 0x10B
+_OPT_MAGIC_PE32_PLUS = 0x20B
+_SECURITY_DIR_INDEX = 4          # IMAGE_DIRECTORY_ENTRY_SECURITY
+_WIN_CERT_TYPE_PKCS_SIGNED_DATA = 0x0002
+
+#: ``cryptography`` (through 48.x) exposes no PKCS#7 *verification* API — only
+#: ``load_der_pkcs7_certificates`` for extracting the certificates. Until a
+#: verifier exists, an Authenticode-signed image can be reported as UNVERIFIED
+#: (signer identified, signature not checked) but never as VALID.
+AUTHENTICODE_VERIFICATION_AVAILABLE = False
+
+
+def _pe_certificate_table(data: bytes) -> Optional[Tuple[int, int]]:
+    """Return ``(file_offset, size)`` of the PE certificate table, or None.
+
+    The security data directory is unusual: its ``VirtualAddress`` is a **file
+    offset**, not an RVA. Returns ``(0, 0)`` when the entry is present but empty.
+    """
+    if len(data) < 0x40 or data[:2] != b"MZ":
+        return None
+    e_lfanew = int.from_bytes(data[0x3C:0x40], "little")
+    if e_lfanew + 24 > len(data) or data[e_lfanew:e_lfanew + 4] != b"PE\x00\x00":
+        return None
+
+    opt = e_lfanew + 24
+    if opt + 2 > len(data):
+        return None
+    magic = int.from_bytes(data[opt:opt + 2], "little")
+
+    if magic == _OPT_MAGIC_PE32:
+        dirs_off = opt + 96
+    elif magic == _OPT_MAGIC_PE32_PLUS:
+        dirs_off = opt + 112
+    else:
+        return None
+
+    entry = dirs_off + _SECURITY_DIR_INDEX * 8
+    if entry + 8 > len(data):
+        return None
+    offset = int.from_bytes(data[entry:entry + 4], "little")
+    size = int.from_bytes(data[entry + 4:entry + 8], "little")
+    return (offset, size)
+
+
+def _parse_win_certificates(data: bytes, table_offset: int,
+                            table_size: int) -> List[bytes]:
+    """Return the ``bCertificate`` blobs of the WIN_CERTIFICATE records.
+
+    Each record is ``dwLength`` (u32) + ``wRevision`` (u16) +
+    ``wCertificateType`` (u16) + payload, padded to an 8-byte boundary.
+    """
+    blobs: List[bytes] = []
+    end = min(table_offset + table_size, len(data))
+    pos = table_offset
+    while pos + 8 <= end:
+        length = int.from_bytes(data[pos:pos + 4], "little")
+        cert_type = int.from_bytes(data[pos + 6:pos + 8], "little")
+        if length < 8 or pos + length > end:
+            break
+        if cert_type == _WIN_CERT_TYPE_PKCS_SIGNED_DATA:
+            blobs.append(data[pos + 8:pos + length])
+        pos += (length + 7) & ~7          # records are 8-byte aligned
+    return blobs
+
+
 class SignatureVerifier:
+    """Verify the Authenticode signature of a PE/COFF image.
+
+    Trust model: a signature is only meaningful relative to a set of enrolled
+    keys.  ``verify`` therefore consults ``self.keys`` and reports:
+
+    * ``UNSIGNED``   — not a PE image, or the PE has no certificate table;
+    * ``INVALID``    — a certificate table exists but is malformed/unreadable;
+    * ``UNVERIFIED`` — the image is signed but the signature was not (or could
+      not be) checked against a trust anchor.  Callers must treat this as
+      **not trusted**;
+    * ``VALID``      — reserved for a signature that was cryptographically
+      verified against an enrolled key.
+
+    .. warning::
+       ``AUTHENTICODE_VERIFICATION_AVAILABLE`` is currently ``False``: the
+       ``cryptography`` package exposes no PKCS#7 verification, so this class
+       can identify *who* signed an image and whether they are enrolled, but it
+       cannot yet prove the image is unmodified.  It will therefore never return
+       ``VALID`` until a verifier backend is added.  Previously this method
+       returned ``VALID`` for **any** file starting with ``MZ`` without ever
+       consulting ``self.keys``.
+    """
+
     def __init__(self, keys: Optional[List[SigningKey]] = None) -> None:
         self.keys = keys or []
 
@@ -259,21 +356,129 @@ class SignatureVerifier:
         sig = Signature()
         if not path.exists():
             sig.status = SignatureStatus.INVALID
+            sig.note = "file does not exist"
             return sig
         try:
             data = path.read_bytes()
-        except OSError:
+        except OSError as exc:
             sig.status = SignatureStatus.INVALID
+            sig.note = f"unreadable: {exc}"
             return sig
-        h = hashlib.sha256(data).hexdigest()[:16]
-        is_pe = data[:2] == b"MZ"
-        if not is_pe:
+
+        if data[:2] != b"MZ":
             sig.status = SignatureStatus.UNSIGNED
+            sig.note = "not a PE/COFF image"
             return sig
-        # Heuristic: if PE with valid header, consider signature valid for simulation
-        sig.status = SignatureStatus.VALID
-        sig.signer = f"sha256:{h}"
-        return sig
+
+        table = _pe_certificate_table(data)
+        if table is None:
+            sig.status = SignatureStatus.INVALID
+            sig.note = "malformed PE headers (no usable optional header)"
+            return sig
+        table_offset, table_size = table
+        if table_size == 0 or table_offset == 0:
+            sig.status = SignatureStatus.UNSIGNED
+            sig.note = "PE image has no Authenticode certificate table"
+            return sig
+        if table_offset + table_size > len(data):
+            sig.status = SignatureStatus.INVALID
+            sig.note = (
+                f"certificate table ({table_size} bytes at {table_offset}) "
+                f"lies outside the file"
+            )
+            return sig
+
+        blobs = _parse_win_certificates(data, table_offset, table_size)
+        if not blobs:
+            sig.status = SignatureStatus.INVALID
+            sig.note = "no PKCS#7 WIN_CERTIFICATE record in the certificate table"
+            return sig
+
+        subjects, fingerprints = self._certificates_from(blobs)
+        if not subjects:
+            sig.status = SignatureStatus.UNVERIFIED
+            sig.note = (
+                "certificate table present but no X.509 certificates could be "
+                "extracted (install 'cryptography' for certificate parsing)"
+            )
+            return sig
+
+        sig.certificate_chain = subjects
+        sig.signer = subjects[0]
+
+        if not self.keys:
+            sig.status = SignatureStatus.UNVERIFIED
+            sig.note = "no trust anchors enrolled; signature not evaluated"
+            return sig
+
+        if not any(k.enrolled for k in self.keys):
+            sig.status = SignatureStatus.UNVERIFIED
+            sig.note = "no *enrolled* trust anchors; signature not evaluated"
+            return sig
+
+        trusted = self._find_trusted_key(fingerprints)
+        if trusted is None:
+            sig.status = SignatureStatus.UNVERIFIED
+            sig.note = (
+                f"signer '{subjects[0]}' is not in the trust store "
+                f"({len(self.keys)} key(s) configured, 0 matched)"
+            )
+            return sig
+
+        sig.signer = trusted.subject or subjects[0]
+        if not AUTHENTICODE_VERIFICATION_AVAILABLE:
+            sig.status = SignatureStatus.UNVERIFIED
+            sig.note = (
+                f"signer '{sig.signer}' is enrolled, but Authenticode "
+                f"signature verification is unavailable in this build "
+                f"(cryptography exposes no PKCS#7 verify); image NOT proven "
+                f"unmodified"
+            )
+            return sig
+
+        # Reached only once a real verification backend exists.
+        sig.status = SignatureStatus.INVALID  # pragma: no cover
+        sig.note = "verification backend returned no result"  # pragma: no cover
+        return sig  # pragma: no cover
+
+    # -- helpers -------------------------------------------------------
+
+    @staticmethod
+    def _certificates_from(blobs: List[bytes]) -> Tuple[List[str], List[str]]:
+        """Return ``(subjects, sha256_fingerprints)`` for the PKCS#7 blobs."""
+        subjects: List[str] = []
+        fingerprints: List[str] = []
+        try:
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives.serialization import pkcs7
+        except ImportError:
+            return subjects, fingerprints
+
+        for blob in blobs:
+            try:
+                certs = pkcs7.load_der_pkcs7_certificates(blob)
+            except Exception:  # noqa: BLE001 - malformed DER must not crash
+                continue
+            for cert in certs:
+                try:
+                    subjects.append(cert.subject.rfc4514_string())
+                    fingerprints.append(
+                        cert.fingerprint(hashes.SHA256()).hex()
+                    )
+                except Exception:  # noqa: BLE001
+                    continue
+        return subjects, fingerprints
+
+    def _find_trusted_key(self, fingerprints: List[str]) -> Optional[SigningKey]:
+        """Return the enrolled key matching any of ``fingerprints``."""
+        wanted = {f.lower().replace(":", "") for f in fingerprints if f}
+        for key in self.keys:
+            if not key.enrolled:
+                continue
+            have = (key.fingerprint or "").lower().replace(":", "")
+            if have and have in wanted:
+                return key
+        return None
 
 
 # -------------------------------------------------------------------
