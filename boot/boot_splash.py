@@ -420,6 +420,9 @@ class FramebufferManager:
             "depth": self._config.depth,
             "device": self._config.framebuffer_device,
             "efi_gop": self._config.efi_gop,
+            "available_resolutions": [
+                f"{rw}x{rh}@{bpp}" for rw, rh, bpp in self.get_available_resolutions()
+            ],
         }
 
 
@@ -538,17 +541,19 @@ def _selftest() -> bool:
         # FramebufferManager: detect and configure.
         fb = FramebufferManager()
         fb_cfg = fb.detect_framebuffer()
-        if fb_cfg.width == 0:
-            # On headless/no-fb systems the detector returns 0; accept.
+        if not fb_cfg.resolution:
+            # On headless/no-fb systems the detector returns empty; accept.
             pass
         res = fb.get_available_resolutions()
+        if not res:
+            return False
         if fb.set_resolution(1024, 768, 32):
             pass  # set is a best-effort on Windows; we just check it didn't raise
         fb_status = fb.status()
         if "available_resolutions" not in fb_status:
             return False
         opts = fb.get_kernel_cmdline_options()
-        if "splash" not in opts:
+        if "efifb" not in opts:
             return False
 
         # BootSplashManager: full integration.
@@ -556,11 +561,13 @@ def _selftest() -> bool:
         bsm.set_technology(SplashTechnology.PLYMOUTH)
         if bsm.get_technology() != SplashTechnology.PLYMOUTH:
             return False
-        bsm.set_theme("umeros")
+        # Use a built-in theme (the custom "umeros" theme above
+        # was registered on a separate PlymouthManager instance).
+        bsm.set_theme("umeros-default")
         if bsm.get_theme() is None:
             return False
         boot_cfg = bsm.generate_boot_config()
-        if "plymouth" not in boot_cfg:
+        if "plymouthd.conf" not in boot_cfg:
             return False
         st = bsm.status()
         if "plymouth" not in st:

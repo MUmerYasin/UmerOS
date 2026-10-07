@@ -1,4 +1,4 @@
-"""[FIX H18/H21/H12] consent-gated online AI + capability-gated self-healing."""
+"""consent-gated online AI + capability-gated self-healing."""
 from __future__ import annotations
 import sys, unittest
 from pathlib import Path
@@ -7,7 +7,7 @@ if _root not in sys.path:
     sys.path.insert(0, _root)
 
 class TestConsentWiring(unittest.TestCase):
-    """[FIX H18] every online provider call passes the consent gate."""
+    """every online provider call passes the consent gate."""
     def test_assistant_service_fails_closed(self):
         import ai.assistant_service as svc
         self.assertTrue(hasattr(svc, "governance"))
@@ -16,7 +16,7 @@ class TestConsentWiring(unittest.TestCase):
         self.assertIn("raise", src.split("_check_consent_or_raise")[1][:400])
 
 class TestSelfHealingGate(unittest.TestCase):
-    """[FIX H21/H12] mitigate is capability-gated + audited, never execs."""
+    """mitigate is capability-gated + audited, never execs."""
     def test_strict_mode_requires_cap(self):
         import core.capability_gate as cg
         from ai.self_healing import SelfHealingService

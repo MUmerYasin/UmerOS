@@ -97,7 +97,7 @@ class SecureBoot:
         name = os.path.basename(path)
         stored = expected_hash or self._store.get(name)
 
-        # [FIX H17] Zero-trust is FAIL-CLOSED. An unknown component (no
+        # Zero-trust is FAIL-CLOSED. An unknown component (no
         # trust-store entry AND no caller-supplied expected_hash) has no basis
         # for trust and MUST be denied. The previous code returned True here
         # (fail-open), letting arbitrary, unverified images boot/load.
@@ -126,7 +126,7 @@ class SecureBoot:
     def verify_bytes(self, data: bytes, name: str, expected_hash: Optional[str] = None) -> bool:
         """Verify in-memory *data* against an expected SHA-3-256 hash."""
         stored = expected_hash or self._store.get(name)
-        # [FIX H17] Unknown component (no trust entry, no expected hash) is
+        # Unknown component (no trust entry, no expected hash) is
         # denied in both strict and dev modes — fail-closed by default.
         if stored is None:
             if self._strict_mode:

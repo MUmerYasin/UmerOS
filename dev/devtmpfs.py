@@ -59,15 +59,15 @@ class DevTmpFS:
 
     # Standard pseudo-device major:minor numbers
     PSEUDO_DEVICES = [
-        ("null",      1,   3, "c", 0o666, "Null device"),  # Unix-norm world-rw (data device); explicit+justified [FIX H59]
-        ("zero",      1,   5, "c", 0o666, "Zero device"),  # Unix-norm world-rw (data device); explicit+justified [FIX H59]
-        ("full",      1,   7, "c", 0o666, "Full device"),  # Unix-norm world-rw (data device); explicit+justified [FIX H59]
+        ("null",      1,   3, "c", 0o666, "Null device"),  # Unix-norm world-rw (data device); explicit+justified 
+        ("zero",      1,   5, "c", 0o666, "Zero device"),  # Unix-norm world-rw (data device); explicit+justified 
+        ("full",      1,   7, "c", 0o666, "Full device"),  # Unix-norm world-rw (data device); explicit+justified 
         ("random",    1,   8, "c", 0o644, "Entropy pool"),
         ("urandom",   1,   9, "c", 0o644, "Pseudo-random"),
-        ("tty",       5,   0, "c", 0o660, "Controlling terminal"),  # tightened from world-writable 0o666 [FIX H59]
+        ("tty",       5,   0, "c", 0o660, "Controlling terminal"),  # tightened from world-writable 0o666 
         ("console",   5,   1, "c", 0o620, "System console"),
-        ("ptmx",      5,   2, "c", 0o660, "PTY master"),  # tightened from world-writable 0o666 [FIX H59]
-        ("log",      10, 229, "c", 0o666, "Syslog"),  # Unix-norm world-rw (data device); explicit+justified [FIX H59]
+        ("ptmx",      5,   2, "c", 0o660, "PTY master"),  # tightened from world-writable 0o666 
+        ("log",      10, 229, "c", 0o666, "Syslog"),  # Unix-norm world-rw (data device); explicit+justified 
     ]
 
     # Virtual terminals: /dev/tty0-tty63 (major 4, minor 0-63)

@@ -100,7 +100,7 @@ class AutoMountPolicy:
     def effective_options(self, fs_type: str = "") -> List[str]:
         """Compute the option list used when auto-mounting.
 
-        [FIX H157] Removable media was previously mounted with whatever sat
+        Removable media was previously mounted with whatever sat
         in ``default_options`` — empty by default, so hot-plugged devices
         came up plain ``rw`` with no ``nodev``/``nosuid``/``noexec``
         hardening (a planted USB stick could host setuid binaries, device
@@ -255,7 +255,7 @@ class AutoMountDaemon:
         """Handle a hotplug event from the bus."""
         if not self._running:
             return
-        # [FIX H156] The privileged mount/umount runs through media.mount_ops
+        # The privileged mount/umount runs through media.mount_ops
         # (mount/unmount/remount), which enforces the fs.admin capability at the
         # single integration seam — so this hotplug handler is covered transitively.
         if event.action == HotplugAction.ADD:
@@ -317,7 +317,7 @@ class AutoMountDaemon:
                 actual_fs = "auto"
 
         # Determine options
-        # [FIX H157] Secure defaults: nodev/nosuid/noexec are always applied
+        # Secure defaults: nodev/nosuid/noexec are always applied
         # to auto-mounted removable media (see AutoMountPolicy.effective_options).
         opts = self._policy.effective_options(actual_fs)
         if actual_fs in self._policy.read_only_types:

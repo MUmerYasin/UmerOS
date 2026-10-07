@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
 
-# [FIX H296] Gate privileged /usr/include/bsd filesystem mutation behind the
+# Gate privileged /usr/include/bsd filesystem mutation behind the
 # zero-trust capability bridge. Adding headers and removing trees are privileged
 # operations that must require the `fs.admin` capability when a CapabilityManager
 # is wired (fail-closed); when no manager is wired the gate stays permissive
@@ -237,7 +237,7 @@ class BSDCompatManager:
 
     def add_header(self, name: str, content: str = "") -> bool:
         """Add a new BSD compatibility header."""
-        # [FIX H296] privileged header write -> requires fs.admin.
+        # privileged header write -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             path = self.BASE_DIR / name
@@ -251,7 +251,7 @@ class BSDCompatManager:
 
     def remove_entry(self, name: str) -> bool:
         """Remove a BSD compatibility entry."""
-        # [FIX H296] privileged unlink/rmtree -> requires fs.admin.
+        # privileged unlink/rmtree -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             entry = self.get_entry(name)

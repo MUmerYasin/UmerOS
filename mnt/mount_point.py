@@ -56,7 +56,7 @@ from typing import Dict, List, Optional, Sequence
 
 log = logging.getLogger("UmerOS.Mnt.MountPoint")
 
-# [FIX H166] Gate privileged /mnt mount-point lifecycle (create/remove) behind the
+# Gate privileged /mnt mount-point lifecycle (create/remove) behind the
 # zero-trust capability bridge (core/capability_gate). Creating and removing
 # directories under /mnt are admin actions that must require the `fs.admin`
 # capability when a CapabilityManager is wired (fail-closed); when no manager is
@@ -229,7 +229,7 @@ class MountPointManager:
         Raises:
             MountPointError: If the path already exists or is invalid.
         """
-        # [FIX H166] Creating a mount-point directory under /mnt is a privileged
+        # Creating a mount-point directory under /mnt is a privileged
         # admin action; require the fs.admin capability (fail-closed when wired).
         gate.require(CAP_FS_ADMIN)
 
@@ -314,7 +314,7 @@ class MountPointManager:
 
         Returns True if removed, False otherwise.
         """
-        # [FIX H166] Removing a mount-point directory is a privileged admin action.
+        # Removing a mount-point directory is a privileged admin action.
         gate.require(CAP_FS_ADMIN)
 
         mp = self._find_by_path(path)
@@ -340,7 +340,7 @@ class MountPointManager:
             if force:
                 import shutil
 
-                # [FIX H167] TOCTOU / arbitrary-delete guard. force=True used to
+                # TOCTOU / arbitrary-delete guard. force=True used to
                 # call shutil.rmtree(path) unvalidated: a symlinked "mount point",
                 # a filesystem root, or a path that flipped between the exists()
                 # check and this call would recurse into real host data. Refuse

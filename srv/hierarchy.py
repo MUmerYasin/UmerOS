@@ -50,7 +50,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-# [FIX H268] Zero-trust capability gate for destructive /srv tree removal.
+# Zero-trust capability gate for destructive /srv tree removal.
 from core.capability_gate import CAP_FS_ADMIN, gate
 
 from .fhs import (
@@ -292,10 +292,10 @@ class SrvHierarchy:
         """
         Deletes a service tree.
         Per TLDP / FHS caution, requires explicit admin confirmation (force=True).
-        [FIX H268] Additionally requires CAP_FS_ADMIN (zero-trust): the
+        Additionally requires CAP_FS_ADMIN (zero-trust): the
         force flag alone is not a privilege grant.
         """
-        # [FIX H268] destructive /srv tree removal -> zero-trust capability gate
+        # destructive /srv tree removal -> zero-trust capability gate
         gate.require(CAP_FS_ADMIN)
         target = self.root / service_name
         if not target.exists():

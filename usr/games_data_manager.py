@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
 
-# [FIX H296] Gate privileged /usr/share/games filesystem mutation behind the
+# Gate privileged /usr/share/games filesystem mutation behind the
 # zero-trust capability bridge. Adding game-data files and removing trees are
 # privileged operations that must require the `fs.admin` capability when a
 # CapabilityManager is wired (fail-closed); when no manager is wired the gate
@@ -245,7 +245,7 @@ class GamesDataManager:
     def add_game_data(self, game_name: str, filename: str,
                       content: bytes = b"") -> bool:
         """Add a new game data file."""
-        # [FIX H296] privileged /usr/share/games mutation -> requires fs.admin
+        #  privileged /usr/share/games mutation -> requires fs.admin
         # when a CapabilityManager is wired (fail-closed); permissive otherwise.
         gate.require(CAP_FS_ADMIN)
         try:
@@ -261,7 +261,7 @@ class GamesDataManager:
 
     def remove_game_data(self, name: str) -> bool:
         """Remove a game data entry."""
-        # [FIX H296] privileged unlink/rmtree -> requires fs.admin.
+        #  privileged unlink/rmtree -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             entry = self.get_entry(name)

@@ -532,7 +532,7 @@ def _safe_tty_name() -> str:
     return "unknown"
 
 
-# [FIX H5] Host-info probes (who/uptime/last) stay list-form (never shell=True)
+# Host-info probes (who/uptime/last) stay list-form (never shell=True)
 # and are restricted to an explicit read-only allowlist. They must not run on a
 # Windows host (no POSIX who/uptime/last available) and degrade gracefully.
 _HOST_INFO_ALLOWLIST = frozenset({"who", "uptime", "last"})

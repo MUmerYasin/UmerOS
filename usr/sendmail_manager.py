@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
 
-# [FIX H296] Gate privileged /usr/lib/sendmail symlink mutation behind the
+# Gate privileged /usr/lib/sendmail symlink mutation behind the
 # zero-trust capability bridge. Creating/removing the FHS sendmail symlink is a
 # privileged filesystem-admin operation that must require the `fs.admin`
 # capability when a CapabilityManager is wired (fail-closed); when no manager is
@@ -206,7 +206,7 @@ class SendmailManager:
 
     def create_sendmail_symlink(self, target: str) -> bool:
         """Create /usr/lib/sendmail symlink."""
-        # [FIX H296] privileged symlink creation -> requires fs.admin.
+        #  privileged symlink creation -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             if self.LIB_SENDMAIL.exists() or self.LIB_SENDMAIL.is_symlink():
@@ -219,7 +219,7 @@ class SendmailManager:
 
     def remove_sendmail_symlink(self) -> bool:
         """Remove /usr/lib/sendmail symlink."""
-        # [FIX H296] privileged symlink removal -> requires fs.admin.
+        #  privileged symlink removal -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             if self.LIB_SENDMAIL.is_symlink():

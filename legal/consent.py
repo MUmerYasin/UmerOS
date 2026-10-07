@@ -188,7 +188,7 @@ class ConsentManager:
         notice = DisclaimerRegistry.get_notice(disclaimer_key)
 
         if dry_run:
-            # [FIX H131] Dry-run simulates the flow but MUST NOT record legal consent.
+            # Dry-run simulates the flow but MUST NOT record legal consent.
             print("\n" + "=" * 65)
             print(f"       {notice.title.upper()} (DRY-RUN — no consent recorded)")
             print("=" * 65)
@@ -211,7 +211,7 @@ class ConsentManager:
             print("✗ Consent declined. Operation aborted.\n")
             return False
 
-        # [FIX H131] Non-interactive / headless: fail CLOSED. Auto-granting the
+        # Non-interactive / headless: fail CLOSED. Auto-granting the
         # liability waiver in automation is the exact bypass this gate exists to
         # prevent. Require explicit opt-in, otherwise abort with a clear error.
         if not allow_non_interactive:

@@ -375,7 +375,7 @@ class InitrdManager:
                 log.error("Hash computation failed for %s: %s", name, exc)
                 return False
 
-        # [FIX] Structural verification. Previously this method set VALID for
+        # Structural verification. Previously this method set VALID for
         # *any* existing file once the (optional) hash matched — so a text file
         # or a zero-byte stub passed as a verified initramfs. A real initramfs
         # is a cpio archive, optionally wrapped in a compressor, so check that

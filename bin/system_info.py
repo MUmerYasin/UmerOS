@@ -128,7 +128,7 @@ class UnameInfo:
             info.processor = platform.processor() or info.machine
             info.hardware_platform = platform.machine()
             info.operating_system = f"{info.sysname}"
-        except OSError:  # [FIX H8]
+        except OSError:  
             log.exception("system_info: failed to gather uname info")
         return info
 
@@ -499,7 +499,7 @@ class HostnameCommand:
         if fqdn or domain:
             try:
                 current = socket.getfqdn()
-            except OSError:  # [FIX H8]
+            except OSError:  
                 log.exception("system_info: failed to get FQDN")
         elif short:
             current = current.split(".")[0]
@@ -508,14 +508,14 @@ class HostnameCommand:
                 aliases = socket.gethostbyaddr(socket.gethostname())[1]
                 if aliases:
                     current = aliases[0]
-            except OSError:  # [FIX H8]
+            except OSError:  
                 log.exception("system_info: failed to get hostname alias")
         elif ip_address:
             try:
                 ips = socket.gethostbyname_ex(socket.gethostname())[2]
                 if ips:
                     current = " ".join(ips)
-            except OSError:  # [FIX H8]
+            except OSError:  
                 log.exception("system_info: failed to resolve hostname IP addresses")
 
         print(current, file=out)
@@ -526,13 +526,13 @@ class HostnameCommand:
         try:
             # Try socket first
             return socket.gethostname()
-        except OSError:  # [FIX H8]
+        except OSError:  
             log.exception("system_info: socket.gethostname failed")
 
         try:
             # Try os.uname
             return os.uname().nodename
-        except (OSError, AttributeError):  # [FIX H8]
+        except (OSError, AttributeError):  
             log.exception("system_info: os.uname failed")
 
         try:
@@ -540,7 +540,7 @@ class HostnameCommand:
             if os.path.exists(HOSTNAME_FILE):
                 with open(HOSTNAME_FILE, "r") as f:
                     return f.read().strip()
-        except OSError:  # [FIX H8]
+        except OSError:  
             log.exception("system_info: failed to read hostname file")
 
         return "localhost"
@@ -574,7 +574,7 @@ class HostnameCommand:
         """Get fully qualified domain name."""
         try:
             return socket.getfqdn()
-        except (OSError, ValueError):  # [FIX H8]
+        except (OSError, ValueError):  
             return self._get_hostname()
 
 
@@ -843,7 +843,7 @@ class DfCommand:
                                     ))
                                 except OSError:
                                     pass
-        except (OSError, ValueError, PermissionError):  # [FIX H8]
+        except (OSError, ValueError, PermissionError):  
             pass
 
         # Add UmerOS synthetic filesystems

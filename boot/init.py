@@ -38,7 +38,7 @@ class Bootloader:
         print("By proceeding, you assume ALL legal and technical liability.")
         print("="*60)
 
-        # [FIX H29] Fail-closed consent for the §4.2 installer legal mandate.
+        # Fail-closed consent for the §4.2 installer legal mandate.
         # The prior code silently auto-accepted the EULA in non-TTY mode
         # ("[Non-interactive mode: Auto-accepting waiver for tests]"), which
         # bypassed the "no silent accept" rule. Consent is now granted ONLY via:
@@ -53,7 +53,7 @@ class Bootloader:
             return
 
         if sys.stdin.isatty():
-            # [FIX] ``isatty()`` can report True for a stdin that is nonetheless
+            # ``isatty()`` can report True for a stdin that is nonetheless
             # unreadable — the Windows NUL device, a TTY whose peer has closed,
             # or Ctrl-C (KeyboardInterrupt). Previously that let EOFError escape
             # as an unhandled traceback from `python main.py`. Treat "could not
@@ -80,7 +80,7 @@ class Bootloader:
         print(f"[BOOT] Checking hardware...")
         print(f"[BOOT] Architecture: {platform.machine()}")
         print(f"[BOOT] OS Platform: {platform.system()} {platform.release()}")
-        # [FIX H32] The C hardware layer (boot/uefi_stub.c) is a non-functional
+        # The C hardware layer (boot/uefi_stub.c) is a non-functional
         # placeholder with NO ctypes binding — do not claim UEFI init happened.
         print("[BOOT] UEFI hardware layer not wired (placeholder scaffold only)")
         
@@ -106,7 +106,7 @@ def boot(accept_eula: bool = False, exit_after_boot: bool = False):
     asyncio.run(loader.load_kernel(exit_after_boot=exit_after_boot))
 
 if __name__ == "__main__":
-    # [FIX H29] Explicit opt-in flag for non-interactive boot consent.
+    # Explicit opt-in flag for non-interactive boot consent.
     # No flag (and no TTY) => display_waiver() fails-closed and aborts.
     _accept = "--accept-eula" in sys.argv[1:]
     _exit_after = "--exit-after-boot" in sys.argv[1:]

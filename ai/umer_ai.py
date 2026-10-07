@@ -630,7 +630,7 @@ class LocalAIAssistant:
     def query(self, prompt: str) -> str:
         """Send a prompt to the AI and return a response.
 
-        Routes through the consent-gated :class:`ChatService` (H18 fix):
+        Routes through the consent-gated :class:`ChatService`:
         online providers require an explicit, recorded grant before any
         prompt leaves the device. Falls back gracefully to semantic
         heuristics when every provider is unavailable or denied.

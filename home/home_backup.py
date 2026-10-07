@@ -43,7 +43,7 @@ class BackupRecord:
     note: str = ""
 
 
-# [FIX H83] Zero-trust capability gate for the destructive restore path. Restoring
+#  Zero-trust capability gate for the destructive restore path. Restoring
 # a home overwrites user data and (without the traversal filter) can write outside
 # /home, so it must require the `home.admin` capability when a CapabilityManager is
 # wired (fail-closed); standalone it is permissive (warning) so existing tooling works.
@@ -55,14 +55,14 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.capability_gate import gate, CAP_HOME_ADMIN
 
-# [FIX H83] Python < 3.12 lacks the fail-closed `filter=` argument on extractall();
+#  Python < 3.12 lacks the fail-closed `filter=` argument on extractall();
 # fall back to no filter there (matching the >= 3.12 target). The member pre-scan
 # below provides traversal safety on every version regardless.
 _FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
 
 
 def _is_safe_segment(name: str) -> bool:
-    """[FIX H83] A safe single path segment: no '/', '\\', '..', and only
+    """ A safe single path segment: no '/', '\\', '..', and only
     ``[A-Za-z0-9._-]+``. Rejects anything that could escape the home tree."""
     if not name or name in (".", "..") or "/" in name or "\\" in name:
         return False
@@ -70,7 +70,7 @@ def _is_safe_segment(name: str) -> bool:
 
 
 def _assert_member_under(member, user_home: Path) -> None:
-    """[FIX H83] Ensure a tar member resolves under ``user_home``.
+    """ Ensure a tar member resolves under ``user_home``.
 
     Rejects absolute paths, ``..`` traversal, and symlink/hardlink members. This
     is defense-in-depth alongside ``filter='data'`` (CVE-2007-4559 / tar slip).
@@ -128,7 +128,7 @@ class HomeBackupManager:
     def restore_backup(self, username: str, backup_file: str) -> bool:
         """Restore a home directory from backup.
 
-        [FIX H83] Fail-closed, traversal-safe, non-destructive restore:
+            Fail-closed, traversal-safe, non-destructive restore:
           * Requires the ``home.admin`` capability (zero-trust; fail-closed when wired).
           * Refuses if ``username`` is not a single safe path segment / escapes home.
           * Verifies the archive checksum against any known BackupRecord (best-effort).
@@ -145,7 +145,7 @@ class HomeBackupManager:
         if not src.exists() or not src.is_file():
             return False
 
-        # [FIX H83] Reject unsafe / escaping target usernames before touching disk.
+        # Reject unsafe / escaping target usernames before touching disk.
         if not _is_safe_segment(username):
             return False
         user_home = self.home_path / username
@@ -154,14 +154,14 @@ class HomeBackupManager:
         except ValueError:
             return False
 
-        # [FIX H83] Best-effort checksum verify against a known backup record.
+        #  Best-effort checksum verify against a known backup record.
         rec = self._lookup_record_by_path(str(src))
         if rec is not None and rec.checksum:
             if self._checksum(str(src)) != rec.checksum:
                 logger.error(f"Restore aborted: checksum mismatch for {src}")
                 return False
 
-        # [FIX H83] Pre-scan: reject any member that would escape the home tree,
+        # Pre-scan: reject any member that would escape the home tree,
         # then snapshot the live home and extract (extracting into the home *parent*
         # so the archive's ``username/`` prefix lands exactly on ``user_home``).
         snapshot = None
@@ -193,7 +193,7 @@ class HomeBackupManager:
         return True
 
     def _lookup_record_by_path(self, backup_path: str) -> Optional[BackupRecord]:
-        """[FIX H83] Find a known BackupRecord whose path matches ``backup_path``."""
+        """ Find a known BackupRecord whose path matches ``backup_path``."""
         for records in self.records.values():
             for rec in records:
                 if rec.backup_path == backup_path:

@@ -52,7 +52,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .fhs import StandardProtocol
 
-# [FIX H273] Gate privileged permission changes behind the zero-trust capability
+# Gate privileged permission changes behind the zero-trust capability
 # bridge. `apply_profile` performs real `os.chmod` across a service tree, so it
 # must require the `fs.perms` capability when a CapabilityManager is wired.
 try:
@@ -166,7 +166,7 @@ class SrvPermissionManager:
         """
         Applies standard permission modes to subfolders in a service tree.
         """
-        # [FIX H273] Require the permission-change capability before any chmod.
+        # Require the permission-change capability before any chmod.
         gate.require(CAP_FS_PERMS)
         base_dir = Path(base_dir).resolve()
         profile = cls.get_profile(protocol)

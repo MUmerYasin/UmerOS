@@ -1,4 +1,4 @@
-"""[FIX H4] su: capability-gated exec + honest not-implemented shell exit."""
+"""su: capability-gated exec + honest not-implemented shell exit."""
 from __future__ import annotations
 import os, sys, types, unittest
 from pathlib import Path

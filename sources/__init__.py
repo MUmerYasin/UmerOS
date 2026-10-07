@@ -33,7 +33,7 @@ License: GPL-3.0 (GNU General Public License Version 3)
 
 from __future__ import annotations
 
-# [FIX H261] Use relative imports for package-internal modules so the bare name
+# Use relative imports for package-internal modules so the bare name
 # `manager` no longer collides with the top-level `legal/manager.py` (and similar
 # sibling names). The previous sys.path self-injection is removed because it let
 # this package shadow same-named top-level packages for the rest of the process.

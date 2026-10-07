@@ -38,7 +38,7 @@ if _root_dir not in sys.path:
 
 from packages.umer_pkg import UmerPackageManager  # noqa: E402
 
-# [FIX H13] Throwaway dev signing key, generated at import and pinned into the
+# Throwaway dev signing key, generated at import and pinned into the
 # process-wide trust store so every UmerPackageManager() built afterwards trusts
 # it.  This lets the suite exercise the REAL Ed25519 chain-of-trust end-to-end;
 # the matching private key is intentionally never committed.

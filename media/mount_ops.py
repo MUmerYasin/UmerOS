@@ -57,7 +57,7 @@ from .media_types import MediaType
 
 log = logging.getLogger("UmerOS.Media.MountOps")
 
-# [FIX H156] Gate privileged /media mount/unmount/remount behind the zero-trust
+# Gate privileged /media mount/unmount/remount behind the zero-trust
 # capability bridge (core/capability_gate). Mounting a filesystem is privileged
 # and must require the `fs.admin` capability when a CapabilityManager is wired
 # (fail-closed). This single chokepoint closes H156 for all callers: both
@@ -490,7 +490,7 @@ def mount(
     Returns:
         ``MountResult`` with success status and details.
     """
-    # [FIX H156] Mounting a filesystem is a privileged operation. Require the
+    # Mounting a filesystem is a privileged operation. Require the
     # `fs.admin` capability (fail-closed when a CapabilityManager is wired).
     # media/auto_mount.py and media/udisks2.py both route here (see module note).
     gate.require(CAP_FS_ADMIN)
@@ -535,7 +535,7 @@ def unmount(
     Returns:
         ``MountResult`` with success status.
     """
-    # [FIX H156] Unmounting is privileged; require fs.admin (fail-closed when wired).
+    # Unmounting is privileged; require fs.admin (fail-closed when wired).
     gate.require(CAP_FS_ADMIN)
 
     mp = os.path.normpath(mount_point)
@@ -586,7 +586,7 @@ def remount(
 
     Useful for switching between read-only and read-write modes.
     """
-    # [FIX H156] Remounting is privileged; require fs.admin (fail-closed when wired).
+    # Remounting is privileged; require fs.admin (fail-closed when wired).
     gate.require(CAP_FS_ADMIN)
 
     mp = os.path.normpath(mount_point)

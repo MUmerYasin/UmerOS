@@ -30,7 +30,7 @@ if _root not in sys.path:
 
 
 class TestCryptoPqcHeader(unittest.TestCase):
-    """[FIX H215] canonical licence tag / [FIX H216] honest docstring."""
+    """canonical licence tag /  honest docstring."""
 
     def test_canonical_license_tag(self):
         src = (Path(_root) / "quantum" / "crypto_pqc.py").read_text(encoding="utf-8")
@@ -44,7 +44,7 @@ class TestCryptoPqcHeader(unittest.TestCase):
 
 
 class TestAuthAtRest(unittest.TestCase):
-    """[FIX H217] provider credentials encrypted at rest."""
+    """provider credentials encrypted at rest."""
 
     def setUp(self) -> None:
         import tempfile

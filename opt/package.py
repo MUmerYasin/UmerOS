@@ -20,7 +20,7 @@ as per Filesystem Hierarchy standards.
 License: GPL-3.0
 """
 
-# [FIX H7] Add canonical GPL-3.0 licence tag (repo is GPL-3.0 per LICENSE/setup.py/README).
+# Add canonical GPL-3.0 licence tag (repo is GPL-3.0 per LICENSE/setup.py/README).
 
 import os
 import re
@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import Dict, Optional, Any, List
 from datetime import datetime
 
-# [FIX H184] Privileged /opt mutations go through the zero-trust capability
+# Privileged /opt mutations go through the zero-trust capability
 # bridge (permissive when no CapabilityManager is wired, fail-closed when one
 # is). Same pattern as the mnt/ media/ usr/ var/ clusters.
 try:
@@ -42,7 +42,7 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.capability_gate import gate, CAP_FS_ADMIN
 
-# [FIX H186] Guard against path traversal (CWE-22) when building /opt package
+# Guard against path traversal (CWE-22) when building /opt package
 # paths from caller-supplied name/provider.
 try:
     from core.path_guard import safe_child, PathTraversalError
@@ -84,7 +84,7 @@ class OptPackage:
     
     def _setup_paths(self) -> None:
         """Set up standard directory structure."""
-        # [FIX H186] Contain provider/name inside opt_root (CWE-22). A malicious
+        # Contain provider/name inside opt_root (CWE-22). A malicious
         # name like "../../etc" raises PathTraversalError so the constructor
         # fails closed instead of creating / removing anything outside /opt.
         if self.provider:
@@ -100,7 +100,7 @@ class OptPackage:
         self.info_path = self.base_path / "info"
         self.man_path = self.base_path / "man"
         self.src_path = self.base_path / "src"
-        # [FIX H186] etc/var roots are also contained against provider/name.
+        # etc/var roots are also contained against provider/name.
         if self.provider:
             etc_root = safe_child(Path("/etc/opt"), self.provider)
             var_root = safe_child(Path("/var/opt"), self.provider)
@@ -209,7 +209,7 @@ class OptPackage:
         
         return target
     
-    # -- [FIX H187] script-generation hardening helpers ----------------------
+    # --- script-generation hardening helpers ----------------------
 
     @staticmethod
     def _validate_script_name(script_name: str) -> str:
@@ -236,7 +236,7 @@ class OptPackage:
         """
         Create a launcher script in the bin directory.
 
-        [FIX H187] The exec line is built with ``shlex.quote`` so neither the
+        The exec line is built with ``shlex.quote`` so neither the
         command nor any argument can break out of its shell word (previously
         ``exec {command} {' '.join(args)} "$@"`` interpolated raw — a crafted
         arg like ``; rm -rf / #`` injected commands). Control characters are
@@ -278,7 +278,7 @@ class OptPackage:
         Returns:
             Path to the created script
 
-        [FIX H187] Same hardening as the launcher: every dynamic token is
+        Same hardening as the launcher: every dynamic token is
         validated and ``shlex.quote``d; environment keys must be POSIX
         identifiers and values are single-quoted so ``"$(cmd)"`` or backtick
         payloads cannot execute when the wrapper is sourced.
@@ -320,7 +320,7 @@ class OptPackage:
         """
         Remove the entire package directory.
 
-        [FIX H184] requires CAP_FS_ADMIN (privileged rmtree under /opt).
+        requires CAP_FS_ADMIN (privileged rmtree under /opt).
 
         Returns:
             True if removal was successful
@@ -409,7 +409,7 @@ class OptManager:
         Returns:
             OptPackage instance
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt install
+        gate.require(CAP_FS_ADMIN)  # privileged /opt install
         package = OptPackage(name, provider, str(self.opt_root))
         
         # Install binary if provided
@@ -433,8 +433,8 @@ class OptManager:
         Returns:
             True if removal was successful
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt remove
-        # [FIX H186] Contain the package path; refuse traversal names.
+        gate.require(CAP_FS_ADMIN)  # privileged /opt remove
+        # Contain the package path; refuse traversal names.
         try:
             if provider:
                 package_path = safe_child(safe_child(self.opt_root, provider), name)

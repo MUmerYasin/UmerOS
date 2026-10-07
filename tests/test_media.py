@@ -907,7 +907,7 @@ if __name__ == "__main__":
 
 
 # ---------------------------------------------------------------------------
-# [FIX H157] Removable auto-mount hardening: nodev/nosuid/noexec enforced
+#  Removable auto-mount hardening: nodev/nosuid/noexec enforced
 # ---------------------------------------------------------------------------
 
 class TestAutoMountSecureOptions(unittest.TestCase):

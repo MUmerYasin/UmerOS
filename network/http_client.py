@@ -37,7 +37,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
-# [FIX H177] Zero-trust capability gate for network egress (HTTP client).
+# Zero-trust capability gate for network egress (HTTP client).
 from core.capability_gate import CAP_NET_SEND, gate
 
 log = logging.getLogger("UmerOS.Network.HTTP")
@@ -58,7 +58,7 @@ _SSRF_BLOCKED_SCOPES = (
 def _host_is_internal(host: str) -> bool:
     """Return True when `host` resolves to a non-public address (SSRF-protected).
 
-    [FIX H178] Literal IPs are classified directly; hostnames are resolved and
+    Literal IPs are classified directly; hostnames are resolved and
     every address is checked. Fail-closed: a hostname that cannot be resolved is
     treated as blocked rather than allowed.
     """
@@ -207,7 +207,7 @@ class HTTPClient:
         Returns:
             Normalized ``HTTPResponse``. Network failures return status ``0``.
         """
-        # [FIX H177] zero-trust gate: every network egress requires CAP_NET_SEND
+        # zero-trust gate: every network egress requires CAP_NET_SEND
         # (this chokepoint transitively covers get/post_json/fetch_json/download
         # and the NetworkStack/InternetFacade wrappers, which all call request()).
         gate.require(CAP_NET_SEND)
@@ -293,7 +293,7 @@ class HTTPClient:
     def _validate_url(url: str) -> str:
         """Validate that a URL is suitable for network access.
 
-        [FIX H178] SSRF defense-in-depth: when the zero-trust posture is active
+        SSRF defense-in-depth: when the zero-trust posture is active
         (a CapabilityManager is wired, or strict mode is on) the destination host
         must not resolve to an internal / loopback / link-local / reserved /
         multicast address. In a permissive standalone or dev build the check is

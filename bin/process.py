@@ -796,7 +796,7 @@ class SyncCommand:
             try:
                 sys.stdout.flush()
                 sys.stderr.flush()
-            except (OSError, ValueError):  # [FIX H8]
+            except (OSError, ValueError):  
                 pass
             return 0
 

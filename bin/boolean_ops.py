@@ -430,7 +430,7 @@ class EnvCommand:
             return 0
 
         # Execute command with modified environment
-        # [FIX H5] Arbitrary host command execution is a privileged operation.
+        # Arbitrary host command execution is a privileged operation.
         # Gate it behind CAP_SYS_ADMIN so the env-host-exec path is sandboxed by
         # the zero-trust capability gate (args stay list-form, no shell=True;
         # on a Windows host this is the control that prevents an escape). The

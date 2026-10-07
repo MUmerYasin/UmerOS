@@ -29,7 +29,7 @@ Author: UmerOS Project
 License: GPL-3.0
 """
 
-# [FIX H7] Normalize licence header to canonical "License: GPL-3.0" (drop redundant
+# Normalize licence header to canonical "License: GPL-3.0" (drop redundant
 # "GNU General Public License Version 3" parenthetical; repo is GPL-3.0 per LICENSE/setup.py/README).
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# [FIX H282] Guard against path traversal (CWE-22) when syncing virtual files
+# Guard against path traversal (CWE-22) when syncing virtual files
 # to disk — a node name like "../../etc/passwd" could otherwise write anywhere.
 try:
     from core.path_guard import safe_join, PathTraversalError
@@ -159,7 +159,7 @@ class TmpFS:
         target_path.mkdir(parents=True, exist_ok=True)
         count = 0
         for name, node in self._nodes.items():
-            # [FIX H282] Contain each virtual-file name inside target_path. A
+            # Contain each virtual-file name inside target_path. A
             # name like "../../etc/passwd" would otherwise let a stored buffer
             # be written anywhere on disk; we refuse it (fail-closed).
             try:

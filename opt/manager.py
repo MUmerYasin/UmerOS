@@ -28,7 +28,7 @@ from datetime import datetime
 from .config import OptConfig, OptIntegration
 from .package import OptPackage, OptManager as PackageOptManager
 
-# [FIX H186] Guard against path traversal (CWE-22) in privileged rmtree paths.
+# Guard against path traversal (CWE-22) in privileged rmtree paths.
 try:
     from core.path_guard import safe_child, PathTraversalError
 except Exception:  # pragma: no cover - standalone fallback
@@ -37,7 +37,7 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.path_guard import safe_child, PathTraversalError
 
-# [FIX H184] Zero-trust gate for privileged /opt lifecycle operations
+# Zero-trust gate for privileged /opt lifecycle operations
 # (permissive-when-unwired / fail-closed-when-wired, matching the mnt/ media/
 # usr/ var/ cap-gate clusters).
 try:
@@ -137,7 +137,7 @@ class OptManager:
             "paths": {},
             "errors": []
         }
-        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt install
+        gate.require(CAP_FS_ADMIN)  # privileged /opt install
 
         try:
             # Create package structure
@@ -206,7 +206,7 @@ class OptManager:
         return result
     
     def _scoped_path(self, root: Path, name: str, provider: str = "") -> Path:
-        """[FIX H186] Build a path under ``root`` containing name/provider.
+        """Build a path under ``root`` containing name/provider.
 
         Replaces the previous ``root / (provider + "/" + name)`` string join,
         which let a traversal name (``"../../etc"``) escape the managed root.
@@ -218,7 +218,7 @@ class OptManager:
         """
         Remove a package from /opt.
 
-        [FIX H184] requires CAP_FS_ADMIN.
+        requires CAP_FS_ADMIN.
         """
         result = {
             "success": False,
@@ -228,13 +228,13 @@ class OptManager:
             "paths_removed": [],
             "errors": []
         }
-        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt remove
+        gate.require(CAP_FS_ADMIN)  # privileged /opt remove
 
         try:
             # Remove from /opt
             package_key = self._get_package_db_key(name, provider)
 
-            # [FIX H186] Contain every target inside its managed root. A
+            # Contain every target inside its managed root. A
             # traversal name ("../../etc") is refused and never rmtree'd.
             try:
                 package_path = self._scoped_path(self.opt_root, name, provider)
@@ -277,7 +277,7 @@ class OptManager:
         """
         Update a package.
 
-        [FIX H184] requires CAP_FS_ADMIN.
+        requires CAP_FS_ADMIN.
         """
         result = {
             "success": False,
@@ -286,7 +286,7 @@ class OptManager:
             "updated_at": datetime.now().isoformat(),
             "errors": []
         }
-        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged /opt update
+        gate.require(CAP_FS_ADMIN)  # privileged /opt update
 
         try:
             db = self._read_database()
@@ -415,7 +415,7 @@ class OptManager:
         """
         Install a binary to an existing package.
 
-        [FIX H184] requires CAP_FS_ADMIN.
+        requires CAP_FS_ADMIN.
         Args:
             package_name: Package name
             source_path: Path to binary source
@@ -425,7 +425,7 @@ class OptManager:
         Returns:
             Path to installed binary or error message
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H184] privileged binary install
+        gate.require(CAP_FS_ADMIN)  #  privileged binary install
         try:
             package = self.package_manager.get_package(package_name, provider)
             installed = package.install_binary(source_path, target_name)

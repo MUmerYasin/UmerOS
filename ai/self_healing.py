@@ -71,14 +71,14 @@ class SelfHealingService:
     def mitigate(self, pid: int) -> bool:
         """Decide a mitigation for *pid*.
 
-        [FIX H21/H12] Requires the SYS_ADMIN capability (fail-closed when a
+        Requires the SYS_ADMIN capability (fail-closed when a
         manager is wired / strict mode), writes an audit record BEFORE and
         AFTER, and never executes generated code. The actual process restart
         is delegated to the supervisor; this service only authorises it.
         """
         if pid not in self.crashed_pids:
             return False
-        gate.require(CAP_SYS_ADMIN)  # [FIX H21] privileged recovery op
+        gate.require(CAP_SYS_ADMIN)  # privileged recovery op
         self._audit("mitigate-authorised", pid, "restart handed to supervisor")
         self.crashed_pids.discard(pid)
         self._audit("mitigate-complete", pid, "ok")

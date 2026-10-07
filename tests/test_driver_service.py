@@ -146,7 +146,7 @@ class TestDevModeAuth:
         assert resp.status_code == 200
 
     def test_static_test_secret_is_rejected(self, dev_service):
-        # [FIX H64] The old hardcoded "test-secret" must no longer authenticate.
+        # The old hardcoded "test-secret" must no longer authenticate.
         from fastapi.testclient import TestClient
         legacy = _sign_token(secret="test-secret")
         with TestClient(dev_service.app) as client:
@@ -162,7 +162,7 @@ class TestDevModeAuth:
 
 class TestMetricsGated:
     def test_metrics_requires_auth(self, dev_service):
-        # [FIX H64] /metrics was previously unauthenticated; it must now be gated.
+        # /metrics was previously unauthenticated; it must now be gated.
         from fastapi.testclient import TestClient
         with TestClient(dev_service.app) as client:
             anon = client.get("/metrics")
@@ -182,7 +182,7 @@ class TestEnvironScopeGate:
         assert resp.status_code == 401
 
     def test_environ_requires_scope(self, dev_service):
-        # [FIX H64] Authenticated but without the environ scope -> 403.
+        # Authenticated but without the environ scope -> 403.
         from fastapi.testclient import TestClient
         token_no_scope = _sign_token(scope=None)
         with TestClient(dev_service.app) as client:
@@ -219,7 +219,7 @@ class TestFailClosedDenied:
                 client.get("/cpuinfo", headers={"Authorization": f"Bearer {_sign_token()}"})
 
     def test_dev_mode_without_secret_refuses_to_start(self):
-        # [FIX H64] Even dev mode must not run with an empty secret.
+        # Even dev mode must not run with an empty secret.
         with pytest.raises(RuntimeError):
             _load_driver_service({"UMEROS_DEV_AUTH": "1"})  # no UMEROS_DEV_JWT_SECRET
 

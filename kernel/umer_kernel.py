@@ -33,8 +33,8 @@ import logging
 import time
 import random # Needed for the enhanced AI logic
 import secrets # Needed for crypto
-import hashlib  # [FIX H111] real HMAC-based sign/verify
-import hmac     # [FIX H111] constant-time signature compare
+import hashlib  # real HMAC-based sign/verify
+import hmac     # constant-time signature compare
 
 # ── kernel modules (NEW) ──────────────────────────────────────
 from kernel.pid_allocator import PidAllocator, PID_SYSTEM, PID_INIT
@@ -49,14 +49,14 @@ from kernel.cred import CredentialStore, Credentials, ROOT_UID
 from kernel.reboot import RebootManager, SystemState
 from kernel.resource import ResourceManager, IORESOURCE_MEM, IORESOURCE_IO
 from kernel.softirq import SoftIRQManager, TaskletManager
-from kernel.memory_manager import MemoryManager, PAGE_SIZE as _MM_PAGE_SIZE  # [FIX H110] real memory accounting
-from kernel.ipc_bus import IPCBus, IPCMessage                                  # [FIX H110] signed IPC bus
-from kernel.capability_manager import (                                        # [FIX H110] zero-trust caps
+from kernel.memory_manager import MemoryManager, PAGE_SIZE as _MM_PAGE_SIZE  #  real memory accounting
+from kernel.ipc_bus import IPCBus, IPCMessage                                  #  signed IPC bus
+from kernel.capability_manager import (                                        #  zero-trust caps
     CapabilityManager, SYSTEM_PID,
     CAP_FS_READ, CAP_FS_WRITE, CAP_FS_ADMIN,
     CAP_PROC_SPAWN, CAP_AI_INFERENCE, CAP_IPC_BROADCAST,
 )
-from core.path_guard import PathTraversalError, safe_join                       # [FIX H112] fs_root containment
+from core.path_guard import PathTraversalError, safe_join                       # fs_root containment
 
 # -- lost+found / fsck subsystem (lib/lostfound) --
 try:
@@ -449,7 +449,7 @@ class VirtualFileSystem:
         _walk(start_node, base_abs_path if base_abs_path else "/")
         return results
 
-class CryptoEngine:  # [FIX H111] Real (non-dummy) crypto.
+class CryptoEngine:  #Real (non-dummy) crypto.
     # Previously `verify()` returned `True` unconditionally and `sign()` returned
     # a constant, so every signature validated and any tampering was invisible —
     # a dummy-crypto backdoor.  `sign`/`verify` now use HMAC-SHA256 with a
@@ -498,7 +498,7 @@ class SecurityViolation(Exception):
     """Raised when a process attempts to escape its declared sandbox ``fs_root``."""
 
 
-class SecuritySandbox:  # [FIX H112] Real fs_root containment enforcement.
+class SecuritySandbox:  # Real fs_root containment enforcement.
     # The previous `register_process` only stored `{name, fs_root}` and `print`ed
     # — a decorative zero-trust gate that *claimed* sandboxing it did not perform
     # (same family as H51/H112).  It now records the process AND enforces that any
@@ -570,7 +570,7 @@ class FluidicShell:
         self.kernel = kernel
         self.current_user = "umer"  # Default simulated user
         self.history = []
-        self._input_task = None  # [FIX] strong ref to the input reader task
+        self._input_task = None  # strong ref to the input reader task
         
         # Load Command Registry
         try:
@@ -585,7 +585,7 @@ class FluidicShell:
     def start(self, interactive=True):
         if interactive:
             print("\n[KERNEL] System Idle. Waiting for user input. Type 'help' or 'exit'.")
-            # [FIX] Keep a strong reference. The event loop holds only a weak
+            # Keep a strong reference. The event loop holds only a weak
             # reference to tasks, so an unreferenced input task can be garbage
             # collected mid-run and the shell silently stops reading.
             self._input_task = asyncio.create_task(self._listen_for_input_async())
@@ -598,7 +598,7 @@ class FluidicShell:
                 print(prompt_str, end='', flush=True)
                 
                 try:
-                    # [FIX] Read stdin off the event loop. A bare ``input()``
+                    # Read stdin off the event loop. A bare ``input()``
                     # blocked the whole loop while waiting for a line, so the
                     # idle loop, other tasks and signal handling could not run
                     # until the user pressed Enter — a hard hang on a stdin pipe
@@ -783,7 +783,7 @@ class UmerKernel:
         # --- STAGE 2: Core Kernel Subsystems ---
         # Using the simplified scheduler logic here, incorporating the enhanced AI
         self.scheduler = HybridScheduler(quantum_simulator=self.q_scheduler) # Pass quantum ref if needed by scheduler
-        # [FIX H110] Wire the REAL, previously-built subsystems instead of the
+        # Wire the REAL, previously-built subsystems instead of the
         # no-op `type(...)` placeholders.  While these were stubs, zero-trust
         # capability gating, signed IPC and real memory accounting were all inert.
         # SYSTEM_PID (0) is omnipotent in CapabilityManager, so the kernel keeps
@@ -792,7 +792,7 @@ class UmerKernel:
         self.ipc = IPCBus()
         self.capabilities = CapabilityManager()
 
-        # [FIX H113] Zero-trust wiring: connect the process-global capability
+        # Zero-trust wiring: connect the process-global capability
         # gate (core/capability_gate.py) to this real CapabilityManager. Until
         # now no production code ever called gate.wire(), so every one of the
         # ~70 `gate.require(...)` sites across srv/, tmp/, var/, usr/, root/,
@@ -1008,7 +1008,7 @@ class UmerKernel:
         init_pid = PID_INIT
         self.pid_allocator._in_use.add(init_pid)  # mark as allocated
         self.capabilities.register(init_pid)
-        # [FIX H110] Grant init a minimal zero-trust capability set.  The old
+        # Grant init a minimal zero-trust capability set.  The old
         # placeholder granted nothing and enforced nothing, leaving a booted
         # userspace init silently without (or with unverifiable) privileges.
         self.capabilities.grant_many(
@@ -1045,7 +1045,7 @@ class UmerKernel:
             # Expose lost+found in the VFS tree as well.
             self.vfs.mkdir("/lost+found", parents=True)
 
-        # [FIX] Use the idempotent form here. VirtualFileSystem.__init__ already
+        # Use the idempotent form here. VirtualFileSystem.__init__ already
         # pre-populates "/tmp" (see the mkdir calls at the top of this class), so
         # the previous bare mkdir("/tmp") raised FileExistsError and killed
         # `python main.py` on every run. `parents=True` is `mkdir -p`, which is
@@ -1060,7 +1060,7 @@ class UmerKernel:
         secret = b"Top-secret quantum state data"
         nonce, ciphertext = self.crypto.encrypt(secret)
         self.vfs.write_file("/system/secrets.enc", ciphertext)
-        # [FIX] CryptoEngine.decrypt takes the (nonce, ciphertext) tuple returned
+        # CryptoEngine.decrypt takes the (nonce, ciphertext) tuple returned
         # by encrypt(); passing them as two positional arguments raised
         # "too many values to unpack (expected 2)" and killed `python main.py`.
         decrypted = self.crypto.decrypt((nonce, ciphertext))
@@ -1088,7 +1088,7 @@ class UmerKernel:
         shell.start(interactive=interactive)
 
         if not interactive:
-            # [FIX] With no shell there is nothing to type "exit" into, so the
+            # With no shell there is nothing to type "exit" into, so the
             # idle loop below could previously only be stopped by killing the
             # process outright (a real non-TTY stdin hangs forever). Make a
             # headless run stoppable with Ctrl-C / SIGTERM.
@@ -1099,7 +1099,7 @@ class UmerKernel:
             )
 
         if exit_after_boot:
-            # [FIX] Deterministic termination for CI and verification runs:
+            # Deterministic termination for CI and verification runs:
             # boot, report, and shut down instead of idling indefinitely.
             print("[KERNEL] exit-after-boot requested; shutting down.")
             self._shutdown_requested = True
@@ -1246,7 +1246,7 @@ class UmerKernel:
 
         log.info("=== UmerKernel shut down cleanly ===")
     
-    # [FIX H11] [FIX H116] Canonical frontend = Flutter (Dart) shell in ui/flutter_ui/
+    # Canonical frontend = Flutter (Dart) shell in ui/flutter_ui/
     # (decided 2026-08-20). This method currently launches the *retired* Tkinter
     # fallback (ui/launch_gui.py) as a headless compatibility path; it is NOT the
     # production UX and must be gated behind a capability check before launch (H116).
@@ -1256,7 +1256,7 @@ class UmerKernel:
 
         Today this starts the *legacy* Tkinter launcher (ui/launch_gui.py) as a
         headless fallback. The canonical frontend is the Flutter/Dart shell in
-        ``ui/flutter_ui/`` (H11/H25). See the [FIX H116] note above.
+        ``ui/flutter_ui/`` (H11/H25). See the note above.
         """
         print("[KERNEL] Attempting to launch UmerOS GUI Shell...")
         # Import the launcher script

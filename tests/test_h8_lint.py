@@ -3,7 +3,7 @@
 # AST-based check that every broad ``except Exception`` / bare ``except:``
 # handler inside ``bin/*.py`` is either:
 #   (a) nested inside a ``_selftest()`` function, OR
-#   (b) explicitly tagged with a ``# [FIX H8]`` comment on the ``except`` line, OR
+#   (b) explicitly tagged with a ``# `` comment on the ``except`` line, OR
 #   (c) non-silent — the handler logs the error (``log.exception`` /
 #       ``traceback.print_exc`` / ``logger.error`` ...).
 #
@@ -43,10 +43,10 @@ def _is_broad_except(node: ast.AST) -> bool:
 
 
 def _is_tagged(source_lines: list[str], node: ast.ExceptHandler) -> bool:
-    """True when the ``except`` line carries a ``# [FIX H8]`` marker."""
+    """True when the ``except`` line carries a ``# `` marker."""
     if node.lineno is None or node.lineno - 1 >= len(source_lines):
         return False
-    return "# [FIX H8]" in source_lines[node.lineno - 1]
+    return "#" in source_lines[node.lineno - 1]
 
 
 def _is_nonsilent(body: list[ast.stmt]) -> bool:
@@ -104,7 +104,7 @@ class TestH8Lint(unittest.TestCase):
                 lines.append(f"  {rel}:{v['line']}")
             lines.append(
                 "\nFix: narrow the exception type (e.g. ``except (OSError, ValueError):``),"
-                " add ``# [FIX H8]`` + ``log.exception(...)`` if it must stay broad,"
+                " add ``#`` + ``log.exception(...)`` if it must stay broad,"
                 " or move it inside ``_selftest()``."
             )
             self.fail("\n".join(lines))

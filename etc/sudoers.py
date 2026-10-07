@@ -27,7 +27,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# [FIX H73] Zero-trust capability gate for privileged /etc (sudoers) writes.
+# Zero-trust capability gate for privileged /etc (sudoers) writes.
 # Writing /etc/sudoers can grant privilege escalation, so it requires the
 # `fs.admin` capability when a CapabilityManager is wired (fail-closed);
 # standalone it is permissive (warning) so existing tooling still works.
@@ -41,7 +41,7 @@ except Exception:  # pragma: no cover - standalone fallback
 
 
 def _validate_sudoers_rule(rule) -> None:
-    """[FIX H73] Reject blanket privilege-escalation grants.
+    """ Reject blanket privilege-escalation grants.
 
     A ``NOPASSWD`` rule that applies to *all* users or *all* commands is a
     blanket escalation (e.g. ``ALL ALL=(root) NOPASSWD: ALL``). Scoped
@@ -57,7 +57,7 @@ def _validate_sudoers_rule(rule) -> None:
 
 
 def _is_host_etc(path) -> bool:
-    """[FIX H73] True if *path* resolves to a top-level /etc tree of a filesystem root.
+    """True if *path* resolves to a top-level /etc tree of a filesystem root.
 
     On POSIX that is ``/etc/...``; on Windows the equivalent is ``C:\\etc\\...``.
     A UmerOS-managed path such as ``/mnt/umos/etc`` (or ``C:\\umos\\etc``) is NOT
@@ -91,7 +91,7 @@ class SudoersManager:
     def __init__(self, sudoers_path: str = "/etc/sudoers",
                  allow_host_etc: bool = False):
         self.sudoers_path = Path(sudoers_path)
-        # [FIX H73] Writes to the real host /etc are fail-closed unless the
+        # Writes to the real host /etc are fail-closed unless the
         # caller explicitly opts in (e.g. a containerized UmerOS that *is* the
         # system). Tests / tooling should pass a temp path instead.
         self.allow_host_etc = allow_host_etc
@@ -105,7 +105,7 @@ class SudoersManager:
         self._ensure_directories()
 
     def _assert_host_etc(self, path) -> None:
-        """[FIX H73] Refuse to write into the real host /etc unless authorized."""
+        """Refuse to write into the real host /etc unless authorized."""
         if self.allow_host_etc:
             return
         if _is_host_etc(path):

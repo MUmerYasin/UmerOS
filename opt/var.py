@@ -26,7 +26,7 @@ Author:  Umer OS Project
 License: GPL-3.0
 """
 
-# [FIX H7] Normalize licence header to canonical "License: GPL-3.0" (drop redundant
+# Normalize licence header to canonical "License: GPL-3.0" (drop redundant
 # "GNU General Public License Version 3" parenthetical; repo is GPL-3.0 per LICENSE/setup.py/README).
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Opt.Var")
 
-# [FIX H185] Guard against path traversal (CWE-22) when building /var/opt
+# Guard against path traversal (CWE-22) when building /var/opt
 # package paths from caller-supplied package/provider/filename names.
 try:
     from core.path_guard import safe_child, safe_join, PathTraversalError
@@ -97,7 +97,7 @@ class VarOptManager:
         self.root = Path(var_opt_root)
 
     def _pkg_dir(self, package: str, provider: str = "") -> Path:
-        # [FIX H185] Contain the provider/package segments inside the /var/opt
+        # Contain the provider/package segments inside the /var/opt
         # root. A name like "../../etc" is refused (fail-closed) instead of
         # letting the caller walk outside the managed tree.
         root = self.root
@@ -232,7 +232,7 @@ class VarOptManager:
         """Write a file to /var/opt/<provider>/<pkg>/."""
         try:
             pkg_dir = self.ensure_package_dir(package, provider)
-            # [FIX H185] `filename` may be nested ("sub/file.txt"); safe_join
+            # `filename` may be nested ("sub/file.txt"); safe_join
             # still proves the final path stays inside the package dir, so a
             # name like "../etc/passwd" is refused (fail-closed).
             target = safe_join(pkg_dir, filename)

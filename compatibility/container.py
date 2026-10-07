@@ -67,7 +67,7 @@ class ZeroTrustContainer:
             ``True`` if execution was permitted and completed, ``False`` if it
             was denied by the capability gate.
         """
-        # [FIX H51] Fail-closed: execution is denied unless the container holds
+        # Fail-closed: execution is denied unless the container holds
         # the required capability; the capability result now gates execution
         # (it no longer merely prints and runs).
         if not self.capabilities.query(self.container_id, "HARDWARE"):

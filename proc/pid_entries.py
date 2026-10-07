@@ -32,7 +32,7 @@ from typing import Any, Dict
 
 from proc.nodes import ProcDir, ProcFile, ProcSymlink
 
-# [FIX H207] Zero-trust capability gate for per-PID privileged writes.
+# Zero-trust capability gate for per-PID privileged writes.
 from core.capability_gate import CAP_SYS_ADMIN, gate
 
 _STATUS_TEXT = {
@@ -274,7 +274,7 @@ def build_pid_dir(adapter, pid: int) -> ProcDir:
     file("oom_score_adj",
          lambda: f"{adapter.oom_adj.get(pid, 0)}\n",
          write=lambda text, p=pid: (
-             gate.require(CAP_SYS_ADMIN),  # [FIX H207] privileged per-PID kill-priority write
+             gate.require(CAP_SYS_ADMIN),  # privileged per-PID kill-priority write
              adapter.oom_adj.__setitem__(
                  p, max(-1000, min(1000, int(text.strip() or 0)))))[-1],
          mode="rw-r--r--")

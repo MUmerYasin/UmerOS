@@ -34,7 +34,7 @@ from packages.umer_pkg import UmerPackageManager as UmerPkg                # noq
 
 
 class TestPackageLifecycleGated(unittest.TestCase):
-    """[FIX H198] strict mode => PermissionError before any FS mutation."""
+    """strict mode => PermissionError before any FS mutation."""
 
     def setUp(self) -> None:
         self._prev_strict = cg.gate.strict

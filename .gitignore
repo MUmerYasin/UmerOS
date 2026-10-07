@@ -91,7 +91,7 @@ crash_test.log
 out.txt
 err.txt
 
-# --- Local secrets — [FIX H1] --------------------------------------------
+# --- Local secrets — --------------------------------------------
 # Per the Code Review Standards H1/H100 family: any local-secret file
 # must NEVER be committed.  Listed explicitly here so even users who
 # forget to set `git config --global core.excludesFile` are protected.

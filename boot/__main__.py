@@ -52,7 +52,7 @@ from typing import List, Optional
 
 log = logging.getLogger("UmerOS.Boot.CLI")
 
-# [FIX H34] ``boot/__main__.py`` is the established "python -m boot" toolkit
+# ``boot/__main__.py`` is the established "python -m boot" toolkit
 # CLI. It deliberately does NOT subclass ``core.command.Command`` — that base
 # class is the contract for the **bin/** entry points only (its own docstring
 # reads "Base class for all bin/ commands"), and it is imported solely by
@@ -113,6 +113,7 @@ _SELFTEST_MODULES = (
     "boot.memtest",
     "boot.boot_log",
     "boot.kernel_signing",
+    "boot.boot_manager",
 )
 
 

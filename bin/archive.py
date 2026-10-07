@@ -82,7 +82,7 @@ class TarCommand:
                 for fp in files:
                     print(fp, file=out)
             return 0
-        except (OSError, ValueError) as e:  # [FIX H8]
+        except (OSError, ValueError) as e: 
             print(f"tar: {archive}: {e}", file=sys.stderr)
             return 1
 
@@ -153,7 +153,7 @@ class TarCommand:
                 for fp in files:
                     print(fp, file=out)
             return 0
-        except (OSError, ValueError) as e:  # [FIX H8] json.dump + print I/O
+        except (OSError, ValueError) as e:  # json.dump + print I/O
             print(f"tar: {archive}: {e}", file=sys.stderr)
             return 1
 

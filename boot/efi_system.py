@@ -540,7 +540,7 @@ class SecureBootManager:
     def is_binary_trusted(
         self,
         fingerprint: str,
-        strict: bool = True,  # [FIX H28] fail-closed by default
+        strict: bool = True,  # fail-closed by default
     ) -> bool:
         """Check if a binary fingerprint is in the trusted db.
 

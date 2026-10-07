@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
 
-# [FIX H296] Gate privileged /usr/share/misc filesystem mutation behind the
+#  Gate privileged /usr/share/misc filesystem mutation behind the
 # zero-trust capability bridge. Writing system data files and creating the magic
 # symlink are privileged operations that must require the `fs.admin` capability
 # when a CapabilityManager is wired (fail-closed); when no manager is wired the
@@ -686,7 +686,7 @@ class MiscDataManager:
         Returns:
             MiscDataEntry if created, None on failure
         """
-        # [FIX H296] privileged write into /usr/share/misc -> requires fs.admin.
+        # privileged write into /usr/share/misc -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         if file_type is None:
             file_type = self.FILE_TYPE_MAP.get(name, MiscFileType.CUSTOM)
@@ -711,7 +711,7 @@ class MiscDataManager:
         Per FHS 3.0, the magic(5) file may live in /usr/share/file/magic
         with a compatibility symlink at /usr/share/misc/magic.
         """
-        # [FIX H296] privileged symlink + file writes -> requires fs.admin.
+        #  privileged symlink + file writes -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             self.MAGIC_REAL.parent.mkdir(parents=True, exist_ok=True)
@@ -806,7 +806,7 @@ class MiscDataManager:
         Returns:
             True if deleted successfully
         """
-        # [FIX H296] privileged unlink -> requires fs.admin.
+        # privileged unlink -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             entry = self.get_entry(name)
@@ -825,7 +825,7 @@ class MiscDataManager:
 
         For files with spec-defined content, use create_misc_file() instead.
         """
-        # [FIX H296] privileged write into /usr/share/misc -> requires fs.admin.
+        #  privileged write into /usr/share/misc -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             path = self.BASE_DIR / name

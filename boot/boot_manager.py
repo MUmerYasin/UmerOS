@@ -113,8 +113,9 @@ class BootComponent:
         if os.path.isfile(self.path):
             self.size_bytes = os.path.getsize(self.path)
             self.last_modified = os.path.getmtime(self.path)
-            if self.status == BootStatus.PRESENT:
-                self.status = BootStatus.VERIFIED
+            # Presence alone is not integrity: verify_component()
+            # promotes the status to VERIFIED (or CORRUPTED) after
+            # a real hash check.  Do not mark VERIFIED here.
 
 
 @dataclass
@@ -155,9 +156,15 @@ class BootManager:
 
     # FHS 3.0 required files in /boot
     FHS_REQUIRED_FILES = [
-        "vmlinuz",      # Compressed  kernel
-        "vm",      # Uncompressed  kernel (optional)
+        "vmlinuz",      # Compressed kernel
         "System.map",   # Kernel symbol table
+    ]
+
+    # FHS 3.0 optional files in /boot (presence is reported,
+    # but their absence never makes /boot non-compliant)
+    FHS_OPTIONAL_FILES = [
+        "vm",           # Uncompressed kernel (optional)
+        "config",       # Kernel build config (optional)
     ]
 
     # Common kernel image patterns
@@ -719,6 +726,11 @@ class BootManager:
                 results["compliant"] = False
                 results["issues"].append(f"Missing required file: {required_file}")
 
+        # Check optional files (reported, never non-compliant)
+        for optional_file in self.FHS_OPTIONAL_FILES:
+            file_path = self.boot_path / optional_file
+            results["optional_files"][optional_file] = file_path.exists()
+
         # Check for common kernel images
         kernel_patterns = ["vmlinuz*", "vmlinux*"]
         for pattern in kernel_patterns:
@@ -825,19 +837,20 @@ def _selftest() -> bool:
         # BootManager
         mgr = BootManager(boot_dir)
         mgr.initialize()
-        s = mgr.status()
+        s = mgr.get_boot_summary()
         assert "boot_path" in s
-        assert "total_entries" in s
+        assert "boot_entries" in s
 
-        # register / list / remove
-        entry2 = mgr.register_entry(
-            kernel="vmlinuz-6.2",
-            initrd="initrd-6.2.img",
-            title="UmerOS 6.2",
+        # add / list boot entries
+        entry2 = mgr.add_boot_entry(
+            title="UmerOS 1.0",
+            kernel="vmlinuz-1.0",
+            initrd="initrd-1.0.img",
         )
         assert entry2 is not None
-        entries = mgr.list_entries()
+        entries = mgr.get_boot_entries()
         assert isinstance(entries, list)
+        assert len(entries) >= 1
 
         return True
     except Exception as exc:  # noqa: BLE001

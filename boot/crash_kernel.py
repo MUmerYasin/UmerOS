@@ -131,7 +131,10 @@ class KdumpConfigManager:
         if not self.config_path.exists():
             return self._config
 
-        content = self.config_path.read_text()
+        try:
+            content = self.config_path.read_text()
+        except OSError:
+            return self._config
         for line in content.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
@@ -524,69 +527,68 @@ class CrashKernelManager:
 
 # ── Self-test ──────────────────────────────────────────────────────────────
 
-def _selftest() -> List[str]:
-    """Validate crash_kernel module classes and functionality."""
-    errors: List[str] = []
+def _selftest() -> bool:
+    """Validate crash_kernel module classes against the real API.
 
-    try:
-        from boot.crash_kernel import (
-            CrashKernelManager,
-            KdumpConfig,
-            KdumpConfigManager,
-            VmcoreInfo,
-        )
-    except ImportError as exc:
-        errors.append(f"Import failed: {exc}")
-        return errors
+    Returns True when every check passes.  Note: this returns a
+    plain bool like every other boot module — the CLI runner
+    treats the return value as the pass/fail flag.
+    """
+    import shutil
+    import tempfile
 
-    # KdumpConfig dataclass
-    try:
-        cfg = KdumpConfig()
-        if cfg.enabled is not True:
-            errors.append("KdumpConfig.enabled should default to True")
-    except Exception as exc:
-        errors.append(f"KdumpConfig creation failed: {exc}")
+    # KdumpConfig dataclass defaults
+    cfg = KdumpConfig()
+    if cfg.auto_reboot is not True:
+        return False
+    if cfg.path != "/var/crash":
+        return False
 
     # VmcoreInfo dataclass
-    try:
-        info = VmcoreInfo(
-            timestamp="2025-01-01T00:00:00",
-            size_bytes=1024,
-            path="/var/crash/vmcore",
-        )
-        if info.size_bytes != 1024:
-            errors.append("VmcoreInfo.size_bytes mismatch")
-        if info.path != "/var/crash/vmcore":
-            errors.append("VmcoreInfo.path mismatch")
-    except Exception as exc:
-        errors.append(f"VmcoreInfo creation failed: {exc}")
+    info = VmcoreInfo(
+        timestamp=datetime.now(),
+        kernel_version="6.8.0-umerOS",
+        architecture="x86_64",
+        hostname="umeros",
+        crash_type="panic",
+        file_path=Path("/var/crash/vmcore"),
+        file_size=1024,
+    )
+    if info.file_size != 1024:
+        return False
 
-    # CrashKernelManager
-    import tempfile, os
+    # CrashKernelManager against a temp dir
+    td = tempfile.mkdtemp(prefix="umeros_ck_test_")
     try:
-        tmp = tempfile.mkdtemp()
-        ckm = CrashKernelManager(base_path=tmp)
+        ckm = CrashKernelManager(
+            boot_dir=Path(td),
+            config_path=Path(td) / "kdump.conf",
+            vmcore_dir=Path(td) / "crash",
+        )
         st = ckm.get_status()
         if not isinstance(st, dict):
-            errors.append("CrashKernelManager.get_status() should return dict")
-        if "kdump_enabled" not in st:
-            errors.append("get_status() missing kdump_enabled key")
-    except Exception as exc:
-        errors.append(f"CrashKernelManager init/status failed: {exc}")
+            return False
+        if "state" not in st or "memory_reservation_mb" not in st:
+            return False
+        # setup() must round-trip the dump target
+        if not ckm.setup(target=KdumpDumpTarget.LOCAL_DISK):
+            return False
     finally:
-        import shutil
-        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.rmtree(td, ignore_errors=True)
 
-    # KdumpConfigManager
+    # KdumpConfigManager save/load round-trip
+    td = tempfile.mkdtemp(prefix="umeros_kcm_test_")
     try:
-        tmp = tempfile.mkdtemp()
-        cfg_path = os.path.join(tmp, "kdump.conf")
+        cfg_path = Path(td) / "kdump.conf"
         kcm = KdumpConfigManager(config_path=cfg_path)
-        if not isinstance(kcm.config, KdumpConfig):
-            errors.append("KdumpConfigManager.config should be KdumpConfig")
-    except Exception as exc:
-        errors.append(f"KdumpConfigManager init failed: {exc}")
+        if not kcm.save():
+            return False
+        if not cfg_path.exists():
+            return False
+        loaded = kcm.load()
+        if loaded.path != "/var/crash":
+            return False
     finally:
-        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.rmtree(td, ignore_errors=True)
 
-    return errors
+    return True

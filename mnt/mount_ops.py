@@ -57,7 +57,7 @@ from typing import Dict, FrozenSet, List, Optional, Sequence, Set
 
 log = logging.getLogger("UmerOS.Mnt.MountOps")
 
-# [FIX H166] Gate privileged /mnt mount/unmount/remount behind the zero-trust
+# Gate privileged /mnt mount/unmount/remount behind the zero-trust
 # capability bridge (core/capability_gate). Mounting a filesystem, changing the
 # system mount table, and remounting are privileged operations that must require
 # the `fs.admin` capability when a CapabilityManager is wired (fail-closed); when
@@ -360,7 +360,7 @@ class MountManager:
         Raises:
             MountError: If validation fails or mount is denied.
         """
-        # [FIX H166] Require the fs.admin capability before mutating the mount
+        # Require the fs.admin capability before mutating the mount
         # table (fail-closed when a CapabilityManager is wired).
         gate.require(CAP_FS_ADMIN)
 
@@ -426,7 +426,7 @@ class MountManager:
         Raises:
             MountError: If the mount point is not currently mounted.
         """
-        # [FIX H166] Require the fs.admin capability before unmounting.
+        # Require the fs.admin capability before unmounting.
         gate.require(CAP_FS_ADMIN)
 
         record = None
@@ -464,7 +464,7 @@ class MountManager:
         options: str,
     ) -> MountRecord:
         """Remount with new options (e.g., read-only to read-write)."""
-        # [FIX H166] Require the fs.admin capability before remounting.
+        # Require the fs.admin capability before remounting.
         gate.require(CAP_FS_ADMIN)
 
         record = None

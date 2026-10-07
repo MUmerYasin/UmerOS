@@ -40,7 +40,7 @@ from kernel.umer_kernel import (
 
 # Keep the real subsystems' noisy INFO logging out of the test output.
 #
-# [FIX] This used to be a bare module-level ``logging.disable(logging.CRITICAL)``.
+# This used to be a bare module-level ``logging.disable(logging.CRITICAL)``.
 # pytest imports every test module during *collection*, so that call disabled
 # logging process-wide before a single test ran, and it was never undone — which
 # silently broke ``assertLogs`` in any module executed afterwards

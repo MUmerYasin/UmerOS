@@ -42,7 +42,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from .fhs import DEFAULT_TMP_ROOT, PROTECTED_SOCKET_DIRS
 
-# [FIX H281] Gate the destructive reaper operations behind the zero-trust
+# Gate the destructive reaper operations behind the zero-trust
 # capability bridge. `clean_by_age` / `clean_on_boot` / `clean_by_quota` delete
 # files and directories, so they must require the `tmp.reap` capability when a
 # CapabilityManager is wired (fail-closed).
@@ -117,7 +117,7 @@ class TmpReaper:
         """
         Removes files in /tmp that have not been accessed/modified within max_age_seconds.
         """
-        # [FIX H281] Require the reaper capability before deleting anything.
+        # Require the reaper capability before deleting anything.
         gate.require(CAP_REAPER)
         max_age = max_age_seconds if max_age_seconds is not None else self.default_max_age_sec
         now = time.time()
@@ -171,7 +171,7 @@ class TmpReaper:
         Emulates boot-time cleanup of /tmp: wipes all transient files while
         preserving protected sockets (.X11-unix, etc.).
         """
-        # [FIX H281] Require the reaper capability before deleting anything.
+        # Require the reaper capability before deleting anything.
         gate.require(CAP_REAPER)
         return self.clean_by_age(max_age_seconds=0.0, dry_run=dry_run)
 
@@ -184,7 +184,7 @@ class TmpReaper:
         High-water mark cleaner: if total /tmp size exceeds max_total_bytes,
         reaps oldest files first until size is under threshold.
         """
-        # [FIX H281] Require the reaper capability before deleting anything.
+        # Require the reaper capability before deleting anything.
         gate.require(CAP_REAPER)
         report = ReapReport(dry_run=dry_run)
         if not self.tmp_root.exists():

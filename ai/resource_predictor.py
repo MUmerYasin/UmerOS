@@ -22,7 +22,7 @@ The single source of truth for resource prediction now lives in
 ``ai.umer_ai.AIResourceManager`` — it owns persistence, pattern detection,
 z-score spike detection, and workload classification, and it is already wired
 into ``SelfHealingEngine``, ``AIGovernance`` and the kernel bootstrap
-(``NullAIResourceManager``).  H19 therefore selected it as the one canonical
+(``NullAIResourceManager``).  therefore selected it as the one canonical
 predictor.
 
 This file now re-exports that class under the legacy ``ResourcePredictor``
@@ -34,7 +34,7 @@ Author:  Umer OS Project
 License: GPLv3
 """
 
-# [FIX H19] Consolidate the duplicated predictor into the canonical
+# Consolidate the duplicated predictor into the canonical
 # ai.umer_ai.AIResourceManager.  ResourcePredictor is retained only as an
 # import-compatible alias; the standalone duplicate implementation was deleted.
 from ai.umer_ai import AIResourceManager as ResourcePredictor

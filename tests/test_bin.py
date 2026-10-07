@@ -1363,7 +1363,7 @@ class TestLoginCommandH37(unittest.TestCase):
             for _mod in ("pwd", "spwd", "crypt"):
                 if _mod not in sys.modules:
                     stub = types.ModuleType(_mod)
-                    # [FIX] Make the stub behave like the real POSIX module for
+                    # Make the stub behave like the real POSIX module for
                     # names it cannot resolve (``KeyError``) instead of simply
                     # lacking the lookup functions.  An API-less stub left in
                     # ``sys.modules`` made unrelated callers (e.g.

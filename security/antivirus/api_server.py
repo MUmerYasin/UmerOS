@@ -127,7 +127,7 @@ def create_app():
     app = web.Application()
 
 
-# [FIX H245] Token auth + destructive-endpoint guard.
+# Token auth + destructive-endpoint guard.
 # Previously every route — including quarantine restore/delete and realtime
 # start/stop — was callable with zero authn/authz. Now:
 #   * when UMEROS_AV_API_TOKEN is set, ALL routes require "Bearer <token>";

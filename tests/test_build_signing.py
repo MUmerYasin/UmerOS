@@ -1,4 +1,4 @@
-"""[FIX H42] signing gate: fail-closed by default, unsigned only via env opt-out."""
+"""signing gate: fail-closed by default, unsigned only via env opt-out."""
 from __future__ import annotations
 import os, subprocess, sys, unittest
 from pathlib import Path

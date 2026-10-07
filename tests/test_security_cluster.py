@@ -1,4 +1,4 @@
-"""[FIX H244/H245/H246] regression tests for the security/ RED cluster."""
+"""regression tests for the security/ RED cluster."""
 from __future__ import annotations
 import os, sys, unittest
 from pathlib import Path
@@ -7,7 +7,7 @@ if _root not in sys.path:
     sys.path.insert(0, _root)
 
 class TestSecureBootStrictDefault(unittest.TestCase):
-    """[FIX H244] strict-by-default + deny-unknown in dev mode too."""
+    """strict-by-default + deny-unknown in dev mode too."""
     def test_strict_default_and_deny_unknown(self):
         from security.security import SecureBoot
         sb = SecureBoot()
@@ -18,7 +18,7 @@ class TestSecureBootStrictDefault(unittest.TestCase):
         self.assertFalse(dev.verify_bytes(b"evil", "unknown.bin"))
 
 class TestSandboxHonestIsolation(unittest.TestCase):
-    """[FIX H246] jail containment + deny-by-default still enforced."""
+    """jail containment + deny-by-default still enforced."""
     def test_jail_blocks_escape(self):
         import tempfile
         from security.sandbox import SecuritySandbox

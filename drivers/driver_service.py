@@ -71,7 +71,7 @@ OIDC_JWKS_URL = os.getenv("OIDC_JWKS_URL")
 OIDC_ISSUER = os.getenv("OIDC_ISSUER")
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE")
 
-# [FIX H64] Fail-closed authentication posture (zero-trust).
+# Fail-closed authentication posture (zero-trust).
 # We NEVER ship a static HS256 secret. Exactly two valid modes exist:
 #   - "oidc": production  -> verify JWTs against the OIDC provider JWKS (RS256).
 #   - "dev" : explicit local mode (UMEROS_DEV_AUTH=1) using a real, non-default
@@ -86,7 +86,7 @@ if OIDC_JWKS_URL and OIDC_ISSUER:
     _AUTH_MODE = "oidc"
 elif DEV_AUTH_ENABLED:
     if not DEV_JWT_SECRET:
-        # [FIX H64] Even in dev mode an empty/missing secret is still a
+        # Even in dev mode an empty/missing secret is still a
         # "trust path satisfiable by an attacker-controlled value"; refuse it.
         raise RuntimeError(
             "UMEROS_DEV_AUTH=1 set but UMEROS_DEV_JWT_SECRET is empty. "
@@ -94,7 +94,7 @@ elif DEV_AUTH_ENABLED:
         )
     _AUTH_MODE = "dev"
 else:
-    # [FIX H64] Fail-closed: no OIDC config and no explicit dev opt-in. The API
+    # Fail-closed: no OIDC config and no explicit dev opt-in. The API
     # must not serve any authenticated endpoint. verify_oauth_token rejects ALL
     # tokens and the app startup guard refuses to boot (see _fail_closed_auth_guard).
     _AUTH_MODE = "denied"
@@ -118,14 +118,14 @@ async def fetch_jwks() -> dict:
 async def verify_oauth_token(token: str = Depends(oauth_scheme)):
     """Validate a JWT.
 
-    # [FIX H64] Fail-closed authentication:
+    # Fail-closed authentication:
       - "denied" mode: NO token is ever accepted (the service should not be running).
       - "dev"    mode: HS256 with the explicit UMEROS_DEV_JWT_SECRET (never a
                       hardcoded literal such as the old "test-secret").
       - "oidc"   mode: RS256 against the provider JWKS (production).
     The legacy hardcoded HS256 "test-secret" fallback has been removed entirely.
     """
-    # [FIX H64] Fail-closed: authentication is not configured — reject every token.
+    # Fail-closed: authentication is not configured — reject every token.
     if _AUTH_MODE == "denied":
         raise HTTPException(
             status_code=401,
@@ -147,7 +147,7 @@ async def verify_oauth_token(token: str = Depends(oauth_scheme)):
             raise HTTPException(status_code=401, detail="Invalid token")
         return payload
 
-    # [FIX H64] Production: verify against provider JWKS (RS256). The static
+    # Production: verify against provider JWKS (RS256). The static
     # HS256 secret path no longer exists, so a token signed with any client-known
     # secret is rejected by algorithm mismatch.
     jwks = await fetch_jwks()
@@ -162,7 +162,7 @@ async def verify_oauth_token(token: str = Depends(oauth_scheme)):
     return payload
 
 
-# [FIX H64] Fail-closed startup guard: refuse to boot the API when auth is
+# Fail-closed startup guard: refuse to boot the API when auth is
 # unconfigured (mode "denied"). Production must set OIDC_*; local dev must set
 # UMEROS_DEV_AUTH=1 with a real UMEROS_DEV_JWT_SECRET.
 @app.on_event("startup")
@@ -200,7 +200,7 @@ def rate_limiter(request: Request):
 def secure_endpoint(request: Request, authorized: bool = Depends(verify_oauth_token), _: bool = Depends(rate_limiter)):
     return True
 
-# [FIX H64] Owner/ptrace-style authorization proxy for process-environment reads.
+#  Owner/ptrace-style authorization proxy for process-environment reads.
 # Reading another process's environment exposes secrets, so beyond mere
 # authentication we require an explicit 'proc:environ:read' scope on the token.
 def _require_environ_scope(payload: dict) -> bool:
@@ -349,7 +349,7 @@ def endpoint_pid_cmdline(pid: int, _: bool = Depends(secure_endpoint)):
 
 @app.get("/pid/{pid}/environ", response_model=Dict[str, str])
 def endpoint_pid_environ(pid: int, _: bool = Depends(secure_environ_endpoint)):
-    # [FIX H64] Process environment exposes secrets; gated behind
+    # Process environment exposes secrets; gated behind
     # secure_environ_endpoint (auth + rate limit + 'proc:environ:read' scope).
     return get_pid_environ(pid)
 
@@ -415,7 +415,7 @@ async def metrics_middleware(request: Request, call_next):
 
 @app.get("/metrics", include_in_schema=False)
 def metrics(_: bool = Depends(secure_endpoint)):
-    # [FIX H64] /metrics previously had NO authentication (reachable
+    # /metrics previously had NO authentication (reachable
     # unauthenticated). Prometheus metrics can leak internal topology, so gate
     # it behind the same authenticated+rate-limited dependency as /proc.
     data = generate_latest()

@@ -35,7 +35,7 @@ def _try_import(module_name: str, names: tuple[str, ...]) -> None:
             __all__ = list(__all__) + [n]
 
 
-# [FIX H261] Relative imports only — the previous sys.path
+# Relative imports only — the previous sys.path
 # self-injection was removed because it shadowed the same-named
 # top-level packages (e.g. ``boot``).
 for _mod, _names in (

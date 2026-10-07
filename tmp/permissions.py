@@ -33,7 +33,7 @@ from typing import Any, Dict, List, Optional
 
 from .fhs import DEFAULT_TMP_ROOT, PROTECTED_SOCKET_DIRS
 
-# [FIX H283] Gate privileged permission changes behind the zero-trust capability
+# Gate privileged permission changes behind the zero-trust capability
 # bridge. `enforce_permissions` performs real `os.chmod` (1777) on /tmp and
 # socket dirs, so it must require the `fs.perms` capability when a
 # CapabilityManager is wired.
@@ -143,7 +143,7 @@ class TmpPermissionManager:
         """
         Enforces 1777 on /tmp root and socket dirs on POSIX systems.
         """
-        # [FIX H283] Require the permission-change capability before any chmod.
+        # Require the permission-change capability before any chmod.
         gate.require(CAP_FS_PERMS)
         tmp_root = Path(tmp_root).resolve()
         ops = []

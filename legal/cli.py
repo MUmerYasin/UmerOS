@@ -119,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     elif args.command == "consent":
-        # [FIX H135] Never auto-grant consent. Require an explicit --i-agree flag
+        # Never auto-grant consent. Require an explicit --i-agree flag
         # (out-of-band assertion) or real interactive 'I AGREE' input on a TTY.
         if not getattr(args, "i_agree", False):
             if sys.stdin.isatty():

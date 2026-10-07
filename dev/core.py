@@ -77,7 +77,7 @@ class DeviceNode:
     dev_type: DeviceType
     major: int = 0
     minor: int = 0
-    mode: int = 0o640                       # default perms: owner rw, group r (safe; copy memory_devices.py 0o640 discipline) [FIX H59]                       # default permissions
+    mode: int = 0o640                       # default perms: owner rw, group r (safe; copy memory_devices.py 0o640 discipline)                      # default permissions
     uid: int = 0                            # root
     gid: int = 0                            # root
     symlink_target: str = ""                # for symlinks
@@ -142,7 +142,7 @@ class DeviceManager:
     """
 
     _instance: Optional["DeviceManager"] = None
-    _instance_lock: "threading.Lock" = threading.Lock()  # [FIX H61] guards singleton creation (double-checked)
+    _instance_lock: "threading.Lock" = threading.Lock()  # guards singleton creation (double-checked)
 
     def __init__(self, dev_root: str = "/dev"):
         self.dev_root = dev_root
@@ -150,12 +150,12 @@ class DeviceManager:
         self._by_major: Dict[int, List[DeviceNode]] = {}
         self._by_name: Dict[str, DeviceNode] = {}     # name -> DeviceNode
         self._symlinks: Dict[str, str] = {}            # symlink_path -> target
-        self._lock = threading.Lock()  # [FIX H61] guards the registry dicts against concurrent registration/hotplug
+        self._lock = threading.Lock()  # guards the registry dicts against concurrent registration/hotplug
         log.info("DeviceManager initialized (root=%s)", dev_root)
 
     @classmethod
     def get_instance(cls) -> "DeviceManager":
-        if cls._instance is None:                       # [FIX H61] double-checked locking
+        if cls._instance is None:                       # double-checked locking
             with cls._instance_lock:
                 if cls._instance is None:
                     cls._instance = cls()
@@ -164,7 +164,7 @@ class DeviceManager:
     # ── CRUD ──────────────────────────────────────────────────────────────
 
     def create_node(self, node: DeviceNode) -> bool:
-        with self._lock:                                # [FIX H61] registry mutation is atomic
+        with self._lock:                                #  registry mutation is atomic
             if node.path in self._nodes:
                 log.warning("Device node already exists: %s", node.path)
                 return False
@@ -178,7 +178,7 @@ class DeviceManager:
         return True
 
     def remove_node(self, path: str) -> bool:
-        with self._lock:                                # [FIX H61] registry mutation is atomic
+        with self._lock:                                #  registry mutation is atomic
             node = self._nodes.pop(path, None)
             if node is None:
                 return False
@@ -231,7 +231,7 @@ class DeviceManager:
     def sync_to_filesystem(self) -> int:
         """Create actual files in the VFS for all registered nodes.
 
-        [FIX H60] Zero-trust gate: materializing device special files
+        Zero-trust gate: materializing device special files
         (``os.mknod`` / ``os.mkfifo``) is a privileged operation. The caller
         must hold ``CAP_SYS_ADMIN`` — enforced fail-closed via the process-global
         capability gate (same family as H27/H28/H46/H51). Every node path is
@@ -240,17 +240,17 @@ class DeviceManager:
         materialized, so sync can never write onto a real host ``/dev`` unless
         authorized.
         """
-        # [FIX H60] fail-closed privileged-op gate (zero-trust family)
+        # fail-closed privileged-op gate (zero-trust family)
         from core.capability_gate import gate, CAP_SYS_ADMIN
         gate.require(CAP_SYS_ADMIN)
 
         created = 0
         dev_root = Path(self.dev_root).resolve()
-        with self._lock:                                # [FIX H61] snapshot under lock; never hold it across I/O
+        with self._lock:                                # snapshot under lock; never hold it across I/O
             nodes = list(self._nodes.values())
         for node in nodes:
             p = Path(node.path)
-            # [FIX H60] confine node to the virtual dev root (CWE-22)
+            # confine node to the virtual dev root (CWE-22)
             try:
                 resolved = p.resolve()
             except OSError:

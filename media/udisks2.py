@@ -363,7 +363,7 @@ class UDisks2Client:
 
     def mount(self, block_path: str, options: Optional[str] = None) -> MountResult:
         """Mount a block device."""
-        # [FIX H156] Privileged mount is enforced in media.mount_ops.mount, which
+        # Privileged mount is enforced in media.mount_ops.mount, which
         # gates the fs.admin capability at the single integration seam.
         blk = self._blocks.get(block_path)
         if not blk:

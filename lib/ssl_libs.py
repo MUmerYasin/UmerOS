@@ -35,7 +35,7 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Optional
 
-# [FIX H147] Optional X.509 parsing dependency — used to read the real certificate
+# Optional X.509 parsing dependency — used to read the real certificate
 # validity period so expiry is actually enforced (see CertInfo.is_expired /
 # days_until_expiry). Kept optional so the module imports without cryptography.
 try:
@@ -106,7 +106,7 @@ class CertInfo:
     def is_expired(self) -> bool:
         """Return True iff the certificate's ``not_after`` is in the past.
 
-        [FIX H147] Previously hard-coded to ``False`` (expiry never enforced), so
+        Previously hard-coded to ``False`` (expiry never enforced), so
         expired certificates passed every trust check — an expiry fail-open in the
         same family as H111. The real validity period is now parsed from the X.509
         cert in ``SslManager._inspect_cert``.
@@ -125,7 +125,7 @@ class CertInfo:
     def days_until_expiry(self) -> int:
         """Signed days remaining until expiry (negative once expired).
 
-        [FIX H147] Previously hard-coded to ``365``. Returns -1 when the validity
+        Previously hard-coded to ``365``. Returns -1 when the validity
         period is unknown.
         """
         if not self.not_after:
@@ -273,7 +273,7 @@ class SslManager:
         """
         Check if a certificate is trusted by a CA in the configured store.
 
-        [FIX H147] Fail-closed trust decision with expiry enforcement.
+        Fail-closed trust decision with expiry enforcement.
         Previously: any self-declared ``CA:TRUE`` certificate was trusted
         unconditionally (bypassing even the H146 bundle-fingerprint check)
         and expired certificates were never rejected. Now every branch
@@ -393,7 +393,7 @@ class SslManager:
             fmt = CertFormat.PKCS12
 
         # Simplified metadata extraction — in production use OpenSSL/cryptography
-        # [FIX H147] Read the REAL certificate validity period (not_before /
+        # Read the REAL certificate validity period (not_before /
         # not_after) so is_expired()/days_until_expiry() are accurate instead of
         # always False / 365. Previously empty dates made expiry a fail-open.
         not_before = ""
@@ -422,7 +422,7 @@ class SslManager:
             serial=self._extract_field(path, "serial"),
             not_before=not_before,
             not_after=not_after,
-            # [FIX H146] Use the canonical X.509 DER fingerprint (or a
+            # Use the canonical X.509 DER fingerprint (or a
             # whitespace-normalised PEM-block hash) so it compares directly with
             # the bundle fingerprints computed in _bundle_fingerprints.
             fingerprint_sha256=self._fingerprint_pem_cert(
@@ -512,7 +512,7 @@ class SslManager:
     def _check_is_ca(self, path: str) -> bool:
         """Check if a certificate is a CA via its BasicConstraints extension.
 
-        [FIX H147] The previous heuristic grepped the raw file text for
+        The previous heuristic grepped the raw file text for
         ``"CA:TRUE"``/``"basicConstraints"`` — strings that never appear in
         base64 PEM or binary DER, so real certificates were almost always
         misclassified as non-CA. Parse the X.509 BasicConstraints extension
@@ -546,7 +546,7 @@ class SslManager:
             return False
 
     def _check_is_trusted(self, cert: CertInfo) -> bool:
-        """[FIX H146] Fail-closed CA-trust verification.
+        """Fail-closed CA-trust verification.
 
         A certificate is trusted only if its SHA-256 fingerprint actually
         appears among the certificates contained in a CA bundle in a configured

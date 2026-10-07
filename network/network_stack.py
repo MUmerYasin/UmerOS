@@ -51,7 +51,7 @@ except ImportError:  # pragma: no cover - supports direct script execution
 
 log = logging.getLogger("UmerOS.Network")
 
-# [FIX H177] Zero-trust capability gate for raw TCP / VPN egress.
+# Zero-trust capability gate for raw TCP / VPN egress.
 from core.capability_gate import CAP_NET_SEND, gate
 
 
@@ -202,7 +202,7 @@ class VPNClient:
 
     def connect(self, config_path: Optional[str] = None) -> bool:
         """Bring up a WireGuard tunnel with ``wg-quick up``."""
-        # [FIX H177] bringing up a tunnel is privileged network egress/config.
+        # bringing up a tunnel is privileged network egress/config.
         gate.require(CAP_NET_SEND)
         cfg = config_path or self.config_path
         if not self._wg_quick or not cfg:
@@ -226,7 +226,7 @@ class VPNClient:
 
     def disconnect(self, config_path: Optional[str] = None) -> bool:
         """Bring down a WireGuard tunnel with ``wg-quick down``."""
-        # [FIX H177] tearing down a tunnel is privileged network egress/config.
+        # tearing down a tunnel is privileged network egress/config.
         gate.require(CAP_NET_SEND)
         cfg = config_path or self.config_path
         if not self._wg_quick or not cfg:
@@ -467,7 +467,7 @@ class NetworkStack:
         timeout: float = 5.0,
     ) -> Optional[Tuple[asyncio.StreamReader, asyncio.StreamWriter]]:
         """Open an async TCP connection using DNS and QoS metadata."""
-        # [FIX H177] raw TCP egress requires CAP_NET_SEND. send_tcp funnels
+        # raw TCP egress requires CAP_NET_SEND. send_tcp funnels
         # through this method, so gating here covers both entry points.
         gate.require(CAP_NET_SEND)
         if port < 1 or port > 65535:

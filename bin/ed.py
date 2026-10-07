@@ -72,7 +72,7 @@ class EdCommand:
             try:
                 with open(self._filename, 'r') as f:
                     self._buffer = f.read().splitlines()
-            except (OSError, ValueError) as e:  # [FIX H8]
+            except (OSError, ValueError) as e:  
                 print(f"ed: {e}", file=sys.stderr)
                 return 1
 
@@ -88,7 +88,7 @@ class EdCommand:
                         break
                     self._buffer.append(line)
                     self._current_line = len(self._buffer)
-            except (OSError, ValueError):  # [FIX H8]
+            except (OSError, ValueError):  
                 pass
             return 0
 
@@ -118,7 +118,7 @@ class EdCommand:
                                 f.write('\n'.join(self._buffer) + '\n')
                             self._modified = False
                             print(f"{len(self._buffer)}")
-                        except (OSError, ValueError) as e:  # [FIX H8]
+                        except (OSError, ValueError) as e:  
                             print(f"ed: {e}", file=sys.stderr)
                     else:
                         print("?", file=sys.stderr)
@@ -128,7 +128,7 @@ class EdCommand:
                             with open(self._filename, 'a') as f:
                                 f.write('\n'.join(self._buffer) + '\n')
                             self._modified = False
-                        except (OSError, ValueError) as e:  # [FIX H8]
+                        except (OSError, ValueError) as e:  
                             print(f"ed: {e}", file=sys.stderr)
                 elif cmd_char == 'a':
                     self._buffer.append(rest)
@@ -201,7 +201,7 @@ class EdCommand:
                             for line in new_lines:
                                 self._buffer.append(line)
                             self._modified = True
-                        except (OSError, ValueError) as e:  # [FIX H8]
+                        except (OSError, ValueError) as e: 
                             print(f"ed: {e}", file=sys.stderr)
                     else:
                         print("?", file=sys.stderr)
@@ -212,7 +212,7 @@ class EdCommand:
                             f.write('\n'.join(self._buffer) + '\n')
                         self._modified = False
                         print(f"{len(self._buffer)}")
-                    except (OSError, ValueError) as e:  # [FIX H8]
+                    except (OSError, ValueError) as e:  
                         print(f"ed: {e}", file=sys.stderr)
                 elif cmd_char == 'f':
                     if rest:

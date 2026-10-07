@@ -22,7 +22,7 @@ import os
 import sys
 from typing import Any, Dict, List, Optional, Type
 
-# [FIX H233] Gate privileged /sbin command execution behind the zero-trust
+# Gate privileged /sbin command execution behind the zero-trust
 # capability bridge. `SbinManager.execute` runs system-level commands (halt,
 # reboot, mkfs, chroot, mount, insmod, …) with no capability check or audit, so
 # it must require the `sys.admin` capability when a CapabilityManager is wired
@@ -218,7 +218,7 @@ class SbinManager:
 
     def execute(self, command: str, args: Optional[List[str]] = None) -> int:
         """Execute a /sbin command."""
-        # [FIX H233] Require the system-admin capability before running any
+        # Require the system-admin capability before running any
         # privileged /sbin command.  Enforced fail-closed when a CapabilityManager
         # is wired; permissive (warning) when running standalone.
         gate.require(CAP_SYS_ADMIN)

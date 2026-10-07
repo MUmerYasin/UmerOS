@@ -19,7 +19,7 @@ This module handles configuration files for /opt packages in /etc/opt
 License: GPL-3.0
 """
 
-# [FIX H7] Add canonical GPL-3.0 licence tag (repo is GPL-3.0 per LICENSE/setup.py/README).
+# Add canonical GPL-3.0 licence tag (repo is GPL-3.0 per LICENSE/setup.py/README).
 
 import os
 import sys
@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Dict, Optional, Any
 from datetime import datetime
 
-# [FIX H185] Guard against path traversal (CWE-22) in config file paths.
+# Guard against path traversal (CWE-22) in config file paths.
 try:
     from core.path_guard import safe_child, safe_join, PathTraversalError
 except Exception:  # pragma: no cover - standalone fallback
@@ -79,7 +79,7 @@ class OptConfig:
             PathTraversalError: if package_name/config_file would escape the
                 /etc/opt root (fail-closed; callers catch and refuse).
         """
-        # [FIX H185] Contain the package dir and (optional) nested config file
+        # Contain the package dir and (optional) nested config file
         # inside /etc/opt. A name like "../../etc/passwd" is refused.
         base = safe_child(self.etc_opt_root, package_name)
         if config_file:
@@ -106,7 +106,7 @@ class OptConfig:
         try:
             config_path = self.get_config_path(package_name, config_file)
         except PathTraversalError as exc:
-            # [FIX H185] Fail closed: never write outside /etc/opt.
+            # Fail closed: never write outside /etc/opt.
             raise ValueError(f"Refusing unsafe /etc/opt config path: {exc}")
         config_path.parent.mkdir(parents=True, exist_ok=True)
         
@@ -153,7 +153,7 @@ class OptConfig:
         try:
             config_path = safe_child(self.etc_opt_root, package_name)
         except PathTraversalError:
-            # [FIX H185] Refuse to delete anything outside /etc/opt.
+            # Fail closed: never write outside /etc/opt.
             return False
         if config_path.exists():
             if config_path.is_dir():

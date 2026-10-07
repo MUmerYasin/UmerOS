@@ -47,7 +47,7 @@ else:
 from pathlib import Path
 from typing import Iterable, List, Optional
 
-# [FIX H227] Gate privileged /etc/passwd writes behind the zero-trust capability
+# Gate privileged /etc/passwd writes behind the zero-trust capability
 # bridge. `PasswdManager.write` (and `CanonicalRootBuilder.upsert`, which calls
 # it) rewrites the system passwd file, so they must require the `sys.admin`
 # capability when a CapabilityManager is wired (fail-closed).
@@ -158,7 +158,7 @@ class PasswdManager:
     def write(self, entries: Iterable[PasswdEntry], *,
               backup: bool = True) -> None:
         """Replace the file with ``entries``.  Optional backup."""
-        # [FIX H227] Require the system-admin capability before rewriting the
+        # Require the system-admin capability before rewriting the
         # privileged passwd file.  Enforced fail-closed when a CapabilityManager
         # is wired; permissive (warning) when running standalone.
         gate.require(CAP_SYS_ADMIN)
@@ -204,7 +204,7 @@ class CanonicalRootBuilder:
         )
 
     def upsert(self, manager: PasswdManager) -> PasswdEntry:
-        # [FIX H227] Require the system-admin capability before upserting the
+        # Require the system-admin capability before upserting the
         # root entry (which rewrites /etc/passwd via PasswdManager.write).
         gate.require(CAP_SYS_ADMIN)
         canonical = self.build()

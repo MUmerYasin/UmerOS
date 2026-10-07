@@ -256,7 +256,10 @@ class GrubEnv:
         self.save()
 
     def increment_boot_count(self) -> int:
-        count = int(self.get("boot_count", "0")) + 1
+        try:
+            count = int(self.get("boot_count", "0")) + 1
+        except ValueError:
+            count = 1
         self.set("boot_count", str(count))
         self.set("last_boot_time", str(int(time.time())))
         self.save()
@@ -286,7 +289,7 @@ class GrubModuleManager:
         "gfxterm": ["video", "terminal"],
         "normal": ["boot", "echo", "ls", "test", "search"],
         "linux": ["normal"],
-        " chainloader": ["normal"],
+        "chainloader": ["normal"],
         "boot": ["normal"],
     }
 

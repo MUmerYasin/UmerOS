@@ -28,7 +28,7 @@ import argparse
 import json
 from pathlib import Path
 
-# [FIX H34] Use package-relative imports instead of unprefixed sibling
+# Use package-relative imports instead of unprefixed sibling
 # imports propped by a ``sys.path.insert(0, parent)`` hack. The old form
 # (``from kernel_image import ...``) only resolved when the script was run
 # from *inside* boot/; it broke the moment boot/ was imported as a package

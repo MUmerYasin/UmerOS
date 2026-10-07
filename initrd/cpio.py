@@ -91,7 +91,7 @@ class CpioEntry:
 
     name: str
     data: bytes = b""
-    # [FIX] The newc ``mode`` field carries the file-type bits as well as the
+    # The newc ``mode`` field carries the file-type bits as well as the
     # permission bits.  Defaulting to a bare 0o644 made ``is_regular()`` False,
     # so ``CpioEntry(name="x", data=b"...")`` silently wrote a 0-length payload.
     # Default to a regular file; the ``newc_*`` helpers still OR in their own
@@ -252,7 +252,7 @@ def _read_header(stream: io.BufferedIOBase) -> Optional[CpioEntry]:
     name_raw = stream.read(int(namesize, 16))
     if len(name_raw) < int(namesize, 16):
         raise ValueError("cpio: truncated name")
-    # [FIX] padding is relative to the start of the 110-byte header, not to the
+    # padding is relative to the start of the 110-byte header, not to the
     # name field itself (see _name_padding).
     pad = _name_padding(int(namesize, 16))
     if pad:

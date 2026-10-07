@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any
 from pathlib import Path
 
-# [FIX H296] Gate privileged /usr/share/xml filesystem mutation behind the
+# Gate privileged /usr/share/xml filesystem mutation behind the
 # zero-trust capability bridge. Adding XML directories/files and removing trees
 # are privileged operations that must require the `fs.admin` capability when a
 # CapabilityManager is wired (fail-closed); when no manager is wired the gate
@@ -220,7 +220,7 @@ class XMLManager:
 
     def add_directory(self, name: str) -> bool:
         """Add a new XML directory."""
-        # [FIX H296] privileged XML dir creation -> requires fs.admin.
+        #  privileged XML dir creation -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             dir_path = self.BASE_DIR / name
@@ -232,7 +232,7 @@ class XMLManager:
 
     def add_file(self, name: str, content: str = "") -> bool:
         """Add a new XML file."""
-        # [FIX H296] privileged XML file write -> requires fs.admin.
+        # privileged XML file write -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             path = self.BASE_DIR / name
@@ -246,7 +246,7 @@ class XMLManager:
 
     def remove_entry(self, name: str) -> bool:
         """Remove an XML entry."""
-        # [FIX H296] privileged unlink/rmtree -> requires fs.admin.
+        #  privileged unlink/rmtree -> requires fs.admin.
         gate.require(CAP_FS_ADMIN)
         try:
             entry = self.get_entry(name)

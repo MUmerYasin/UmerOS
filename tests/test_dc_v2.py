@@ -15,7 +15,7 @@ import os
 import sys
 import importlib.util
 
-# [FIX H262] Resolve the target module relative to the project root instead of a
+# Resolve the target module relative to the project root instead of a
 # hardcoded "UmerOS\quantum\..." path, which doubled up when the cwd already was
 # the project root (FileNotFoundError: UmerOS\UmerOS\quantum\...).
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

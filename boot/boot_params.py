@@ -35,6 +35,7 @@ Sysctl runtime parameters:
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -44,6 +45,8 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+
+log = logging.getLogger("UmerOS.Boot.Params")
 
 
 class ParamCategory(Enum):
@@ -173,7 +176,7 @@ class KernelCommandLine:
         "elevator": {
             "category": ParamCategory.PERFORMANCE,
             "description": "I/O scheduler",
-            "allowed_values": ["none", "mq-deadline", "bfq", "kyber", "kyber"],
+            "allowed_values": ["none", "mq-deadline", "bfq", "kyber"],
         },
         "selinux": {
             "category": ParamCategory.SECURITY,
@@ -723,7 +726,13 @@ class SysctlManager:
 
     def apply_profile(self, profile_name: str) -> int:
         """Apply a sysctl profile, returns number of params applied."""
-        profile = self.PROFILES.get(profile_name, {})
+        if profile_name not in self.PROFILES:
+            log.warning(
+                "Unknown sysctl profile '%s' (available: %s)",
+                profile_name, ", ".join(sorted(self.PROFILES)),
+            )
+            return 0
+        profile = self.PROFILES[profile_name]
         count = 0
         for path, value in profile.items():
             if path in self._params:
@@ -916,7 +925,12 @@ def _selftest() -> bool:
     val = sm.get("net.ipv4.tcp_syncookies")
     if val is None or val.value != 1:
         return False
-    sm.apply_profile("secure")
+    applied = sm.apply_profile("security-hardened")
+    if applied <= 0:
+        return False
+    # Unknown profiles must apply nothing (fail-safe).
+    if sm.apply_profile("no-such-profile") != 0:
+        return False
     text = sm.generate_config("99-test.conf")
     if "net.ipv4.tcp_syncookies" not in text:
         return False

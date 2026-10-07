@@ -109,12 +109,12 @@ class TestSecureBoot(unittest.TestCase):
         self.assertIn("kernel", self.sb._store)
 
     def test_default_is_strict_mode(self):
-        # [FIX H17] SecureBoot must default to fail-closed (strict) so unknown
+        # SecureBoot must default to fail-closed (strict) so unknown
         # components are denied rather than silently allowed.
         self.assertTrue(SecureBoot()._strict_mode)
 
     def test_verify_image_unknown_component_denied(self):
-        # [FIX H17] Zero-trust is fail-closed: an unknown component (no trust
+        # Zero-trust is fail-closed: an unknown component (no trust
         # entry) must be denied, not silently allowed.
         with tempfile.NamedTemporaryFile(delete=False) as f:
             f.write(b"test data")
@@ -127,7 +127,7 @@ class TestSecureBoot(unittest.TestCase):
             os.unlink(name)
 
     def test_verify_image_unknown_component_denied_dev_mode(self):
-        # [FIX H17] Even with strict_mode disabled, an unknown component is
+        # Even with strict_mode disabled, an unknown component is
         # still denied (returns False) — never allowed.
         self.sb._strict_mode = False
         with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -198,7 +198,7 @@ class TestSecureBoot(unittest.TestCase):
         self.assertFalse(result)
 
     def test_verify_nonexistent_unknown_component_denied(self):
-        # [FIX H17] A non-registered image with no trust entry is denied.
+        # A non-registered image with no trust entry is denied.
         self.sb._strict_mode = True
         with self.assertRaises(PermissionError):
             self.sb.verify_image("/nonexistent/kernel.py")

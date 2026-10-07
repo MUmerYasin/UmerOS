@@ -38,7 +38,7 @@ from typing import Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Etc.PasswdGroup")
 
-# [FIX H73] Zero-trust capability gate for privileged /etc writes. This manager
+# Zero-trust capability gate for privileged /etc writes. This manager
 # writes /etc/passwd and /etc/group, so it requires `fs.admin` when a
 # CapabilityManager is wired (fail-closed); standalone it is permissive (warning).
 try:
@@ -51,7 +51,7 @@ except Exception:  # pragma: no cover - standalone fallback
 
 
 def _is_host_etc(path) -> bool:
-    """[FIX H73] True if *path* resolves to a top-level /etc tree of a filesystem root.
+    """True if *path* resolves to a top-level /etc tree of a filesystem root.
 
     On POSIX that is ``/etc/...``; on Windows the equivalent is ``C:\\etc\\...``.
     A UmerOS-managed path such as ``/mnt/umos/etc`` is NOT a top-level ``etc``
@@ -97,7 +97,7 @@ class PasswdGroupManager:
 
     def __init__(self, etc_path: str = "/etc", allow_host_etc: bool = False):
         self.etc_path = Path(etc_path)
-        # [FIX H73] Writes to the real host /etc are fail-closed unless the caller
+        # Writes to the real host /etc are fail-closed unless the caller
         # explicitly opts in.
         self.allow_host_etc = allow_host_etc
         self.passwd_path = self.etc_path / "passwd"
@@ -219,7 +219,7 @@ class PasswdGroupManager:
 
     def _write_passwd(self, users: List[Dict]) -> bool:
         """Write user list back to /etc/passwd (capability-gated; refuses host /etc)."""
-        # [FIX H73] privileged /etc write: capability gate + host-/etc guard.
+        # privileged /etc write: capability gate + host-/etc guard.
         if not self.allow_host_etc and _is_host_etc(self.passwd_path):
             log.error("Refusing to write host /etc/passwd without allow_host_etc=True")
             return False
@@ -331,7 +331,7 @@ class PasswdGroupManager:
 
     def _write_group(self, groups: List[Dict]) -> bool:
         """Write group list back to /etc/group (capability-gated; refuses host /etc)."""
-        # [FIX H73] privileged /etc write: capability gate + host-/etc guard.
+        # privileged /etc write: capability gate + host-/etc guard.
         if not self.allow_host_etc and _is_host_etc(self.group_path):
             log.error("Refusing to write host /etc/group without allow_host_etc=True")
             return False

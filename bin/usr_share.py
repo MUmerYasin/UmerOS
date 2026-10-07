@@ -415,7 +415,7 @@ class ZDUMPCommand(Command):
                     f"{zone:20s}  {local.strftime('%Y-%m-%d %H:%M:%S %Z')}  "
                     f"UTC{local.strftime('%z')}"
                 )
-            except (KeyError, ValueError, OSError):  # [FIX H8]
+            except (KeyError, ValueError, OSError): 
                 # Fallback: just show UTC
                 output.append(f"{zone:20s}  (unknown timezone)")
         return "\n".join(output) + "\n"
@@ -714,7 +714,7 @@ class LocaleCommand(Command):
         import locale
         try:
             lang, encoding = locale.getlocale()
-        except (ValueError, AttributeError):  # [FIX H8]
+        except (ValueError, AttributeError):  
             lang, encoding = "C", "ASCII"
 
         categories = {

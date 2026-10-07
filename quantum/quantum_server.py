@@ -79,7 +79,7 @@ except ImportError as e:
             self.duration = duration
 
 # Create FastAPI app
-# [FIX H221] Secure-by-default network posture:
+# Secure-by-default network posture:
 #   * optional bearer-token auth on every route when UMEROS_QS_TOKEN is set;
 #   * CORS restricted to loopback origins unless UMEROS_QS_ALLOWED_ORIGINS
 #     overrides it (was allow_origins=["*"] with credentials=True — a combo
@@ -105,7 +105,7 @@ from fastapi import Header  # noqa: E402  (kept beside usage for clarity)
 def _auth_dependency(
     authorization: Optional[str] = Header(default=None, alias="Authorization"),
 ) -> None:
-    """[FIX H221] Bearer-token gate; enforced only when a token is configured."""
+    """Bearer-token gate; enforced only when a token is configured."""
     expected = os.environ.get("UMEROS_QS_TOKEN", "")
     if not expected:
         return  # no token configured — loopback-only default keeps surface local
@@ -537,7 +537,7 @@ async def export_to_qasm(request: QASMExportRequest):
 # Run the server
 if __name__ == "__main__":
     import uvicorn
-    # [FIX H221] Loopback bind by default; remote binding requires an explicit
+    # Loopback bind by default; remote binding requires an explicit
     # host override AND a configured bearer token.
     host = os.environ.get("UMEROS_QS_HOST", "127.0.0.1")
     token = os.environ.get("UMEROS_QS_TOKEN", "")

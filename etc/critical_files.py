@@ -52,7 +52,7 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Etc.CriticalFiles")
 
-# [FIX H73] Zero-trust capability gate for privileged /etc writes. The critical
+# Zero-trust capability gate for privileged /etc writes. The critical
 # files manager writes many real FHS /etc files (sudoers, crontab, sysctl, ...)
 # so it requires `fs.admin` when a CapabilityManager is wired (fail-closed);
 # standalone it is permissive (warning).
@@ -66,7 +66,7 @@ except Exception:  # pragma: no cover - standalone fallback
 
 
 def _is_host_etc(path) -> bool:
-    """[FIX H73] True if *path* resolves to a top-level /etc tree of a filesystem root.
+    """ True if *path* resolves to a top-level /etc tree of a filesystem root.
 
     On POSIX that is ``/etc/...``; on Windows the equivalent is ``C:\\etc\\...``.
     A UmerOS-managed path such as ``/mnt/umos/etc`` is NOT a top-level ``etc``
@@ -114,7 +114,7 @@ class CriticalFilesManager:
 
     def __init__(self, etc_path: str = "/etc", allow_host_etc: bool = False) -> None:
         self.etc_path = Path(etc_path)
-        # [FIX H73] Writes to the real host /etc are fail-closed unless the caller
+        # Writes to the real host /etc are fail-closed unless the caller
         # explicitly opts in.
         self.allow_host_etc = allow_host_etc
         self.skel_path = self.etc_path / "skel"
@@ -125,7 +125,7 @@ class CriticalFilesManager:
 
     def initialize(self) -> bool:
         """Create all missing critical files and directories."""
-        # [FIX H73] privileged /etc writes: capability-gated + host-/etc guard.
+        # privileged /etc writes: capability-gated + host-/etc guard.
         if not self.allow_host_etc and _is_host_etc(self.etc_path):
             log.error("Refusing to initialize host /etc without allow_host_etc=True")
             return False

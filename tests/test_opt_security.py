@@ -37,7 +37,7 @@ from opt.package import OptPackage                    # noqa: E402
 
 
 class TestLauncherScriptInjection(unittest.TestCase):
-    """[FIX H187] No shell metacharacter escape from generated scripts."""
+    """No shell metacharacter escape from generated scripts."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -90,7 +90,7 @@ class TestLauncherScriptInjection(unittest.TestCase):
 
 
 class TestOptCapGate(unittest.TestCase):
-    """[FIX H184] Privileged /opt ops are gated fail-closed when strict."""
+    """Privileged /opt ops are gated fail-closed when strict."""
 
     def setUp(self) -> None:
         self._prev_strict = cg.gate.strict

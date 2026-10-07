@@ -7,7 +7,7 @@ and audit reporting across all UmerOS subsystems.
 
 Approved Licenses:
 ------------------
-- GPL-3.0 (GNU General Public License Version 3)  [FIX H128]
+- GPL-3.0 (GNU General Public License Version 3)
   Exclusive License for all UmerOS source code (canonical decision H7).
 
 Author: UmerOS Project
@@ -73,7 +73,7 @@ class LicenseManager:
 
     @classmethod
     def get_license_text(cls, license_name: str = "GPL-3.0") -> str:
-        # [FIX H130] Strictly GPL-3.0: raise on any other requested license instead
+        # Strictly GPL-3.0: raise on any other requested license instead
         # of silently substituting the wrong text (the old code returned Apache-2.0
         # for unknown names including "GPL-3.0"). Correctness/integrity of attribution.
         if license_name != "GPL-3.0":
@@ -107,7 +107,7 @@ class LicenseManager:
                         with open(fp, "r", encoding="utf-8", errors="ignore") as fo:
                             content = fo.read(2048)  # Read top 2KB
 
-                            # [FIX H129] Fail-CLOSED license audit: a file is compliant ONLY
+                            # Fail-CLOSED license audit: a file is compliant ONLY
                             # when it carries an explicit GPL-3.0 license DECLARATION. A loose
                             # "GPL-3.0" substring (which any prose mention would satisfy) is NOT
                             # accepted — the old code counted such files compliant (fail-open),

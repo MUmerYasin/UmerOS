@@ -64,7 +64,7 @@ import json
 import logging
 import os
 import time
-# [FIX H93] Reuse the shared CWE-22 guard so a malicious cpio archive cannot
+# Reuse the shared CWE-22 guard so a malicious cpio archive cannot
 # write files outside the unpack target (directory traversal / arbitrary file
 # write).  The same guard backs /var, /opt, /srv, /tmp and the package manager.
 from core.path_guard import PathTraversalError, safe_join
@@ -359,7 +359,7 @@ class InitrdBuilder:
     def _unpack_to_dir(self, raw: bytes, target: Path) -> None:
         """Write a raw cpio stream out as a directory tree on disk.
 
-        [FIX H93] Every entry name is validated against ``target`` with the
+        Every entry name is validated against ``target`` with the
         shared ``safe_join`` guard.  A name carrying ``..`` segments or an
         absolute path would escape the image root and clobber arbitrary files
         (CWE-22 / arbitrary file write); such entries are refused fail-closed
@@ -371,7 +371,7 @@ class InitrdBuilder:
             rel = entry.name.lstrip("/")
             if not rel or rel == ".":
                 continue
-            # [FIX H93] Reject entries that escape the unpack target.
+            # Reject entries that escape the unpack target.
             try:
                 dest = safe_join(target, rel)
             except PathTraversalError as exc:

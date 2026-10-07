@@ -203,7 +203,7 @@ class ManEntry:
 class ManPageStatus(IntEnum):
     """Lifecycle status of a (pre-formatted) cat page.
 
-    [FIX import-time NameError] This enum was referenced by ``CatPage.status``
+    [import-time NameError] This enum was referenced by ``CatPage.status``
     (and used when building parse results) but never defined, which crashed
     ``import usr.man_page`` (and therefore ``import usr``) with a NameError.
     """

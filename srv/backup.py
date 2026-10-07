@@ -29,7 +29,7 @@ Author: UmerOS Project
 License: GPL-3.0
 """
 
-# [FIX H7] Normalize licence header to canonical "License: GPL-3.0" (drop redundant
+# Normalize licence header to canonical "License: GPL-3.0" (drop redundant
 # "GNU General Public License Version 3" parenthetical; repo is GPL-3.0 per LICENSE/setup.py/README).
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-# [FIX H265/H266] Guard against path traversal (CWE-22) when restoring service
+# Guard against path traversal (CWE-22) when restoring service
 # trees and when building the destination from the (attacker-controlled)
 # manifest `service_name`.
 import sys
@@ -57,7 +57,7 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.path_guard import safe_join, PathTraversalError
 
-# [FIX H267] Gate the destructive restore path behind the zero-trust capability
+# Gate the destructive restore path behind the zero-trust capability
 # bridge. `restore_backup` overwrites/rmtrees a service tree, so it must require
 # the `srv.backup` capability when a CapabilityManager is wired (fail-closed).
 try:
@@ -68,7 +68,7 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.capability_gate import gate, CAP_BACKUP
 
-# [FIX H265/H266] Python < 3.12 lacks the fail-closed `filter=` argument on
+# Python < 3.12 lacks the fail-closed `filter=` argument on
 # extractall(); fall back to no filter there (matching the >=3.12 target).
 _FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
 
@@ -180,7 +180,7 @@ class SrvBackupManager:
         """
         Restores a service tree from a backup archive.
         """
-        # [FIX H267] Require the backup/restore capability before any
+        # Require the backup/restore capability before any
         # overwrite/rmtree.  When a CapabilityManager is wired this enforces
         # zero-trust; standalone it is permissive (warning) so existing tooling
         # keeps working.
@@ -199,14 +199,14 @@ class SrvBackupManager:
         try:
             if tarfile.is_tarfile(archive_path):
                 with tarfile.open(archive_path, "r:*") as tar:
-                    # [FIX H265] filter="data" makes tar extraction
+                    # filter="data" makes tar extraction
                     # fail-closed against zip/tar-slip (CVE-2007-4559): members
                     # with ".." or absolute paths are rejected instead of
                     # escaping temp_dir.
                     tar.extractall(temp_dir, **_FILTER_KW)
             elif zipfile.is_zipfile(archive_path):
                 with zipfile.ZipFile(archive_path, "r") as zipf:
-                    # [FIX H266] same fail-closed extraction for zip archives.
+                    # same fail-closed extraction for zip archives.
                     zipf.extractall(temp_dir, **_FILTER_KW)
             else:
                 raise ValueError("Unknown archive format.")
@@ -224,7 +224,7 @@ class SrvBackupManager:
                 raise RuntimeError("No service directory found in archive.")
 
             src_folder = extracted_items[0]
-            # [FIX H195] Contain the destination against the manifest-supplied
+            # Contain the destination against the manifest-supplied
             # `service_name` (attacker-controlled). A name like "../../etc" is
             # refused instead of writing the restored tree outside target_root.
             if service_name:

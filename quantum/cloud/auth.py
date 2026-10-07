@@ -273,7 +273,7 @@ class AuthManager:
         """Load credentials from a JSON file.
 
         Reads the encrypted-at-rest envelope written by :meth:`save_to_file`
-        ([FIX H217]). Legacy **plaintext** credential files are refused with
+        Legacy **plaintext** credential files are refused with
         a actionable error — silently accepting them would re-open the
         plaintext-credentials hole through the load path.
 
@@ -319,7 +319,7 @@ class AuthManager:
     def save_to_file(self, provider: str, filepath: str) -> None:
         """Save credentials for *provider* to *filepath*, encrypted at rest.
 
-        [FIX H217] Credentials were previously written as plaintext JSON —
+        Credentials were previously written as plaintext JSON —
         any disk reader (backup sync, malware, curious roommate) got the
         provider API key. Now the payload is sealed with AES-256-GCM under a
         local key:

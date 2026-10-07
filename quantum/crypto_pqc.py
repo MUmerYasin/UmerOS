@@ -19,7 +19,7 @@ Provides CRYSTALS-Kyber (key encapsulation) and CRYSTALS-Dilithium
 library is installed**. When liboqs is missing, this module falls back to
 classical AES-256-GCM + Ed25519 — which is NOT quantum-safe.
 
-[FIX H216] The fallback was previously silent, so callers could believe
+The fallback was previously silent, so callers could believe
 they had post-quantum guarantees while running classical crypto. Always
 check ``PostQuantumCrypto.is_post_quantum`` (or call
 ``assert_post_quantum()`` in security-critical paths) before relying on
@@ -54,7 +54,7 @@ from typing import Tuple
 log = logging.getLogger("UmerOS.CryptoPQC")
 
 # Try to import liboqs (post-quantum); fall back to classical crypto
-# [FIX H152] Honest fallback. The guard catches BaseException-derived
+# Honest fallback. The guard catches BaseException-derived
 # failures too: broken liboqs wheels call sys.exit(1) from their own
 # module import when the native shared library is missing (observed with
 # oqs on Python 3.14), and a plain `except ImportError` lets that
@@ -249,7 +249,7 @@ class _FallbackBackend:
 class PostQuantumCrypto:
     """Unified cryptography facade with optional post-quantum backend.
 
-    [FIX H152] Selects the liboqs backend when available; otherwise it falls
+    Selects the liboqs backend when available; otherwise it falls
     BACK to a *classical* Ed25519/AES-256-GCM implementation.  This downgrade
     was previously silent, so callers believing they had quantum-safe crypto
     got classical crypto without notice.  The facade now exposes
@@ -276,7 +276,7 @@ class PostQuantumCrypto:
         if _LIBOQS_AVAILABLE:
             log.info("PostQuantumCrypto using liboqs (post-quantum) backend.")
         else:
-            # [FIX H152] Explicit, not silent: log that classical crypto is in
+            # Explicit, not silent: log that classical crypto is in
             # use in place of the advertised post-quantum backend.
             log.warning(
                 "PostQuantumCrypto using CLASSICAL fallback (Ed25519/AES-256-GCM) "
@@ -285,7 +285,7 @@ class PostQuantumCrypto:
             )
 
     def assert_post_quantum(self) -> None:
-        """[FIX H152] Raise if the active backend is not post-quantum.
+        """Raise if the active backend is not post-quantum.
 
         Security-critical callers (e.g. firmware signing) should call this to
         avoid silently downgrading to classical crypto.

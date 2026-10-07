@@ -93,7 +93,7 @@ class FoldCommand:
                 else:
                     for i in range(0, len(line), width):
                         print(line[i:i + width])
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: only stream IO / decode errors expected here
+        except (OSError, ValueError) as e:  #  narrow: only stream IO / decode errors expected here
             print(f"fold: {e}", file=sys.stderr)
             return 1
 
@@ -122,7 +122,7 @@ class NohupCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
+        except (ImportError, ModuleNotFoundError, AttributeError):  # narrow
             print(f"nohup: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -166,7 +166,7 @@ class StraceCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
+        except (ImportError, ModuleNotFoundError, AttributeError):  #narrow
             print(f"strace: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -207,7 +207,7 @@ class TasksetCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
+        except (ImportError, ModuleNotFoundError, AttributeError):  # narrow
             print(f"taskset: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -234,7 +234,7 @@ class TimeCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             exit_code = sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
+        except (ImportError, ModuleNotFoundError, AttributeError):  # narrow
             print(f"time: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -281,7 +281,7 @@ class NiceCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
+        except (ImportError, ModuleNotFoundError, AttributeError):  # narrow
             print(f"nice: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -395,7 +395,7 @@ class TeeCommand:
             try:
                 mode = 'a' if append else 'w'
                 file_handles.append(open(f, mode))
-            except OSError as e:  # [FIX H8] narrow: open() only raises OSError subclasses
+            except OSError as e:  #  narrow: open() only raises OSError subclasses
                 print(f"tee: {e}", file=sys.stderr)
                 return 1
 
@@ -407,7 +407,7 @@ class TeeCommand:
                 for fh in file_handles:
                     fh.write(line)
                     fh.flush()
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+        except (OSError, ValueError) as e:  #narrow: stream read / decode errors
             print(f"tee: {e}", file=sys.stderr)
             return 1
         finally:
@@ -458,7 +458,7 @@ class WcCommand:
                 total_lines += 1
                 total_words += len(line.split())
                 total_bytes += len(line.encode('utf-8'))
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+        except (OSError, ValueError) as e:  # narrow: stream read / decode errors
             print(f"wc: {e}", file=sys.stderr)
             return 1
 
@@ -508,7 +508,7 @@ class HeadCommand:
                     break
                 print(line.rstrip('\n'))
                 count += 1
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+        except (OSError, ValueError) as e:  # narrow: stream read / decode errors
             print(f"head: {e}", file=sys.stderr)
             return 1
 
@@ -555,7 +555,7 @@ class TailCommand:
 
             for line in lines[-n:]:
                 print(line)
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+        except (OSError, ValueError) as e:  # narrow: stream read / decode errors
             print(f"tail: {e}", file=sys.stderr)
             return 1
 
@@ -614,7 +614,7 @@ class CutCommand:
                     print(''.join(selected))
                 else:
                     print(line)
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode / field-parse errors
+        except (OSError, ValueError) as e:  # narrow: stream read / decode / field-parse errors
             print(f"cut: {e}", file=sys.stderr)
             return 1
 
@@ -664,7 +664,7 @@ class SortCommand:
         try:
             for line in input_stream:
                 lines.append(line.rstrip('\n'))
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+        except (OSError, ValueError) as e:  #narrow: stream read / decode errors
             print(f"sort: {e}", file=sys.stderr)
             return 1
 
@@ -715,7 +715,7 @@ class UniqCommand:
         try:
             for line in input_stream:
                 lines.append(line.rstrip('\n'))
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+        except (OSError, ValueError) as e:  # narrow: stream read / decode errors
             print(f"uniq: {e}", file=sys.stderr)
             return 1
 
@@ -774,7 +774,7 @@ class TrCommand:
                     for char in line:
                         if char not in chars_to_delete:
                             sys.stdout.write(char)
-            except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+            except (OSError, ValueError) as e:  # narrow: stream read / decode errors
                 print(f"tr: {e}", file=sys.stderr)
                 return 1
         else:
@@ -796,7 +796,7 @@ class TrCommand:
                 for line in input_stream:
                     translated = ''.join(trans_table.get(char, char) for char in line)
                     sys.stdout.write(translated)
-            except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+            except (OSError, ValueError) as e:  # narrow: stream read / decode errors
                 print(f"tr: {e}", file=sys.stderr)
                 return 1
 
@@ -832,10 +832,10 @@ class XargsCommand:
                         exit_code = sh_cmd.execute([cmd] + full_args, None, None)
                         if exit_code != 0:
                             return exit_code
-                    except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
+                    except (ImportError, ModuleNotFoundError, AttributeError):  # narrow
                         print(f"xargs: {cmd}: not found", file=sys.stderr)
                         return 127
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: stream read / decode errors
+        except (OSError, ValueError) as e:  #  narrow: stream read / decode errors
             print(f"xargs: {e}", file=sys.stderr)
             return 1
 
@@ -887,7 +887,7 @@ class IdCommand:
             egid = os.getegid() if hasattr(os, 'getegid') else 0
 
             print(f"uid={uid}(root) gid={gid}(root) euid={euid}(root) egid={egid}(root)")
-        except (OSError, AttributeError):  # [FIX H8] narrow
+        except (OSError, AttributeError):  #  narrow
             print("uid=0(root) gid=0(root)")
 
         return 0
@@ -904,7 +904,7 @@ class WhoamiCommand:
             import os
             name = os.getenv('USER', 'root')
             print(name)
-        except (OSError, AttributeError):  # [FIX H8] narrow
+        except (OSError, AttributeError):  #  narrow
             print("root")
         return 0
 
@@ -1066,7 +1066,7 @@ class TouchCommand:
                 elif not create_only:
                     with open(filepath, 'a'):
                         os.utime(filepath, None)
-            except OSError as e:  # [FIX H8] narrow: utime/open only raise OSError subclasses
+            except OSError as e:  # narrow: utime/open only raise OSError subclasses
                 print(f"touch: {filepath}: {e}", file=sys.stderr)
                 return 1
 
@@ -1181,7 +1181,7 @@ class TimeoutCommand:
             module = __import__("bin.shell", fromlist=["ShCommand"])
             sh_cmd = module.ShCommand()
             return sh_cmd.execute([cmd] + cmd_args, stdin, stdout)
-        except (ImportError, ModuleNotFoundError, AttributeError):  # [FIX H8] narrow
+        except (ImportError, ModuleNotFoundError, AttributeError):  # narrow
             print(f"timeout: command '{cmd}' not found", file=sys.stderr)
             return 127
 
@@ -1275,7 +1275,7 @@ class GrepCommand:
                             print(f"{prefix}{line.rstrip()}")
                 if count_only:
                     print(str(match_count))
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: file IO / decode errors (re.error handled above)
+        except (OSError, ValueError) as e:  # narrow: file IO / decode errors (re.error handled above)
             print(f"grep: {e}", file=sys.stderr)
             return 1
 
@@ -1412,7 +1412,7 @@ class AwkCommand:
             for line in input_lines:
                 # Simple stub: just print the line
                 print(line.rstrip())
-        except (OSError, ValueError) as e:  # [FIX H8] narrow: file IO / decode errors
+        except (OSError, ValueError) as e:  # narrow: file IO / decode errors
             print(f"awk: {e}", file=sys.stderr)
             return 1
 
@@ -1502,7 +1502,7 @@ class DuCommand:
                     size_str = str(total_size // 1024)
 
                 print(f"{size_str}\t{d}")
-        except OSError as e:  # [FIX H8] narrow: getsize/walk only raise OSError subclasses
+        except OSError as e:  # narrow: getsize/walk only raise OSError subclasses
             print(f"du: {e}", file=sys.stderr)
             return 1
 
@@ -1559,7 +1559,7 @@ class FileCommand:
                         print(f"{path}: ASCII text")
                     except UnicodeDecodeError:
                         print(f"{path}: data")
-            except OSError as e:  # [FIX H8] narrow: open/read only raise OSError subclasses
+            except OSError as e:  # narrow: open/read only raise OSError subclasses
                 print(f"{path}: error: {e}")
 
         return 0

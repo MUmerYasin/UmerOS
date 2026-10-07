@@ -100,7 +100,7 @@ def test_check_is_trusted_no_bundle_returns_false():
 
 
 # ---------------------------------------------------------------------------
-# [FIX H147] Expiry enforcement + fail-closed check_trust
+# Expiry enforcement + fail-closed check_trust
 # ---------------------------------------------------------------------------
 
 def _cert_pem(not_before: "datetime", not_after: "datetime", cn: str = "Test CA") -> bytes:
@@ -133,7 +133,7 @@ def _write(path: str, pem: bytes) -> str:
 
 
 def test_expired_cert_is_detected():
-    """[FIX H147] is_expired must reflect real notAfter, not a constant False."""
+    """is_expired must reflect real notAfter, not a constant False."""
     from datetime import datetime, timedelta, timezone
     from lib.ssl_libs import CertInfo, CertFormat, CertPurpose
 
@@ -160,7 +160,7 @@ def test_expired_cert_is_detected():
 
 
 def test_check_trust_rejects_expired_certificate(tmp_path):
-    """[FIX H147] An expired certificate is never trusted — even in-store."""
+    """An expired certificate is never trusted — even in-store."""
     from datetime import datetime, timedelta
 
     expired = _cert_pem(datetime(2020, 1, 1), datetime(2021, 1, 1))
@@ -177,7 +177,7 @@ def test_check_trust_rejects_expired_certificate(tmp_path):
 
 
 def test_check_trust_ca_shortcut_requires_bundle_membership(tmp_path):
-    """[FIX H147] CA:TRUE alone no longer grants trust (old fail-open shortcut)."""
+    """CA:TRUE alone no longer grants trust (old fail-open shortcut)."""
     from datetime import datetime, timedelta
 
     valid = _cert_pem(
@@ -193,7 +193,7 @@ def test_check_trust_ca_shortcut_requires_bundle_membership(tmp_path):
 
 
 def test_check_trust_positive_path_in_store(tmp_path):
-    """[FIX H147] Positive case still works: in-bundle, unexpired -> trusted."""
+    """Positive case still works: in-bundle, unexpired -> trusted."""
     from datetime import datetime, timedelta
 
     pem = _cert_pem(

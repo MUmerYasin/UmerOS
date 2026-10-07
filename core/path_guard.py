@@ -84,12 +84,12 @@ def safe_child(root: "str | Path", name: str) -> Path:
     Raises:
         PathTraversalError: if ``name`` tries to escape ``root``.
     """
-    # [FIX CWE-22] Normalize the trusted root once. resolve() follows
+    # Normalize the trusted root once. resolve() follows
     # symlinks so the containment check is against the real on-disk location.
     root_abs = Path(root).resolve()
     _reject_obvious_escape(name)
 
-    # [FIX CWE-22] Build and resolve the candidate, then prove containment.
+    # Build and resolve the candidate, then prove containment.
     candidate = (root_abs / name).resolve()
     if candidate != root_abs and root_abs not in candidate.parents:
         raise PathTraversalError(
@@ -123,7 +123,7 @@ def safe_join(root: "str | Path", *names: str) -> Path:
     for name in names:
         if name is None:
             raise PathTraversalError("Refusing None path component")
-        # [FIX CWE-22] Split on separators so nested names are supported, then
+        # Split on separators so nested names are supported, then
         # validate every component (no "..", no stray separators).
         for part in str(name).replace("\\", "/").split("/"):
             if part in ("", "."):
@@ -136,7 +136,7 @@ def safe_join(root: "str | Path", *names: str) -> Path:
                 raise PathTraversalError(
                     f"Refusing separator in path component: {part!r}"
                 )
-            # [FIX CWE-22] Re-resolve after each component so a crafted name
+            # Re-resolve after each component so a crafted name
             # cannot undo prior containment via symlinks.
             current = (current / part).resolve()
     if current != root_abs and root_abs not in current.parents:

@@ -4,7 +4,7 @@ Umer OS Package Manager (umer-pkg)  [TODAY]
 Secure, atomic package management for Umer OS.
 
 Features:
-  # [FIX H13] Previously claimed "Signed .umerpkg" but only computed a SHA3-256
+  # Previously claimed "Signed .umerpkg" but only computed a SHA3-256
   # *integrity* hash — no signature, no trusted key (overstated crypto, H13 /
   # H132 / H138 / H154 family).  Now archives carry a real Ed25519 signature
   # verified against a pinned chain-of-trust, fail-closed.
@@ -32,13 +32,13 @@ Author:  Umer OS Project
 License: GPL-3.0
 """
 
-# [FIX H7] Normalize licence header to canonical "License: GPL-3.0" (drop redundant
+# Normalize licence header to canonical "License: GPL-3.0" (drop redundant
 # "GNU General Public License Version 3" parenthetical; repo is GPL-3.0 per LICENSE/setup.py/README).
 from __future__ import annotations
 
-import base64  # [FIX H13] Ed25519 signature (de)serialisation
+import base64  # Ed25519 signature (de)serialisation
 import hashlib
-import hmac  # [FIX H196] constant-time hash compare
+import hmac  # constant-time hash compare
 import json
 import logging
 import os
@@ -47,10 +47,10 @@ import sys
 import tarfile
 import tempfile
 import time
-from pathlib import Path  # [FIX] remove() used Path without importing it
+from pathlib import Path  #remove() used Path without importing it
 from typing import Dict, List, Optional, Set, Union
 
-# [FIX H194/H195] Guard against path traversal (CWE-22) in package install /
+# Guard against path traversal (CWE-22) in package install /
 # build paths derived from the (attacker-controlled) manifest name/version.
 try:
     from core.path_guard import safe_child, PathTraversalError
@@ -60,7 +60,7 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.path_guard import safe_child, PathTraversalError
 
-# [FIX H198] Privileged package lifecycle ops (install/remove/update mutate the
+# Privileged package lifecycle ops (install/remove/update mutate the
 # shared packages tree and registry) go through the zero-trust capability
 # bridge — permissive when no CapabilityManager is wired, fail-closed when one
 # is (same pattern as opt/ mnt/ media/ usr/ var/ clusters).
@@ -71,12 +71,12 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.capability_gate import gate, CAP_FS_ADMIN
 
-# [FIX H194] Python < 3.12 lacks the fail-closed `filter=` argument on
+# Python < 3.12 lacks the fail-closed `filter=` argument on
 # extractall(); on those interpreters we fall back to no filter (still unsafe,
 # but matching the documented >=3.12 support target of UmerOS).
 _FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
 
-# [FIX H13] Real Ed25519 signing + pinned chain-of-trust.  `cryptography` is a
+# Real Ed25519 signing + pinned chain-of-trust.  `cryptography` is a
 # hard dependency for package authenticity; fall back to a clear error only if
 # it is genuinely unavailable (should never happen in the managed venv).
 try:
@@ -107,7 +107,7 @@ def _coerce_signing_key(key):
     return Ed25519PrivateKey.from_private_bytes(bytes(key))
 
 
-# [FIX H196/H197] Deterministic integrity hash over the manifest + full payload.
+# Deterministic integrity hash over the manifest + full payload.
 # Covers manifest.json AND every file under files/ in sorted order, so a
 # tampered or missing payload fails verification (previously only the manifest
 # bytes were hashed, and a missing HASH was silently skipped — both fail-open).
@@ -262,7 +262,7 @@ class UmerPackageManager:
         self._db: Dict[str, dict] = {}
         # Local registry: name → PackageManifest
         self._registry: Dict[str, PackageManifest] = {}
-        # [FIX H13] Snapshot of the chain-of-trust anchor at construction time.
+        # Snapshot of the chain-of-trust anchor at construction time.
         # Keyed by signer id; only keys present here may authentically sign
         # packages this manager installs.
         self._trusted_keys: Dict[str, bytes] = dict(TRUSTED_PUBLIC_KEYS)
@@ -297,7 +297,7 @@ class UmerPackageManager:
         self._trusted_keys[key_id] = raw
 
     def verify_package(self, pkg_path: str) -> bool:
-        """[FIX H13] Public authenticity gate: integrity hash AND Ed25519
+        """ Public authenticity gate: integrity hash AND Ed25519
         signature against the pinned chain-of-trust.  Fail-closed — returns
         ``False`` for unsigned, tampered, or signed-by-untrusted packages.
         """
@@ -370,7 +370,7 @@ class UmerPackageManager:
         return PackageManifest(data)
 
     def _verify_hash(self, pkg_path: str) -> bool:
-        """[FIX H196] Verify the package's embedded HASH (fail-closed).
+        """Verify the package's embedded HASH (fail-closed).
 
         The HASH file contains the SHA3-256 of the manifest.json content AND
         the entire files/ payload (deterministic order — see
@@ -413,7 +413,7 @@ class UmerPackageManager:
             log.error("Package hash MISMATCH for '%s' — refusing install.", pkg_path)
         return ok
 
-    # [FIX H13] Real signature verification against the pinned chain-of-trust.
+    # Real signature verification against the pinned chain-of-trust.
     def _verify_package(self, pkg_path: str) -> bool:
         """Verify BOTH the integrity hash AND the Ed25519 signature.
 
@@ -491,7 +491,7 @@ class UmerPackageManager:
         Returns:
             True on success, False on failure.
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H198] privileged install
+        gate.require(CAP_FS_ADMIN)  # privileged install
         if package_name in self._db:
             log.info("'%s' is already installed (version %s).",
                      package_name, self._db[package_name]["version"])
@@ -547,7 +547,7 @@ class UmerPackageManager:
             return False
 
         manifest = self._read_manifest(pkg_path)
-        # [FIX H195] Contain the install dir against the manifest-supplied
+        # Contain the install dir against the manifest-supplied
         # `name` (which an attacker controls via a malicious .umerpkg). A name
         # like "../../etc/cron.d" is refused and the install aborts closed.
         try:
@@ -570,7 +570,7 @@ class UmerPackageManager:
                     m for m in tar.getmembers()
                     if m.name.startswith("files/")
                 ]
-                # [FIX H194] filter="data" makes extraction fail-closed against
+                # filter="data" makes extraction fail-closed against
                 # zip/tar-slip (CVE-2007-4559): members with ".." or absolute
                 # paths are rejected instead of escaping `dest`.
                 tar.extractall(path=dest, members=members, **_FILTER_KW)
@@ -609,14 +609,14 @@ class UmerPackageManager:
         Returns:
             True if removed, False if not installed.
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H198] privileged remove
+        gate.require(CAP_FS_ADMIN)  #  privileged remove
         if package_name not in self._db:
             log.warning("'%s' is not installed.", package_name)
             return False
 
         dest = self._db[package_name].get("path", "")
         if os.path.isdir(dest):
-            # [FIX H195] Defense-in-depth: only delete paths that actually
+            # Defense-in-depth: only delete paths that actually
             # reside inside the install dir (the stored path may be legacy or
             # tainted by a pre-fix install).
             inst_root = Path(self._install_dir).resolve()
@@ -642,7 +642,7 @@ class UmerPackageManager:
         Returns:
             Dict mapping package name → True (updated) / False (failed).
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H198] privileged update
+        gate.require(CAP_FS_ADMIN)  # privileged update
         targets = [package_name] if package_name else list(self._db.keys())
         results: Dict[str, bool] = {}
 
@@ -741,7 +741,7 @@ class UmerPackageManager:
         """
         pm = PackageManifest(manifest)
         pkg_filename = f"{pm.name}-{pm.version}.umerpkg"
-        # [FIX H195] Contain the package file against the manifest-supplied
+        # Contain the package file against the manifest-supplied
         # name/version (a malicious name could otherwise write anywhere via
         # "../../etc/x"). Refuse traversal and fail closed.
         try:
@@ -749,7 +749,7 @@ class UmerPackageManager:
         except PathTraversalError as exc:
             raise ValueError(f"Refusing unsafe .umerpkg output path: {exc}")
 
-        # [FIX H13] Build the embedded manifest WITH the signature metadata so
+        # Build the embedded manifest WITH the signature metadata so
         # the integrity hash (and therefore the verify path) is byte-stable
         # across build and install.  The signature authenticates the integrity
         # hash, so the manifest contents are what get bound by the signature.
@@ -762,13 +762,13 @@ class UmerPackageManager:
             }
         manifest_bytes = json.dumps(embed_manifest, indent=2).encode()
 
-        # [FIX H196/H197] Collect the full payload and compute a deterministic,
+        # Collect the full payload and compute a deterministic,
         # full-payload integrity hash (manifest + every files/ entry).
         file_items: "list[tuple[str, bytes, str]]" = []  # (arcname, data, full_path)
         for root, _, files in os.walk(source_dir):
             for fname in files:
                 full = os.path.join(root, fname)
-                # [FIX H196] Use POSIX forward-slash arcnames.  tarfile normalises
+                #  Use POSIX forward-slash arcnames.  tarfile normalises
                 # member names to "/" on read, so a Windows backslash arcname here
                 # would diverge from the name re-read during _verify_hash and break
                 # the integrity hash.  Normalising explicitly keeps build and
@@ -782,7 +782,7 @@ class UmerPackageManager:
             manifest_bytes, [(a, d) for a, d, _ in file_items]
         )
 
-        # [FIX H13] Produce the Ed25519 signature over the integrity hash.
+        # Produce the Ed25519 signature over the integrity hash.
         sig_b64 = None
         if signed:
             priv = _coerce_signing_key(signing_key)
@@ -804,7 +804,7 @@ class UmerPackageManager:
             tar.add(tmp_name, arcname="HASH")
             os.unlink(tmp_name)
 
-            # [FIX H13] Add SIGNATURE member when signed (base64 Ed25519 sig).
+            # Add SIGNATURE member when signed (base64 Ed25519 sig).
             if sig_b64 is not None:
                 with tempfile.NamedTemporaryFile(delete=False) as tmp:
                     tmp.write(sig_b64.encode())
@@ -855,7 +855,7 @@ class UmerPackageManager:
 
 # ─── Command-line interface (umer-pkg) ──────────────────────────────────────
 #
-# [FIX] ``setup.py`` registers ``umer-pkg=packages.umer_pkg:main``, but no
+# ``setup.py`` registers ``umer-pkg=packages.umer_pkg:main``, but no
 # ``main`` existed anywhere in this module, so the advertised console script
 # raised ``AttributeError`` at import and could never run.  The manager beneath
 # it is the most complete subsystem in the tree (real Ed25519 chain-of-trust,

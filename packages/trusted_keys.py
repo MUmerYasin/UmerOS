@@ -39,7 +39,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PublicKey,
 )
 
-# [FIX H13] Canonical UmerOS release public key (Ed25519, raw 32 bytes).
+# Canonical UmerOS release public key (Ed25519, raw 32 bytes).
 # The corresponding private key is generated OFFLINE and must never be committed
 # to the repository.  This is the root of the package chain-of-trust.
 UMER_RELEASE_PUBLIC_KEY: bytes = (
@@ -62,7 +62,7 @@ def _load_private(raw: Union[bytes, bytearray, Ed25519PrivateKey]) -> Ed25519Pri
     return Ed25519PrivateKey.from_private_bytes(bytes(raw))
 
 
-# [FIX H13] The live, mutable trust store.  Starts with only the release anchor.
+# The live, mutable trust store.  Starts with only the release anchor.
 # ``UmerPackageManager`` snapshots this at construction time; mutating it (via
 # :func:`pin_trusted_key`) affects managers built afterwards.
 TRUSTED_PUBLIC_KEYS: Dict[str, bytes] = {

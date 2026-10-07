@@ -43,7 +43,7 @@ from typing import Any, Optional
 
 logger = logging.getLogger("UmerOS.Cloud.OtaUpdater.update_system")
 
-# [FIX H47] Brought the module up to the per-file baseline (§4.4): added
+# Brought the module up to the per-file baseline (§4.4): added
 # `from __future__ import annotations`, replaced `print` with `logging`,
 # completed Python type hints, converted docstrings to Google style, marked the
 # (simulated) module `[EXPERIMENTAL]`, and wrapped the pipeline in try/except.
@@ -51,7 +51,7 @@ logger = logging.getLogger("UmerOS.Cloud.OtaUpdater.update_system")
 # behavioural change to verification — only the baseline/observability uplift.
 
 # ---------------------------------------------------------------------------
-# [FIX H48] Externalize the OTA update endpoint + pin the update source.
+# Externalize the OTA update endpoint + pin the update source.
 # Previously `update_url` was a simulated domain hardcoded directly in __init__
 # (no config surface, no cert/key pinning). Now:
 #   * the endpoint comes from UMEROS_OTA_UPDATE_URL (falling back to a named
@@ -98,14 +98,14 @@ class UpdateManager:
                 are explicitly allowed via ``UMEROS_OTA_ALLOW_UNSIGNED``.
             update_url: Optional override of the OTA endpoint. When ``None`` the
                 endpoint is read from ``UMEROS_OTA_UPDATE_URL`` (falling back to
-                ``DEFAULT_OTA_UPDATE_URL``). [FIX H48]
+                ``DEFAULT_OTA_UPDATE_URL``).
 
         Returns:
             None
         """
         self.crypto = crypto_engine
         self.trusted_public_key = trusted_public_key
-        # [FIX H48] Externalize the endpoint + pin the update source.
+        # Externalize the endpoint + pin the update source.
         self.update_url = (
             update_url
             or os.environ.get("UMEROS_OTA_UPDATE_URL", DEFAULT_OTA_UPDATE_URL)
@@ -116,14 +116,14 @@ class UpdateManager:
         self.pinned_expected_host = os.environ.get(
             "UMEROS_OTA_PINNED_HOST", DEFAULT_OTA_PINNED_HOST
         )
-        # [FIX H49] Rollback + audit state (simulated — no real disk mutation).
+        # Rollback + audit state (simulated — no real disk mutation).
         self.applied_version: str = self.CURRENT_VERSION
         self.last_good_version: str = self.CURRENT_VERSION
         self._audit_log: list[dict[str, Any]] = []
         logger.info("[OTA] Update Manager initialized (endpoint=%s).", self.update_url)
 
     def _assert_update_source_trusted(self) -> bool:
-        """[FIX H48] Fail-closed validation of the configured update source.
+        """Fail-closed validation of the configured update source.
 
         Refuses (returns ``False``) when any of the following hold:
           * the endpoint is not HTTPS (plaintext transport);
@@ -162,7 +162,7 @@ class UpdateManager:
         return True
 
     # ----------------------------------------------------------------------
-    # [FIX H49] Rollback + audit trail (simulated; real apply needs an on-disk
+    # Rollback + audit trail (simulated; real apply needs an on-disk
     # snapshot + persisted audit — see standard §9 H49).
     # ----------------------------------------------------------------------
     def _audit(self, stage: str, ok: bool, detail: str = "") -> None:
@@ -177,7 +177,7 @@ class UpdateManager:
         return list(self._audit_log)
 
     def rollback(self) -> bool:
-        """[FIX H49] rollback to the last known-good version.
+        """rollback to the last known-good version.
 
         The apply stage is (real disk/state mutation), so this only
         moves the in-memory version pointers. A real updater MUST persist a
@@ -203,7 +203,7 @@ class UpdateManager:
             dict: A simulated manifest with ``latest_version``,
             ``current_version``, ``delta_size_mb`` and ``changelog`` keys.
         """
-        # [FIX H48] Fail-closed: refuse to fetch/accept a manifest from an
+        # Fail-closed: refuse to fetch/accept a manifest from an
         # untrusted or unpinned update source.
         if not self._assert_update_source_trusted():
             self._audit("check", False, "update source untrusted")
@@ -249,7 +249,7 @@ class UpdateManager:
         return b"UMER_OS_DELTA_PAYLOAD_v2.1.0"
 
     def verify_and_apply(self, payload: bytes, manifest: dict) -> bool:
-        """[FIX H154] Verify the update signature and apply it (fail-closed).
+        """Verify the update signature and apply it (fail-closed).
 
         Previously this signed the payload *with its own engine* and declared
         success, or skipped the check entirely when no engine was configured —
@@ -268,7 +268,7 @@ class UpdateManager:
             applied; ``False`` otherwise (always fail-closed).
         """
         signature = manifest.get("signature")
-        # [FIX H46] Fail-closed OTA posture: an update is applied ONLY after a
+        # Fail-closed OTA posture: an update is applied ONLY after a
         # verifiable signature. Missing crypto engine / trusted key / signature,
         # a verify error, or a failed verification all REFUSE the update — it is
         # never silently applied (same zero-trust family as H17/H27/H28/H37).
@@ -289,7 +289,7 @@ class UpdateManager:
             logger.error("[OTA] Signature verification FAILED — refusing update.")
             self._audit("verify", False, "signature mismatch")
             return False
-        # [FIX H49] Record the last-good version before the (simulated) apply.
+        # Record the last-good version before the (simulated) apply.
         self.last_good_version = self.applied_version
         self.applied_version = str(manifest.get("latest_version", self.applied_version))
         self._audit("verify", True, f"v{self.applied_version}")

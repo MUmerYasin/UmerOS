@@ -50,7 +50,7 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
-# [FIX H102] Zero-trust capability gate for privileged install / rollback ops.
+# Zero-trust capability gate for privileged install / rollback ops.
 try:  # Preferred: import from inside the UmerOS package layout.
     from core.capability_gate import gate, CAP_FS_ADMIN, CAP_INSTALL
 except Exception:  # pragma: no cover - standalone / out-of-package fallback.
@@ -101,7 +101,7 @@ EULA_TEXT = """
 
 
 # ---------------------------------------------------------------------------
-# [FIX H101/H103] Path-safety helpers for privileged install operations
+# Path-safety helpers for privileged install operations
 # ---------------------------------------------------------------------------
 
 # Never create or remove the filesystem root, the bare '/opt' parent of the
@@ -236,7 +236,7 @@ class UmerInstaller:
 
     # ── EULA ──────────────────────────────────────────────────────────────
 
-    # [FIX H99] The liability waiver is fail-closed: a non-interactive caller gets
+    # The liability waiver is fail-closed: a non-interactive caller gets
     # NO consent (the old ``install.py`` stub auto-accepted it — removed with H98).
     def show_eula(self) -> bool:
         """Display the EULA and request explicit consent.
@@ -323,7 +323,7 @@ class UmerInstaller:
         Returns:
             Path to the backup file.
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H102] privileged bootloader backup write
+        gate.require(CAP_FS_ADMIN)  #  privileged bootloader backup write
         backup_dir = dest or self._backup_dir
         os.makedirs(backup_dir, exist_ok=True)
         ts = int(time.time())
@@ -365,17 +365,17 @@ class UmerInstaller:
         os.makedirs(dst, exist_ok=True)
         self._logger.record(f"Copying files from '{src}' to '{dst}'.")
 
-        # [FIX H102] Privileged copy requires a capability (fail-closed when wired).
+        #  Privileged copy requires a capability (fail-closed when wired).
         gate.require(CAP_FS_ADMIN)
         for root, dirs, files in os.walk(src):
             # Skip hidden dirs like .git (H103: also skip hidden files).
             dirs[:] = [d for d in dirs if not d.startswith(".")]
             for fname in files:
-                if fname.startswith("."):  # [FIX H103] never copy dotfiles
+                if fname.startswith("."):  #  never copy dotfiles
                     continue
                 src_path = os.path.join(root, fname)
                 rel_path = os.path.relpath(src_path, src)
-                # [FIX H103] Reject copy destinations that escape the install root.
+                #  Reject copy destinations that escape the install root.
                 dst_path = _safe_join(dst, rel_path)
                 if dst_path is None:
                     log.warning("Skipping copy that escapes install root: %s", rel_path)
@@ -405,7 +405,7 @@ class UmerInstaller:
         Returns:
             True on success.
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H102] privileged bootloader write
+        gate.require(CAP_FS_ADMIN)  #  privileged bootloader write
         boot_dir = target or os.path.join(self._install_root, "boot")
         os.makedirs(boot_dir, exist_ok=True)
         entry = {
@@ -428,7 +428,7 @@ class UmerInstaller:
 
         Creates ``/opt/umer_os/config/first_boot.json`` with defaults.
         """
-        gate.require(CAP_FS_ADMIN)  # [FIX H102] privileged first-boot config write
+        gate.require(CAP_FS_ADMIN)  # privileged first-boot config write
         cfg_dir  = os.path.join(self._install_root, "config")
         os.makedirs(cfg_dir, exist_ok=True)
         cfg_path = os.path.join(cfg_dir, "first_boot.json")
@@ -461,13 +461,13 @@ class UmerInstaller:
             log.warning("Rollback called but nothing was installed.")
             return False
 
-        # [FIX H101] Refuse to remove an unsafe install root (data-loss guard).
+        # Refuse to remove an unsafe install root (data-loss guard).
         if not _is_safe_install_root(self._install_root):
             log.error("Rollback refused: install root %r is not a safe path.", self._install_root)
             self._logger.record(f"Rollback refused: unsafe install root '{self._install_root}'.")
             self._logger.flush()
             return False
-        # [FIX H102] Privileged destructive op requires a capability.
+        # Privileged destructive op requires a capability.
         gate.require(CAP_FS_ADMIN)
 
         self._logger.record("Rollback initiated.")
@@ -502,9 +502,9 @@ class UmerInstaller:
         self._logger.record("Umer OS installation started.")
         self._state["phase"] = "eula"
 
-        # [FIX H102] The whole privileged install pipeline requires a capability.
+        # The whole privileged install pipeline requires a capability.
         gate.require(CAP_FS_ADMIN)
-        # [FIX H100] A programmatic EULA bypass is itself a privileged action.
+        # A programmatic EULA bypass is itself a privileged action.
         if consent_override:
             gate.require(CAP_INSTALL)
 

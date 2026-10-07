@@ -36,7 +36,7 @@ def _try_import(module_name: str, names: tuple[str, ...]) -> None:
             __all__ = list(__all__) + [n]
 
 
-# [FIX H98] Re-export the real, feature-complete installer (installer.py),
+# Re-export the real, feature-complete installer (installer.py),
 # not the dead non-functional stub (install.py).  Now tolerant of partial
 # checkouts.
 for _mod, _names in (

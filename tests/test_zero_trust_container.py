@@ -46,21 +46,21 @@ class _FakeCaps:
 class TestZeroTrustContainerExecute(unittest.TestCase):
 
     def test_execute_denied_without_hardware_cap(self):
-        # [FIX H51] Fail-closed: no HARDWARE capability => no execution.
+        # Fail-closed: no HARDWARE capability => no execution.
         c = ZeroTrustContainer(1, _FakeCaps(granted=[]))
         result = c.execute_binary("/bin/app", os_type="linux")
         self.assertFalse(result)
         self.assertFalse(c.running)
 
     def test_execute_allowed_with_hardware_cap(self):
-        # [FIX H51] Holding the required capability permits execution.
+        # Holding the required capability permits execution.
         c = ZeroTrustContainer(2, _FakeCaps(granted=["HARDWARE"]))
         result = c.execute_binary("/bin/app", os_type="linux")
         self.assertTrue(result)
         self.assertFalse(c.running)
 
     def test_execute_denied_unregistered_container(self):
-        # [FIX H51] An unknown/unregistered container id has no capability and
+        # An unknown/unregistered container id has no capability and
         # must be denied (zero-trust default-deny).
         caps = CapabilityManager()  # only SYSTEM_PID=0 is omnipotent
         c = ZeroTrustContainer(99999, caps)

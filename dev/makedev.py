@@ -100,7 +100,7 @@ class MAKEDEVCommand:
                     dev_type=DeviceType.CHAR if info["mode"] == "c" else DeviceType.BLOCK,
                     major=info["major"],
                     minor=info["minor"],
-                    mode=0o640,  # [FIX H59] safe default
+                    mode=0o640,  # safe default
                     description=info["desc"],
                 )
                 if mgr.create_node(node):
@@ -121,7 +121,7 @@ class MAKEDEVCommand:
         return 0 if not self._errors else 1
 
     def create_device(self, name: str, major: int, minor: int,
-                      mode: str = "c", perms: int = 0o640) -> bool:  # [FIX H59] safe default
+                      mode: str = "c", perms: int = 0o640) -> bool:  # safe default
         """Programmatic device creation."""
         mgr = DeviceManager.get_instance()
         node = DeviceNode(

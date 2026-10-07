@@ -37,7 +37,7 @@ from mnt.mount_point import MountPointManager     # noqa: E402
 
 
 class TestForceRemoveGuards(unittest.TestCase):
-    """[FIX H167] force-remove refuses symlinks / roots / flipped paths."""
+    """force-remove refuses symlinks / roots / flipped paths."""
 
     def setUp(self) -> None:
         self.mgr = MountPointManager()
@@ -69,7 +69,7 @@ class TestForceRemoveGuards(unittest.TestCase):
 
 
 class TestFstabCommentPreservation(unittest.TestCase):
-    """[FIX H168] Comments survive parsing -> serialization -> write."""
+    """Comments survive parsing -> serialization -> write."""
 
     SAMPLE = (
         "# /etc/fstab: static file system information\n"

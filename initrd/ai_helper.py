@@ -174,7 +174,7 @@ class AIHelper:
         path = os.path.join(host_root, "var", "log", "umeros_initrd_history.log")
         if not os.path.isfile(path):
             return []
-        # [FIX H2][FIX H91] The boot history log is NOT a trusted script.
+        # The boot history log is NOT a trusted script.
         # Parsing it with eval() allowed any writer of the log to execute
         # arbitrary code at early-boot (PID 1, uid 0) - a classic code
         # injection (CWE-94).  Use the literal-safe parser instead; malformed

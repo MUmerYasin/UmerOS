@@ -53,6 +53,16 @@ logging.basicConfig(
 )
 log = logging.getLogger("UmerOS.Boot")
 
+# Windows consoles default to cp1252/charmap, but the banner and log
+# glyphs (box drawing, check marks) are Unicode.  Reconfigure the
+# standard streams to UTF-8 with replacement so boot output never
+# raises UnicodeEncodeError on a non-UTF-8 console.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+    except (AttributeError, ValueError, OSError):
+        pass
+
 # ── Banner ─────────────────────────────────────────────────────────────────
 
 BANNER = r"""
@@ -149,7 +159,7 @@ def verify_kernel(
 ) -> bool:
     """Verify the kernel image SHA3-512 hash.
 
-    **[TODAY]** - Fail-closed per §4.2 H27:
+    **[TODAY]** - Fail-closed per:
     - If the kernel file is missing: returns ``False`` (never silently skips).
     - If ``required=False`` (development mode) and ``expected_hash is None``:
       returns ``True`` with a logged warning (prototype shortcut).

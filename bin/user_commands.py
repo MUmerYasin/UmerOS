@@ -182,7 +182,7 @@ class SuCommand:
     def _exec_command(self, target_user: str, user_info: Any,
                       command: str, env: Dict[str, str],
                       shell: Optional[str]) -> int:
-        # [FIX H4] Running a command as another user is a privileged op:
+        # Running a command as another user is a privileged op:
         # capability-gated (permissive-when-unwired / fail-closed-when-wired).
         try:
             from core.capability_gate import gate, CAP_SYS_ADMIN
@@ -213,7 +213,7 @@ class SuCommand:
     def _exec_shell(self, target_user: str, user_info: Any,
                     login_mode: bool, env: Dict[str, str],
                     shell: Optional[str]) -> int:
-        # [FIX H4] The old stub printed a message and returned 0 (fake
+        # The old stub printed a message and returned 0 (fake
         # success). An interactive su shell is not implemented in UmerOS;
         # report that honestly with a non-zero exit code.
         try:
@@ -259,7 +259,7 @@ class LoginCommand:
         target_user = opts.get("user")
         timeout = opts.get("timeout", 60)
 
-        # [FIX H37] Zero-trust authentication bypass removed. The legacy "-f" /
+        # Zero-trust authentication bypass removed. The legacy "-f" /
         # "-F" flags previously set skip_auth and skipped the password check
         # entirely — a direct authentication bypass (section 4.2 zero-trust
         # mandate). A pre-authenticated login is no longer permitted from the
