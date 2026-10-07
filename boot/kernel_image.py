@@ -28,7 +28,9 @@ FHS reference: https://refspecs.linuxfoundation.org/FHS_3.0/fhs/ch03s09.html
 
 from __future__ import annotations
 
+import gzip
 import hashlib
+import logging
 import os
 import shutil
 import struct
@@ -39,6 +41,8 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+log = logging.getLogger("UmerOS.Boot.KernelImage")
 
 
 class KernelArchitecture(Enum):
@@ -125,6 +129,10 @@ class KernelImage:
     config: Optional[KernelConfig] = None
     signature_type: KernelSignatureType = KernelSignatureType.UNSIGNED
     is_default: bool = False
+    #: True when this entry was produced by :meth:`KernelImageManager.
+    #: create_sample_kernel` (a synthetic fixture), not by an actual build.
+    #: Anything that reports boot readiness must treat a fixture as "no kernel".
+    is_fixture: bool = False
 
     @property
     def vmlinuz_size(self) -> int:
@@ -309,6 +317,7 @@ class KernelImageManager:
         system_map_path: Optional[Path] = None,
         config_path: Optional[Path] = None,
         set_as_default: bool = False,
+        is_fixture: bool = False,
     ) -> KernelImage:
         """Register a kernel image into the manager."""
         target = self.boot_dir / f"vmlinuz-{version}"
@@ -351,6 +360,7 @@ class KernelImageManager:
             config=config,
             signature_type=sig,
             is_default=set_as_default,
+            is_fixture=is_fixture,
         )
         self._kernels[version] = ki
         if set_as_default:
@@ -469,11 +479,32 @@ class KernelImageManager:
     def create_sample_kernel(
         self, version: str = "6.8.0-umerOS", size_kb: int = 256
     ) -> KernelImage:
-        """Create a sample kernel image for testing."""
+        """Create a **synthetic fixture** in place of a real kernel image.
+
+        This is a test/demo helper, not a kernel builder: it writes a
+        self-identifying placeholder so the manager, ``System.map`` parser and
+        config parser can be exercised without shipping a vmlinuz. The returned
+        :class:`KernelImage` is flagged ``is_fixture=True`` and callers that
+        report boot readiness must treat it as "no kernel present".
+
+        Two things changed here:
+
+        * the file is now a **valid gzip stream**. Previously it was
+          ``b"\\x1f\\x8b"`` followed by ``os.urandom()`` — the gzip magic plus
+          noise, which is not a gzip stream and fails on the first inflate;
+        * the config no longer claims the non-existent ``CONFIG_ROOT_FSReadOnly``
+          symbol; it uses real Kconfig symbols.
+        """
         vmlinuz = self.boot_dir / f"vmlinuz-{version}"
 
-        # Write a gzip-compressed fake kernel (magic + padding)
-        content = self.MAGIC_GZIP + os.urandom(size_kb * 1024 - 2)
+        fixture_marker = (
+            b"UMEROS-KERNEL-IMAGE-FIXTURE\n"
+            b"NOT A LINUX KERNEL. Synthetic placeholder written by\n"
+            b"KernelImageManager.create_sample_kernel() so that tooling which\n"
+            b"expects a vmlinuz can be tested without a real build.\n"
+        )
+        padding = max(0, size_kb * 1024 - len(fixture_marker))
+        content = gzip.compress(fixture_marker + os.urandom(padding))
         with open(vmlinuz, "wb") as f:
             f.write(content)
 
@@ -498,13 +529,17 @@ class KernelImageManager:
                 if len(parts) >= 3:
                     f.write(f"{parts[0]} {parts[1]} {parts[2]}\n")
 
-        # config
+        # config — real Kconfig symbols only (the previous CONFIG_ROOT_FSReadOnly
+        # does not exist in any Linux tree).
         config_path = self.boot_dir / f"config-{version}"
         with open(config_path, "w") as f:
-            f.write(f"# UmerOS kernel config {version}\n")
+            f.write(f"# UmerOS kernel config FIXTURE {version}\n")
+            f.write("# Synthetic file produced by create_sample_kernel(); not a real .config.\n")
             f.write("CONFIG_X86_64=y\n")
             f.write("CONFIG_SMP=y\n")
-            f.write("CONFIG_ROOT_FSReadOnly=y\n")
+            f.write("CONFIG_BLK_DEV_INITRD=y\n")
+            f.write("CONFIG_DEVTMPFS=y\n")
+            f.write("CONFIG_DEVTMPFS_MOUNT=y\n")
             f.write("CONFIG_VT=y\n")
             f.write("CONFIG_VT_CONSOLE=y\n")
             f.write("CONFIG_HIBERNATION=m\n")
@@ -514,12 +549,18 @@ class KernelImageManager:
             f.write("CONFIG_MODULES=y\n")
             f.write("CONFIG_MODULE_UNLOAD=y\n")
 
+        log.warning(
+            "Created FIXTURE kernel %s (not a real vmlinuz) at %s",
+            version, vmlinuz,
+        )
+
         return self.register_kernel(
             version,
             vmlinuz,
             system_map_path=sysmap,
             config_path=config_path,
             set_as_default=True,
+            is_fixture=True,
         )
 
 

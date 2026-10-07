@@ -27,7 +27,6 @@ Manages:
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import time
 from dataclasses import dataclass, field
@@ -372,8 +371,22 @@ class SignatureVerifier:
 
         table = _pe_certificate_table(data)
         if table is None:
-            sig.status = SignatureStatus.INVALID
-            sig.note = "malformed PE headers (no usable optional header)"
+            # Distinguish "not a PE image at all" (a DOS/NE executable simply has
+            # no Authenticode signature) from "PE header exists but is
+            # malformed" (which is corrupt, not merely unsigned).
+            pe_off = int.from_bytes(data[0x3C:0x40], "little")
+            has_pe_header = (
+                pe_off + 4 <= len(data) and data[pe_off:pe_off + 4] == b"PE\x00\x00"
+            )
+            if not has_pe_header:
+                sig.status = SignatureStatus.UNSIGNED
+                sig.note = (
+                    "MZ image without a PE/COFF header (DOS/NE); "
+                    "no Authenticode signature"
+                )
+            else:
+                sig.status = SignatureStatus.INVALID
+                sig.note = "malformed PE optional header"
             return sig
         table_offset, table_size = table
         if table_size == 0 or table_offset == 0:
@@ -398,8 +411,9 @@ class SignatureVerifier:
         if not subjects:
             sig.status = SignatureStatus.UNVERIFIED
             sig.note = (
-                "certificate table present but no X.509 certificates could be "
-                "extracted (install 'cryptography' for certificate parsing)"
+                "certificate table present but no X.509 certificate could be "
+                "extracted (PKCS#7 is malformed, or 'cryptography' is not "
+                "installed); image NOT verified"
             )
             return sig
 

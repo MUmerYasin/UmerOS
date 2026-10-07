@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import shutil
 import struct
@@ -47,6 +48,8 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+log = logging.getLogger("UmerOS.Boot.EFISystem")
 
 
 class EFIArchitecture(Enum):
@@ -670,53 +673,138 @@ class EFISystemManager:
         results["steps"].append(f"EFI path: {efi_path}")
         return results
 
-    def install_grub(self, arch: EFIArchitecture = EFIArchitecture.X86_64) -> Dict[str, Any]:
-        """Install GRUB as the EFI bootloader."""
-        results = {"steps": []}
+    #: Host locations searched for a real GRUB EFI binary.
+    GRUB_CANDIDATES: Dict[EFIArchitecture, Tuple[Path, ...]] = {
+        EFIArchitecture.X86_64: (
+            Path("/usr/lib/grub/x86_64-efi/monolithic/grubx64.efi"),
+            Path("/usr/lib/grub/x86_64-efi/grub.efi"),
+            Path("/boot/efi/EFI/GRUB/grubx64.efi"),
+        ),
+        EFIArchitecture.ARM64: (
+            Path("/usr/lib/grub/arm64-efi/monolithic/grubaa64.efi"),
+            Path("/usr/lib/grub/arm64-efi/grub.efi"),
+            Path("/boot/efi/EFI/GRUB/grubaa64.efi"),
+        ),
+    }
 
-        if arch == EFIArchitecture.X86_64:
-            grub_name = "BOOTX64.EFI"
-            grub_source = Path("/usr/lib/grub/x86_64-efi/monolithic/grubx64.efi")
-        elif arch == EFIArchitecture.ARM64:
-            grub_name = "BOOTAA64.EFI"
-            grub_source = Path("/usr/lib/grub/arm64-efi/monolithic/grubaa64.efi")
-        else:
-            grub_name = "BOOTX64.EFI"
-            grub_source = Path("/usr/lib/grub/x86_64-efi/monolithic/grubx64.efi")
+    #: Host locations searched for a real systemd-boot binary.
+    SYSTEMD_BOOT_CANDIDATES: Dict[EFIArchitecture, Tuple[Path, ...]] = {
+        EFIArchitecture.X86_64: (
+            Path("/usr/lib/systemd/boot/efi/systemd-bootx64.efi"),
+            Path("/boot/efi/EFI/systemd/systemd-bootx64.efi"),
+        ),
+        EFIArchitecture.ARM64: (
+            Path("/usr/lib/systemd/boot/efi/systemd-bootaa64.efi"),
+            Path("/boot/efi/EFI/systemd/systemd-bootaa64.efi"),
+        ),
+    }
 
-        # Create the binary (placeholder if real GRUB not available)
+    @staticmethod
+    def _find_loader_binary(
+        candidates: Tuple[Path, ...],
+        source: Optional[Path] = None,
+    ) -> Optional[Path]:
+        """Return the first existing loader binary, honouring an explicit source."""
+        for candidate in ((source,) if source else ()) + candidates:
+            if candidate and Path(candidate).is_file():
+                return Path(candidate)
+        return None
+
+    def install_grub(
+        self,
+        arch: EFIArchitecture = EFIArchitecture.X86_64,
+        source: Optional[Path] = None,
+    ) -> Dict[str, Any]:
+        """Install GRUB as the EFI bootloader by copying a real ``grub*.efi``.
+
+        This does **not** fabricate a placeholder. The previous implementation
+        wrote 4096 NUL bytes as ``BOOTX64.EFI`` and then reported "GRUB installed
+        to EFI/BOOT and EFI/ubuntu" — a file the firmware cannot execute, with a
+        success message that hid the real problem. When no GRUB binary can be
+        found the result carries ``success: False`` so the caller can install
+        GRUB (or choose another loader) instead of silently producing an
+        unbootable ESP.
+
+        Args:
+            arch:   Target EFI architecture.
+            source: Explicit path to a ``grub*.efi`` binary (overrides the
+                built-in candidate list; used by tests and by callers that
+                already know where their loader lives).
+        """
+        results: Dict[str, Any] = {"steps": [], "errors": [], "success": False}
+        arm64 = arch == EFIArchitecture.ARM64
+        grub_name = "BOOTAA64.EFI" if arm64 else "BOOTX64.EFI"
+        candidates = self.GRUB_CANDIDATES.get(
+            arch, self.GRUB_CANDIDATES[EFIArchitecture.X86_64]
+        )
+
+        binary = self._find_loader_binary(candidates, source)
+        if binary is None:
+            results["errors"].append(
+                f"no GRUB EFI binary found for {arch.value}; searched: "
+                + ", ".join(str(c) for c in candidates)
+                + ". Install grub-efi (or pass source=...), or use "
+                "install_systemd_boot()."
+            )
+            log.error("install_grub: %s", results["errors"][-1])
+            return results
+
         target_dir = self.esp.efi_dir / "BOOT"
         target_dir.mkdir(parents=True, exist_ok=True)
         target = target_dir / grub_name
-        if not target.exists():
-            target.write_bytes(b"\x00" * 4096)
-            results["steps"].append(f"Created placeholder {grub_name}")
-        else:
-            results["steps"].append(f"{grub_name} already exists")
+        shutil.copyfile(binary, target)
+        results["steps"].append(f"Copied {binary} -> {target}")
 
-        # Also copy to ubuntu path for compatibility
+        # Distro-compatibility copy (same real binary, never a placeholder).
         ubuntu_dir = self.esp.efi_dir / "ubuntu"
         ubuntu_dir.mkdir(parents=True, exist_ok=True)
-        grub_ubuntu = ubuntu_dir / "grubx64.efi"
-        if not grub_ubuntu.exists():
-            grub_ubuntu.write_bytes(b"\x00" * 4096)
+        grub_ubuntu = ubuntu_dir / ("grubaa64.efi" if arm64 else "grubx64.efi")
+        shutil.copyfile(binary, grub_ubuntu)
+        results["steps"].append(f"Copied {binary} -> {grub_ubuntu}")
 
-        results["steps"].append("GRUB installed to EFI/BOOT and EFI/ubuntu")
+        results["success"] = True
+        results["binary"] = str(binary)
         return results
 
-    def install_systemd_boot(self) -> Dict[str, Any]:
-        """Install systemd-boot as the EFI bootloader."""
-        results = {"steps": []}
+    def install_systemd_boot(
+        self,
+        arch: EFIArchitecture = EFIArchitecture.X86_64,
+        source: Optional[Path] = None,
+    ) -> Dict[str, Any]:
+        """Install systemd-boot by copying a real binary (never a placeholder).
+
+        See :meth:`install_grub` for why an all-zero ``.efi`` file is not
+        written and why failure is reported explicitly.
+        """
+        results: Dict[str, Any] = {"steps": [], "errors": [], "success": False}
+        arm64 = arch == EFIArchitecture.ARM64
+        boot_name = "BOOTAA64.EFI" if arm64 else "BOOTX64.EFI"
+        candidates = self.SYSTEMD_BOOT_CANDIDATES.get(
+            arch, self.SYSTEMD_BOOT_CANDIDATES[EFIArchitecture.X86_64]
+        )
+
+        binary = self._find_loader_binary(candidates, source)
+        if binary is None:
+            results["errors"].append(
+                f"no systemd-boot binary found for {arch.value}; searched: "
+                + ", ".join(str(c) for c in candidates)
+                + ". Install systemd-boot (or pass source=...)."
+            )
+            log.error("install_systemd_boot: %s", results["errors"][-1])
+            return results
+
         systemd_dir = self.esp.efi_dir / "systemd"
         systemd_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(binary, systemd_dir / binary.name)
+        results["steps"].append(f"Copied {binary} -> {systemd_dir / binary.name}")
 
-        for name in ["systemd-bootx64.efi", "BOOTX64.EFI"]:
-            target = systemd_dir / name if name != "BOOTX64.EFI" else self.esp.efi_dir / "BOOT" / name
-            if not target.exists():
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(b"\x00" * 4096)
+        boot_dir = self.esp.efi_dir / "BOOT"
+        boot_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(binary, boot_dir / boot_name)
+        results["steps"].append(f"Copied {binary} -> {boot_dir / boot_name}")
 
-        results["steps"].append("systemd-boot installed")
+        results["success"] = True
+        results["binary"] = str(binary)
         return results
 
     def status(self) -> Dict[str, Any]:
@@ -752,10 +840,13 @@ def _selftest() -> bool:
     try:
         esp_path = Path(td) / "efi"
 
-        # EFISystemPartition
+        # EFISystemPartition — the constructor calls _init_dirs(), so the ESP
+        # layout exists as soon as the object is built. The selftest used to
+        # call a non-existent esp.initialize() and always failed with
+        # AttributeError, so this module's quality gate never actually ran.
         esp = EFISystemPartition(esp_path)
-        esp.initialize()
         assert esp_path.exists()
+        assert (esp_path / "EFI" / "BOOT").is_dir(), "ESP layout not created"
 
         # EFIBinary
         binary = EFIBinary(
@@ -802,12 +893,16 @@ def _selftest() -> bool:
         assert sb.is_binary_trusted("deadbeef", strict=False) is True, \
             "H28: SETUP_MODE+strict=False keeps legacy permissive behaviour"
 
-        # ENABLED + unknown fingerprint → False
-        sb._state = SecureBootState.ENABLED
+        # USER_MODE (Secure Boot enabled and enforcing) + unknown fingerprint
+        # -> False. This enum has no ENABLED member: DISABLED / SETUP_MODE are
+        # the permissive states and USER_MODE / DEPLOYED_MODE are the enforcing
+        # ones (see is_binary_trusted). The selftest previously referenced a
+        # non-existent SecureBootState.ENABLED and always failed.
+        sb._state = SecureBootState.USER_MODE
         assert sb.is_binary_trusted("not-in-db", strict=True) is False, \
-            "ENABLED+unknown fingerprint should be rejected"
+            "USER_MODE+unknown fingerprint should be rejected"
 
-        # ENABLED + fingerprint in db (not revoked) → True
+        # USER_MODE + fingerprint in db (not revoked) -> True
         known_fp = "abcdef0123456789" * 4  # 32-byte fingerprint
         sb._db.append(SecureBootKey(
             name="UmerOS", fingerprint=known_fp, signature_type="RSA2048",

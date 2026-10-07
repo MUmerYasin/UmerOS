@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import struct
 import tarfile
@@ -42,6 +43,8 @@ from enum import Enum
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+log = logging.getLogger("UmerOS.Boot.Microcode")
 
 
 class CPUVendor(Enum):
@@ -553,15 +556,72 @@ class MicrocodeInstaller:
         self.manager = manager
 
     def generate_ucode_initrd(self, output_path: Path) -> bool:
-        """Generate a microcode-only initrd image."""
+        """Generate a microcode-only initrd image as a real cpio archive.
+
+        The kernel loads early microcode from the initramfs path
+        ``kernel/x86/microcode/GenuineIntel.bin`` (Intel) or
+        ``kernel/x86/microcode/AuthenticAMD.bin`` (AMD), so that is what this
+        writes.
+
+        Previously this wrote a **zero-byte file** and returned ``True``, which
+        made :meth:`install_updates` report "Generated ucode.img" for an empty
+        placeholder — a success message for an artifact that could never load
+        microcode.
+
+        Returns:
+            True only when a non-empty cpio archive was written.
+        """
         try:
-            # Simplified: create a CPIO with microcode
-            cpio_data = b""
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_bytes(cpio_data)
-            return True
-        except (OSError, IOError):
+            from initrd.cpio import C_ISDIR, C_ISREG, CpioEntry, pack_archive
+        except ImportError:
+            log.error("initrd.cpio unavailable; cannot build a microcode initrd")
             return False
+
+        try:
+            updates = [
+                u for u in self.manager.scan_updates()
+                if getattr(u, "file_path", None) and u.file_path.is_file()
+            ]
+            blob = b"".join(u.file_path.read_bytes() for u in updates)
+        except OSError as exc:
+            log.error("Cannot read microcode payloads: %s", exc)
+            return False
+
+        if not blob:
+            # Fail closed rather than writing an empty image that "succeeds".
+            log.error(
+                "No microcode updates found; refusing to write an empty ucode.img"
+            )
+            return False
+
+        vendor_file = (
+            "AuthenticAMD.bin"
+            if any(getattr(u, "vendor", None) == CPUVendor.AMD for u in updates)
+            else "GenuineIntel.bin"
+        )
+
+        try:
+            data = pack_archive([
+                CpioEntry(name="kernel", mode=C_ISDIR, nlink=2),
+                CpioEntry(name="kernel/x86", mode=C_ISDIR, nlink=2),
+                CpioEntry(name="kernel/x86/microcode", mode=C_ISDIR, nlink=2),
+                CpioEntry(
+                    name=f"kernel/x86/microcode/{vendor_file}",
+                    data=blob,
+                    mode=C_ISREG | 0o644,
+                ),
+            ])
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(data)
+        except (OSError, ValueError) as exc:
+            log.error("Cannot write microcode initrd %s: %s", output_path, exc)
+            return False
+
+        log.info(
+            "Wrote microcode initrd %s (%d bytes payload -> %s)",
+            output_path, len(blob), vendor_file,
+        )
+        return True
 
     def install_updates(self, target_dir: Path = Path("/boot")) -> Dict[str, Any]:
         """Install microcode updates to boot directory."""
@@ -642,8 +702,11 @@ def _selftest() -> bool:
         updates = mgr.scan_updates()
         assert isinstance(updates, list)
 
-        # get_grub_cmdline
-        line = mgr.get_grub_cmdline()
+        # get_grub_cmdline lives on MicrocodeInstaller, not MicrocodeManager.
+        # The selftest used to call it on the manager and always failed with
+        # AttributeError, so this module's quality gate never actually ran.
+        installer = MicrocodeInstaller(mgr)
+        line = installer.get_grub_cmdline()
         assert "initrd" in line
 
         # MicrocodeParser.compute_checksum

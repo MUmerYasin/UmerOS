@@ -375,9 +375,101 @@ class InitrdManager:
                 log.error("Hash computation failed for %s: %s", name, exc)
                 return False
 
+        # [FIX] Structural verification. Previously this method set VALID for
+        # *any* existing file once the (optional) hash matched — so a text file
+        # or a zero-byte stub passed as a verified initramfs. A real initramfs
+        # is a cpio archive, optionally wrapped in a compressor, so check that
+        # the magic bytes and the decompressed payload actually say so.
+        ok, reason = self._check_image_structure(image.path)
+        if not ok:
+            image.status = InitrdStatus.CORRUPTED
+            log.error("Initrd image failed structural verification: %s (%s)",
+                      name, reason)
+            return False
+
         image.status = InitrdStatus.VALID
-        log.info("Initrd image verified: %s", name)
+        log.info("Initrd image verified: %s (%s)", name, reason)
         return True
+
+    #: Compressor magic -> (name, decompressor). cpio "newc" magic is checked
+    #: on the decompressed payload.
+    _COMPRESSOR_MAGIC: Tuple[Tuple[bytes, str], ...] = (
+        (b"\x1f\x8b", "gzip"),
+        (b"\xfd7zXZ\x00", "xz"),
+        (b"\x28\xb5\x2f\xfd", "zstd"),
+        (b"\x04\x22\x4d\x18", "lz4"),
+        (b"\x5d\x00\x00", "lzma"),
+        (b"BZh", "bzip2"),
+    )
+
+    #: Cap on how much decompressed data is inspected, so a decompression bomb
+    #: cannot exhaust memory during verification.
+    _MAX_INSPECT_BYTES = 4 * 1024 * 1024
+
+    def _check_image_structure(self, path: str) -> Tuple[bool, str]:
+        """Return ``(ok, reason)`` after checking the image really is an initrd.
+
+        Accepts an uncompressed cpio archive or one wrapped in a supported
+        compressor. Rejects anything whose payload is not a cpio archive.
+        """
+        try:
+            with open(path, "rb") as fh:
+                head = fh.read(16)
+        except OSError as exc:
+            return False, f"unreadable: {exc}"
+
+        if not head:
+            return False, "file is empty"
+
+        compressor = None
+        for magic, cname in self._COMPRESSOR_MAGIC:
+            if head.startswith(magic):
+                compressor = cname
+                break
+
+        try:
+            with open(path, "rb") as fh:
+                if compressor in (None, "lzma"):
+                    blob = fh.read(self._MAX_INSPECT_BYTES)
+                    if compressor is None and blob[:6] in (b"070701", b"070702"):
+                        return True, "uncompressed newc cpio archive"
+                if compressor == "gzip":
+                    # gzip.open handles the header + CRC; read a bounded prefix.
+                    with gzip.open(path, "rb") as gz:
+                        blob = gz.read(self._MAX_INSPECT_BYTES)
+                elif compressor == "xz":
+                    import lzma
+                    with lzma.open(path, "rb") as xz:
+                        blob = xz.read(self._MAX_INSPECT_BYTES)
+                elif compressor == "bzip2":
+                    import bz2
+                    with bz2.open(path, "rb") as bz:
+                        blob = bz.read(self._MAX_INSPECT_BYTES)
+                elif compressor in ("zstd", "lz4"):
+                    try:
+                        import zstandard  # type: ignore
+                        with open(path, "rb") as raw:
+                            blob = zstandard.ZstdDecompressor().stream_reader(
+                                raw).read(self._MAX_INSPECT_BYTES)
+                    except ImportError:
+                        # Cannot decompress without the codec; the magic is at
+                        # least a known initramfs container.
+                        return True, f"{compressor}-compressed (codec unavailable)"
+                elif compressor is None:
+                    return False, "not a recognised initramfs/archive image"
+                else:
+                    blob = b""
+        except (OSError, EOFError, ValueError) as exc:
+            return False, f"{compressor or 'archive'} decompression failed: {exc}"
+
+        if blob[:6] in (b"070701", b"070702"):
+            return True, f"{compressor}-compressed newc cpio archive"
+        if b"TRAILER!!!" in blob:
+            return True, f"{compressor}-compressed cpio archive"
+        return False, (
+            f"{compressor}-compressed payload is not a cpio archive"
+            if compressor else "payload is not a cpio archive"
+        )
 
     def _compute_sha3_512(self, file_path: str) -> str:
         """Compute SHA3-512 hash of a file."""
