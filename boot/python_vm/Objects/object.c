@@ -377,7 +377,13 @@ PyObject* PyIter_Next(PyObject *iter) {
 PyObject* PyImport_ImportModule(const char *name) {
     if (!name) return NULL;
     PyObject *m = PyDict_New();
-    if (m) PyDict_SetItemString(m, "__name__", PyUnicode_FromString(name));
+    if (m) {
+        PyObject *name_obj = PyUnicode_FromString(name);
+        if (name_obj) {
+            PyDict_SetItemString(m, "__name__", name_obj);
+            Py_DECREF(name_obj);
+        }
+    }
     return m;
 }
 

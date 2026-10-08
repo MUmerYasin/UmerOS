@@ -17,17 +17,24 @@ extern PyObject* PyBuiltins_GetDict(void);
 
 /* ==================== VM INTERNAL STACK ==================== */
 
-static int Stack_Push(PyObject ***stacktop, PyObject *value) {
+static int Stack_Push(PyFrameObject *frame, PyObject *value) {
+    if (frame->f_stacktop - frame->f_stackbase >= MAX_VALUE_STACK) {
+        PyErr_SetString(PyExc_SystemError, "value stack overflow");
+        return -1;
+    }
     Py_INCREF(value);
-    *(*stacktop) = value;
-    (*stacktop)++;
+    *frame->f_stacktop = value;
+    frame->f_stacktop++;
     return 0;
 }
 
-static PyObject* Stack_Pop(PyObject ***stacktop) {
-    (*stacktop)--;
-    PyObject *value = *(*stacktop);
-    return value;
+static PyObject* Stack_Pop(PyFrameObject *frame) {
+    if (frame->f_stacktop <= frame->f_stackbase) {
+        PyErr_SetString(PyExc_SystemError, "value stack underflow");
+        return NULL;
+    }
+    frame->f_stacktop--;
+    return *frame->f_stacktop;
 }
 
 /* ==================== VM INTERNAL FRAME HELPERS ==================== */
@@ -65,7 +72,6 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
     Py_ssize_t code_len = frame->f_code->code_size;
     PyObject **consts = frame->f_code->consts;
     Py_ssize_t n_consts = frame->f_code->n_consts;
-    PyObject ***stack = &frame->f_stacktop;
 
     frame->f_lasti = 0;
 
@@ -73,13 +79,16 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
         Opcode op = (Opcode)bytecode[frame->f_lasti++];
         int arg = -1;
 
-        /* Always read argument byte — our compiler emits 2 bytes per instruction */
-        if (frame->f_lasti < code_len) {
-            arg = bytecode[frame->f_lasti++];
-            if (arg > 255 && frame->f_lasti < code_len) {
-                arg = (arg << 8) | bytecode[frame->f_lasti++];
-            }
+        /* Every instruction carries a 2-byte argument (big-endian),
+         * matching Compiler_Emit. Read both bytes unconditionally:
+         * a variable-length argument would desync the stream. */
+        if (frame->f_lasti + 1 >= code_len) {
+            PyErr_SetString(PyExc_SystemError, "truncated instruction");
+            return NULL;
         }
+        arg = (int)bytecode[frame->f_lasti] << 8;
+        arg |= (int)bytecode[frame->f_lasti + 1];
+        frame->f_lasti += 2;
 
         switch (op) {
             case OP_LOAD_CONST: {
@@ -88,13 +97,13 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                     return NULL;
                 }
                 PyObject *value = consts[arg];
-                Py_INCREF(value);
-                Stack_Push(stack, value);
+                if (Stack_Push(frame, value) < 0) return NULL;
                 break;
             }
 
             case OP_POP_TOP: {
-                PyObject *value = Stack_Pop(stack);
+                PyObject *value = Stack_Pop(frame);
+                if (!value) return NULL;
                 Py_DECREF(value);
                 break;
             }
@@ -113,13 +122,15 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                 if (value == NULL) {
                     if (PyErr_ExceptionMatches(PyExc_NameError)) {
                         PyErr_Clear();
-                        Py_INCREF(Py_None);
-                        Stack_Push(stack, Py_None);
+                        if (Stack_Push(frame, Py_None) < 0) return NULL;
                     } else {
                         return NULL;
                     }
                 } else {
-                    Stack_Push(stack, value);
+                    if (Stack_Push(frame, value) < 0) {
+                        Py_DECREF(value);
+                        return NULL;
+                    }
                     Py_DECREF(value);
                 }
                 break;
@@ -135,7 +146,8 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                     PyErr_SetString(PyExc_SystemError, "STORE_NAME: name is not a string");
                     return NULL;
                 }
-                PyObject *value = Stack_Pop(stack);
+                PyObject *value = Stack_Pop(frame);
+                if (!value) return NULL;
                 VM_SetGlobal(frame, name, value);
                 Py_DECREF(value);
                 break;
@@ -155,13 +167,15 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                 if (value == NULL) {
                     if (PyErr_ExceptionMatches(PyExc_NameError)) {
                         PyErr_Clear();
-                        Py_INCREF(Py_None);
-                        Stack_Push(stack, Py_None);
+                        if (Stack_Push(frame, Py_None) < 0) return NULL;
                     } else {
                         return NULL;
                     }
                 } else {
-                    Stack_Push(stack, value);
+                    if (Stack_Push(frame, value) < 0) {
+                        Py_DECREF(value);
+                        return NULL;
+                    }
                     Py_DECREF(value);
                 }
                 break;
@@ -177,7 +191,8 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                     PyErr_SetString(PyExc_SystemError, "STORE_GLOBAL: name is not a string");
                     return NULL;
                 }
-                PyObject *value = Stack_Pop(stack);
+                PyObject *value = Stack_Pop(frame);
+                if (!value) return NULL;
                 VM_SetGlobal(frame, name, value);
                 Py_DECREF(value);
                 break;
@@ -191,77 +206,135 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                 PyObject *args = PyList_New(arg);
                 if (!args) { return NULL; }
                 for (int i = arg - 1; i >= 0; i--) {
-                    PyObject *item = Stack_Pop(stack);
+                    PyObject *item = Stack_Pop(frame);
+                    if (!item) {
+                        Py_DECREF(args);
+                        return NULL;
+                    }
                     PyList_SetItem(args, i, item);
                 }
-                PyObject *callable = Stack_Pop(stack);
+                PyObject *callable = Stack_Pop(frame);
+                if (!callable) {
+                    Py_DECREF(args);
+                    return NULL;
+                }
                 PyObject *result = PyObject_Call(callable, args, NULL);
                 Py_DECREF(args);
                 Py_DECREF(callable);
                 if (!result) return NULL;
-                Stack_Push(stack, result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
                 Py_DECREF(result);
                 break;
             }
 
             case OP_IMPORT_NAME: {
-                int names_idx = arg;
-                PyObject *modname = GET_NAME(frame, names_idx);
-                PyObject *mod = NULL;
-                PyObject *globals = frame->f_globals;
-                PyObject *locals = frame->f_locals;
+                if (arg < 0 || arg >= n_consts) {
+                    PyErr_SetString(PyExc_IndexError, "IMPORT_NAME: bad module index");
+                    return NULL;
+                }
+                const char *name_str = VM_AsString(consts[arg]);
+                if (!name_str) {
+                    PyErr_SetString(PyExc_SystemError,
+                                    "IMPORT_NAME: module name is not a string");
+                    return NULL;
+                }
+                PyObject *modname = PyUnicode_FromString(name_str);
+                if (!modname) return NULL;
+
                 PyObject *builtins_dict = PyBuiltins_GetDict();
-                if (builtins_dict) {
-                    PyObject *import_fn = PyDict_GetItem(builtins_dict, PyUnicode_FromString("__import__"));
-                    if (import_fn) {
-                        PyObject *args = PyTuple_New(1);
-                        PyTuple_SET_ITEM(args, 0, modname);
-                        Py_INCREF(modname);
+                PyObject *import_fn = builtins_dict ?
+                    PyDict_GetItemString(builtins_dict, "__import__") : NULL;
+                PyObject *mod = NULL;
+                if (import_fn) {
+                    PyObject *args = PyTuple_New(1);
+                    if (args) {
+                        PyTuple_SetItem(args, 0, modname);
                         mod = PyObject_Call(import_fn, args, NULL);
                         Py_DECREF(args);
                     }
-                    Py_DECREF(builtins_dict);
                 }
+                if (builtins_dict) Py_DECREF(builtins_dict);
+                Py_DECREF(modname);
+
                 if (!mod) {
-                    PyErr_Format(PyExc_ImportError, "cannot import module");
+                    if (!PyErr_Occurred()) {
+                        PyErr_Format(PyExc_ImportError,
+                                     "cannot import module '%s'", name_str);
+                    }
                     return NULL;
                 }
-                Stack_Push(stack, mod);
+                if (Stack_Push(frame, mod) < 0) {
+                    Py_DECREF(mod);
+                    return NULL;
+                }
                 Py_DECREF(mod);
                 break;
             }
 
             case OP_IMPORT_FROM: {
-                int names_idx = arg;
-                PyObject *attr_name = GET_NAME(frame, names_idx);
-                PyObject *module = Stack_Pop(stack);
-                PyObject *value = NULL;
-                if (PyModule_Check(module)) {
-                    PyObject *mdict = PyModule_GetDict(module);
-                    if (mdict) {
-                        value = PyDict_GetItem(mdict, attr_name);
-                        if (value) {
-                            Py_INCREF(value);
-                        }
-                        Py_DECREF(mdict);
-                    }
-                }
-                Stack_Push(stack, module);
-                if (!value) {
-                    PyErr_Format(PyExc_ImportError, "cannot import name %U", attr_name);
-                    Py_DECREF(module);
+                if (arg < 0 || arg >= n_consts) {
+                    PyErr_SetString(PyExc_IndexError, "IMPORT_FROM: bad name index");
                     return NULL;
                 }
-                Stack_Push(stack, value);
-                Py_DECREF(value);
+                const char *attr_str = VM_AsString(consts[arg]);
+                if (!attr_str) {
+                    PyErr_SetString(PyExc_SystemError,
+                                    "IMPORT_FROM: name is not a string");
+                    return NULL;
+                }
+                PyObject *module = Stack_Pop(frame);
+                if (!module) return NULL;
+
+                /* PyImport_ImportModule returns a plain dict as the
+                 * module namespace; PyModule_GetDict returns a new ref. */
+                PyObject *mdict = NULL;
+                if (PyModule_Check(module)) {
+                    mdict = PyModule_GetDict(module);
+                } else if (PyDict_Check(module)) {
+                    Py_INCREF(module);
+                    mdict = module;
+                }
+
+                PyObject *value = NULL;
+                if (mdict) {
+                    value = PyDict_GetItemString(mdict, attr_str);
+                    if (value) Py_INCREF(value);
+                    Py_DECREF(mdict);
+                }
+
+                if (Stack_Push(frame, module) < 0) {
+                    Py_DECREF(module);
+                    Py_XDECREF(value);
+                    return NULL;
+                }
                 Py_DECREF(module);
-                Py_DECREF(attr_name);
+
+                if (!value) {
+                    PyErr_Format(PyExc_ImportError,
+                                 "cannot import name '%s'", attr_str);
+                    return NULL;
+                }
+                if (Stack_Push(frame, value) < 0) {
+                    Py_DECREF(value);
+                    return NULL;
+                }
+                Py_DECREF(value);
                 break;
             }
 
             case OP_IMPORT_STAR: {
-                PyObject *module = Stack_Pop(stack);
-                PyObject *mdict = PyModule_Check(module) ? PyModule_GetDict(module) : NULL;
+                PyObject *module = Stack_Pop(frame);
+                if (!module) return NULL;
+                PyObject *mdict = NULL;
+                if (PyModule_Check(module)) {
+                    mdict = PyModule_GetDict(module);
+                } else if (PyDict_Check(module)) {
+                    Py_INCREF(module);
+                    mdict = module;
+                }
                 if (mdict) {
                     PyObject *keys = PyDict_Keys(mdict);
                     if (keys) {
@@ -287,83 +360,151 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
             }
 
             case OP_RETURN_VALUE: {
-                PyObject *retval = Stack_Pop(stack);
+                PyObject *retval = Stack_Pop(frame);
                 return retval;
             }
 
             case OP_BINARY_ADD: {
-                PyObject *right = Stack_Pop(stack);
-                PyObject *left = Stack_Pop(stack);
+                PyObject *right = Stack_Pop(frame);
+                if (!right) return NULL;
+                PyObject *left = Stack_Pop(frame);
+                if (!left) {
+                    Py_DECREF(right);
+                    return NULL;
+                }
                 PyObject *result = PyNumber_Add(left, right);
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
-                Stack_Push(stack, result); Py_DECREF(result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
+                Py_DECREF(result);
                 break;
             }
 
             case OP_BINARY_SUBTRACT: {
-                PyObject *right = Stack_Pop(stack);
-                PyObject *left = Stack_Pop(stack);
+                PyObject *right = Stack_Pop(frame);
+                if (!right) return NULL;
+                PyObject *left = Stack_Pop(frame);
+                if (!left) {
+                    Py_DECREF(right);
+                    return NULL;
+                }
                 PyObject *result = PyNumber_Subtract(left, right);
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
-                Stack_Push(stack, result); Py_DECREF(result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
+                Py_DECREF(result);
                 break;
             }
 
             case OP_BINARY_MULTIPLY: {
-                PyObject *right = Stack_Pop(stack);
-                PyObject *left = Stack_Pop(stack);
+                PyObject *right = Stack_Pop(frame);
+                if (!right) return NULL;
+                PyObject *left = Stack_Pop(frame);
+                if (!left) {
+                    Py_DECREF(right);
+                    return NULL;
+                }
                 PyObject *result = PyNumber_Multiply(left, right);
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
-                Stack_Push(stack, result); Py_DECREF(result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
+                Py_DECREF(result);
                 break;
             }
 
             case OP_BINARY_TRUE_DIVIDE: {
-                PyObject *right = Stack_Pop(stack);
-                PyObject *left = Stack_Pop(stack);
+                PyObject *right = Stack_Pop(frame);
+                if (!right) return NULL;
+                PyObject *left = Stack_Pop(frame);
+                if (!left) {
+                    Py_DECREF(right);
+                    return NULL;
+                }
                 PyObject *result = PyNumber_TrueDivide(left, right);
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
-                Stack_Push(stack, result); Py_DECREF(result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
+                Py_DECREF(result);
                 break;
             }
 
             case OP_BINARY_FLOOR_DIVIDE: {
-                PyObject *right = Stack_Pop(stack);
-                PyObject *left = Stack_Pop(stack);
+                PyObject *right = Stack_Pop(frame);
+                if (!right) return NULL;
+                PyObject *left = Stack_Pop(frame);
+                if (!left) {
+                    Py_DECREF(right);
+                    return NULL;
+                }
                 PyObject *result = PyNumber_FloorDivide(left, right);
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
-                Stack_Push(stack, result); Py_DECREF(result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
+                Py_DECREF(result);
                 break;
             }
 
             case OP_BINARY_MODULO: {
-                PyObject *right = Stack_Pop(stack);
-                PyObject *left = Stack_Pop(stack);
+                PyObject *right = Stack_Pop(frame);
+                if (!right) return NULL;
+                PyObject *left = Stack_Pop(frame);
+                if (!left) {
+                    Py_DECREF(right);
+                    return NULL;
+                }
                 PyObject *result = PyNumber_Remainder(left, right);
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
-                Stack_Push(stack, result); Py_DECREF(result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
+                Py_DECREF(result);
                 break;
             }
 
             case OP_BINARY_POWER: {
-                PyObject *right = Stack_Pop(stack);
-                PyObject *left = Stack_Pop(stack);
+                PyObject *right = Stack_Pop(frame);
+                if (!right) return NULL;
+                PyObject *left = Stack_Pop(frame);
+                if (!left) {
+                    Py_DECREF(right);
+                    return NULL;
+                }
                 PyObject *result = PyNumber_Power(left, right);
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
-                Stack_Push(stack, result); Py_DECREF(result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
+                Py_DECREF(result);
                 break;
             }
 
             case OP_COMPARE_OP: {
-                PyObject *right = Stack_Pop(stack);
-                PyObject *left = Stack_Pop(stack);
+                PyObject *right = Stack_Pop(frame);
+                if (!right) return NULL;
+                PyObject *left = Stack_Pop(frame);
+                if (!left) {
+                    Py_DECREF(right);
+                    return NULL;
+                }
                 PyObject *result = NULL;
                 int cmp = PyObject_Compare(left, right);
                 switch (arg) {
@@ -376,12 +517,17 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
                 }
                 Py_DECREF(left); Py_DECREF(right);
                 if (!result) return NULL;
-                Stack_Push(stack, result); Py_DECREF(result);
+                if (Stack_Push(frame, result) < 0) {
+                    Py_DECREF(result);
+                    return NULL;
+                }
+                Py_DECREF(result);
                 break;
             }
 
             case OP_JUMP_IF_FALSE: {
-                PyObject *cond = Stack_Pop(stack);
+                PyObject *cond = Stack_Pop(frame);
+                if (!cond) return NULL;
                 int is_true = PyObject_IsTrue(cond);
                 Py_DECREF(cond);
                 if (is_true == 0 && arg >= 0) {
@@ -393,7 +539,8 @@ PyObject* PyEval_EvalFrame(PyFrameObject *frame) {
             }
 
             case OP_JUMP_IF_TRUE: {
-                PyObject *cond = Stack_Pop(stack);
+                PyObject *cond = Stack_Pop(frame);
+                if (!cond) return NULL;
                 int is_true = PyObject_IsTrue(cond);
                 Py_DECREF(cond);
                 if (is_true == 1 && arg >= 0) {

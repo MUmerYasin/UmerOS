@@ -6,7 +6,10 @@
  *
  * This is a simplified but functional Python compiler.
  * Supports: print(), assignments, arithmetic, string ops,
- *           if/elif/else, while, for, def, class, imports, try/except.
+ *           imports and from-imports.
+ * Control-flow statements (if/elif/else, while, for, def,
+ * class, try/except, ...) are lexed but not compiled —
+ * Compile_Statement raises SyntaxError for them.
  */
 
 #include <stdio.h>
@@ -312,14 +315,11 @@ static void Compiler_Emit(Compiler *compiler, Opcode op, int arg) {
 
     compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)op;
 
-    /* Emit argument byte (always 2 bytes per instruction) */
-    if (arg >= 0 && arg <= 255) {
-        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)arg;
-    } else {
-        /* Extended args */
-        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg >> 8);
-        compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg & 0xFF);
-    }
+    /* Every instruction carries a 2-byte argument (big-endian).
+     * The VM reads both bytes unconditionally — emitting a
+     * variable number of arg bytes would desync the stream. */
+    compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg >> 8);
+    compiler->bytecode[compiler->bytecode_pos++] = (uint8_t)(arg & 0xFF);
 }
 
 /* Emit opcode with argument from constant pool */
@@ -720,6 +720,42 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
         return 1;
     }
 
+    /* Keywords that are lexed but have no code generation yet.
+     * Fail loudly instead of silently dropping the statement. */
+    switch (token) {
+        case TOKEN_KEYWORD_IF:
+        case TOKEN_KEYWORD_ELIF:
+        case TOKEN_KEYWORD_ELSE:
+        case TOKEN_KEYWORD_WHILE:
+        case TOKEN_KEYWORD_FOR:
+        case TOKEN_KEYWORD_DEF:
+        case TOKEN_KEYWORD_CLASS:
+        case TOKEN_KEYWORD_TRY:
+        case TOKEN_KEYWORD_EXCEPT:
+        case TOKEN_KEYWORD_FINALLY:
+        case TOKEN_KEYWORD_WITH:
+        case TOKEN_KEYWORD_LAMBDA:
+        case TOKEN_KEYWORD_GLOBAL:
+        case TOKEN_KEYWORD_NONLOCAL:
+        case TOKEN_KEYWORD_ASSERT:
+        case TOKEN_KEYWORD_DEL:
+        case TOKEN_KEYWORD_RAISE:
+        case TOKEN_KEYWORD_RETURN:
+        case TOKEN_KEYWORD_YIELD:
+        case TOKEN_KEYWORD_ASYNC:
+        case TOKEN_KEYWORD_AWAIT:
+        case TOKEN_KEYWORD_AS:
+        case TOKEN_KEYWORD_BREAK:
+        case TOKEN_KEYWORD_CONTINUE:
+            PyErr_Format(PyExc_SyntaxError,
+                         "statement '%s' is not supported by this compiler",
+                         parser->current_token ?
+                         PyUnicode_AsString(parser->current_token) : "?");
+            return -1;
+        default:
+            break;
+    }
+
     /* Skip unrecognized tokens */
     while (token != TOKEN_NL && token != TOKEN_ENDMARKER) {
         token = Parser_NextToken(parser);
@@ -744,9 +780,10 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
 
     int token = Parser_NextToken(parser);
 
+    int compile_error = 0;
     while (token != TOKEN_ENDMARKER) {
         int result = Compile_Statement(compiler, parser);
-        if (result == -1) { break; }
+        if (result == -1) { compile_error = 1; break; }
         token = Parser_NextToken(parser);
     }
 
@@ -754,6 +791,10 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
     Compiler_Free(compiler);
     Parser_Free(parser);
     Lexer_Free(lexer);
+    if (compile_error && code) {
+        Py_DECREF(code);
+        return NULL;
+    }
     return code;
 }
 

@@ -259,8 +259,12 @@ static char* Umeros_ReadFile(const char *filename, Py_ssize_t *out_length) {
     fseek(fp, 0, SEEK_END);
     long length = ftell(fp);
     fseek(fp, 0, SEEK_SET);
+    if (length < 0) {
+        fclose(fp);
+        return NULL;
+    }
 
-    char *buffer = (char *)malloc(length + 1);
+    char *buffer = (char *)malloc((size_t)length + 1);
     if (!buffer) {
         fclose(fp);
         fprintf(stderr, "MemoryError: unable to read file '%s'\n", filename);
@@ -423,6 +427,8 @@ static void RunREPL(void) {
     SaveHistory();
     FreeHistory();
     Py_DECREF(globals);
+    Py_XDECREF(builtins);
+    Py_XDECREF(sys_dict);
 }
 
 /* Execute a script file */
@@ -444,11 +450,16 @@ static int RunScript(const char *filename) {
     PyObject *sys_dict = SysModule_GetDict();
     PyDict_SetItemString(globals, "sys", sys_dict);
 
-    PyDict_SetItemString(globals, "__name__",
-                         PyUnicode_FromString("__main__"));
-
-    PyDict_SetItemString(globals, "__file__",
-                         PyUnicode_FromString(filename));
+    PyObject *main_name = PyUnicode_FromString("__main__");
+    if (main_name) {
+        PyDict_SetItemString(globals, "__name__", main_name);
+        Py_DECREF(main_name);
+    }
+    PyObject *file_name = PyUnicode_FromString(filename);
+    if (file_name) {
+        PyDict_SetItemString(globals, "__file__", file_name);
+        Py_DECREF(file_name);
+    }
 
     if (verbose_mode) {
         fprintf(stderr, "[COMPILE] Compiling %s (%ld bytes)\n", filename, (long)length);
@@ -460,6 +471,8 @@ static int RunScript(const char *filename) {
     if (!code) {
         PyErr_Print();
         Py_DECREF(globals);
+        Py_XDECREF(builtins);
+        Py_XDECREF(sys_dict);
         return 1;
     }
 
@@ -470,6 +483,8 @@ static int RunScript(const char *filename) {
     PyObject *result = PyEval_EvalCode(code, globals, globals);
     Py_DECREF((PyObject *)code);
     Py_DECREF(globals);
+    Py_XDECREF(builtins);
+    Py_XDECREF(sys_dict);
 
     if (result) {
         Py_DECREF(result);
@@ -501,6 +516,7 @@ static int RunString(const char *code_str) {
     if (!code) {
         PyErr_Print();
         Py_DECREF(globals);
+        Py_XDECREF(builtins);
         return 1;
     }
 
@@ -511,6 +527,7 @@ static int RunString(const char *code_str) {
     PyObject *result = PyEval_EvalCode(code, globals, globals);
     Py_DECREF((PyObject *)code);
     Py_DECREF(globals);
+    Py_XDECREF(builtins);
 
     if (result) {
         Py_DECREF(result);

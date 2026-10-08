@@ -94,7 +94,9 @@ static PyObject* builtin_type(PyObject *self, PyObject *args) {
     PyObject *obj = PyList_GetItem(args, 0);
     if (obj == NULL) return NULL;
 
-    return (PyObject *)Py_TYPE(obj);
+    PyObject *type = (PyObject *)Py_TYPE(obj);
+    Py_INCREF(type);
+    return type;
 }
 
 /* int() implementation */
@@ -267,6 +269,47 @@ static PyObject* builtin_max(PyObject *self, PyObject *args) {
     return result;
 }
 
+/* __import__() implementation — the import machinery entry point.
+ * OP_IMPORT_NAME calls this with the module name. */
+static PyObject* builtin_import(PyObject *self, PyObject *args) {
+    (void)self;
+
+    if (!args) {
+        PyErr_SetString(PyExc_TypeError, "__import__() missing argument");
+        return NULL;
+    }
+
+    PyObject *obj = NULL;
+    if (PyTuple_Check(args)) {
+        if (PyTuple_Size(args) != 1) {
+            PyErr_SetString(PyExc_TypeError,
+                            "__import__() takes exactly one argument");
+            return NULL;
+        }
+        obj = PyTuple_GetItem(args, 0);
+    } else if (PyList_Check(args)) {
+        if (PyList_Size(args) != 1) {
+            PyErr_SetString(PyExc_TypeError,
+                            "__import__() takes exactly one argument");
+            return NULL;
+        }
+        obj = PyList_GetItem(args, 0);
+    } else {
+        PyErr_SetString(PyExc_TypeError, "__import__() argument must be a tuple");
+        return NULL;
+    }
+    if (!obj) return NULL;
+
+    if (!PyUnicode_Check(obj)) {
+        PyErr_SetString(PyExc_TypeError, "module name must be a string");
+        return NULL;
+    }
+    const char *name = PyUnicode_AsString(obj);
+    if (!name) return NULL;
+
+    return PyImport_ImportModule(name);
+}
+
 /* Builtin function descriptor — embeds PyMethodDef so it lives for program lifetime */
 typedef struct {
     const char *name;
@@ -287,6 +330,7 @@ static BuiltinDef builtin_functions[] = {
     { "abs",   (PyCFunction)builtin_abs,   METH_O,        "abs(x)",                                        { 0 } },
     { "min",   (PyCFunction)builtin_min,   METH_VARARGS,  "min(s, *args)",                                 { 0 } },
     { "max",   (PyCFunction)builtin_max,   METH_VARARGS,  "max(s, *args)",                                 { 0 } },
+    { "__import__", (PyCFunction)builtin_import, METH_O, "__import__(name)",                             { 0 } },
     { NULL, NULL, 0, NULL, { 0 } }
 };
 
