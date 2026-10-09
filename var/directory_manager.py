@@ -365,15 +365,18 @@ class VarDirectoryManager:
         cutoff = time.time() - (max_age_hours * 3600)
         removed = 0
         for item in self.tmp_path.iterdir():
-            if item.stat().st_mtime < cutoff:
-                try:
-                    if item.is_file():
-                        item.unlink()
-                    elif item.is_dir():
-                        shutil.rmtree(item)
-                    removed += 1
-                except Exception as e:
-                    log.error("Failed to remove temp item %s: %s", item.name, e)
+            try:
+                # [FIX] stat() is inside the guard: one vanished entry
+                # must not abort the whole cleanup sweep.
+                if item.stat().st_mtime >= cutoff:
+                    continue
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+                removed += 1
+            except Exception as e:
+                log.error("Failed to remove temp item %s: %s", item.name, e)
         return removed
 
     def list_tmp_files(self) -> List[Dict[str, str]]:

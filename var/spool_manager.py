@@ -221,16 +221,19 @@ class SpoolManager:
         cutoff = time.time() - (max_age_days * 86400)
         removed = 0
         for item in spool_dir.iterdir():
-            if item.stat().st_mtime < cutoff:
-                try:
-                    if item.is_file():
-                        item.unlink()
-                    elif item.is_dir():
-                        import shutil
-                        shutil.rmtree(item)
-                    removed += 1
-                except Exception as e:
-                    log.error("Failed to remove %s: %s", item.name, e)
+            try:
+                # [FIX] stat() is inside the guard: one vanished entry
+                # must not abort the whole cleanup sweep.
+                if item.stat().st_mtime >= cutoff:
+                    continue
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    import shutil
+                    shutil.rmtree(item)
+                removed += 1
+            except Exception as e:
+                log.error("Failed to remove %s: %s", item.name, e)
         return removed
 
     def get_summary(self) -> Dict:

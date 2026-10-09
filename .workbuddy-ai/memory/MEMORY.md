@@ -7,6 +7,12 @@
 - Do NOT batch multiple `Edit` calls on the SAME file in one message (they race); use an assert-first Python `pathlib` script for multi-line same-file edits.
 - Backend = Python only; GPL-3.0 canonical (`Licence`→`License`, `Version 3`→`v3`).
 
+## 🔴 RED loop (separate, resumable) — 2026-10-09
+- **File:** `MainTask/Raw Data/RED Loop Prompt.md` — self-contained loop prompt + 39-item 🔴 checklist + NEXT pointer.
+- Scope: ALL 39 🔴-severity hotspots from the standard §9. Procedure: drift-recon → fix in Python → test → bookkeeping. Say **"continues"** to resume at §NEXT.
+- **RED loop progress (session 83):** H1, H3, H12, H18 ALL RESOLVED (all drift — already fixed + tested earlier; standard §9 colours were stale). Next 🔴 **H46** (`cloud/ota_updater/update_system.py:48-60` fail-open OTA signature verify).
+- Severity source of truth: standard §9 (rows whose Severity == 🔴).
+
 ## Resumable remediation loop (H1–H307)
 - Checkpoint: `.workbuddy-ai/memory/remediation_progress.md` (307 items; flip `- [ ]`→`- [x]`, never regenerate). 6 bookkeeping surfaces per study: checkpoint box + NEXT pointer, standard §9 row (color + RESOLVED note), MEMORY YELLOW pointer + folder map, daily `YYYY-MM-DD.md`, per-session `remediation_sessionNN_overview.md`.
 - Test runner: stdlib `unittest` / pytest>=8 via venv `C:/Users/MC Raja Jang/.workbuddy-ai/binaries/python/envs/default` (QUOTE the path — it has a space). `cryptography` 50.0.0 present.
@@ -19,6 +25,7 @@
 - **RED blockers: ALL CLOSED (sessions 1–33).**
 - **YELLOW sweep in progress (session 36+).** Large drift-recon resolutions: cloud/ fully 🟢 (H46,H154,H47,H48,H49). Many earlier H-items (H4,H5,H6,H7,H8,H9,H11,H13,H14,H15,H16,H19,H20,H23,H24,H26,H30) were RESOLVED with the premise proven stale/overstated — detail lives in the standard §9 + per-session overview files, not re-duplicated here.
 **Current pointer (session 78):** `compatibility/` + `core/` + `dev/` COMPLETE; `drivers/` sweep in progress — H62 RESOLVED (tier labels), H63 RESOLVED (premise overstated: 75/75 GPLv3 headers), **H65 RESOLVED** (dead `import ctypes` removed from `device_io.py`/`irq.py`). Next 🟡 **H66** - `drivers/*` no capability gating on privileged driver ops (MMIO/port I/O/DMA, PCI region claim). Say **'continues'** for H66.
+- **Standard §9 cleanup (2026-10-09):** all 63 resolved (🟢-severity) hotspot rows were removed from `MainTask/Raw Data/Code Review Standards and Process.md`; §9 now lists ONLY open hotspots (rows skip the removed IDs). Full resolution record remains in the checkpoint `remediation_progress.md`. Backup: `Code Review Standards and Process.md.pre-green-removal.bak`.
 - H1 standing user action (not mine): user must rotate the leaked OpenRouter key + purge git history.
 
 ## Folder scope map — hotspots (🟢 fixed / 🟡 yellow / 💭 nit)

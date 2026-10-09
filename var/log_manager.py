@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -88,7 +89,10 @@ class LogManager:
             log.error("Refused path-traversal in write_log: %s", e)
             return False
         timestamp = datetime.now().strftime("%b %d %H:%M:%S")
-        entry = f"{timestamp} {facility}[{os.getpid()}]: {message}"
+        # [FIX] The ``level`` argument was accepted but never
+        # persisted, so entries could not be filtered by severity.
+        level = self._normalize_level(level)
+        entry = f"{timestamp} {facility}[{os.getpid()}] {level}: {message}"
         try:
             # Ensure the log directory exists (robustness: write_log must not
             # fail merely because /var/log was not pre-created).
@@ -133,9 +137,33 @@ class LogManager:
         """Read from /var/log/syslog."""
         return self.read_log("syslog", lines)
 
+    # Format written by ``write_log``:
+    #   "MMM DD HH:MM:SS facility[pid] level: message"
+    _LOG_LINE_RE = re.compile(
+        r"^(?P<ts>\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})\s+"
+        r"(?P<facility>[^\s\[]+)\[(?P<pid>\d+)\]\s+"
+        r"(?P<level>[A-Za-z]+):\s(?P<message>.*)$"
+    )
+
+    @classmethod
+    def _normalize_level(cls, level: str) -> str:
+        """Map a level name onto the canonical syslog level names."""
+        if not level:
+            return "info"
+        low = str(level).lower()
+        return low if low in cls.LOG_LEVELS else "info"
+
     def parse_log_entry(self, line: str) -> Optional[LogEntry]:
-        """Parse a syslog-format line."""
-        # Format: "MMM DD HH:MM:SS facility[pid]: message"
+        """Parse a line written by ``write_log`` (round-trips level)."""
+        match = self._LOG_LINE_RE.match(line.strip())
+        if match:
+            return LogEntry(
+                timestamp=match.group("ts"),
+                facility=match.group("facility"),
+                severity=match.group("level").lower(),
+                message=match.group("message"),
+            )
+        # Fallback: tolerate the legacy "facility[pid]: message" layout.
         parts = line.split(":", 1)
         if len(parts) != 2:
             return None
@@ -183,15 +211,23 @@ class LogManager:
             log.error("Failed to rotate log: %s", e)
             return False
 
+    # Rotated logs are named "<stem>.<unix-ts>.log" by ``rotate_log``.
+    _ROTATED_RE = re.compile(r"\.\d+\.log$")
+
     def compress_old_logs(self) -> List[str]:
-        """Compress old rotated log files."""
+        """Compress old rotated log files (never the active log)."""
         # [FIX H304] privileged FHS delete -> requires fs.admin when wired.
         gate.require(CAP_FS_ADMIN)
         compressed = []
         for log_file in self.log_path.glob("*.log"):
             if log_file.name == "syslog" or log_file.name == "auth.log":
                 continue
-            if "." in log_file.name:
+            # [FIX] The previous ``"." in name`` check matched every
+            # "*.log" file — including the *active* log — so
+            # "compressing old logs" deleted the live log file.
+            # Only rotate-stamped files are old enough to compress.
+            if not self._ROTATED_RE.search(log_file.name):
+                continue
                 try:
                     import gzip
                     with open(log_file, "rb") as f_in:
@@ -215,10 +251,17 @@ class LogManager:
             return {"exists": False}
         if not log_file.exists():
             return {"exists": False}
-        lines = self.read_log(filename, lines=10000)
+        # [FIX] Count lines directly: read_log(..., lines=10000) capped
+        # total_lines at 10000 for logs larger than the read window.
+        try:
+            with open(log_file, "r", encoding="utf-8", errors="replace") as f:
+                total_lines = sum(1 for _ in f)
+        except Exception as e:
+            log.error("Failed to count lines in %s: %s", filename, e)
+            total_lines = 0
         return {
             "exists": True,
-            "total_lines": len(lines),
+            "total_lines": total_lines,
             "file_size": log_file.stat().st_size,
             "last_modified": datetime.fromtimestamp(log_file.stat().st_mtime).isoformat(),
         }

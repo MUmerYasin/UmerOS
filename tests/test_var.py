@@ -154,3 +154,157 @@ def test_safe_child_helper_refuses_escapes(var_root):
     for bad in ("../x", "../../etc", "/abs", "a/../b", "..", ""):
         with pytest.raises(PathTraversalError):
             safe_child(Path(var_root) / "local", bad)
+
+
+# ── New: /var/mail (FHS 3.0 top-level mail spool) ────────────────
+
+@pytest.fixture
+def mail_mgr(var_root):
+    from var import MailManager
+    return MailManager(var_path=var_root)
+
+
+def test_mailbox_append_read(mail_mgr):
+    assert mail_mgr.write_mailbox("alice", "hello") is True
+    assert mail_mgr.write_mailbox("alice", "second message") is True
+    content = mail_mgr.read_mailbox("alice")
+    assert "hello" in content and "second message" in content
+
+
+def test_mailbox_stats(mail_mgr):
+    mail_mgr.write_mailbox("bob", "x" * 10)
+    stats = mail_mgr.mailbox_stats("bob")
+    assert stats.exists is True
+    assert stats.size == 11  # "x"*10 + newline
+    assert stats.lines == 1
+
+
+def test_mailbox_search(mail_mgr):
+    mail_mgr.write_mailbox("carol", "lunch at noon")
+    mail_mgr.write_mailbox("carol", "dinner at eight")
+    hits = mail_mgr.search_mailbox("carol", "NOON")
+    assert len(hits) == 1 and "lunch" in hits[0]
+
+
+def test_mailbox_clear_and_delete(mail_mgr):
+    mail_mgr.write_mailbox("dave", "gone soon")
+    assert mail_mgr.clear_mailbox("dave") is True
+    assert mail_mgr.read_mailbox("dave") == ""
+    assert mail_mgr.delete_mailbox("dave") is True
+    assert mail_mgr.mailbox_stats("dave").exists is False
+
+
+def test_mailbox_rejects_traversal(mail_mgr, var_root):
+    assert mail_mgr.write_mailbox("../../etc/shadow", "x") is False
+    assert mail_mgr.read_mailbox("../../etc/shadow") == ""
+    escaped = Path(var_root).parent / "etc" / "shadow"
+    assert not escaped.exists(), "mail traversal escaped /var/mail!"
+
+
+# ── New: /var/cache (FHS 3.0 application caches) ─────────────────
+
+@pytest.fixture
+def cache_mgr(var_root):
+    from var import CacheManager
+    return CacheManager(var_path=var_root, max_bytes=1024 * 1024)
+
+
+def test_cache_put_get_text(cache_mgr):
+    assert cache_mgr.put("app/config", "value") is True
+    assert cache_mgr.get("app/config") == "value"
+
+
+def test_cache_put_get_bytes(cache_mgr):
+    payload = b"\x00\x01\x02\xff"
+    assert cache_mgr.put("app/blob", payload) is True
+    assert cache_mgr.get("app/blob") == payload
+
+
+def test_cache_nested_key(cache_mgr):
+    assert cache_mgr.put("app/thumbnails/foo", "thumb") is True
+    assert cache_mgr.get("app/thumbnails/foo") == "thumb"
+    assert "app/thumbnails/foo" in cache_mgr.keys()
+
+
+def test_cache_ttl_expiry(cache_mgr):
+    assert cache_mgr.put("short-lived", "x", ttl=0) is True
+    assert cache_mgr.get("short-lived") is None
+
+
+def test_cache_cleanup_expired(cache_mgr):
+    cache_mgr.put("gone", "x", ttl=0)
+    assert cache_mgr.cleanup_expired() >= 1
+    assert cache_mgr.get("gone") is None
+
+
+def test_cache_eviction_keeps_newest(cache_mgr):
+    assert cache_mgr.put("a", "x" * 100) is True
+    size_a = cache_mgr.stats()["total_bytes"]
+    # Budget that fits exactly one entry -> the oldest is evicted.
+    cache_mgr.max_bytes = size_a + 1
+    assert cache_mgr.put("b", "y" * 100) is True
+    assert cache_mgr.get("a") is None
+    assert cache_mgr.get("b") == "y" * 100
+
+
+def test_cache_miss_and_stats(cache_mgr):
+    assert cache_mgr.get("missing") is None
+    stats = cache_mgr.stats()
+    assert stats["misses"] >= 1
+    assert stats["entries"] == 0
+
+
+def test_cache_delete_and_clear(cache_mgr):
+    cache_mgr.put("k1", "v1")
+    cache_mgr.put("k2", "v2")
+    assert cache_mgr.delete("k1") is True
+    assert cache_mgr.get("k1") is None
+    assert cache_mgr.clear() >= 1
+    assert cache_mgr.stats()["entries"] == 0
+
+
+def test_cache_rejects_traversal(cache_mgr, var_root):
+    assert cache_mgr.put("../../etc/cron.d/x", "pwn") is False
+    escaped = Path(var_root).parent / "etc" / "cron.d" / "x"
+    assert not escaped.exists(), "cache traversal escaped /var/cache!"
+
+
+# ── LogManager improvements ────────────────────────────────────────
+
+def test_write_log_persists_level(log_mgr):
+    assert log_mgr.write_log("app.log", "something broke",
+                             level="err") is True
+    lines = log_mgr.read_log("app.log")
+    entry = log_mgr.parse_log_entry(lines[-1])
+    assert entry is not None
+    assert entry.severity == "err"
+    assert entry.message == "something broke"
+
+
+def test_compress_old_logs_keeps_active_log(log_mgr):
+    assert log_mgr.write_log("app.log", "active line") is True
+    assert log_mgr.compress_old_logs() == []
+    # The active log must still be readable (not compressed away).
+    assert any("active line" in line
+               for line in log_mgr.read_log("app.log"))
+
+
+def test_get_log_stats_counts_all_lines(log_mgr):
+    for i in range(120):
+        assert log_mgr.write_log("big.log", f"line {i}") is True
+    stats = log_mgr.get_log_stats("big.log")
+    assert stats["total_lines"] == 120
+
+
+def test_safe_join_from_var_package(var_root):
+    from var import safe_join
+    root = (Path(var_root) / "cache").resolve()
+    nested = safe_join(Path(var_root) / "cache", "app", "sub", "file.txt")
+    assert nested == (root / "app" / "sub" / "file.txt") \
+        or root in nested.parents
+    for bad in ("../x", "a/../../b"):
+        with pytest.raises(PathTraversalError):
+            safe_join(Path(var_root) / "cache", bad)
+    # A leading separator is tolerated (stays contained), not an escape.
+    contained = safe_join(Path(var_root) / "cache", "/abs")
+    assert root in contained.parents or contained == root

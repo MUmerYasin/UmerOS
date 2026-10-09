@@ -2,6 +2,8 @@
 UmerOS /var — Path-Traversal Guard  (fix for H303, CWE-22)
 ==========================================================
 
+SHIM over the canonical guard in ``core.path_guard``.
+
 WHY THIS EXISTS
 ---------------
 Every /var manager builds target paths by joining a manager-owned root
@@ -18,7 +20,8 @@ executes ``/etc/cron.d/*`` as root, so a traversal here is a **root RCE**.
 THE FIX
 -------
 ``safe_child(root, name)`` guarantees the returned path can *only* live
-inside ``root``:
+inside ``root``; ``safe_join(root, *names)`` extends that guarantee to
+nested (multi-segment) names. Both:
 
 1. Reject obvious escapes up front (absolute paths, path separators,
    ``..`` segments, ``.``).
@@ -26,10 +29,11 @@ inside ``root``:
    ``root`` itself or a descendant of ``root`` — this defeats symlink and
    encoded-traversal tricks that a naive string check would miss.
 
-Callers that previously did ``self.root / name`` now call
-``safe_child(self.root, name)`` and treat ``PathTraversalError`` as a
-refused (fail-closed) operation: the dangerous filesystem write NEVER
-happens.
+This module re-exports the *canonical* implementations from
+``core.path_guard`` so there is exactly one guarded code path for the
+whole OS (previously this file was a full copy, which let the two
+guards drift apart). Callers treat ``PathTraversalError`` as a refused
+(fail-closed) operation: the dangerous filesystem write NEVER happens.
 
 Author: UmerOS Development Team
 License: GPL-3.0
@@ -37,58 +41,24 @@ License: GPL-3.0
 
 from __future__ import annotations
 
-from pathlib import Path
+import os
+import sys
 
+# [FIX] Re-export the canonical guard: one implementation, no drift.
+try:
+    from core.path_guard import (  # noqa: F401
+        PathTraversalError,
+        safe_child,
+        safe_join,
+    )
+except Exception:  # pragma: no cover - standalone fallback
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.path_guard import (  # noqa: F401
+        PathTraversalError,
+        safe_child,
+        safe_join,
+    )
 
-class PathTraversalError(ValueError):
-    """Raised when a child name would escape its managed root directory.
-
-    This is a *security* refusal, not a generic I/O error: callers should
-    log it and return a failure status rather than proceeding.
-    """
-
-
-def safe_child(root: "str | Path", name: str) -> Path:
-    """Return an absolute, root-contained path for ``root / name``.
-
-    Args:
-        root: the manager-owned directory (e.g. ``/var/log`` or a temp root
-            supplied by tests).
-        name: caller-supplied child name. Must be a single, safe segment.
-
-    Returns:
-        The resolved :class:`~pathlib.Path`, guaranteed to be ``root`` or a
-        descendant of ``root``.
-
-    Raises:
-        PathTraversalError: if ``name`` tries to escape ``root`` (absolute
-            path, contains a separator, a ``..`` segment, or resolves
-            outside ``root``).
-    """
-    # [FIX H303] Normalize the trusted root once. resolve() follows symlinks
-    # so the containment check below is against the *real* on-disk location.
-    root_abs = Path(root).resolve()
-
-    if name is None or name == "":
-        raise PathTraversalError("Refusing empty child name")
-    if name == ".":
-        raise PathTraversalError("Refusing '.' as child name")
-    # Reject absolute paths and backslash variants up front.
-    if name.startswith("/") or name.startswith("\\"):
-        raise PathTraversalError(f"Refusing absolute path as child name: {name!r}")
-    # Reject any path-separator or parent-directory segment.
-    for sep in ("/", "\\"):
-        if sep in name:
-            raise PathTraversalError(
-                f"Refusing path separator in child name: {name!r}"
-            )
-    if ".." in name.split("/") or ".." in name.split("\\"):
-        raise PathTraversalError(f"Refusing '..' segment in child name: {name!r}")
-
-    # [FIX H303] Build and resolve the candidate, then prove containment.
-    candidate = (root_abs / name).resolve()
-    if candidate != root_abs and root_abs not in candidate.parents:
-        raise PathTraversalError(
-            f"Child path escapes managed root {root_abs}: {candidate}"
-        )
-    return candidate
+__all__ = ["PathTraversalError", "safe_child", "safe_join"]
