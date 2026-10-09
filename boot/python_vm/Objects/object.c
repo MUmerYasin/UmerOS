@@ -723,6 +723,7 @@ PyObject* PyModule_GetDict(PyObject *module) {
 /* ==================== Module Type ==================== */
 
 PyTypeObject PyModule_Type = {
+    1, NULL,                     /* PyObject_HEAD */
     "module",                    /* tp_name */
     sizeof(PyModuleObject),      /* tp_basicsize */
     0,                           /* tp_itemsize */

@@ -1,22 +1,18 @@
 # ninja log v7
 21	164	8116911679870642	CMakeFiles/umeros_python.dir/Objects/float.c.obj	d7144c3bfc9a5e4b
-11	82	8116912594928700	CMakeFiles/umeros_python.dir/Objects/object.c.obj	8b72f907f26ca8f9
+27	468	8131616668562355	CMakeFiles/umeros_python.dir/Objects/object.c.obj	8b72f907f26ca8f9
 16	154	8116911679830637	CMakeFiles/umeros_python.dir/Objects/long.c.obj	5d3113865e646845
 26	159	8116911679920633	CMakeFiles/umeros_python.dir/Objects/unicode.c.obj	5cca2e08a63de33f
 159	209	8116911681260644	CMakeFiles/umeros_python.dir/Objects/none.c.obj	ee86ab45ee5afa12
 154	226	8116911681210655	CMakeFiles/umeros_python.dir/Objects/bool.c.obj	d7f1a463f1c82dd0
 164	237	8116911681300648	CMakeFiles/umeros_python.dir/Objects/errors.c.obj	2c66d4de425e1381
-168	233	8116911681350869	CMakeFiles/umeros_python.dir/Builtins/builtins.c.obj	e71b1a8b89390ec8
-233	311	8116911681990649	CMakeFiles/umeros_python.dir/VM/vm.c.obj	f2753f6de1bbcf1b
-237	532	8116911682030652	CMakeFiles/umeros_python.dir/Programs/main.c.obj	29261fd0db8a8560
-226	311	8116911681930635	CMakeFiles/umeros_python.dir/Compiler/compiler.c.obj	41e3f5474d5e6a0
-82	193	8116912595648715	umeros_python.exe	694dd1879edddba2
-81	273	8131608778773025	build.ninja	b1fe2ea3fbcb4964
-81	273	8131608778733025	F:/Pension Person Details/UmerOS/boot/python_vm/build/cmake_install.cmake	b1fe2ea3fbcb4964
-209	277	8116911681750642	CMakeFiles/umeros_python.dir/Builtins/sys_module.c.obj	7401edb3ddabbb34
-27	986	8131608782203431	CMakeFiles/umeros_python.dir/Objects/object.c.obj	8b72f907f26ca8f9
 986	1121	8131608791794290	CMakeFiles/umeros_python.dir/Builtins/builtins.c.obj	e71b1a8b89390ec8
-1121	1267	8131608793144289	CMakeFiles/umeros_python.dir/Compiler/compiler.c.obj	41e3f5474d5e6a0
 1267	1418	8131608794605491	CMakeFiles/umeros_python.dir/VM/vm.c.obj	f2753f6de1bbcf1b
 1418	1978	8131608796115495	CMakeFiles/umeros_python.dir/Programs/main.c.obj	29261fd0db8a8560
-1978	2344	8131608801715502	umeros_python.exe	694dd1879edddba2
+468	614	8131616672974829	CMakeFiles/umeros_python.dir/Compiler/compiler.c.obj	41e3f5474d5e6a0
+614	835	8131616674431915	umeros_python.exe	694dd1879edddba2
+81	273	8131622636610818	build.ninja	b1fe2ea3fbcb4964
+81	273	8131622636570826	F:/Pension Person Details/UmerOS/boot/python_vm/build/cmake_install.cmake	b1fe2ea3fbcb4964
+209	277	8116911681750642	CMakeFiles/umeros_python.dir/Builtins/sys_module.c.obj	7401edb3ddabbb34
+24	208	8131622638890811	CMakeFiles/umeros_python.dir/Compiler/compiler.c.obj	41e3f5474d5e6a0
+209	508	8131622640740801	umeros_python.exe	694dd1879edddba2

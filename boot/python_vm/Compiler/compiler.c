@@ -174,13 +174,16 @@ static PyObject* Lexer_ReadString(Lexer *lexer, char quote) {
         Lexer_Advance(lexer);
     }
 
+    /* lexer->pos stops AT the closing quote(s), so the
+     * range [start, pos) holds the opening quote(s) plus
+     * the content — strip only the opening quote(s). */
     Py_ssize_t len = lexer->pos - start;
     if (is_triple) {
         start += 3;
-        len -= 6;
+        len -= 3;
     } else {
         start += 1;
-        len -= 2;
+        len -= 1;
     }
 
     if (len < 0) len = 0;
@@ -669,7 +672,10 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
         Parser_NextToken(parser);  /* skip 'import' */
         token = Parser_NextToken(parser);
         while (token == TOKEN_NAME) {
-            PyObject *mod_name = PyUnicode_FromString(parser->current_token);
+            /* current_token is already a unicode object —
+             * borrow it instead of re-creating from its pointer */
+            PyObject *mod_name = parser->current_token;
+            Py_INCREF(mod_name);
             int mod_idx = Compiler_AddConstant(compiler, mod_name);
             Py_DECREF(mod_name);
             Compiler_Emit(compiler, OP_IMPORT_NAME, mod_idx);
@@ -685,7 +691,8 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
 
     if (token == TOKEN_KEYWORD_FROM) {
         Parser_NextToken(parser);  /* skip 'from' */
-        PyObject *mod_name = PyUnicode_FromString(parser->current_token);
+        PyObject *mod_name = parser->current_token;
+        Py_INCREF(mod_name);
         int mod_idx = Compiler_AddConstant(compiler, mod_name);
         Py_DECREF(mod_name);
         Compiler_Emit(compiler, OP_IMPORT_NAME, mod_idx);
@@ -696,7 +703,8 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
             Parser_NextToken(parser);  /* skip '*' */
         } else {
             while (token == TOKEN_NAME) {
-                PyObject *attr = PyUnicode_FromString(parser->current_token);
+                PyObject *attr = parser->current_token;
+                Py_INCREF(attr);
                 int attr_idx = Compiler_AddConstant(compiler, attr);
                 Py_DECREF(attr);
                 Compiler_Emit(compiler, OP_IMPORT_FROM, attr_idx);
@@ -704,7 +712,8 @@ static int Compile_Statement(Compiler *compiler, Parser *parser) {
                 token = Parser_NextToken(parser);
                 if (token == TOKEN_KEYWORD_AS) {
                     token = Parser_NextToken(parser);
-                    alias = PyUnicode_FromString(parser->current_token);
+                    alias = parser->current_token;
+                    Py_INCREF(alias);
                     token = Parser_NextToken(parser);
                 } else {
                     alias = PyUnicode_FromString((const char *)PyUnicode_AsUTF8(attr));
@@ -787,7 +796,7 @@ PyObject* Py_CompileString(const char *source, const char *filename) {
         token = Parser_NextToken(parser);
     }
 
-    PyObject *code = Compiler_MakeCode(compiler);
+    PyObject *code = (PyObject *)Compiler_MakeCode(compiler);
     Compiler_Free(compiler);
     Parser_Free(parser);
     Lexer_Free(lexer);
