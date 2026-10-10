@@ -43,7 +43,7 @@
 ---
 
 ## NEXT
-Next: **H167** — `mnt/mount_point.py:remove(force=True)` (L279-315) `shutil.rmtree` on a non-symlink-checked path → TOCTOU arbitrary delete. Say **"continues"** for
+Next: **H168** — `mnt/fstab.py:write_file` (L334) un-gated privileged `/etc/fstab` write + `to_string()` drops comments/header. Say **"continues"** for
 
 ---
 
@@ -97,9 +97,10 @@ Next: **H167** — `mnt/mount_point.py:remove(force=True)` (L279-315) `shutil.rm
       - Issue: **No `CapabilityManager` gate on privileged mount ops** - `MountManager.mount`/`umount`/`remount`, `MountPointManager.create`/`remove`, and `Fstab.write_file` (writes `/etc/fstab`) run with no capability check (same family as H27/H28/H46/H51/H60/H66/H73/H80/H85/H92/H110/H156).
       - Action: Route all through `CapabilityManager`
       - ✅ RESOLVED (session 91, drift): H166 already gated — all six privileged ops require `fs.admin` via `gate.require(CAP_FS_ADMIN)` (fail-closed when a CapabilityManager is wired): `mnt/mount_ops.py` mount (L365), umount (L430), remount (L468); `mnt/mount_point.py` create (L234), remove (L318); `mnt/fstab.py` write_file (L383). `mnt/user_mount.py` imports `MountManager` from `mount_ops` (no ungated path). Verified in-process: all six raise `PermissionError` under a strict gate. Dedicated 4-test block in `tests/test_cap_gate.py` (H166, L217-290) + `tests/test_mnt_security.py`. No code change needed.
-- [ ] **H167** | 🔴 | ``mnt/mount_point.py:remove(force=True)` (L279-315)`
+- [x] **H167** | 🔴 | ``mnt/mount_point.py:remove(force=True)` (L279-315)`
       - Issue: **`shutil.rmtree` on a non-symlink-checked path -> TOCTOU arbitrary delete** - `remove(force=True)` rmtrees a path only `os.path.normpath`-validated; `_validate_path` is NOT called in `remove`, so a symlink swap deletes an arbitrary tree (the one genuinely new hotspot in `mnt/`).
       - Action: `realpath` + reject symlinks before `rmtree`; call `_validate_path`
+      - ✅ RESOLVED (session 92, drift): H167 already guarded — `MountPointManager.remove(force=True)` (`mnt/mount_point.py:340-361`) now refuses `os.path.islink(path)` (L350-352), refuses empty/`/`/drive-root `realpath` targets (L353-357), and re-stats (`islink(real) or not isdir(real)`) immediately before the destructive call to narrow the TOCTOU window (L358-360). The unvalidated `shutil.rmtree` is gone. Covered by the dedicated `tests/test_mnt_security.py` (H167 + H168) → 5 passed. No code change needed.
 - [ ] **H168** | 🔴 | ``mnt/fstab.py:write_file` (L334)`
       - Issue: **Un-gated privileged `/etc/fstab` write + drops comments/header** - `write_file` writes `/etc/fstab` with no capability gate and `to_string()` silently drops `_comments`/`_header` (round-trip data loss).
       - Action: Gate `write_file` on `CapabilityManager`; preserve comments/header

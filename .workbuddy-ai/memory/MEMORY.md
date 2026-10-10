@@ -10,7 +10,7 @@
 ## 🔴 RED loop (separate, resumable) — 2026-10-09
 - **File:** `MainTask/Raw Data/RED Loop Prompt.md` — self-contained loop prompt + 39-item 🔴 checklist + NEXT pointer.
 - Scope: ALL 39 🔴-severity hotspots from the standard §9. Procedure: drift-recon → fix in Python → test → bookkeeping. Say **"continues"** to resume at §NEXT.
-- **RED loop progress (session 91):** H1, H3, H12, H18, H46, H51, H146, H147, H152, H156, H157, H166 ALL RESOLVED (all drift — already fixed + tested earlier; standard §9 colours were stale). Next 🔴 **H167** (`mnt/mount_point.py:remove(force=True)` TOCTOU rmtree).
+- **RED loop progress (session 92):** H1, H3, H12, H18, H46, H51, H146, H147, H152, H156, H157, H166, H167 ALL RESOLVED (all drift — already fixed + tested earlier; standard §9 colours were stale). Next 🔴 **H168** (`mnt/fstab.py:write_file` un-gated /etc/fstab write + drops comments).
 - Severity source of truth: standard §9 (rows whose Severity == 🔴).
 
 ## Resumable remediation loop (H1–H307)

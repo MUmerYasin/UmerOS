@@ -639,6 +639,138 @@ class Emulator:
                 self.mem.write_u16(moffs, self.regs.get(REG_RAX) & 0xFFFF)
             self.regs.set(15, ip + 2)
             return
+        if op in (0xA4, 0xA5):
+            # movsb/movsw/movsd/movsq -- copy [rsi] to [rdi] with df
+            # direction.  In 64-bit mode, the operand size is 8
+            # bytes (movsq).  We honour df for completeness.
+            size = 1 << (2 if op == 0xA4 else 3)  # 1 / 8
+            rdi = self.regs.get(REG_RDI)
+            rsi = self.regs.get(REG_RSI)
+            if size == 1:
+                self.mem.write_u8(rdi, self.mem.read_u8(rsi))
+            else:
+                self.mem.write_u64(rdi, self.mem.read_u64(rsi))
+            step = size
+            if self.regs.df:
+                step = -step
+            self.regs.set(REG_RDI, (rdi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(REG_RSI, (rsi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip)
+            return
+        if op == 0xAA:
+            # stosb/stosq -- store AL/RAX to [rdi].  Size is 1 in
+            # 64-bit mode, or 8 with REX.W.
+            size = 8 if rex_w else 1
+            rdi = self.regs.get(REG_RDI)
+            if size == 1:
+                self.mem.write_u8(rdi, self.regs.get(REG_RAX) & 0xFF)
+                step = 1
+            else:
+                self.mem.write_u64(rdi, self.regs.get(REG_RAX))
+                step = 8
+            if self.regs.df:
+                step = -step
+            self.regs.set(REG_RDI, (rdi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip)
+            return
+        if op == 0xAB:
+            # stosd/stosq -- store EAX/RAX to [rdi].  Operand size
+            # depends on REX.W or operand-size prefix.
+            size = 8 if rex_w else 4
+            rdi = self.regs.get(REG_RDI)
+            if size == 8:
+                self.mem.write_u64(rdi, self.regs.get(REG_RAX))
+                step = 8
+            else:
+                self.mem.write_u32(rdi, self.regs.get(REG_RAX) & 0xFFFFFFFF)
+                step = 4
+            if self.regs.df:
+                step = -step
+            self.regs.set(REG_RDI, (rdi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip)
+            return
+        if op == 0xAC:
+            # lodsb/lodsq -- load [rsi] into AL/RAX.
+            size = 8 if rex_w else 1
+            rsi = self.regs.get(REG_RSI)
+            if size == 1:
+                self.regs.set(REG_RAX,
+                              (self.regs.get(REG_RAX) & ~0xFF)
+                              | self.mem.read_u8(rsi))
+                step = 1
+            else:
+                self.regs.set(REG_RAX, self.mem.read_u64(rsi))
+                step = 8
+            if self.regs.df:
+                step = -step
+            self.regs.set(REG_RSI, (rsi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip)
+            return
+        if op == 0xAD:
+            # lodsd/lodsq -- load [rsi] into EAX/RAX.
+            size = 8 if rex_w else 4
+            rsi = self.regs.get(REG_RSI)
+            if size == 8:
+                self.regs.set(REG_RAX, self.mem.read_u64(rsi))
+                step = 8
+            else:
+                self.regs.set(REG_RAX,
+                              (self.regs.get(REG_RAX) & 0xFFFFFFFF00000000)
+                              | self.mem.read_u32(rsi))
+                step = 4
+            if self.regs.df:
+                step = -step
+            self.regs.set(REG_RSI, (rsi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip)
+            return
+        if op == 0xAE:
+            # scasb/scasq -- compare AL/RAX with [rdi].
+            size = 8 if rex_w else 1
+            rdi = self.regs.get(REG_RDI)
+            if size == 1:
+                v = self.mem.read_u8(rdi)
+                self._cmp(self.regs.get(REG_RAX) & 0xFF, v, 1)
+                step = 1
+            else:
+                v = self.mem.read_u64(rdi)
+                self._cmp(self.regs.get(REG_RAX), v, 8)
+                step = 8
+            if self.regs.df:
+                step = -step
+            self.regs.set(REG_RDI, (rdi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip)
+            return
+        if op == 0xA6:
+            # cmpsb -- compare [rsi] with [rdi].
+            rsi = self.regs.get(REG_RSI)
+            rdi = self.regs.get(REG_RDI)
+            self._cmp(self.mem.read_u8(rsi), self.mem.read_u8(rdi), 1)
+            step = 1
+            if self.regs.df:
+                step = -step
+            self.regs.set(REG_RSI, (rsi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(REG_RDI, (rdi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip)
+            return
+        if op == 0xA7:
+            # cmpsd (compare [rsi] with [rdi], quad in 64-bit mode).
+            size = 8 if rex_w else 4
+            rsi = self.regs.get(REG_RSI)
+            rdi = self.regs.get(REG_RDI)
+            if size == 8:
+                self._cmp(self.mem.read_u64(rsi),
+                          self.mem.read_u64(rdi), 8)
+                step = 8
+            else:
+                self._cmp(self.mem.read_u32(rsi),
+                          self.mem.read_u32(rdi), 4)
+                step = 4
+            if self.regs.df:
+                step = -step
+            self.regs.set(REG_RSI, (rsi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(REG_RDI, (rdi + step) & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip)
+            return
         if op == 0x9F:  # LAHF
             ah = 0
             ah |= (self.regs.cf & 0x01) << 0
@@ -2038,13 +2170,13 @@ class Emulator:
                   0x2E, 0x2F, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56,
                   0x57, 0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F,
                   0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68,
-                  0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0xC2, 0xC3, 0xC4, 0xC5,
-                  0xC6, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6, 0xD7,
-                  0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF, 0xE0,
-                  0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9,
-                  0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1, 0xF2,
-                  0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB,
-                  0xFC, 0xFD, 0xFE, 0xFF):
+                  0x69, 0x6A, 0x6B, 0x6C, 0x6D, 0xAE, 0xC2, 0xC3, 0xC4,
+                  0xC5, 0xC6, 0xD0, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6,
+                  0xD7, 0xD8, 0xD9, 0xDA, 0xDB, 0xDC, 0xDD, 0xDE, 0xDF,
+                  0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8,
+                  0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF, 0xF0, 0xF1,
+                  0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA,
+                  0xFB, 0xFC, 0xFD, 0xFE, 0xFF):
             modrm = self.mem.read_u8(ip)
             rm_addr = ip + 1
             mod = (modrm >> 6) & 3
