@@ -17,18 +17,33 @@ UmerOS /var — Log management, mail, cache, spool dirs, variable state.
 from __future__ import annotations
 
 import logging
+import os
+import sys
 
 __version__ = "1.1.0"
 __all__: list[str] = []
 
 log = logging.getLogger("UmerOS.Var")
 
+# Real package name, robust even when this file is executed
+# directly (``python var/__init__.py`` runs it as ``__main__``,
+# which would otherwise break ``__import__(f"{__name__}.…")``).
+_PKG = os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+
+# Ensure the project root is importable even when this file is
+# executed directly (``python var/__init__.py`` puts the var
+# directory itself on sys.path, not its parent).
+_proj_root = os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))
+if _proj_root not in sys.path:
+    sys.path.insert(0, _proj_root)
+
 
 def _try_import(module_name: str, names: tuple[str, ...]) -> None:
     """Import optional helpers and add the names to ``__all__``."""
     global __all__
     try:
-        mod = __import__(f"{__name__}.{module_name}", fromlist=names)
+        mod = __import__(f"{_PKG}.{module_name}", fromlist=names)
     except ImportError as exc:
         # [FIX] A missing submodule must not fail silently: it would
         # leave the package without a whole manager (e.g. no

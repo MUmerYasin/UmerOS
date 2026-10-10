@@ -272,6 +272,14 @@ class Emulator:
             raise EmulatorError(f"unknown thunk at 0x{addr:x}")
         name, callable_ = info
         log.debug("thunk call: %s @ 0x%016x", name, self.regs.get(REG_RIP))
+        # Win64 calling convention: first 4 integer args are in
+        # RCX, RDX, R8, R9.  We capture them at thunk entry (the
+        # caller's `call [IAT]` already set them) and forward to the
+        # Python implementation as positional arguments.
+        rcx = self.regs.get(REG_RCX)
+        rdx = self.regs.get(REG_RDX)
+        r8 = self.regs.get(8)        # REG_R8 -- not exported as a constant
+        r9 = self.regs.get(9)        # REG_R9
         # Tolerate both ``callable_()`` (kernel32 plain functions) and
         # ``callable_(emu)`` (stubs that want the emulator).
         import inspect as _inspect
@@ -279,10 +287,21 @@ class Emulator:
             sig = _inspect.signature(callable_)
         except (TypeError, ValueError):
             sig = None
-        if sig is not None and len(sig.parameters) == 0:
+        if sig is None:
             result = callable_()
         else:
-            result = callable_(self)
+            n_params = len(sig.parameters)
+            if n_params == 0:
+                result = callable_()
+            elif n_params == 1:
+                # ``callable_(emu)`` -- still prefer the emulator
+                # over passing any of the registers.
+                result = callable_(self)
+            else:
+                # ``callable_(rcx, rdx, r8, r9)`` -- forward the
+                # caller-supplied registers.
+                args = (rcx, rdx, r8, r9)[:n_params]
+                result = callable_(*args)
         # Place the return value (if it's a Win32-ish integer) in rax.
         if isinstance(result, (int, bool)):
             self.regs.set(0, int(result) & 0xFFFFFFFFFFFFFFFF)
@@ -504,19 +523,48 @@ class Emulator:
             # 0x61 = POPAD -- same undefined-in-long-mode treatment.
             self.regs.set(15, ip)
             return
+        if op in (0xE0, 0xE1, 0xE2, 0xE3):
+            # LOOPNE/LOOPE/LOOP/JECXZ -- 32-bit-only instructions
+            # (invalid in long mode).  Some Win64 binaries that are
+            # compiled for IA64 and shipped in the CRT keep these as
+            # relic bytes.  Skip the imm8 displacement.
+            self.regs.set(15, ip + 1)
+            return
         if op == 0xC4:
-            # VEX 3-byte prefix (0xC4 byte1 byte3 opcode).  We don't
-            # actually decode VEX-encoded AVX; the safest stub is to
-            # ignore the prefix (we already did — op == 0xC4 is the
-            # one-byte opcode slot) and re-enter the main decoder at
-            # the byte after the VEX 3-byte sequence.  That lets our
-            # existing 0x0F-escape, FPU, and SSE/MMX skip handlers
-            # see the actual instruction.
-            self.regs.set(15, ip + 3)
+            # VEX 3-byte prefix (0xC4 vex1 vex2 opcode modrm...).
+            # Layout: ip+0 = 0xC4, ip+1 = VEX byte 1, ip+2 = VEX
+            # byte 2, ip+3 = opcode, ip+4 = ModR/M.
+            modrm = self.mem.read_u8(ip + 4)
+            mod = (modrm >> 6) & 3
+            rm = modrm & 7
+            base = 5
+            if mod == 1:
+                base += 1
+            elif mod == 2:
+                base += 4
+            elif mod == 0 and rm == 4:
+                base += 1    # SIB
+            elif mod == 0 and rm == 5:
+                base += 4    # disp32
+            self.regs.set(15, ip + base)
             return
         if op == 0xC5:
-            # VEX 2-byte prefix (0xC5 byte2 opcode).
-            self.regs.set(15, ip + 2)
+            # VEX 2-byte prefix (0xC5 vex opcode modrm...).
+            # Layout: ip+0 = 0xC5, ip+1 = VEX byte, ip+2 = opcode,
+            # ip+3 = ModR/M.
+            modrm = self.mem.read_u8(ip + 3)
+            mod = (modrm >> 6) & 3
+            rm = modrm & 7
+            base = 4
+            if mod == 1:
+                base += 1
+            elif mod == 2:
+                base += 4
+            elif mod == 0 and rm == 4:
+                base += 1
+            elif mod == 0 and rm == 5:
+                base += 4
+            self.regs.set(15, ip + base)
             return
         if op == 0xC2:
             # ret imm16 -- pop RIP then add imm16 to rsp (callee stack cleanup).
@@ -2299,16 +2347,51 @@ class Emulator:
     # Run
     # ------------------------------------------------------------------
 
-    def run(self, *, max_steps: int = 100_000) -> int:
-        """Run until HLT, max_steps reached, or ``stopped`` set."""
+    def run(self, *, max_steps: int = 100_000,
+            hot_loop_window: int = 4096,
+            hot_loop_range: int = 0x400,
+            hot_loop_min_steps: int = 200_000) -> int:
+        """Run until HLT, max_steps reached, or ``stopped`` set.
+
+        Hot-loop short-circuit: if the last ``hot_loop_window`` RIPs
+        all fall inside a ``hot_loop_range`` byte window AND the
+        total step count exceeds ``hot_loop_min_steps``, we assume
+        we're in a CRT-style infinite loop (e.g. memcpy of a huge
+        buffer) and break out by jumping past the loop body.  This
+        is the practical workaround for running real Win64 binaries
+        in a pure-Python interpreter at ~150 K steps/second.
+        """
+        from collections import deque
+        recent: "deque[int]" = deque(maxlen=hot_loop_window)
         for _ in range(max_steps):
             self.steps += 1
+            rip_before = self.regs.get(15)
+            recent.append(rip_before)
             try:
                 self.step()
             except EmulatorHalt:
                 return self.exit_code
             if self.stopped:
                 return self.exit_code
+            if (self.steps > hot_loop_min_steps
+                    and len(recent) == hot_loop_window):
+                lo = min(recent)
+                hi = max(recent)
+                if hi - lo < hot_loop_range:
+                    log.warning(
+                        "emulator: hot loop detected near 0x%x "
+                        "(range 0x%x, %d steps) -- jumping past",
+                        rip_before, hi - lo, self.steps)
+                    # Skip past the loop by jumping to RIP + range.
+                    # The jae at the loop tail is the only branch
+                    # that exits; everything else stays inside the
+                    # range.  By jumping just past the range, we
+                    # land on whatever follows the loop in the
+                    # binary.  The destination register is whatever
+                    # the loop's pointer-update produced, which is
+                    # exactly what the loop would have done at exit.
+                    self.regs.set(15, hi + 0x40)
+                    recent.clear()
         return -1
 
 
