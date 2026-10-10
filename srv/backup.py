@@ -279,6 +279,14 @@ class SrvBackupManager:
                     raise FileExistsError(
                         f"Destination '{dest_folder}' already exists. Use overwrite=True to replace."
                     )
+                # Never rmtree the managed root itself (H267). A manifest with
+                # `service_name: "."` resolves dest_folder == target_root (the
+                # whole /srv tree) instead of a single service, so require a
+                # *proper* descendant of the resolved srv root before deleting.
+                if dest_folder == target_root or target_root not in dest_folder.parents:
+                    raise ValueError(
+                        f"Refusing to remove unsafe restore destination: {dest_folder}"
+                    )
                 shutil.rmtree(dest_folder)
 
             shutil.copytree(src_folder, dest_folder)

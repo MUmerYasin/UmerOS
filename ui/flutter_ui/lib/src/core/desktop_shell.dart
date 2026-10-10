@@ -92,10 +92,32 @@ class _DesktopShellState extends State<DesktopShell> {
       autofocus: true,
       onKeyEvent: (event) {
         if (event is KeyDownEvent) {
-          if (event.logicalKey == LogicalKeyboardKey.keyK &&
-              (HardwareKeyboard.instance.isControlPressed ||
-                  HardwareKeyboard.instance.isMetaPressed)) {
+          final isCtrlOrMeta = HardwareKeyboard.instance.isControlPressed ||
+              HardwareKeyboard.instance.isMetaPressed;
+          final isShift = HardwareKeyboard.instance.isShiftPressed;
+
+          if (event.logicalKey == LogicalKeyboardKey.keyK && isCtrlOrMeta) {
             appState.toggleSearch();
+          } else if (event.logicalKey == LogicalKeyboardKey.keyV &&
+              isCtrlOrMeta &&
+              isShift) {
+            appState.toggleClipboard();
+          } else if (event.logicalKey == LogicalKeyboardKey.keyN &&
+              isCtrlOrMeta &&
+              isShift) {
+            appState.toggleScratchpad();
+          } else if (isCtrlOrMeta && !isShift && event.logicalKey == LogicalKeyboardKey.digit1) {
+            appState.switchWorkspace(1);
+          } else if (isCtrlOrMeta && !isShift && event.logicalKey == LogicalKeyboardKey.digit2) {
+            appState.switchWorkspace(2);
+          } else if (isCtrlOrMeta && !isShift && event.logicalKey == LogicalKeyboardKey.digit3) {
+            appState.switchWorkspace(3);
+          } else if (isCtrlOrMeta && !isShift && event.logicalKey == LogicalKeyboardKey.digit4) {
+            appState.switchWorkspace(4);
+          } else if (isCtrlOrMeta && !isShift && event.logicalKey == LogicalKeyboardKey.digit5) {
+            appState.switchWorkspace(5);
+          } else if (isCtrlOrMeta && !isShift && event.logicalKey == LogicalKeyboardKey.digit6) {
+            appState.switchWorkspace(6);
           } else if (event.logicalKey == LogicalKeyboardKey.escape) {
             if (appState.isSearchOpen) appState.toggleSearch(show: false);
             if (appState.isControlCenterOpen) {
@@ -103,6 +125,12 @@ class _DesktopShellState extends State<DesktopShell> {
             }
             if (appState.isNotificationTrayOpen) {
               appState.toggleNotificationTray(show: false);
+            }
+            if (appState.isClipboardOpen) {
+              appState.toggleClipboard(show: false);
+            }
+            if (appState.isScratchpadOpen) {
+              appState.toggleScratchpad(show: false);
             }
             if (_showLaunchPad) setState(() => _showLaunchPad = false);
           }
@@ -136,8 +164,8 @@ class _DesktopShellState extends State<DesktopShell> {
                     // Desktop App Icons (from central registry)
                     Positioned.fill(child: _DesktopGrid(onOpenApp: _openApp)),
 
-                    // Open Windows Stack
-                    ...appState.windows.map(
+                    // Open Windows Stack (Filtered to Active Virtual Workspace)
+                    ...appState.visibleWindows.map(
                       (w) => DraggableWindow(key: ValueKey(w.id), window: w),
                     ),
 
@@ -183,6 +211,22 @@ class _DesktopShellState extends State<DesktopShell> {
                       ),
                     ),
                   ),
+                ),
+
+              // Universal Clipboard History Popover Modal
+              if (appState.isClipboardOpen)
+                const Positioned(
+                  top: 40,
+                  right: 90,
+                  child: _ClipboardHistoryModal(),
+                ),
+
+              // Quick Notes / Scratchpad Overlay Modal
+              if (appState.isScratchpadOpen)
+                const Positioned(
+                  top: 40,
+                  right: 50,
+                  child: _QuickScratchpadModal(),
                 ),
 
               // Control Center Popover Modal
@@ -347,6 +391,64 @@ class _MenuBar extends StatelessWidget {
             ],
           ),
 
+          const SizedBox(width: 8),
+
+          // Virtual Workspaces Switcher (Multi-Desktop Spaces)
+          Container(
+            height: 24,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.7),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int ws = 1; ws <= appState.totalWorkspaces; ws++)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => appState.switchWorkspace(ws),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: appState.currentWorkspace == ws
+                            ? colorScheme.primary
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$ws',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: appState.currentWorkspace == ws
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                if (appState.totalWorkspaces < 6)
+                  InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => appState.addWorkspace(),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.add,
+                        size: 14,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+
           const SizedBox(width: 4),
 
           // Top Menu Items (Scrollable if narrow) — registry-driven.
@@ -361,6 +463,28 @@ class _MenuBar extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+
+          // Universal Clipboard History Trigger (Ctrl+Shift+V)
+          IconButton(
+            icon: Icon(
+              Icons.content_paste_rounded,
+              size: 18,
+              color: appState.isClipboardOpen ? colorScheme.primary : null,
+            ),
+            tooltip: 'Clipboard History (Ctrl+Shift+V)',
+            onPressed: () => appState.toggleClipboard(),
+          ),
+
+          // Quick Scratchpad / Notes Trigger (Ctrl+Shift+N)
+          IconButton(
+            icon: Icon(
+              Icons.sticky_note_2_outlined,
+              size: 18,
+              color: appState.isScratchpadOpen ? colorScheme.primary : null,
+            ),
+            tooltip: 'Quick Scratchpad (Ctrl+Shift+N)',
+            onPressed: () => appState.toggleScratchpad(),
           ),
 
           // Spotlight Search Trigger
@@ -1159,6 +1283,75 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
             a.description.toLowerCase().contains(_query.toLowerCase()))
         .toList();
 
+    final mathResult = _evaluateMath(_query);
+
+    final actionItems = <_SearchActionItem>[];
+    final qLower = _query.toLowerCase().trim();
+    if (qLower.isNotEmpty) {
+      if ('theme dark light appearance mode'.contains(qLower) || qLower.contains('theme')) {
+        actionItems.add(_SearchActionItem(
+          title: 'Toggle Theme Appearance',
+          subtitle: 'Switch between Dark and Light mode',
+          icon: Icons.palette_outlined,
+          color: Colors.purpleAccent,
+          onTap: () {
+            appState.toggleSearch(show: false);
+            context.read<ThemeProvider>().toggleTheme();
+          },
+        ));
+      }
+      if ('clipboard history paste copy'.contains(qLower) || qLower.contains('clip')) {
+        actionItems.add(_SearchActionItem(
+          title: 'Open Clipboard History',
+          subtitle: 'Browse and re-copy clipboard history (Ctrl+Shift+V)',
+          icon: Icons.content_paste_rounded,
+          color: Colors.blueAccent,
+          onTap: () {
+            appState.toggleSearch(show: false);
+            appState.toggleClipboard(show: true);
+          },
+        ));
+      }
+      if ('scratchpad note notes sticky write'.contains(qLower) || qLower.contains('note')) {
+        actionItems.add(_SearchActionItem(
+          title: 'Open Quick Scratchpad',
+          subtitle: 'Floating scratchpad & thoughts (Ctrl+Shift+N)',
+          icon: Icons.sticky_note_2_rounded,
+          color: Colors.amber,
+          onTap: () {
+            appState.toggleSearch(show: false);
+            appState.toggleScratchpad(show: true);
+          },
+        ));
+      }
+      if ('workspace space desktop'.contains(qLower) || qLower.contains('workspace')) {
+        for (int i = 1; i <= appState.totalWorkspaces; i++) {
+          actionItems.add(_SearchActionItem(
+            title: 'Switch to Workspace $i',
+            subtitle: 'Jump to Virtual Workspace $i',
+            icon: Icons.space_dashboard_outlined,
+            color: Colors.teal,
+            onTap: () {
+              appState.toggleSearch(show: false);
+              appState.switchWorkspace(i);
+            },
+          ));
+        }
+      }
+      if ('control center volume wifi bluetooth'.contains(qLower) || qLower.contains('control')) {
+        actionItems.add(_SearchActionItem(
+          title: 'Open Control Center',
+          subtitle: 'Quick system toggles, sliders, and controls',
+          icon: Icons.tune,
+          color: Colors.indigoAccent,
+          onTap: () {
+            appState.toggleSearch(show: false);
+            appState.toggleControlCenter(show: true);
+          },
+        ));
+      }
+    }
+
     return Semantics(
       label: 'Close search',
       button: true,
@@ -1173,7 +1366,7 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
             child: Container(
               constraints: const BoxConstraints(
                 maxWidth: 580,
-                maxHeight: 480,
+                maxHeight: 520,
               ),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1197,7 +1390,7 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
                     controller: _controller,
                     autofocus: true,
                     decoration: InputDecoration(
-                      hintText: 'Search UmerOS apps, commands & tools...',
+                      hintText: 'Search apps, calculate (e.g. 24*5), or run commands...',
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _query.isNotEmpty
                           ? IconButton(
@@ -1217,45 +1410,129 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
                   ),
                   const SizedBox(height: 12),
 
+                  // Smart Arithmetic Calculation Result Card
+                  if (mathResult != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primaryContainer.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: colorScheme.primary.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.calculate_rounded,
+                                size: 20,
+                                color: colorScheme.onPrimary,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _formatMathResult(mathResult),
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: colorScheme.onPrimaryContainer,
+                                    ),
+                                  ),
+                                  Text(
+                                    '= ${_query.trim()}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.copy_rounded, size: 18),
+                              tooltip: 'Copy Result',
+                              onPressed: () async {
+                                final res = _formatMathResult(mathResult);
+                                await Clipboard.setData(ClipboardData(text: res));
+                                appState.addNotification(
+                                  'Calculator',
+                                  'Copied $res to clipboard',
+                                  Icons.calculate_rounded,
+                                );
+                                appState.toggleSearch(show: false);
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxHeight: 320),
-                    child: filtered.isEmpty
+                    child: (actionItems.isEmpty && filtered.isEmpty && mathResult == null)
                         ? Padding(
                             padding: const EdgeInsets.all(24),
                             child: Text(
-                              'No matching apps found',
+                              'No matching apps, calculations, or commands found',
                               style: TextStyle(
                                 color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: filtered.length,
-                            itemBuilder: (context, index) {
-                              final app = filtered[index];
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor:
-                                      app.color.withValues(alpha: 0.2),
-                                  child: Icon(app.icon, color: app.color),
-                                ),
-                                title: Text(app.title,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                                subtitle: Text(
-                                  '${app.category.label} • ${app.description}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                trailing: const Icon(Icons.arrow_forward_ios,
-                                    size: 14),
-                                onTap: () {
-                                  appState.toggleSearch(show: false);
-                                  widget.onOpenApp(app);
-                                },
-                              );
-                            },
+                        : Material(
+                            color: Colors.transparent,
+                            child: ListView(
+                              shrinkWrap: true,
+                              children: [
+                                for (final action in actionItems)
+                                  ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: (action.color ?? colorScheme.primary).withValues(alpha: 0.2),
+                                      child: Icon(action.icon, color: action.color ?? colorScheme.primary),
+                                    ),
+                                    title: Text(action.title,
+                                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    subtitle: Text(action.subtitle,
+                                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                                    onTap: action.onTap,
+                                  ),
+                                for (final app in filtered)
+                                  ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor:
+                                          app.color.withValues(alpha: 0.2),
+                                      child: Icon(app.icon, color: app.color),
+                                    ),
+                                    title: Text(app.title,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold)),
+                                    subtitle: Text(
+                                      '${app.category.label} • ${app.description}',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    trailing: const Icon(Icons.arrow_forward_ios,
+                                        size: 14),
+                                    onTap: () {
+                                      appState.toggleSearch(show: false);
+                                      widget.onOpenApp(app);
+                                    },
+                                  ),
+                              ],
+                            ),
                           ),
                   ),
                 ],
@@ -1415,5 +1692,510 @@ class _LaunchPad extends StatelessWidget {
       ),
     ),
     ).animate().fadeIn(duration: 200.ms);
+  }
+}
+
+class _SearchActionItem {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color? color;
+  final VoidCallback onTap;
+
+  const _SearchActionItem({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.color,
+    required this.onTap,
+  });
+}
+
+double? _evaluateMath(String input) {
+  final clean = input.trim().replaceFirst(RegExp(r'^='), '').trim();
+  if (clean.isEmpty) return null;
+  if (!RegExp(r'^[0-9\.\s\+\-\*\/\%\^\(\)]+$').hasMatch(clean)) return null;
+  if (!RegExp(r'[\+\-\*\/\%\^]').hasMatch(clean)) return null;
+
+  try {
+    return _parseExpression(clean);
+  } catch (_) {
+    return null;
+  }
+}
+
+double? _parseExpression(String expression) {
+  final tokens = <String>[];
+  final buffer = StringBuffer();
+  for (int i = 0; i < expression.length; i++) {
+    final c = expression[i];
+    if (c == ' ') continue;
+    if ('+-*/%^()'.contains(c)) {
+      if (buffer.isNotEmpty) {
+        tokens.add(buffer.toString());
+        buffer.clear();
+      }
+      tokens.add(c);
+    } else {
+      buffer.write(c);
+    }
+  }
+  if (buffer.isNotEmpty) tokens.add(buffer.toString());
+  if (tokens.isEmpty) return null;
+
+  final output = <String>[];
+  final ops = <String>[];
+  int precedence(String op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/' || op == '%') return 2;
+    if (op == '^') return 3;
+    return 0;
+  }
+
+  for (int i = 0; i < tokens.length; i++) {
+    final t = tokens[i];
+    final num = double.tryParse(t);
+    if (num != null) {
+      output.add(t);
+    } else if (t == '(') {
+      ops.add(t);
+    } else if (t == ')') {
+      while (ops.isNotEmpty && ops.last != '(') {
+        output.add(ops.removeLast());
+      }
+      if (ops.isNotEmpty && ops.last == '(') ops.removeLast();
+    } else {
+      if (t == '-' && (i == 0 || tokens[i - 1] == '(' || '+-*/%^'.contains(tokens[i - 1]))) {
+        output.add('0');
+      }
+      while (ops.isNotEmpty && precedence(ops.last) >= precedence(t)) {
+        output.add(ops.removeLast());
+      }
+      ops.add(t);
+    }
+  }
+  while (ops.isNotEmpty) {
+    output.add(ops.removeLast());
+  }
+
+  final stack = <double>[];
+  for (final t in output) {
+    final num = double.tryParse(t);
+    if (num != null) {
+      stack.add(num);
+    } else if (stack.length >= 2) {
+      final b = stack.removeLast();
+      final a = stack.removeLast();
+      switch (t) {
+        case '+':
+          stack.add(a + b);
+          break;
+        case '-':
+          stack.add(a - b);
+          break;
+        case '*':
+          stack.add(a * b);
+          break;
+        case '/':
+          stack.add(b == 0 ? double.nan : a / b);
+          break;
+        case '%':
+          stack.add(a % b);
+          break;
+        case '^':
+          stack.add(math.pow(a, b).toDouble());
+          break;
+      }
+    }
+  }
+  return stack.isNotEmpty ? stack.last : null;
+}
+
+String _formatMathResult(double val) {
+  if (val.isNaN || val.isInfinite) return 'Error';
+  if (val == val.roundToDouble()) return val.toInt().toString();
+  return val.toStringAsFixed(4).replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
+}
+
+// Universal Clipboard History Popover Modal (Ctrl+Shift+V)
+class _ClipboardHistoryModal extends StatefulWidget {
+  const _ClipboardHistoryModal();
+
+  @override
+  State<_ClipboardHistoryModal> createState() => _ClipboardHistoryModalState();
+}
+
+class _ClipboardHistoryModalState extends State<_ClipboardHistoryModal> {
+  String _filter = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final clipboardMgr = context.watch<ClipboardManager>();
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final history = clipboardMgr.history
+        .where((e) => e.text.toLowerCase().contains(_filter.toLowerCase()))
+        .toList();
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+              width: 380,
+              constraints: const BoxConstraints(maxHeight: 520),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 28,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.content_paste_rounded, size: 20, color: colorScheme.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Clipboard History',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (clipboardMgr.history.isNotEmpty)
+                        TextButton(
+                          onPressed: () => clipboardMgr.clearHistory(),
+                          child: const Text('Clear All'),
+                        ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => appState.toggleClipboard(show: false),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (clipboardMgr.history.length > 2)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search clipboard history...',
+                          isDense: true,
+                          prefixIcon: const Icon(Icons.search, size: 18),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onChanged: (v) => setState(() => _filter = v),
+                      ),
+                    ),
+
+                  if (history.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 36),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.content_paste_off_rounded,
+                              size: 40,
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              clipboardMgr.history.isEmpty
+                                  ? 'Clipboard history is empty\nCopied text will appear here'
+                                  : 'No matching items found',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: history.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 6),
+                        itemBuilder: (context, index) {
+                          final item = history[index];
+                          return Card(
+                            margin: EdgeInsets.zero,
+                            color: colorScheme.surfaceContainer,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () async {
+                                await Clipboard.setData(ClipboardData(text: item.text));
+                                appState.addNotification(
+                                  'Clipboard',
+                                  'Copied to clipboard: "${item.text.length > 25 ? '${item.text.substring(0, 25)}...' : item.text}"',
+                                  Icons.content_paste_rounded,
+                                );
+                                appState.toggleClipboard(show: false);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primary.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            item.action.name.toUpperCase(),
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              color: colorScheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          _formatClipboardTime(item.timestamp),
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.copy_rounded,
+                                          size: 14,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      item.text,
+                                      maxLines: 3,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: colorScheme.onSurface,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+    ).animate().fadeIn(duration: 150.ms).slideY(begin: -0.04, end: 0);
+  }
+
+  String _formatClipboardTime(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inSeconds < 60) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${time.month}/${time.day}';
+  }
+}
+
+// Quick Notes / Scratchpad Overlay Modal (Ctrl+Shift+N)
+class _QuickScratchpadModal extends StatefulWidget {
+  const _QuickScratchpadModal();
+
+  @override
+  State<_QuickScratchpadModal> createState() => _QuickScratchpadModalState();
+}
+
+class _QuickScratchpadModalState extends State<_QuickScratchpadModal> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final appState = context.read<AppState>();
+    _controller = TextEditingController(text: appState.scratchpadText);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final wordCount = _controller.text.trim().isEmpty
+        ? 0
+        : _controller.text.trim().split(RegExp(r'\s+')).length;
+    final charCount = _controller.text.length;
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+              width: 380,
+              height: 420,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 30,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.sticky_note_2_rounded, size: 20, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Quick Scratchpad',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Auto-saved',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: () => appState.toggleScratchpad(show: false),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: colorScheme.outlineVariant.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _controller,
+                        maxLines: null,
+                        expands: true,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.45,
+                          color: colorScheme.onSurface,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Type quick thoughts, phone numbers, snippets...',
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        onChanged: (text) {
+                          appState.updateScratchpad(text);
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+                      Text(
+                        '$wordCount words • $charCount chars',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton.icon(
+                        icon: const Icon(Icons.copy_rounded, size: 14),
+                        label: const Text('Copy All', style: TextStyle(fontSize: 11)),
+                        onPressed: _controller.text.isEmpty
+                            ? null
+                            : () async {
+                                await Clipboard.setData(ClipboardData(text: _controller.text));
+                                appState.addNotification(
+                                  'Scratchpad',
+                                  'Notes copied to clipboard',
+                                  Icons.sticky_note_2_rounded,
+                                );
+                              },
+                      ),
+                      TextButton.icon(
+                        icon: const Icon(Icons.clear_rounded, size: 14),
+                        label: const Text('Clear', style: TextStyle(fontSize: 11)),
+                        onPressed: _controller.text.isEmpty
+                            ? null
+                            : () {
+                                _controller.clear();
+                                appState.updateScratchpad('');
+                                setState(() {});
+                              },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+    ).animate().fadeIn(duration: 150.ms).slideY(begin: -0.04, end: 0);
   }
 }

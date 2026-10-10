@@ -55,7 +55,7 @@
 
 ## NEXT
 
-Next: **H267** — `srv/backup.py:181` `restore_backup`: destructive `shutil.rmtree` when `overwrite=True` with no capability gate. Say **"continues"** for
+Next: **🔴 RED LOOP COMPLETE** — all 39 🔴 items resolved (H303 was the last; DRIFT: already fixed + tested). The separate 🟡 YELLOW loop resumes at **H66**.
 
 ---
 
@@ -310,16 +310,22 @@ Next: **H267** — `srv/backup.py:181` `restore_backup`: destructive `shutil.rmt
   \- Action: Pass `filter="data"` to `extractall`; or iterate members and skip any whose resolved path is outside `temp_dir`.
 
   \- ✅ RESOLVED (session 109, **REAL FIX**): the zip branch was doubly wrong — (a) `zipfile.ZipFile.extractall()` accepts **no** `filter=` kwarg on any Python (verified live on 3.13: `ZipFile.extractall() got an unexpected keyword argument 'filter'`), so the old `zipf.extractall(temp_dir, **_FILTER_KW)` raised `TypeError` on >=3.12 (a live restore bug); and (b) there was no member validation. Fixed: `_assert_safe_zip_members(zipf)` rejects absolute / `..`-bearing names before extraction, then `zipf.extractall(temp_dir)` is called without the bogus kwarg. NEW tests `tests/test_srv.py::test_backup_restore_zip` (zip round-trip) + `test_restore_refuses_traversal_zip` (zip-slip refused).
-- [ ] **H267** | 🔴 | ``srv/backup.py:181` `restore_backup``
+- [x] **H267** | 🔴 | ``srv/backup.py:181` `restore_backup``
 
   \- Issue: **Destructive `shutil.rmtree` with no capability gate** - when `overwrite=True`, the destination folder is `shutil.rmtree(dest_folder)`-ed before extraction; there is no `CapabilityManager` check or root-uid assertion, so any caller (or any code that reaches `restore_backup`) can irreversibly delete a service data tree.
 
   \- Action: Gate the destructive delete behind a `CapabilityManager` capability and an explicit confirm; refuse to delete if the target is not under the resolved `/srv` root.
-- [ ] **H268** | 🔴 | ``srv/hierarchy.py:275-290` `delete_service_tree``
+
+  \- ✅ RESOLVED (session 110, **PARTIAL REAL FIX**): drift-recon found most of the premise stale — `restore_backup` already calls `gate.require(CAP_BACKUP)` (fail-closed when a CapabilityManager is wired) and `dest_folder` is already built via `safe_join(target_root, …)`, so it is contained under the resolved srv root, and `overwrite=True` is the explicit confirm. BUT a real residual hole remained: `safe_join(root, ".")` tolerates `.` and returns `root` itself, so a manifest with `service_name: "."` made `dest_folder == target_root` and `shutil.rmtree(dest_folder)` would delete the **entire /srv root**. Fixed: before the delete, refuse unless `dest_folder` is a *proper* descendant of `target_root` (`dest_folder != target_root and target_root in dest_folder.parents`) → `ValueError`. NEW test `tests/test_srv.py::test_restore_refuses_rmtree_of_srv_root`.
+- [x] **H268** | 🔴 | ``srv/hierarchy.py:275-290` `delete_service_tree``
 
   \- Issue: **Destructive `shutil.rmtree` gated only by `force=True`, no capability check** - `if not force: raise PermissionError(...)` then `shutil.rmtree(target)`; `force` is a plain boolean from the CLI, not a capability, so `srv_ctl remove --force` deletes an arbitrary resolved service tree with no zero-trust gate (H27/H92/H110/H205 family).
 
   \- Action: Require a `CapabilityManager` capability to delete; do not treat `force` as the gate; realpath + confirm the target is under `/srv` before any delete.
-- [ ] **H303** | 🔴 | \`\`var/directory_manager.py:77,87,94,184,106,212`, `var/spool_manager.py:63,86,93,123,130,151,163`, `var/log_manager.py:6…`    - Issue: **Path-traversal → arbitrary FS delete/write/RCE (CWE-22)** -`name`/`username`/`directory`/`filename`are joined as`self.<x>\_path / param`with no scoping or`realpath`-under-root check; `Path`collapses`..`, so `remove_local_item("../../etc/passwd")`→`unlink("/etc/passwd")`, `VarDirectoryManager.remove_local_item("../etc")`→`shutil.rmtree("/etc")`, and `SpoolManager.set_cron_user("../../etc/cron.d/x", jobs)`→writes `/etc/cron.d/x`(**cron RCE as root**);`LogManager.write_log("../../etc/cron.d/x", …)`→arbitrary append. Read/list variants expose arbitrary file content (`read_mailbox("../..…
+
+  \- ✅ RESOLVED (session 111, **PARTIAL REAL FIX**): drift-recon found the "no capability check" premise stale — `delete_service_tree` already calls `gate.require(CAP_FS_ADMIN)` (fail-closed when a CapabilityManager is wired) and `force=True` is the explicit admin confirm. BUT the destructive path had **no containment**: `target = self.root / service_name` meant a name like `"../../etc"` would `shutil.rmtree("/etc")` (CWE-22). Fixed: resolve via `safe_join(self.root, service_name)` (supports nested `domain/service` names), refuse `PathTraversalError` with `PermissionError`, and never delete the root itself (`service_name="."`). NEW tests `tests/test_srv.py::test_delete_service_tree_refuses_traversal` + `test_delete_service_tree_removes_contained_tree`.
+- [x] **H303** | 🔴 | \`\`var/directory_manager.py:77,87,94,184,106,212`, `var/spool_manager.py:63,86,93,123,130,151,163`, `var/log_manager.py:6…`    - Issue: **Path-traversal → arbitrary FS delete/write/RCE (CWE-22)** -`name`/`username`/`directory`/`filename`are joined as`self.<x>\_path / param`with no scoping or`realpath`-under-root check; `Path`collapses`..`, so `remove_local_item("../../etc/passwd")`→`unlink("/etc/passwd")`, `VarDirectoryManager.remove_local_item("../etc")`→`shutil.rmtree("/etc")`, and `SpoolManager.set_cron_user("../../etc/cron.d/x", jobs)`→writes `/etc/cron.d/x`(**cron RCE as root**);`LogManager.write_log("../../etc/cron.d/x", …)`→arbitrary append. Read/list variants expose arbitrary file content (`read_mailbox("../..…
 
   \- Action: Validate + normalize every path param (reject `..`/absolute, resolve with `realpath` and assert it stays under the manager root); provide a shared `safe_join(root, name)` helper used by all three managers.
+
+  \- ✅ RESOLVED (session 112, **DRIFT**): drift-recon found H303 already fully remediated — all three managers (plus `cache_manager.py` + `mail_manager.py`) resolve every caller-supplied name through `safe_child`/`safe_join` from `var/_path_guard.py` (a thin shim over the canonical `core.path_guard`), catching `PathTraversalError` and refusing fail-closed; the code carries explicit `[FIX H303]` markers, and the companion H304 cap-gates (`gate.require(CAP_FS_ADMIN)`) are applied on the privileged ops too. `tests/test_var.py` has dedicated H303 regression tests (`test_set_cron_user_cannot_escape_root`, `test_write_log_cannot_escape_root`, `test_create_local_directory_rejects_traversal`, `test_remove_local_item_rejects_traversal`, `test_read_mailbox_rejects_traversal`, `test_cache_rejects_traversal`, `test_safe_child_helper_refuses_escapes`) → 32 passed. No unguarded `self.<x>_path / param` joins remain (only trusted-root construction).

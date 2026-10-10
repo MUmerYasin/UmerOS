@@ -187,7 +187,7 @@ def test_backup_restore_zip(temp_srv):
 
 
 def test_restore_refuses_traversal_zip(temp_srv):
-    """H266: a zip whose member escapes via '../' must fail closed and never
+    """a zip whose member escapes via '../' must fail closed and never
     write outside the restore target (zip-slip, CVE-2007-4559 family)."""
     import zipfile
 
@@ -202,3 +202,72 @@ def test_restore_refuses_traversal_zip(temp_srv):
         bm.restore_backup(evil_archive, target_root=temp_srv / "restored")
 
     assert not outside.exists(), "CRITICAL: zip restore path-traversal succeeded!"
+
+
+def test_restore_refuses_rmtree_of_srv_root(temp_srv):
+    """ a manifest whose `service_name` resolves to the srv root itself
+    (e.g. ".") must NOT let overwrite=True rmtree the whole /srv tree."""
+    import io
+    import json as _json
+    import tarfile
+
+    bm = SrvBackupManager(backup_dir=temp_srv / ".backups", srv_root=temp_srv)
+
+    # Hostile archive: manifest claims service_name == "." plus one safe
+    # service dir so restore gets past extraction.
+    evil = temp_srv / "dotname.tar.gz"
+    with tarfile.open(evil, "w:gz") as tar:
+        mf = tarfile.TarInfo("manifest.json")
+        data = _json.dumps({"service_name": "."}).encode("utf-8")
+        mf.size = len(data)
+        tar.addfile(mf, io.BytesIO(data))
+        d = tarfile.TarInfo("site/")
+        d.type = tarfile.DIRTYPE
+        tar.addfile(d)
+        f = tarfile.TarInfo("site/keep.txt")
+        payload = b"keep"
+        f.size = len(payload)
+        tar.addfile(f, io.BytesIO(payload))
+
+    marker = temp_srv / "MUST_SURVIVE.txt"
+    marker.write_text("root intact", encoding="utf-8")
+
+    # overwrite=True would rmtree(target_root) without the H267 guard.
+    with pytest.raises(ValueError, match="unsafe restore destination"):
+        bm.restore_backup(evil, target_root=temp_srv, overwrite=True)
+
+    assert temp_srv.exists(), "CRITICAL: restore rmtree'd the whole srv root!"
+    assert marker.read_text(encoding="utf-8") == "root intact"
+
+
+def test_delete_service_tree_refuses_traversal(temp_srv):
+    """delete_service_tree must refuse a service_name that escapes the
+    srv root (or resolves to the root itself) instead of rmtree-ing an
+    arbitrary tree (CWE-22)."""
+    hier = SrvHierarchy(temp_srv)
+
+    victim = temp_srv.parent / "VICTIM_DIR"
+    victim.mkdir()
+    (victim / "keep.txt").write_text("keep", encoding="utf-8")
+
+    # Escapes the srv root via '..'.
+    with pytest.raises(PermissionError):
+        hier.delete_service_tree("../VICTIM_DIR", force=True)
+    assert victim.exists(), "CRITICAL: delete_service_tree escaped the srv root!"
+    assert (victim / "keep.txt").exists()
+
+    # Resolves to the srv root itself.
+    with pytest.raises(PermissionError):
+        hier.delete_service_tree(".", force=True)
+    assert temp_srv.exists(), "CRITICAL: delete_service_tree removed the srv root!"
+
+
+def test_delete_service_tree_removes_contained_tree(temp_srv):
+    """a normal (contained) service tree still deletes successfully."""
+    hier = SrvHierarchy(temp_srv)
+    tree = temp_srv / "site_del"
+    tree.mkdir()
+    (tree / "f.txt").write_text("x", encoding="utf-8")
+
+    assert hier.delete_service_tree("site_del", force=True) is True
+    assert not tree.exists()

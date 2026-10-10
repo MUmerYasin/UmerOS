@@ -52,6 +52,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Zero-trust capability gate for destructive /srv tree removal.
 from core.capability_gate import CAP_FS_ADMIN, gate
+# Contain destructive deletes under the managed /srv root (CWE-22, H268).
+from core.path_guard import PathTraversalError, safe_join
 
 from .fhs import (
     DEFAULT_SRV_ROOT,
@@ -297,7 +299,22 @@ class SrvHierarchy:
         """
         # destructive /srv tree removal -> zero-trust capability gate
         gate.require(CAP_FS_ADMIN)
-        target = self.root / service_name
+        # Contain the (caller-supplied) service_name under the managed /srv
+        # root (CWE-22, H268): a name like "../../etc" is refused instead of
+        # rmtree-ing an arbitrary tree. `safe_join` supports nested names
+        # (e.g. "domain/service") and proves the resolved path stays inside.
+        root_abs = Path(self.root).resolve()
+        try:
+            target = safe_join(self.root, service_name)
+        except PathTraversalError:
+            raise PermissionError(
+                f"Refusing to delete unsafe service path: {service_name!r}"
+            )
+        # Never delete the managed root itself (service_name="." resolves to it).
+        if target == root_abs or root_abs not in target.parents:
+            raise PermissionError(
+                f"Refusing to delete unsafe service path: {service_name!r}"
+            )
         if not target.exists():
             return False
 
