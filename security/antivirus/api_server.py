@@ -123,23 +123,33 @@ async def handle_watched_dirs(request):
     return web.json_response({"dirs": engine.get_watched_dirs()})
 
 
-def create_app():
-    app = web.Application()
-
-
 # Token auth + destructive-endpoint guard.
 # Previously every route — including quarantine restore/delete and realtime
 # start/stop — was callable with zero authn/authz. Now:
 #   * when UMEROS_AV_API_TOKEN is set, ALL routes require "Bearer <token>";
-#   * destructive endpoints additionally require the token even in no-token
-#     mode is impossible: without a token they answer 403 (fail-closed),
-#     keeping the local dashboard/scan surface usable on 127.0.0.1.
+#   * destructive endpoints require the token unconditionally — with no
+#     configured token they answer 403 (fail-closed), keeping the read-only
+#     dashboard/scan surface usable on 127.0.0.1.
 _DESTRUCTIVE = {
     "/api/quarantine/delete",
     "/api/quarantine/restore",
     "/api/realtime/start",
     "/api/realtime/stop",
 }
+
+# Zero-trust capability gate (H245): destructive AV ops (quarantine
+# delete/restore, realtime start/stop) additionally require CAP_FS_ADMIN.
+# Fail-closed when a CapabilityManager is wired; permissive-with-warning
+# otherwise, so the loopback-only default keeps working un-wired.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys as _sys
+    from pathlib import Path as _Path
+    _proj = str(_Path(__file__).resolve().parents[2])
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
 
 
 @web.middleware
@@ -154,7 +164,24 @@ async def _auth_middleware(request, handler):
             {"error": "destructive endpoint requires UMEROS_AV_API_TOKEN"},
             status=403,
         )
+    # Defense-in-depth: destructive endpoints also require CAP_FS_ADMIN.
+    if request.path in _DESTRUCTIVE:
+        try:
+            gate.require(CAP_FS_ADMIN)
+        except PermissionError:
+            return web.json_response(
+                {"error": "forbidden: missing fs.admin capability"},
+                status=403,
+            )
     return await handler(request)
+
+
+def create_app():
+    # The auth middleware MUST be attached to the app here. It was previously
+    # defined but never wired, and create_app returned None — the route
+    # registrations were unreachable dead code inside the middleware body.
+    app = web.Application(middlewares=[_auth_middleware])
+
     app.router.add_get("/api/dashboard", handle_dashboard)
     app.router.add_post("/api/scan/file", handle_scan_file)
     app.router.add_post("/api/scan/directory", handle_scan_directory)

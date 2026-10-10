@@ -228,15 +228,15 @@ class LogManager:
             # Only rotate-stamped files are old enough to compress.
             if not self._ROTATED_RE.search(log_file.name):
                 continue
-                try:
-                    import gzip
-                    with open(log_file, "rb") as f_in:
-                        with gzip.open(str(log_file) + ".gz", "wb") as f_out:
-                            f_out.write(f_in.read())
-                    log_file.unlink()
-                    compressed.append(log_file.name)
-                except Exception as e:
-                    log.error("Failed to compress %s: %s", log_file.name, e)
+            try:
+                import gzip
+                with open(log_file, "rb") as f_in:
+                    with gzip.open(str(log_file) + ".gz", "wb") as f_out:
+                        f_out.write(f_in.read())
+                log_file.unlink()
+                compressed.append(log_file.name)
+            except Exception as e:
+                log.error("Failed to compress %s: %s", log_file.name, e)
         return compressed
 
     # ── Log Analysis ───────────────────────────────────────────────────

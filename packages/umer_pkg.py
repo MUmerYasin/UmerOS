@@ -71,9 +71,9 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.capability_gate import gate, CAP_FS_ADMIN
 
-# Python < 3.12 lacks the fail-closed `filter=` argument on
-# extractall(); on those interpreters we fall back to no filter (still unsafe,
-# but matching the documented >=3.12 support target of UmerOS).
+# Python < 3.12 lacks the fail-closed `filter=` argument on extractall();
+# on those interpreters the explicit `_safe_tar_members` name check is the guard,
+# so extraction still refuses absolute / ".." members (H194).
 _FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
 
 # Real Ed25519 signing + pinned chain-of-trust.  `cryptography` is a
@@ -125,6 +125,29 @@ def _package_integrity_hash(
     return h.hexdigest()
 
 log = logging.getLogger("UmerOS.UmerPkg")
+
+
+def _safe_tar_members(tar: tarfile.TarFile, prefix: str) -> "list[tarfile.TarInfo]":
+    """Select archive members under *prefix*, rejecting tar-slip (H194).
+
+    Version-independent guard against CVE-2007-4559: in addition to the
+    Python >= 3.12 ``filter="data"`` extractall filter, this explicitly drops
+    any member whose name is absolute or contains a ``..`` segment, so a
+    ``files/../../etc/x`` member can never escape the destination even on
+    interpreters where ``extractall(filter=...)`` is unavailable.
+    """
+    safe: "list[tarfile.TarInfo]" = []
+    for m in tar.getmembers():
+        name = m.name
+        if not name.startswith(prefix):
+            continue
+        norm = name.replace("\\", "/")
+        if norm.startswith("/") or os.path.isabs(name) or ".." in norm.split("/"):
+            log.warning("Refusing tar-slip member (H194): %s", name)
+            continue
+        safe.append(m)
+    return safe
+
 
 # Default locations
 DEFAULT_REGISTRY   = os.path.expanduser("~/.umer/registry")
@@ -566,13 +589,13 @@ class UmerPackageManager:
             os.makedirs(dest, exist_ok=True)
             with tarfile.open(pkg_path, "r:gz") as tar:
                 # Only extract files/ subdirectory
-                members = [
-                    m for m in tar.getmembers()
-                    if m.name.startswith("files/")
-                ]
-                # filter="data" makes extraction fail-closed against
-                # zip/tar-slip (CVE-2007-4559): members with ".." or absolute
-                # paths are rejected instead of escaping `dest`.
+                # Select only the files/ subtree and refuse any member that
+                # is absolute or contains a ".." segment (H194 tar-slip,
+                # CVE-2007-4559). This explicit guard is version-independent:
+                # it holds even where extractall's filter= is unavailable.
+                members = _safe_tar_members(tar, "files/")
+                # filter="data" (Python >= 3.12) is a second,
+                # defence-in-depth fail-closed layer against zip/tar-slip.
                 tar.extractall(path=dest, members=members, **_FILTER_KW)
 
             self._db[name] = {

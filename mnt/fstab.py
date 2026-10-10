@@ -283,8 +283,18 @@ class Fstab:
         return list(self._entries)
 
     def list_under(self, prefix: str = "/mnt") -> List[FstabEntry]:
-        """Return entries whose mount point is under *prefix*."""
-        return [e for e in self._entries if e.mount_point.startswith(prefix)]
+        """Return entries whose mount point is under *prefix*.
+
+        Matching is segment-aware: ``/mnt`` matches ``/mnt`` and
+        ``/mnt/usb`` but not ``/mntfoo`` (plain ``startswith`` used
+        to swallow sibling prefixes).
+        """
+        norm = prefix.rstrip("/")
+        return [
+            e for e in self._entries
+            if e.mount_point == norm
+            or e.mount_point.startswith(norm + "/")
+        ]
 
     def find_by_mount(self, mount_point: str) -> Optional[FstabEntry]:
         """Look up an entry by its mount point."""

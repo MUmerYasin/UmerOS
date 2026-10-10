@@ -390,3 +390,151 @@ def test_media_mount_ops_allows_with_fs_admin(tmp_path):
     finally:
         mod.gate = prev
         clear_sim_mounts()
+
+
+# ── H184 (privileged /opt ops) ────────────────────────────────────────────────
+
+def test_opt_config_denies_without_fs_admin(tmp_path):
+    """OptConfig.install_config/remove_config must raise without CAP_FS_ADMIN (H184)."""
+    from opt.config import OptConfig
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import opt.config as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        oc = OptConfig(opt_root=str(tmp_path / "opt"), etc_opt_root=str(tmp_path / "etc_opt"))
+        with pytest.raises(PermissionError):
+            oc.install_config("pkg", {"a": 1})
+        with pytest.raises(PermissionError):
+            oc.remove_config("pkg")
+    finally:
+        mod.gate = prev
+
+
+def test_opt_integration_denies_without_fs_admin(tmp_path):
+    """OptIntegration.install_package/remove_package must raise without CAP_FS_ADMIN (H184)."""
+    from opt.config import OptIntegration
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import opt.config as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        oi = OptIntegration(opt_root=str(tmp_path / "opt"),
+                            etc_opt_root=str(tmp_path / "etc_opt"),
+                            var_opt_root=str(tmp_path / "var_opt"))
+        with pytest.raises(PermissionError):
+            oi.install_package("pkg")
+        with pytest.raises(PermissionError):
+            oi.remove_package("pkg")
+    finally:
+        mod.gate = prev
+
+
+def test_opt_hierarchy_denies_without_fs_admin(tmp_path):
+    """OptHierarchy.bootstrap/register_package must raise without CAP_FS_ADMIN (H184)."""
+    from opt.hierarchy import OptHierarchy, PackageEntry
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import opt.hierarchy as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        oh = OptHierarchy(opt_root=str(tmp_path / "opt"))
+        with pytest.raises(PermissionError):
+            oh.bootstrap()
+        with pytest.raises(PermissionError):
+            oh.register_package(PackageEntry(name="pkg", version="1.0"))
+        with pytest.raises(PermissionError):
+            oh.unregister_package("pkg")
+    finally:
+        mod.gate = prev
+
+
+def test_opt_env_write_profile_d_denies_without_fs_admin(tmp_path):
+    """OptEnvManager.write_profile_d must raise without CAP_FS_ADMIN (H184)."""
+    from opt.env import OptEnvManager
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import opt.env as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        oe = OptEnvManager(opt_root=str(tmp_path / "opt"))
+        with pytest.raises(PermissionError):
+            oe.write_profile_d(str(tmp_path / "profile.d"))
+    finally:
+        mod.gate = prev
+
+
+def test_opt_var_denies_without_fs_admin(tmp_path):
+    """VarOptManager privileged /var/opt ops must raise without CAP_FS_ADMIN (H184)."""
+    from opt.var import VarOptManager
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    import opt.var as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        ov = VarOptManager(var_opt_root=str(tmp_path / "var_opt"))
+        with pytest.raises(PermissionError):
+            ov.ensure_package_dir("pkg")
+        with pytest.raises(PermissionError):
+            ov.remove_package_dir("pkg")
+        with pytest.raises(PermissionError):
+            ov.write_file("pkg", content=b"x")
+        with pytest.raises(PermissionError):
+            ov.cleanup_empty()
+        with pytest.raises(PermissionError):
+            ov.cleanup_stale()
+    finally:
+        mod.gate = prev
+
+
+def test_opt_config_allows_with_fs_admin(tmp_path):
+    """Positive path: with CAP_FS_ADMIN held, OptConfig.install_config proceeds (H184)."""
+    from opt.config import OptConfig
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[CAP_FS_ADMIN])
+    import opt.config as mod
+    prev = mod.gate
+    mod.gate = g
+    try:
+        oc = OptConfig(opt_root=str(tmp_path / "opt"), etc_opt_root=str(tmp_path / "etc_opt"))
+        p = oc.install_config("pkg", {"a": 1})
+        assert p.exists()
+        assert oc.get_config("pkg") == {"a": 1}
+    finally:
+        mod.gate = prev
+
+
+# ── H198 (privileged package install / remove / update) ──────────────────────
+
+def test_packages_privileged_ops_deny_without_fs_admin(tmp_path):
+    """UmerPackageManager.install/remove/update must raise without CAP_FS_ADMIN (H198).
+
+    The manager is user-space (~/.umer/...), but install/remove/update still
+    rmtree/copytree/extractall the filesystem, so the zero-trust gate must
+    fail closed when a CapabilityManager denies the capability.
+    """
+    from packages.umer_pkg import UmerPackageManager
+    import packages.umer_pkg as mod
+
+    g = _make_wired_gate(pid=os.getpid(), caps=[])
+    prev = mod.gate
+    mod.gate = g
+    try:
+        mgr = UmerPackageManager(
+            install_dir=str(tmp_path / "pkgs"),
+            registry_dir=str(tmp_path / "reg"),
+            cache_dir=str(tmp_path / "cache"),
+        )
+        with pytest.raises(PermissionError):
+            mgr.install("pkg")
+        with pytest.raises(PermissionError):
+            mgr.remove("pkg")
+        with pytest.raises(PermissionError):
+            mgr.update()
+    finally:
+        mod.gate = prev

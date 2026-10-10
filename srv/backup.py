@@ -68,8 +68,9 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.capability_gate import gate, CAP_BACKUP
 
-# Python < 3.12 lacks the fail-closed `filter=` argument on
-# extractall(); fall back to no filter there (matching the >=3.12 target).
+# `tarfile.extractall(filter=...)` only exists on Python >= 3.12.  On
+# older interpreters this stays empty; the explicit member guard below
+# (_assert_safe_tar_members) is what actually refuses tar-slip (H265) there.
 _FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
 
 from .fhs import DEFAULT_SRV_ROOT
@@ -78,6 +79,37 @@ from .service import ServiceRecord
 log = logging.getLogger("UmerOS.Srv.Backup")
 
 DEFAULT_BACKUP_DIR = Path("UmerOS/var/backups/srv") if os.name == "nt" else Path("/var/backups/srv")
+
+
+def _assert_safe_tar_members(tar: tarfile.TarFile) -> None:
+    """Fail-closed, version-independent tar-slip guard (H265 / CVE-2007-4559).
+
+    ``extractall(filter="data")`` only exists on Python >= 3.12; on older
+    interpreters ``_FILTER_KW`` is empty, so this explicit check is what
+    refuses a member whose name is absolute or contains a ``..`` segment.
+    A hostile member therefore raises instead of escaping the destination.
+    """
+    for member in tar.getmembers():
+        norm = member.name.replace("\\", "/")
+        if norm.startswith("/") or os.path.isabs(member.name) or ".." in norm.split("/"):
+            raise ValueError(
+                f"Refusing unsafe archive member (tar-slip): {member.name!r}"
+            )
+
+
+def _assert_safe_zip_members(zipf: zipfile.ZipFile) -> None:
+    """Fail-closed, version-independent zip-slip guard (H266).
+
+    ``zipfile.ZipFile.extractall`` accepts no ``filter=`` argument (even on
+    Python 3.12+), so we validate every member name ourselves and refuse any
+    that is absolute or contains a ``..`` segment before extraction.
+    """
+    for name in zipf.namelist():
+        norm = name.replace("\\", "/")
+        if norm.startswith("/") or os.path.isabs(name) or ".." in norm.split("/"):
+            raise ValueError(
+                f"Refusing unsafe archive member (zip-slip): {name!r}"
+            )
 
 
 @dataclass
@@ -199,15 +231,20 @@ class SrvBackupManager:
         try:
             if tarfile.is_tarfile(archive_path):
                 with tarfile.open(archive_path, "r:*") as tar:
-                    # filter="data" makes tar extraction
-                    # fail-closed against zip/tar-slip (CVE-2007-4559): members
-                    # with ".." or absolute paths are rejected instead of
-                    # escaping temp_dir.
+                    # Version-independent, fail-closed tar-slip guard
+                    # (H265 / CVE-2007-4559): reject any member that is
+                    # absolute or contains a ".." segment.  On >=3.12 the
+                    # filter="data" kwarg is an extra layer; on <3.12 this
+                    # check is the only thing that refuses the slip.
+                    _assert_safe_tar_members(tar)
                     tar.extractall(temp_dir, **_FILTER_KW)
             elif zipfile.is_zipfile(archive_path):
                 with zipfile.ZipFile(archive_path, "r") as zipf:
-                    # same fail-closed extraction for zip archives.
-                    zipf.extractall(temp_dir, **_FILTER_KW)
+                    # zipfile.extractall() has no `filter=` kwarg (even on
+                    # 3.12+), so guard zip-slip (H266) explicitly and
+                    # version-independently before extracting.
+                    _assert_safe_zip_members(zipf)
+                    zipf.extractall(temp_dir)
             else:
                 raise ValueError("Unknown archive format.")
 

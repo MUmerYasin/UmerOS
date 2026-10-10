@@ -9,7 +9,17 @@ import 'package:flutter/foundation.dart';
 
 import 'prefs_service.dart';
 
-enum MenuContext { desktop, file, folder, window, taskbar, browser }
+enum MenuContext {
+  desktop,
+  file,
+  folder,
+  window,
+  taskbar,
+  browser,
+  selection, // Multi-select
+  text,      // Text selection
+  empty,     // Empty space in list/grid
+}
 
 class SmartActionTracker extends ChangeNotifier {
   static const _prefix = 'umeros.tracker';

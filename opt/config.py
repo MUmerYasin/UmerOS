@@ -37,6 +37,18 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.path_guard import safe_child, safe_join, PathTraversalError
 
+# Zero-trust gate for privileged /opt + /etc/opt + /var/opt mutations
+# (permissive-when-unwired / fail-closed-when-wired, matching the mnt/ media/
+# usr/ var/ opt-manager cap-gate clusters).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys as _sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 
 class OptConfig:
     """
@@ -103,6 +115,9 @@ class OptConfig:
             ValueError: if the resolved config path would escape /etc/opt
                 (path-traversal refusal).
         """
+        # [FIX H184] privileged write under /etc/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         try:
             config_path = self.get_config_path(package_name, config_file)
         except PathTraversalError as exc:
@@ -150,6 +165,9 @@ class OptConfig:
         Returns:
             True if removal was successful
         """
+        # [FIX H184] privileged rmtree/unlink under /etc/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         try:
             config_path = safe_child(self.etc_opt_root, package_name)
         except PathTraversalError:
@@ -245,6 +263,9 @@ class OptIntegration:
         Returns:
             Dictionary with paths for each directory
         """
+        # [FIX H184] privileged mkdir under /opt|/etc/opt|/var/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         self._ensure_directories()
         
         if provider:
@@ -350,6 +371,9 @@ class OptIntegration:
         Returns:
             True if removal was successful
         """
+        # [FIX H184] privileged rmtree under /opt|/etc/opt|/var/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         import shutil
         
         if provider:

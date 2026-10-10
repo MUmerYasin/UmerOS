@@ -79,5 +79,63 @@ class TestAuthAtRest(unittest.TestCase):
             self.mgr.load_from_file("ibmq", self.path)
 
 
+class TestServerPosture(unittest.TestCase):
+    """H221: quantum_server network posture — CORS allowlist, bearer auth, loopback bind."""
+
+    def test_allowed_origins_defaults_to_loopback_not_wildcard(self):
+        import quantum.quantum_server as qs
+        os.environ.pop("UMEROS_QS_ALLOWED_ORIGINS", None)
+        origins = qs._allowed_origins()
+        self.assertNotIn("*", origins)
+        self.assertTrue(
+            all(o.startswith(("http://127.0.0.1", "http://localhost")) for o in origins)
+        )
+
+    def test_allowed_origins_env_override(self):
+        import quantum.quantum_server as qs
+        os.environ["UMEROS_QS_ALLOWED_ORIGINS"] = "https://app.example.com, https://x.test"
+        self.addCleanup(os.environ.pop, "UMEROS_QS_ALLOWED_ORIGINS", None)
+        self.assertEqual(
+            qs._allowed_origins(), ["https://app.example.com", "https://x.test"]
+        )
+
+    def test_auth_dependency_denies_wrong_token(self):
+        from fastapi import HTTPException
+        import quantum.quantum_server as qs
+        os.environ["UMEROS_QS_TOKEN"] = "sekret"
+        self.addCleanup(os.environ.pop, "UMEROS_QS_TOKEN", None)
+        with self.assertRaises(HTTPException) as cm:
+            qs._auth_dependency("Bearer nope")
+        self.assertEqual(cm.exception.status_code, 401)
+        self.assertIsNone(qs._auth_dependency("Bearer sekret"))
+
+    def test_auth_dependency_open_when_no_token(self):
+        import quantum.quantum_server as qs
+        os.environ.pop("UMEROS_QS_TOKEN", None)
+        self.assertIsNone(qs._auth_dependency(None))
+
+    def test_endpoint_requires_bearer_when_token_set(self):
+        from fastapi.testclient import TestClient
+        import quantum.quantum_server as qs
+        os.environ["UMEROS_QS_TOKEN"] = "sekret"
+        self.addCleanup(os.environ.pop, "UMEROS_QS_TOKEN", None)
+        client = TestClient(qs.app)
+        self.assertEqual(client.get("/health").status_code, 401)
+        ok = client.get("/health", headers={"Authorization": "Bearer sekret"})
+        self.assertNotEqual(ok.status_code, 401)
+
+    def test_main_refuses_remote_bind_without_token(self):
+        import subprocess
+        env = dict(os.environ)
+        env["UMEROS_QS_HOST"] = "0.0.0.0"
+        env.pop("UMEROS_QS_TOKEN", None)
+        proc = subprocess.run(
+            [sys.executable, "-m", "quantum.quantum_server"],
+            cwd=_root, env=env, capture_output=True, text=True, timeout=60,
+        )
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("Refusing to expose", proc.stdout + proc.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

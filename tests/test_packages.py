@@ -298,3 +298,47 @@ def test_verify_package_fails_when_signature_tampered(pkg_env):
         cache_dir=str(pkg_env["cache"]),
     )
     assert mgr.verify_package(str(bad)) is False
+
+
+# ── H194: version-independent tar-slip guard (_safe_tar_members) ─────────────
+
+def test_safe_tar_members_rejects_slip_and_keeps_legit():
+    """ _safe_tar_members drops absolute / '..' members, keeps legit ones."""
+    import io as _io
+    from packages.umer_pkg import _safe_tar_members
+
+    buf = _io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for nm, data in (("files/ok.txt", b"ok"),
+                         ("files/../../escape.txt", b"pwn"),
+                         ("/abs/evil.txt", b"pwn")):
+            info = tarfile.TarInfo(nm)
+            info.size = len(data)
+            tar.addfile(info, _io.BytesIO(data))
+    buf.seek(0)
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        names = [m.name for m in _safe_tar_members(tar, "files/")]
+    assert names == ["files/ok.txt"]
+
+
+def test_extractall_blocks_slip_without_filter(tmp_path, monkeypatch):
+    """H194: even with extractall's filter= disabled (Python < 3.12), the explicit
+    member guard prevents a tar-slip member from escaping the destination."""
+    import io as _io
+    import packages.umer_pkg as up
+
+    buf = _io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        info = tarfile.TarInfo("files/../../escape.txt")
+        data = b"pwn"
+        info.size = len(data)
+        tar.addfile(info, _io.BytesIO(data))
+    buf.seek(0)
+
+    monkeypatch.setattr(up, "_FILTER_KW", {})  # simulate Python < 3.12
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    with tarfile.open(fileobj=buf, mode="r:gz") as tar:
+        members = up._safe_tar_members(tar, "files/")
+        tar.extractall(path=str(dest), members=members, **up._FILTER_KW)
+    assert not (tmp_path / "escape.txt").exists()

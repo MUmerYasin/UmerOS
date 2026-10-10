@@ -28,6 +28,7 @@ class WindowData {
   bool isMaximized;
   WindowSnapMode snapMode;
   int zIndex;
+  int workspace;
 
   WindowData({
     required this.id,
@@ -42,6 +43,7 @@ class WindowData {
     this.isMaximized = false,
     this.snapMode = WindowSnapMode.normal,
     this.zIndex = 0,
+    this.workspace = 1,
   })  : preSnapPosition = preSnapPosition ?? position,
         preSnapSize = preSnapSize ?? size;
 
@@ -56,6 +58,7 @@ class WindowData {
     bool? isMaximized,
     WindowSnapMode? snapMode,
     int? zIndex,
+    int? workspace,
   }) {
     return WindowData(
       id: id,
@@ -70,6 +73,7 @@ class WindowData {
       isMaximized: isMaximized ?? this.isMaximized,
       snapMode: snapMode ?? this.snapMode,
       zIndex: zIndex ?? this.zIndex,
+      workspace: workspace ?? this.workspace,
     );
   }
 }
@@ -119,11 +123,17 @@ class AppState extends ChangeNotifier {
   static const _kDnd = 'umeros.state.dnd';
   static const _kPerformance = 'umeros.state.performance';
   static const _kDockPins = 'umeros.state.dockPins';
+  static const _kWorkspace = 'umeros.state.workspace';
+  static const _kScratchpad = 'umeros.state.scratchpad';
 
   final List<WindowData> _windows = [];
   final List<DesktopItemData> _desktopItems = [];
   int _topZIndex = 0;
   String? _activeWindowId;
+
+  // Virtual Workspaces (Modern OS standard: 1..6 spaces)
+  int _currentWorkspace = 1;
+  int _totalWorkspaces = 3;
 
   // Pinned Dock items list (defaults; may be replaced by persisted pins)
   final List<String> _pinnedDockIds = List.from(_defaultPinnedIds);
@@ -132,6 +142,9 @@ class AppState extends ChangeNotifier {
   bool _isSearchOpen = false;
   bool _isControlCenterOpen = false;
   bool _isNotificationTrayOpen = false;
+  bool _isClipboardOpen = false;
+  bool _isScratchpadOpen = false;
+  String _scratchpadText = '';
 
   // Snap preview overlay during drag
   Rect? _snapPreviewRect;
@@ -166,11 +179,18 @@ class AppState extends ChangeNotifier {
 
   // Getters
   List<WindowData> get windows => _windows;
+  List<WindowData> get visibleWindows =>
+      _windows.where((w) => w.workspace == _currentWorkspace).toList();
   String? get activeWindowId => _activeWindowId;
   List<String> get pinnedDockIds => _pinnedDockIds;
+  int get currentWorkspace => _currentWorkspace;
+  int get totalWorkspaces => _totalWorkspaces;
   bool get isSearchOpen => _isSearchOpen;
   bool get isControlCenterOpen => _isControlCenterOpen;
   bool get isNotificationTrayOpen => _isNotificationTrayOpen;
+  bool get isClipboardOpen => _isClipboardOpen;
+  bool get isScratchpadOpen => _isScratchpadOpen;
+  String get scratchpadText => _scratchpadText;
   Rect? get snapPreviewRect => _snapPreviewRect;
 
   double get volume => _volume;
@@ -197,6 +217,8 @@ class AppState extends ChangeNotifier {
     _nightShift = prefs.getBool(_kNightShift) ?? _nightShift;
     _dnd = prefs.getBool(_kDnd) ?? _dnd;
     _performanceMode = prefs.getBool(_kPerformance) ?? _performanceMode;
+    _currentWorkspace = prefs.getInt(_kWorkspace)?.clamp(1, _totalWorkspaces) ?? _currentWorkspace;
+    _scratchpadText = prefs.getString(_kScratchpad) ?? '';
 
     final pins = prefs.getStringList(_kDockPins);
     if (pins != null && pins.isNotEmpty) {
@@ -278,6 +300,9 @@ class AppState extends ChangeNotifier {
         isMinimized: false,
         zIndex: _topZIndex,
       );
+      if (existing.workspace != _currentWorkspace) {
+        _currentWorkspace = existing.workspace;
+      }
       _activeWindowId = id;
       notifyListeners();
       return;
@@ -300,6 +325,7 @@ class AppState extends ChangeNotifier {
       position: pos,
       size: sz,
       zIndex: _topZIndex,
+      workspace: _currentWorkspace,
     ));
     _activeWindowId = id;
     notifyListeners();
@@ -308,9 +334,61 @@ class AppState extends ChangeNotifier {
   void focusWindow(String id) {
     final idx = _windows.indexWhere((w) => w.id == id);
     if (idx == -1) return;
+    if (_windows[idx].workspace != _currentWorkspace) {
+      _currentWorkspace = _windows[idx].workspace;
+    }
     _topZIndex++;
     _windows[idx] = _windows[idx].copyWith(zIndex: _topZIndex, isMinimized: false);
     _activeWindowId = id;
+    notifyListeners();
+  }
+
+  /// Switch active Virtual Workspace (1..N).
+  void switchWorkspace(int ws) {
+    if (ws < 1 || ws > _totalWorkspaces || ws == _currentWorkspace) return;
+    _currentWorkspace = ws;
+    PrefsService.instance.setInt(_kWorkspace, _currentWorkspace);
+    final inWs = _windows.where((w) => w.workspace == _currentWorkspace && !w.isMinimized).toList();
+    if (inWs.isNotEmpty) {
+      inWs.sort((a, b) => a.zIndex.compareTo(b.zIndex));
+      _activeWindowId = inWs.last.id;
+    } else {
+      _activeWindowId = null;
+    }
+    notifyListeners();
+  }
+
+  /// Add a new Virtual Workspace (up to 6).
+  void addWorkspace() {
+    if (_totalWorkspaces < 6) {
+      _totalWorkspaces++;
+      switchWorkspace(_totalWorkspaces);
+    }
+  }
+
+  /// Remove a Virtual Workspace and move its windows to Workspace 1.
+  void removeWorkspace(int ws) {
+    if (_totalWorkspaces <= 1) return;
+    for (int i = 0; i < _windows.length; i++) {
+      if (_windows[i].workspace == ws) {
+        _windows[i] = _windows[i].copyWith(workspace: 1);
+      } else if (_windows[i].workspace > ws) {
+        _windows[i] = _windows[i].copyWith(workspace: _windows[i].workspace - 1);
+      }
+    }
+    _totalWorkspaces--;
+    if (_currentWorkspace >= ws) {
+      _currentWorkspace = (_currentWorkspace - 1).clamp(1, _totalWorkspaces);
+    }
+    PrefsService.instance.setInt(_kWorkspace, _currentWorkspace);
+    notifyListeners();
+  }
+
+  /// Move a specific window to another Virtual Workspace.
+  void moveWindowToWorkspace(String windowId, int targetWs) {
+    final idx = _windows.indexWhere((w) => w.id == windowId);
+    if (idx == -1) return;
+    _windows[idx] = _windows[idx].copyWith(workspace: targetWs);
     notifyListeners();
   }
 
@@ -487,6 +565,8 @@ class AppState extends ChangeNotifier {
     if (_isSearchOpen) {
       _isControlCenterOpen = false;
       _isNotificationTrayOpen = false;
+      _isClipboardOpen = false;
+      _isScratchpadOpen = false;
     }
     notifyListeners();
   }
@@ -496,6 +576,8 @@ class AppState extends ChangeNotifier {
     if (_isControlCenterOpen) {
       _isSearchOpen = false;
       _isNotificationTrayOpen = false;
+      _isClipboardOpen = false;
+      _isScratchpadOpen = false;
     }
     notifyListeners();
   }
@@ -505,10 +587,40 @@ class AppState extends ChangeNotifier {
     if (_isNotificationTrayOpen) {
       _isSearchOpen = false;
       _isControlCenterOpen = false;
+      _isClipboardOpen = false;
+      _isScratchpadOpen = false;
       for (var n in _notifications) {
         n.isRead = true;
       }
     }
+    notifyListeners();
+  }
+
+  void toggleClipboard({bool? show}) {
+    _isClipboardOpen = show ?? !_isClipboardOpen;
+    if (_isClipboardOpen) {
+      _isSearchOpen = false;
+      _isControlCenterOpen = false;
+      _isNotificationTrayOpen = false;
+      _isScratchpadOpen = false;
+    }
+    notifyListeners();
+  }
+
+  void toggleScratchpad({bool? show}) {
+    _isScratchpadOpen = show ?? !_isScratchpadOpen;
+    if (_isScratchpadOpen) {
+      _isSearchOpen = false;
+      _isControlCenterOpen = false;
+      _isNotificationTrayOpen = false;
+      _isClipboardOpen = false;
+    }
+    notifyListeners();
+  }
+
+  void updateScratchpad(String text) {
+    _scratchpadText = text;
+    PrefsService.instance.setString(_kScratchpad, text);
     notifyListeners();
   }
 

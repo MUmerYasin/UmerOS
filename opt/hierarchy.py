@@ -53,6 +53,18 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Opt.Hierarchy")
 
+# Zero-trust gate for privileged /opt + /etc/opt + /var/opt mutations
+# (permissive-when-unwired / fail-closed-when-wired, matching the mnt/ media/
+# usr/ var/ opt-manager cap-gate clusters).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys as _sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 # ── Constants ──────────────────────────────────────────────────────────
 
 OPT_ROOT = Path("/opt")
@@ -148,6 +160,9 @@ class OptHierarchy:
 
         Safe to call multiple times (idempotent).
         """
+        # [FIX H184] privileged /opt skeleton creation -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         self.root.mkdir(parents=True, exist_ok=True)
 
         for name in RESERVED_DIRS + OPTIONAL_RESERVED:
@@ -184,6 +199,8 @@ class OptHierarchy:
 
     def register_package(self, entry: PackageEntry) -> None:
         """Add or update a package entry in the registry."""
+        # [FIX H184] writes the privileged /opt registry -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
         reg = self._load_registry()
         reg[entry.full_name] = entry.to_dict()
         self._save_registry(reg)
@@ -191,6 +208,8 @@ class OptHierarchy:
 
     def unregister_package(self, full_name: str) -> bool:
         """Remove a package from the registry. Returns True if found."""
+        # [FIX H184] rewrites the privileged /opt registry -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
         reg = self._load_registry()
         if full_name in reg:
             del reg[full_name]

@@ -162,3 +162,43 @@ def test_restore_refuses_traversal_archive(temp_srv):
         bm.restore_backup(evil_archive, target_root=temp_srv / "restored")
 
     assert not outside.exists(), "CRITICAL: backup restore path-traversal succeeded!"
+
+
+def test_backup_restore_zip(temp_srv):
+    """H266: a zip backup must round-trip without a TypeError.
+
+    `zipfile.ZipFile.extractall` accepts no `filter=` kwarg (even on 3.12+),
+    so the restore path must not forward one to it.
+    """
+    bm = SrvBackupManager(backup_dir=temp_srv / ".backups", srv_root=temp_srv)
+
+    service_dir = temp_srv / "zsite"
+    service_dir.mkdir()
+    (service_dir / "data.txt").write_text("zipcontent", encoding="utf-8")
+
+    archive = bm.create_backup(service_dir, archive_format="zip")
+    assert archive.exists()
+
+    restore_target = temp_srv / "zrestored"
+    restore_target.mkdir()
+    res = bm.restore_backup(archive, target_root=restore_target)
+    assert res["success"]
+    assert (restore_target / "zsite" / "data.txt").read_text(encoding="utf-8") == "zipcontent"
+
+
+def test_restore_refuses_traversal_zip(temp_srv):
+    """H266: a zip whose member escapes via '../' must fail closed and never
+    write outside the restore target (zip-slip, CVE-2007-4559 family)."""
+    import zipfile
+
+    bm = SrvBackupManager(backup_dir=temp_srv / ".backups", srv_root=temp_srv)
+    evil_archive = temp_srv / "evil.zip"
+    outside = temp_srv.parent / "EVIL_ZIP_ESCAPE.txt"
+    with zipfile.ZipFile(evil_archive, "w") as zf:
+        zf.writestr("manifest.json", "")
+        zf.writestr("../EVIL_ZIP_ESCAPE.txt", "pwned")
+
+    with pytest.raises(Exception):
+        bm.restore_backup(evil_archive, target_root=temp_srv / "restored")
+
+    assert not outside.exists(), "CRITICAL: zip restore path-traversal succeeded!"

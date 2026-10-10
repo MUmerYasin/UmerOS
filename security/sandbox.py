@@ -12,41 +12,51 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #!/usr/bin/env python3
-"""
-Security Sandbox with Filesystem Isolation
+"""UmerOS Security Sandbox — in-process, ADVISORY isolation.
 
-Provides process-level isolation by restricting each sandboxed process
-to a virtual chroot within the VFS. Integrates with the CapabilityManager
-from Stage 2 and the CryptoEngine from Stage 4.
+This is NOT OS-level isolation: it does **not** create namespaces, seccomp
+filters, or a real chroot. What it *does* provide, honestly:
 
-Equivalent to security/ + namespaces (security/apparmor, security/selinux).
-"""
+  * a per-PID registry of granted capabilities (advisory, in-memory);
+  * ``resolve_path`` — a real path-jail that rejects ``..``/symlink escapes
+    via ``realpath`` + ``commonpath`` (fail-closed when the process has no
+    ``fs_root`` configured);
+  * ``check_permission`` — consults the real zero-trust
+    ``core.capability_gate`` in addition to the local grant set;
+  * ``verify_signature`` — SHA3-512 payload hash equality.
 
-"""
-UMER OS - Security Sandbox Module
-Provides Zero-Trust process isolation, capability management, and jailbreak prevention.
-"""
-
-#!/usr/bin/env python3
-"""
-Security Sandbox with Filesystem Isolation
-Provides process-level isolation by restricting each sandboxed process
-to a virtual chroot within the VFS. 
+Real filesystem containment lives in ``kernel/umer_kernel.py``'s
+``SecuritySandbox`` (which requires an explicit ``fs_root``); this module is
+the user-space advisory layer. Callers MUST route through ``resolve_path``
+for the jail to apply.
 """
 import hashlib
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Set
+from typing import Dict, Optional, Set
 
 log = logging.getLogger("UmerOS.Security.Sandbox")
+
+# Zero-trust capability gate (H246): check_permission consults the real
+# CapabilityManager-backed gate, not just the in-memory grant set.
+try:
+    from core.capability_gate import gate as _cap_gate
+except Exception:  # pragma: no cover - standalone fallback
+    import sys as _sys
+    from pathlib import Path as _Path
+    _proj = str(_Path(__file__).resolve().parents[1])
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate as _cap_gate
+
 
 @dataclass
 class ProcessRecord:
     pid: int
     name: str
     permissions: Set[str] = field(default_factory=lambda: {"read"})
-    fs_root: str = "/"  # chroot-style filesystem jail
+    fs_root: Optional[str] = None  # chroot-style jail; None = unconfined (fail-closed)
 
 class SecuritySandbox:
     """
@@ -55,9 +65,11 @@ class SecuritySandbox:
     """
     def __init__(self):
         self.processes: Dict[int, ProcessRecord] = {}
-        print("[SECURITY] Sandbox initialized with Zero-Trust defaults.")
+        log.info("Sandbox initialized with Zero-Trust defaults.")
 
-    def register_process(self, pid: int, name: str, fs_root: str = "/"):
+    def register_process(self, pid: int, name: str, fs_root: Optional[str] = None):
+        # fs_root deliberately has NO default of "/": a missing jail means the
+        # process is unconfined and resolve_path fails closed for it.
         self.processes[pid] = ProcessRecord(pid=pid, name=name, fs_root=fs_root)
         log.info("Registered PID %d (%s) fs_root=%s", pid, name, fs_root)
 
@@ -73,6 +85,13 @@ class SecuritySandbox:
         if pid not in self.processes:
             log.warning("DENIED: PID %d is not registered.", pid)
             return False
+        # Consult the real zero-trust gate first (H246): when a
+        # CapabilityManager is wired and denies the capability, deny here too.
+        try:
+            _cap_gate.require(permission, pid=pid)
+        except PermissionError:
+            log.warning("DENIED: capability gate rejected %r for PID %d.", permission, pid)
+            return False
         allowed = permission in self.processes[pid].permissions
         if not allowed:
             log.warning("DENIED: PID %d lacks %r.", pid, permission)
@@ -87,7 +106,11 @@ class SecuritySandbox:
         if pid not in self.processes:
             raise PermissionError(f"PID {pid} is not sandboxed.")
         
-        jail = os.path.realpath(self.processes[pid].fs_root)
+        fs_root = self.processes[pid].fs_root
+        if not fs_root:
+            # No jail configured -> fail closed (never treat "/" as a jail).
+            raise PermissionError(f"PID {pid} has no fs_root jail configured.")
+        jail = os.path.realpath(fs_root)
         # Join jail and requested path, then resolve all symlinks and '..' components
         target = os.path.realpath(os.path.join(jail, path.lstrip('/')))
         

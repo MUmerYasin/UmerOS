@@ -297,6 +297,52 @@ class AuditLog:
             extra={"removed_paths": paths},
         )
 
+    def log_remount(
+        self,
+        mount_point: str,
+        options: str = "",
+        *,
+        device: str = "",
+        message: str = "",
+    ) -> AuditRecord:
+        return self.log_event(
+            AuditEvent.REMOUNT,
+            device=device, mount_point=mount_point,
+            options=options,
+            message=message or f"Remounted {mount_point} with {options}",
+        )
+
+    def log_mount_create(
+        self,
+        path: str,
+        *,
+        device: str = "",
+        fstype: str = "",
+        message: str = "",
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> AuditRecord:
+        return self.log_event(
+            AuditEvent.MOUNT_CREATE,
+            device=device, mount_point=path,
+            fstype=fstype,
+            message=message or f"Created mount point {path}",
+            extra=extra,
+        )
+
+    def log_mount_remove(
+        self,
+        path: str,
+        *,
+        message: str = "",
+        extra: Optional[Dict[str, Any]] = None,
+    ) -> AuditRecord:
+        return self.log_event(
+            AuditEvent.MOUNT_REMOVE,
+            mount_point=path,
+            message=message or f"Removed mount point {path}",
+            extra=extra,
+        )
+
     # -- Read ----------------------------------------------------------------
 
     def _read_all(self) -> List[AuditRecord]:
@@ -320,7 +366,10 @@ class AuditLog:
         return self._read_all()
 
     def recent(self, limit: int = 20) -> List[AuditRecord]:
-        """Most recent *limit* events."""
+        """Most recent *limit* events (oldest first)."""
+        if limit <= 0:
+            # records[-0:] would return the whole log, not nothing.
+            return []
         return self._read_all()[-limit:]
 
     def for_mount_point(self, mount_point: str) -> List[AuditRecord]:

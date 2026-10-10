@@ -639,7 +639,7 @@ class Emulator:
                 self.mem.write_u16(moffs, self.regs.get(REG_RAX) & 0xFFFF)
             self.regs.set(15, ip + 2)
             return
-        if op in (0xA4, 0xA5):
+        if op == 0x9F:  # LAHF
             # movsb/movsw/movsd/movsq -- copy [rsi] to [rdi] with df
             # direction.  In 64-bit mode, the operand size is 8
             # bytes (movsq).  We honour df for completeness.
@@ -772,10 +772,6 @@ class Emulator:
             self.regs.set(15, ip)
             return
         if op == 0x9F:  # LAHF
-            ah = 0
-            ah |= (self.regs.cf & 0x01) << 0
-            ah |= 1 << 1                                # always 1
-            ah |= (self.regs.pf & 0x01) << 2
             ah |= (self.regs.zf & 0x01) << 6
             ah |= (self.regs.sf & 0x01) << 7
             self.regs.set(REG_RAX, (self.regs.get(REG_RAX) & ~0xFF00) | (ah << 8))
@@ -2482,19 +2478,26 @@ class Emulator:
     def run(self, *, max_steps: int = 100_000,
             hot_loop_window: int = 4096,
             hot_loop_range: int = 0x400,
-            hot_loop_min_steps: int = 200_000) -> int:
+            hot_loop_min_steps: int = 50_000,
+            hot_loop_max_detections: int = 0) -> int:
         """Run until HLT, max_steps reached, or ``stopped`` set.
 
         Hot-loop short-circuit: if the last ``hot_loop_window`` RIPs
         all fall inside a ``hot_loop_range`` byte window AND the
         total step count exceeds ``hot_loop_min_steps``, we assume
-        we're in a CRT-style infinite loop (e.g. memcpy of a huge
-        buffer) and break out by jumping past the loop body.  This
-        is the practical workaround for running real Win64 binaries
-        in a pure-Python interpreter at ~150 K steps/second.
+        we're in a CRT-style tight loop (e.g. memcpy of a huge
+        buffer) and abort.  Pure-Python emulation at ~150 K steps/s
+        can't realistically chew through gigabyte-scale startup
+        copies, so the pragmatic action is to give up gracefully
+        rather than burn CPU for hours.
+
+        ``hot_loop_max_detections`` is the number of distinct
+        hot loops the emulator is willing to skip before declaring
+        defeat.  Set to a large value to keep going.
         """
         from collections import deque
         recent: "deque[int]" = deque(maxlen=hot_loop_window)
+        detections = 0
         for _ in range(max_steps):
             self.steps += 1
             rip_before = self.regs.get(15)
@@ -2510,19 +2513,23 @@ class Emulator:
                 lo = min(recent)
                 hi = max(recent)
                 if hi - lo < hot_loop_range:
+                    detections += 1
+                    if detections > hot_loop_max_detections:
+                        log.warning(
+                            "emulator: %d hot loops detected; "
+                            "aborting run at 0x%x (pure-Python "
+                            "cannot emulate multi-MB startup loops)",
+                            detections - 1, rip_before)
+                        self.stopped = True
+                        return self.exit_code
                     log.warning(
                         "emulator: hot loop detected near 0x%x "
                         "(range 0x%x, %d steps) -- jumping past",
                         rip_before, hi - lo, self.steps)
-                    # Skip past the loop by jumping to RIP + range.
-                    # The jae at the loop tail is the only branch
-                    # that exits; everything else stays inside the
-                    # range.  By jumping just past the range, we
-                    # land on whatever follows the loop in the
-                    # binary.  The destination register is whatever
-                    # the loop's pointer-update produced, which is
-                    # exactly what the loop would have done at exit.
-                    self.regs.set(15, hi + 0x40)
+                    # The recent window may only contain the loop's
+                    # body.  Jump ``range + 0x10`` past the highest
+                    # RIP to land just after the back-edge branch.
+                    self.regs.set(15, hi + (hi - lo) + 0x10)
                     recent.clear()
         return -1
 

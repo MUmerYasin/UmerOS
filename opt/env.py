@@ -34,6 +34,18 @@ from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Opt.Env")
 
+# Zero-trust gate for privileged /opt + /etc/opt + /var/opt mutations
+# (permissive-when-unwired / fail-closed-when-wired, matching the mnt/ media/
+# usr/ var/ opt-manager cap-gate clusters).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys as _sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 # ── Constants ──────────────────────────────────────────────────────────
 
 OPT_ROOT = Path("/opt")
@@ -271,6 +283,9 @@ class OptEnvManager:
         bool
             True if the file was written successfully.
         """
+        # [FIX H184] writes /etc/profile.d/opt-paths.sh -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         snippet = self.generate_all_exports()
         if not snippet:
             log.info("No /opt packages found, skipping profile.d")

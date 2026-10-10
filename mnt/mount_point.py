@@ -54,6 +54,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from .audit import AuditEvent, AuditLog
+
 log = logging.getLogger("UmerOS.Mnt.MountPoint")
 
 # Gate privileged /mnt mount-point lifecycle (create/remove) behind the
@@ -162,10 +164,12 @@ class MountPointManager:
         *,
         max_age_seconds: float = 86400.0,   # 24 hours default
         enforce_prefix: bool = True,
+        audit: Optional[AuditLog] = None,
     ) -> None:
         self._mnt_root = str(mnt_root).rstrip("/")
         self._max_age = max_age_seconds
         self._enforce_prefix = enforce_prefix
+        self._audit = audit
         self._points: Dict[str, MountPoint] = {}
         self._scan_existing()
 
@@ -231,7 +235,16 @@ class MountPointManager:
         """
         # Creating a mount-point directory under /mnt is a privileged
         # admin action; require the fs.admin capability (fail-closed when wired).
-        gate.require(CAP_FS_ADMIN)
+        try:
+            gate.require(CAP_FS_ADMIN)
+        except PermissionError:
+            if self._audit is not None:
+                self._audit.log_permission_deny(
+                    "",
+                    f"{self._mnt_root}/{name}" if name else self._mnt_root,
+                    reason=f"CAP_FS_ADMIN required to create mount point {name}",
+                )
+            raise
 
         if name is None:
             name = self._auto_name(device)
@@ -260,6 +273,11 @@ class MountPointManager:
             fstype=fstype,
         )
         self._points[name] = mp
+        if self._audit is not None:
+            self._audit.log_mount_create(
+                path, device=device, fstype=fstype,
+                extra={"name": name, "purpose": purpose},
+            )
         return mp
 
     def _auto_name(self, device: str) -> str:
@@ -315,7 +333,15 @@ class MountPointManager:
         Returns True if removed, False otherwise.
         """
         # Removing a mount-point directory is a privileged admin action.
-        gate.require(CAP_FS_ADMIN)
+        try:
+            gate.require(CAP_FS_ADMIN)
+        except PermissionError:
+            if self._audit is not None:
+                self._audit.log_permission_deny(
+                    "", path,
+                    reason="CAP_FS_ADMIN required to remove mount point",
+                )
+            raise
 
         mp = self._find_by_path(path)
         if mp is None:
@@ -365,6 +391,8 @@ class MountPointManager:
                 return False
 
         self._remove_tracking(path)
+        if self._audit is not None:
+            self._audit.log_mount_remove(path, extra={"force": force})
         return True
 
     def _remove_tracking(self, path: str) -> None:
@@ -405,7 +433,7 @@ class MountPointManager:
             if mp.is_mounted:
                 continue
             dirpath = Path(mp.path)
-            if dirpath.exists() and any(dirpath.iterdir()):
+            if dirpath.is_dir() and any(dirpath.iterdir()):
                 continue  # not empty
             if mp.age_seconds > self._max_age:
                 result.append(mp)
@@ -426,6 +454,8 @@ class MountPointManager:
                 continue
             if self.remove(mp.path):
                 removed.append(mp.path)
+        if self._audit is not None and removed and not dry_run:
+            self._audit.log_cleanup(removed, message="Removed stale mount points")
         return removed
 
     def cleanup_empty(self, *, exclude: Optional[Sequence[str]] = None) -> List[str]:
@@ -464,6 +494,8 @@ class MountPointManager:
                 except OSError as exc:
                     log.warning("Failed to remove %s: %s", entry, exc)
 
+        if self._audit is not None and removed:
+            self._audit.log_cleanup(removed, message="Removed empty mount points")
         return removed
 
     # -- Stats ---------------------------------------------------------------
@@ -475,6 +507,15 @@ class MountPointManager:
             "mounted": len(self.mounted),
             "unmounted": len(self.unmounted),
             "stale": len(self.stale),
+        }
+
+    def get_summary(self) -> Dict[str, object]:
+        """Snapshot of the mount-point table for diagnostics."""
+        return {
+            "mnt_root": self._mnt_root,
+            **self.stats,
+            "mounted_points": [mp.path for mp in self.mounted],
+            "stale_points": [mp.path for mp in self.stale],
         }
 
 

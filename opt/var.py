@@ -53,6 +53,18 @@ except Exception:  # pragma: no cover - standalone fallback
         sys.path.insert(0, _proj)
     from core.path_guard import safe_child, safe_join, PathTraversalError
 
+# Zero-trust gate for privileged /opt + /etc/opt + /var/opt mutations
+# (permissive-when-unwired / fail-closed-when-wired, matching the mnt/ media/
+# usr/ var/ opt-manager cap-gate clusters).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys as _sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 # ── Constants ──────────────────────────────────────────────────────────
 
 DEFAULT_VAR_OPT = Path("/var/opt")
@@ -109,12 +121,17 @@ class VarOptManager:
 
     def ensure_package_dir(self, package: str, provider: str = "") -> Path:
         """Ensure the /var/opt/<provider>/<pkg>/ directory exists."""
+        # [FIX H184] privileged mkdir under /var/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
         d = self._pkg_dir(package, provider)
         d.mkdir(parents=True, exist_ok=True)
         return d
 
     def remove_package_dir(self, package: str, provider: str = "") -> bool:
         """Remove the variable data directory for a package."""
+        # [FIX H184] privileged rmtree under /var/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         try:
             d = self._pkg_dir(package, provider)
         except PathTraversalError:
@@ -230,6 +247,9 @@ class VarOptManager:
     def write_file(self, package: str, provider: str = "",
                    filename: str = "data.bin", content: bytes = b"") -> bool:
         """Write a file to /var/opt/<provider>/<pkg>/."""
+        # [FIX H184] privileged write under /var/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         try:
             pkg_dir = self.ensure_package_dir(package, provider)
             # `filename` may be nested ("sub/file.txt"); safe_join
@@ -269,6 +289,9 @@ class VarOptManager:
 
     def cleanup_empty(self) -> List[str]:
         """Remove empty package directories. Returns removed paths."""
+        # [FIX H184] privileged rmdir under /var/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         removed: List[str] = []
         if not self.root.exists():
             return removed
@@ -299,6 +322,9 @@ class VarOptManager:
 
         Returns the number of directories removed.
         """
+        # [FIX H184] privileged rmtree under /var/opt -> require fs.admin.
+        gate.require(CAP_FS_ADMIN)
+
         if not self.root.exists():
             return 0
 

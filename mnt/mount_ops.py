@@ -55,6 +55,8 @@ from enum import Flag, auto
 from pathlib import Path
 from typing import Dict, FrozenSet, List, Optional, Sequence, Set
 
+from .audit import AuditEvent, AuditLog
+
 log = logging.getLogger("UmerOS.Mnt.MountOps")
 
 # Gate privileged /mnt mount/unmount/remount behind the zero-trust
@@ -268,10 +270,12 @@ class MountManager:
         *,
         enforce_noauto: bool = True,
         enforce_user: bool = False,
+        audit: Optional[AuditLog] = None,
     ) -> None:
         self._proc_mounts = str(proc_mounts)
         self._enforce_noauto = enforce_noauto
         self._enforce_user = enforce_user
+        self._audit = audit
         self._mounts: List[MountRecord] = []
         self._load_mounts()
 
@@ -362,7 +366,15 @@ class MountManager:
         """
         # Require the fs.admin capability before mutating the mount
         # table (fail-closed when a CapabilityManager is wired).
-        gate.require(CAP_FS_ADMIN)
+        try:
+            gate.require(CAP_FS_ADMIN)
+        except PermissionError:
+            if self._audit is not None:
+                self._audit.log_permission_deny(
+                    device, mount_point,
+                    reason="CAP_FS_ADMIN required to mount",
+                )
+            raise
 
         errors: List[str] = []
 
@@ -380,6 +392,11 @@ class MountManager:
         opts = parse_options(options)
         if MountOpt.NOAUTO in options_to_flags(opts) and self._enforce_noauto:
             log.info("Mount %s -> %s skipped (noauto)", device, mount_point)
+            if self._audit is not None:
+                self._audit.log_mount(
+                    device, mount_point, fstype, options,
+                    message="skipped (noauto)",
+                )
             return MountRecord(
                 device=device, mount_point=mount_point,
                 fstype=fstype, options=options,
@@ -400,6 +417,8 @@ class MountManager:
         )
         self._mounts.append(record)
         log.info("Mounted: %s", record)
+        if self._audit is not None:
+            self._audit.log_mount(device, mount_point, fstype, options)
         return record
 
     # -- Unmount -------------------------------------------------------------
@@ -427,7 +446,15 @@ class MountManager:
             MountError: If the mount point is not currently mounted.
         """
         # Require the fs.admin capability before unmounting.
-        gate.require(CAP_FS_ADMIN)
+        try:
+            gate.require(CAP_FS_ADMIN)
+        except PermissionError:
+            if self._audit is not None:
+                self._audit.log_permission_deny(
+                    "", mount_point,
+                    reason="CAP_FS_ADMIN required to unmount",
+                )
+            raise
 
         record = None
         for i, m in enumerate(self._mounts):
@@ -454,7 +481,16 @@ class MountManager:
 
         log.info(cmd)
         log.info("Unmounted: %s", record)
+        if self._audit is not None:
+            self._audit.log_umount(mount_point, device=record.device)
         return record
+
+    def umount_all(self, *, lazy: bool = False, force: bool = False) -> List[MountRecord]:
+        """Unmount every recorded mount (e.g. before a cleanup sweep)."""
+        removed: List[MountRecord] = []
+        for mount_point in [m.mount_point for m in self._mounts]:
+            removed.append(self.umount(mount_point, lazy=lazy, force=force))
+        return removed
 
     # -- Remount -------------------------------------------------------------
 
@@ -465,7 +501,15 @@ class MountManager:
     ) -> MountRecord:
         """Remount with new options (e.g., read-only to read-write)."""
         # Require the fs.admin capability before remounting.
-        gate.require(CAP_FS_ADMIN)
+        try:
+            gate.require(CAP_FS_ADMIN)
+        except PermissionError:
+            if self._audit is not None:
+                self._audit.log_permission_deny(
+                    "", mount_point,
+                    reason="CAP_FS_ADMIN required to remount",
+                )
+            raise
 
         record = None
         for m in self._mounts:
@@ -479,6 +523,8 @@ class MountManager:
         old_opts = record.options
         record.options = options
         log.info("remount %s -o %s (was: %s)", mount_point, options, old_opts)
+        if self._audit is not None:
+            self._audit.log_remount(mount_point, options, device=record.device)
         return record
 
     # -- Bind mount ----------------------------------------------------------

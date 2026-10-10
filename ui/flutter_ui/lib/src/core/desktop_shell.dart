@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +11,7 @@ import '../widgets/dock.dart';
 import '../widgets/draggable_window.dart';
 import '../widgets/auto_adjust_box.dart';
 import '../services/material3_theme.dart';
+import '../../services/clipboard_manager.dart';
 import 'package:file_picker/file_picker.dart';
 
 class DesktopShell extends StatefulWidget {

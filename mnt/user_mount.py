@@ -48,11 +48,13 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+from .audit import AuditEvent, AuditLog
 from .fstab import Fstab, FstabEntry
 from .mount_ops import MountManager, MountRecord, MountError, parse_options
 
@@ -80,8 +82,14 @@ class MtabEntry:
     uid: int = 0
 
     def to_mtab_line(self) -> str:
-        """Render for ``/etc/mtab`` format."""
-        return f"{self.device} {self.mount_point} {self.fstype} {self.options} 0 0"
+        """Render for ``/etc/mtab`` format.
+
+        Standard mtab readers ignore trailing ``#`` comments, so the
+        ownership (who mounted it, with which uid) is preserved on disk
+        and recoverable by :meth:`UserMountManager._load_mtab`.
+        """
+        base = f"{self.device} {self.mount_point} {self.fstype} {self.options} 0 0"
+        return f"{base} # umeros mounted_by={self.mounted_by} uid={self.uid}"
 
     def as_dict(self) -> Dict[str, object]:
         return {
@@ -119,28 +127,42 @@ class UserMountManager:
         fstab_path: str | Path = "/etc/fstab",
         mount_mgr: Optional[MountManager] = None,
         mtab_path: str | Path = MTAB_PATH,
+        *,
+        audit: Optional[AuditLog] = None,
     ) -> None:
         self._fstab_path = str(fstab_path)
         self._mtab_path = str(mtab_path)
-        self._mount_mgr = mount_mgr or MountManager()
+        self._audit = audit
+        # User mounts always carry noauto (they are on-demand), so the
+        # underlying MountManager must not skip them: noauto only governs
+        # boot-time `mount -a` behaviour.
+        self._mount_mgr = mount_mgr or MountManager(enforce_noauto=False)
         self._mtab: List[MtabEntry] = []
         self._load_mtab()
 
     # -- Mtab I/O ------------------------------------------------------------
 
     def _load_mtab(self) -> None:
-        """Load ``/etc/mtab``."""
+        """Load ``/etc/mtab``.
+
+        Ownership written by :meth:`MtabEntry.to_mtab_line` rides in a
+        trailing ``#`` comment that standard mtab readers ignore.
+        """
         try:
             with open(self._mtab_path, "r", encoding="utf-8") as fh:
                 for line in fh:
                     parts = line.strip().split()
                     if len(parts) >= 4:
+                        comment = line.split("#", 1)[1] if "#" in line else ""
+                        by_match = re.search(r"mounted_by=(\S+)", comment)
+                        uid_match = re.search(r"uid=(\d+)", comment)
                         self._mtab.append(MtabEntry(
                             device=parts[0],
                             mount_point=parts[1],
                             fstype=parts[2],
                             options=parts[3],
-                            mounted_by="unknown",
+                            mounted_by=by_match.group(1) if by_match else "unknown",
+                            uid=int(uid_match.group(1)) if uid_match else 0,
                         ))
         except (FileNotFoundError, PermissionError):
             pass
@@ -265,6 +287,18 @@ class UserMountManager:
                 f"No fstab entry for {mount_point} — cannot user-mount"
             )
 
+        # Enforce the fstab user/users permission before touching the
+        # mount table: without this check any caller could mount any
+        # device that merely has an fstab entry.
+        if not self.can_user_mount(username, mount_point, uid=uid):
+            reason = f"User {username!r} is not allowed to mount {mount_point}"
+            if self._audit is not None:
+                self._audit.log_permission_deny(
+                    device, mount_point, user=username, uid=uid or 0,
+                    reason=reason,
+                )
+            raise MountError(reason)
+
         # Build options from fstab + overrides
         opts = list(parse_options(entry.options))
 
@@ -313,6 +347,10 @@ class UserMountManager:
             "User mount: %s mounted %s at %s (%s)",
             username, device, mount_point, fstype,
         )
+        if self._audit is not None:
+            self._audit.log_user_mount(
+                device, mount_point, fstype, user=username, uid=uid or 0,
+            )
         return record
 
     def user_umount(
@@ -341,6 +379,8 @@ class UserMountManager:
         self._save_mtab()
 
         log.info("User umount: %s unmounted %s", username, mount_point)
+        if self._audit is not None:
+            self._audit.log_user_umount(mount_point, user=username)
         return record
 
     # -- Query ---------------------------------------------------------------

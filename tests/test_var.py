@@ -289,6 +289,18 @@ def test_compress_old_logs_keeps_active_log(log_mgr):
                for line in log_mgr.read_log("app.log"))
 
 
+def test_rotate_then_compress_old_logs(log_mgr):
+    assert log_mgr.write_log("app.log", "rotate me") is True
+    assert log_mgr.rotate_log("app.log", max_size=0) is True
+    compressed = log_mgr.compress_old_logs()
+    # Exactly the rotated copy is compressed...
+    assert len(compressed) == 1
+    gz = Path(log_mgr.log_path) / (compressed[0] + ".gz")
+    assert gz.exists()
+    # ...and the active log recreated by rotate() survives.
+    assert (Path(log_mgr.log_path) / "app.log").exists()
+
+
 def test_get_log_stats_counts_all_lines(log_mgr):
     for i in range(120):
         assert log_mgr.write_log("big.log", f"line {i}") is True

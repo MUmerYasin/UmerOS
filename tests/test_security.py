@@ -91,6 +91,44 @@ class TestSecuritySandbox(unittest.TestCase):
         payload = b"test executable"
         self.assertFalse(self.sandbox.verify_signature(self.pid, payload, "0" * 128))
 
+    # ── H246: advisory sandbox hardening ─────────────────────────────────────
+    def test_fs_root_never_defaults_to_root(self):
+        # H246: registering without fs_root must NOT silently jail to "/".
+        self.assertIsNone(self.sandbox.processes[self.pid].fs_root)
+
+    def test_resolve_path_fails_closed_without_jail(self):
+        # H246: an unconfined process (no fs_root) is refused, not jailed to "/".
+        with self.assertRaises(PermissionError):
+            self.sandbox.resolve_path(self.pid, "x")
+
+    def test_resolve_path_jails_inside_fs_root(self):
+        import shutil
+        jail = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, jail, True)
+        self.sandbox.register_process(7, "jailed", fs_root=jail)
+        inside = self.sandbox.resolve_path(7, "sub/x")
+        self.assertTrue(
+            os.path.realpath(inside).startswith(os.path.realpath(jail)))
+        with self.assertRaises(PermissionError):
+            self.sandbox.resolve_path(7, "../../../../etc/passwd")
+
+    def test_check_permission_denied_by_capability_gate(self):
+        # H246: check_permission must consult the real capability gate.
+        import security.sandbox as sbmod
+        from core.capability_gate import CapabilityGate
+        from kernel.capability_manager import CapabilityManager
+        cm = CapabilityManager()
+        cm.register(self.pid)  # registered but granted nothing
+        g = CapabilityGate()
+        g.wire(cm)
+        prev = sbmod._cap_gate
+        sbmod._cap_gate = g
+        try:
+            self.sandbox.grant_permission(self.pid, "read")  # local grant present
+            self.assertFalse(self.sandbox.check_permission(self.pid, "read"))
+        finally:
+            sbmod._cap_gate = prev
+
 
 # ---------------------------------------------------------------------------
 # SecureBoot tests

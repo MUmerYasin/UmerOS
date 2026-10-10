@@ -536,9 +536,10 @@ async def export_to_qasm(request: QASMExportRequest):
 
 # Run the server
 if __name__ == "__main__":
-    import uvicorn
     # Loopback bind by default; remote binding requires an explicit
-    # host override AND a configured bearer token.
+    # host override AND a configured bearer token. The guard runs BEFORE
+    # importing uvicorn so the security check fails fast (and is testable
+    # without uvicorn installed).
     host = os.environ.get("UMEROS_QS_HOST", "127.0.0.1")
     token = os.environ.get("UMEROS_QS_TOKEN", "")
     if host not in ("127.0.0.1", "localhost") and not token:
@@ -546,6 +547,7 @@ if __name__ == "__main__":
             "Refusing to expose the quantum API remotely without auth: "
             "set UMEROS_QS_TOKEN (and optionally UMEROS_QS_HOST) first."
         )
+    import uvicorn
     print("Starting UmerOS Quantum Computing API Server...")
     print(f"Server will be available at: http://{host}:8420")
     print(f"API docs available at: http://{host}:8420/docs")
