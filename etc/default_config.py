@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/default/ Configuration Manager
+UmerOS /etc/default/ Configuration Manager  [TODAY]
 Manages default settings for various programs.
 """
 

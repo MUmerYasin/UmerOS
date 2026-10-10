@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Network Services
+UmerOS /etc Network Services  [TODAY]
 ==============================
 Manages network service name-to-port mappings and protocol definitions.
 
@@ -22,7 +22,7 @@ FHS 3.0 entries:
   /etc/rpc         — RPC program number definitions
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

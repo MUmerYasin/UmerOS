@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc GSS Configuration
+UmerOS /etc GSS Configuration  [TODAY]
 ================================
 Manages GSS-API (Generic Security Service) configuration.
 
@@ -22,7 +22,7 @@ FHS 3.0 entries:
   /etc/gss/mech.d/             — GSS mechanism files
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

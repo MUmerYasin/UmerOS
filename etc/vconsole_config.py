@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/vconsole.conf Configuration Manager
+UmerOS /etc/vconsole.conf Configuration Manager  [TODAY]
 Manages virtual console configuration.
 """
 

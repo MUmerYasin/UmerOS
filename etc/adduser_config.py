@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/adduser.conf manager
+UmerOS - /etc/adduser.conf manager  [TODAY]
 FHS 3.0: /etc/adduser.conf contains configuration for the adduser and
 adduser commands. Defines defaults for new user creation.
 """

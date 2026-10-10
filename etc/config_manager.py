@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS Configuration Manager
+Umer OS Configuration Manager  [TODAY]
 =============================
 Manages system configuration files for /etc.
 
@@ -23,7 +23,7 @@ FHS 3.0 /etc requirements:
 - System-wide configuration
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

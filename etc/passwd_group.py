@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc User/Group Management
+UmerOS /etc User/Group Management  [TODAY]
 ===================================
 Manages /etc/passwd and /etc/group files.
 
@@ -23,7 +23,7 @@ FHS 3.0:
   /etc/gshadow — Secure group account information
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

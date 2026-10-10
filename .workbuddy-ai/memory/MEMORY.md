@@ -25,9 +25,10 @@
 ## Remediation status
 - **RED blockers: ALL CLOSED (sessions 1–33).**
 - **YELLOW sweep in progress (session 36+).** Large drift-recon resolutions: cloud/ fully 🟢 (H46,H154,H47,H48,H49). Many earlier H-items (H4,H5,H6,H7,H8,H9,H11,H13,H14,H15,H16,H19,H20,H23,H24,H26,H30) were RESOLVED with the premise proven stale/overstated — detail lives in the standard §9 + per-session overview files, not re-duplicated here.
-**Current pointer (session 78):** `compatibility/` + `core/` + `dev/` COMPLETE; `drivers/` sweep in progress — H62 RESOLVED (tier labels), H63 RESOLVED (premise overstated: 75/75 GPLv3 headers), **H65 RESOLVED** (dead `import ctypes` removed from `device_io.py`/`irq.py`). Next 🟡 **H66** - `drivers/*` no capability gating on privileged driver ops (MMIO/port I/O/DMA, PCI region claim). Say **'continues'** for H66.
+**Current pointer (session 120):** `compatibility/` + `core/` + `dev/` + `drivers/` + `etc/` COMPLETE; `feedback/` in progress — **H76 RESOLVED (REAL FIX + drift: `feedback/` already imported cleanly via guarded relative imports; made the header/docstring honest — 5 missing submodules marked `[PLANNED - not implemented]` + `[STUB]` declared; new `tests/test_feedback_package.py` 8 passed)**. Next 🟡 **H77** - `feedback/` verbose `License: GPL-3.0 (GNU General Public License Version 3)` strays (2 files) + GFDL reference reconciliation. Say **'continues'** for H77.
 - **Standard §9 cleanup (2026-10-09):** all 63 resolved (🟢-severity) hotspot rows were removed from `MainTask/Raw Data/Code Review Standards and Process.md`; §9 now lists ONLY open hotspots (rows skip the removed IDs). Full resolution record remains in the checkpoint `remediation_progress.md`. Backup: `Code Review Standards and Process.md.pre-green-removal.bak`.
 - **⚠ Standard §9 REVERTED (session 84):** the live standard is now **973 lines / 217 rows (39🔴 63🟢 115🟡)** — the 🟢-removal edit was reverted/replaced externally (the file grew 736→673→973). H46 is duplicated (stale 🔴 at L356 + resolved 🟢 at L549). Awaiting user decision on whether to re-remove 🟢 rows.
+- **⚠ H62 REGRESSION (found session 117):** `drivers/` now has **0/75** `[TODAY]` tier labels despite H62 being marked RESOLVED (session 76). The tier-label convention still holds in `boot/` (23), `bin/` (44), `kernel/` (6), `core/` (1) and now `etc/` (81, H70) — but the drivers/ labels are gone (external revert or never persisted). Re-apply on request (same mechanical op as H70).
 - H1 standing user action (not mine): user must rotate the leaked OpenRouter key + purge git history.
 
 ## Folder scope map — hotspots (🟢 fixed / 🟡 yellow / 💭 nit)
@@ -38,10 +39,10 @@
 - compatibility/ 🟢 H50,H51,H52,H53,H54
 - core/ 🟢 H55,H56; 💭 H57
 - dev/ 🟢 H59,H60; 💭 H61
-- drivers/ 🟢 H64; 🟡 H63,H66,H69; 💭 H62,H65
-- etc/ 🟢 H5,H72,H73; 🟡 H70,H71
+- drivers/ 🟢 H64,H66,H67,H68,H69; 🟡 H63; 💭 H62,H65
+- etc/ 🟢 H5,H70,H71,H72,H73
 - examples/ 💭 H74,H75
-- feedback/ 🟡 H76–H79
+- feedback/ 🟢 H76; 🟡 H77; 💭 H78,H79
 - fs/ 🟡 H80,H81,H82
 - home/ 🟢 H83; 🟡 H84–H88
 - HostFiles/ 🟡 H89,H90

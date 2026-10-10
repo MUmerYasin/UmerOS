@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/networks manager
+UmerOS - /etc/networks manager  [TODAY]
 FHS 3.0: /etc/networks describes known networks and their addresses.
 Used by route and other networking tools.
 """

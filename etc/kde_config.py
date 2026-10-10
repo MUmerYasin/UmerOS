@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/kde manager
+UmerOS - /etc/kde manager  [TODAY]
 FHS 3.0: /etc/kde/ or /etc/xdg/kde/ contains KDE desktop configuration.
 """
 from __future__ import annotations

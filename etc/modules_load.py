@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/modules-load.d/ Configuration Manager
+UmerOS /etc/modules-load.d/ Configuration Manager  [TODAY]
 Manages kernel modules to load at boot.
 """
 

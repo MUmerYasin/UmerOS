@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/hosts Manager
+UmerOS /etc/hosts Manager  [TODAY]
 ===========================
 Manages the FHS-required /etc/hosts file for static hostname-to-IP mappings.
 
@@ -33,7 +33,7 @@ Conventions:
   - Methods return Dict[str, Any] with "success" key
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

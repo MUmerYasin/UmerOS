@@ -11,6 +11,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Umer OS character-device base.
+
+Defines the ``FileOperations`` protocol and the global ``CHAR_DEVICES``
+registry used by character drivers."""
+
+from __future__ import annotations
+
 from typing import Protocol, runtime_checkable, Dict, Any
 
 # Global registry for character devices

@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/X11 extended manager
+UmerOS - /etc/X11 extended manager  [TODAY]
 FHS 3.0: /etc/X11/ additional subdirectories.
   /etc/X11/Xresources/ — X client resources
   /etc/X11/Xsessions.d/ — session startup scripts

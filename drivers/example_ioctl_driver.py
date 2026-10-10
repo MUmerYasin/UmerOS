@@ -19,6 +19,8 @@ This script demonstrates how to register ioctl command handlers for a
 It can be executed directly to see the workflow in action.
 """
 
+from __future__ import annotations
+
 # The script resides in the drivers package, so relative imports are used.
 from .device import Device
 from .ioctl import register_ioctl, _IOR, _IOW

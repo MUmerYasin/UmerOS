@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/manpath.config manager
+UmerOS - /etc/manpath.config manager  [TODAY]
 FHS 3.0: /etc/manpath.config configures the man-db library.
 Defines manual page search paths and cat directories.
 """

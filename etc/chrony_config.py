@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/chrony.conf and /etc/chrony.d/ Configuration Manager
+UmerOS /etc/chrony.conf and /etc/chrony.d/ Configuration Manager  [TODAY]
 Manages NTP time synchronization via chrony.
 """
 

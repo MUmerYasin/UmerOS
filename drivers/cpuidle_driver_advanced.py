@@ -25,6 +25,8 @@ The Kernel's cpuidle driver architecture as documented in
 Documentation/admin-guide/pm/cpuidle.rst (kernel 7.2.0-rc6).
 """
 
+from __future__ import annotations
+
 from typing import Callable, List, Optional, Dict, Any, Set
 try:
     from .cpuidle import (

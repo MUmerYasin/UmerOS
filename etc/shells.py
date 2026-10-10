@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/shells Configuration Manager
+UmerOS /etc/shells Configuration Manager  [TODAY]
 Manages valid login shells.
 """
 

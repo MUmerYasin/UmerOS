@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Cron Jobs Directory
+UmerOS /etc Cron Jobs Directory  [TODAY]
 =================================
 Manages /etc/cron.d/, cron.daily/, cron.hourly/, cron.monthly/, cron.weekly/.
 
@@ -24,7 +24,7 @@ FHS 3.0 entries:
   /etc/cron.weekly/   — Weekly cron jobs
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

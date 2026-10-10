@@ -27,6 +27,22 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+#  Zero-trust capability gate for privileged driver operations
+# (MMIO mapping, raw port I/O, DMA allocation, PCI BAR claim, crypto TFM
+# alloc). Fail-closed when a CapabilityManager is wired via
+# core.capability_gate.gate.wire(); permissive (warning) standalone so
+# existing tooling keeps working.
+try:
+    from core.capability_gate import gate, CAP_SYS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_SYS_ADMIN
+
+
 # ---------------------------------------------------------------------------
 # Global registries
 # ---------------------------------------------------------------------------
@@ -144,6 +160,7 @@ class PioXfer:
 
 def devm_ioremap(name: str, phys_addr: int, size: int) -> MmioRegion:
     """Map MMIO region - like devm_ioremap()"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] MMIO map grants privileged HW access
     global _next_io_virt
     with _lock:
         if name in _mmio_regions:
@@ -305,31 +322,37 @@ def _get_port(port: int) -> IoPort:
 
 def inb(port: int) -> int:
     """Read byte from port - like inb()"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] raw port I/O
     return _get_port(port).read() & 0xFF
 
 
 def inw(port: int) -> int:
     """Read 16-bit from port"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] raw port I/O
     return _get_port(port).read() & 0xFFFF
 
 
 def inl(port: int) -> int:
     """Read 32-bit from port"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] raw port I/O
     return _get_port(port).read() & 0xFFFFFFFF
 
 
 def outb(port: int, value: int) -> None:
     """Write byte to port - like outb()"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] raw port I/O
     _get_port(port).write(value & 0xFF)
 
 
 def outw(port: int, value: int) -> None:
     """Write 16-bit to port"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] raw port I/O
     _get_port(port).write(value & 0xFFFF)
 
 
 def outl(port: int, value: int) -> None:
     """Write 32-bit to port"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] raw port I/O
     _get_port(port).write(value & 0xFFFFFFFF)
 
 
@@ -362,6 +385,7 @@ def outsw(port: int, data: bytes | bytearray | List[int]) -> None:
 
 def dma_alloc_coherent(name: str, size: int, direction: str = "bidirectional") -> DmaBuffer:
     """Allocate coherent DMA buffer"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] DMA buffer grants device memory access
     global _next_dma_phys
     with _lock:
         if name in _dma_buffers:

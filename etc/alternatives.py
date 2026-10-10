@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/alternatives manager
+UmerOS - /etc/alternatives manager  [TODAY]
 Alternatives system: manages symlink farms for program version switching.
 Mimics /etc/alternatives, /var/lib/alternatives for master and per-alternative files.
 Based on Debian 'update-alternatives' and Red Hat 'alternatives' systems.

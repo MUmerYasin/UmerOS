@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/inputrc Configuration Manager
+UmerOS /etc/inputrc Configuration Manager  [TODAY]
 Manages readline input configuration.
 """
 

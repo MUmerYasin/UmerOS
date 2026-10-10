@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/kernel manager
+UmerOS - /etc/kernel manager  [TODAY]
 FHS 3.0: /etc/kernel/ contains kernel-related configuration.
 """
 from __future__ import annotations

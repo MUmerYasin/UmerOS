@@ -11,6 +11,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Umer OS driver bus model.
+
+Defines the global ``BUS_REGISTRY`` and the :class:`Bus` object that
+represents a communication bus (PCI, I2C, ...) to which drivers and devices
+attach."""
+
+from __future__ import annotations
+
 from typing import Dict, List, Optional
 from .device import Device
 

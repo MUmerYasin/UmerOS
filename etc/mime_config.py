@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc MIME Configuration
+UmerOS /etc MIME Configuration  [TODAY]
 ================================
 Manages MIME type associations and mailcap configuration.
 
@@ -22,7 +22,7 @@ FHS 3.0 entries:
   /etc/mime.types.d/ — Additional MIME type definitions
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

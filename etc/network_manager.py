@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc NetworkManager Configuration
+UmerOS /etc NetworkManager Configuration  [TODAY]
 ==========================================
 Manages NetworkManager configuration.
 
@@ -24,7 +24,7 @@ FHS 3.0 entries:
   /etc/NetworkManager/system-connections/ — System connections
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

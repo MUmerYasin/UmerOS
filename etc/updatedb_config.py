@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/updatedb.conf manager
+UmerOS - /etc/updatedb.conf manager  [TODAY]
 FHS 3.0: /etc/updatedb.conf configures the locate database builder.
 """
 from __future__ import annotations

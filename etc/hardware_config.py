@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Hardware Configuration
+UmerOS /etc Hardware Configuration  [TODAY]
 ====================================
 Manages hardware-related system configuration files.
 
@@ -27,7 +27,7 @@ FHS 3.0 entries:
   /etc/modprobe.conf — Modprobe configuration
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

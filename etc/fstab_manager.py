@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/fstab and Filesystem Table Manager.
+UmerOS /etc/fstab and Filesystem Table Manager.  [TODAY]
 
 Manages fstab, mtab, and crypttab for system filesystem configuration.
 """

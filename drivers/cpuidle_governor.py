@@ -22,6 +22,8 @@ Re-exports:
 - CpuidleGovernor: Base governor class (from cpuidle.py)
 """
 
+from __future__ import annotations
+
 try:
     from .cpuidle import CpuidleGovernor, CpuidleState, CpuidleDriver, CpuidleDevice, SimpleGovernor
     from .cpuidle_driver_advanced import (

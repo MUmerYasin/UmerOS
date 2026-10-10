@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Network Configuration
+UmerOS /etc Network Configuration  [TODAY]
 ===================================
 Manages /etc/hosts, /etc/resolv.conf, /etc/hostname, /etc/network/interfaces.
 
@@ -23,7 +23,7 @@ FHS 3.0:
   /etc/network/  — Network interface configuration (Debian)
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

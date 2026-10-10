@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/sysconfig and /etc/default manager.
+UmerOS /etc/sysconfig and /etc/default manager.  [TODAY]
 
 Handles Red Hat style /etc/sysconfig/* and Debian style /etc/default/*
 configuration files. Provides parsing, reading, writing, backup, and

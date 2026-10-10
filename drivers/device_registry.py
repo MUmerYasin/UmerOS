@@ -17,13 +17,19 @@ Umer OS Device Registry – core registration helpers used by the driver model.
 """
 
 from __future__ import annotations
+import threading
 from typing import TYPE_CHECKING, Dict, Optional
 
 if TYPE_CHECKING:
     from .device import Device
 
-# Global registry mapping a unique device identifier to the Device instance
+# Global registry mapping a unique device identifier to the Device instance.
+#  Guarded by a reentrant lock: registration/unregistration mutate the
+# dict (and unregistration invokes the overridable ``release()`` hook), so
+# concurrent driver-model operations must not interleave. RLock (not Lock) so a
+# subclass ``release()`` that re-enters the registry cannot deadlock.
 DEVICE_REGISTRY: Dict[str, Device] = {}
+_registry_lock = threading.RLock()
 
 
 def device_register(dev: Device) -> None:
@@ -33,9 +39,10 @@ def device_register(dev: Device) -> None:
     * Raises ``ValueError`` if the identifier is already present.
     """
     dev_id = getattr(dev, "dev_id", dev.name)
-    if dev_id in DEVICE_REGISTRY:
-        raise ValueError(f"Device id '{dev_id}' is already registered")
-    DEVICE_REGISTRY[dev_id] = dev
+    with _registry_lock:
+        if dev_id in DEVICE_REGISTRY:
+            raise ValueError(f"Device id '{dev_id}' is already registered")
+        DEVICE_REGISTRY[dev_id] = dev
     # Optionally, you could expose the device to the bus here, but the bus
     # registration is performed by the Device constructor already.
 
@@ -48,13 +55,15 @@ def device_unregister(dev: Device) -> None:
     up.
     """
     dev_id = getattr(dev, "dev_id", dev.name)
-    if dev_id not in DEVICE_REGISTRY:
-        raise KeyError(f"Device id '{dev_id}' not found in registry")
-    # Call the release hook before removal ``release``
-    dev.release()
-    del DEVICE_REGISTRY[dev_id]
+    with _registry_lock:
+        if dev_id not in DEVICE_REGISTRY:
+            raise KeyError(f"Device id '{dev_id}' not found in registry")
+        # Call the release hook before removal ``release``
+        dev.release()
+        del DEVICE_REGISTRY[dev_id]
 
 
 def get_device(dev_id: str) -> Optional[Device]:
     """Retrieve a registered device by its identifier, or ``None`` if missing."""
-    return DEVICE_REGISTRY.get(dev_id)
+    with _registry_lock:
+        return DEVICE_REGISTRY.get(dev_id)

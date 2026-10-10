@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/environment manager
+UmerOS - /etc/environment manager  [TODAY]
 FHS 3.0: /etc/environment contains variable assignments for PAM sessions.
 Read by pam_env module on login. Sets PATH, LANG, etc. for all users.
 """

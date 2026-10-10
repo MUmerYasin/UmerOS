@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS Login Banner and Message Manager.
+UmerOS Login Banner and Message Manager.  [TODAY]
 
 Manages /etc/issue, /etc/issue.net, /etc/motd, /etc/ssh/banner,
 and related files for system login messages and post-login banners.

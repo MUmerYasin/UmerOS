@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/sysctl.d/ Configuration Manager
+UmerOS /etc/sysctl.d/ Configuration Manager  [TODAY]
 Manages kernel runtime parameters via sysctl.
 """
 

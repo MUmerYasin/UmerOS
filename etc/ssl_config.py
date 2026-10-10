@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/ssl manager
+UmerOS - /etc/ssl manager  [TODAY]
 FHS 3.0: /etc/ssl contains SSL/TLS certificates and keys.
 /etc/ssl/certs/ — CA certificates
 /etc/ssl/private/ — private keys

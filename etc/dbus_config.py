@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc D-Bus Configuration
+UmerOS /etc D-Bus Configuration  [TODAY]
 =================================
 Manages D-Bus system bus configuration.
 
@@ -25,7 +25,7 @@ FHS 3.0 entries:
   /etc/dbus-1/interfaces.d/  — D-Bus interface definitions
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

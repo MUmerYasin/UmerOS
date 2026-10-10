@@ -71,6 +71,11 @@ except Exception:  # pragma: no cover - standalone fallback
     _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if _proj not in sys.path:
         sys.path.insert(0, _proj)
+    # A failed first attempt may have cached an unrelated "core"
+    # package in sys.modules; drop it so the retry resolves
+    # against the project root.
+    sys.modules.pop("core", None)
+    sys.modules.pop("core.capability_gate", None)
     from core.capability_gate import gate, CAP_FS_ADMIN
 
 

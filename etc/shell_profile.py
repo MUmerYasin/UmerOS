@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Shell Profile Configuration
+UmerOS /etc Shell Profile Configuration  [TODAY]
 =========================================
 Manages shell initialization profiles and completion scripts.
 
@@ -23,7 +23,7 @@ FHS 3.0 entries:
   /etc/inputrc      — Readline input configuration
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

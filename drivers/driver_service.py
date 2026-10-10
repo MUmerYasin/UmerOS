@@ -11,6 +11,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Umer OS driver service (read-only ``/proc`` HTTP API).
+
+Exposes read-only ``/proc`` data over a FastAPI app with fail-closed
+authentication (OIDC/JWKS or an explicit dev opt-in; H64)."""
+
+from __future__ import annotations
+
 import os
 from fastapi import FastAPI, HTTPException, Depends, Request, status, Response
 from fastapi.security import OAuth2AuthorizationCodeBearer, HTTPBearer
@@ -20,7 +27,9 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
-from loguru import logger
+import logging
+
+log = logging.getLogger("UmerOS.Drivers.DriverService")
 
 # JWT handling
 from jose import JWTError, jwt
@@ -98,7 +107,7 @@ else:
     # must not serve any authenticated endpoint. verify_oauth_token rejects ALL
     # tokens and the app startup guard refuses to boot (see _fail_closed_auth_guard).
     _AUTH_MODE = "denied"
-    logger.error(
+    log.error(
         "OIDC_JWKS_URL/OIDC_ISSUER unset and UMEROS_DEV_AUTH != 1 — "
         "driver_service will REFUSE to start (fail-closed auth, H64)."
     )
@@ -360,7 +369,7 @@ def endpoint_pid_fd(pid: int, _: bool = Depends(secure_endpoint)):
 # Global exception handler to avoid leaking stack traces
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    logger.error("Unhandled exception: {}", exc)
+    log.error("Unhandled exception: %s", exc)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
@@ -392,9 +401,9 @@ app.add_middleware(SecurityHeadersMiddleware)
 # Request logging middleware – logs method, path, status and latency
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        logger.info("Incoming request: {} {}", request.method, request.url.path)
+        log.info("Incoming request: %s %s", request.method, request.url.path)
         response = await call_next(request)
-        logger.info("Response: {} {} -> {}", request.method, request.url.path, response.status_code)
+        log.info("Response: %s %s -> %s", request.method, request.url.path, response.status_code)
         return response
 
 app.add_middleware(RequestLoggingMiddleware)

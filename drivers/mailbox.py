@@ -18,6 +18,8 @@ Kernel-like mailbox framework for inter-processor
 and inter-system communication.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Optional, Callable
 import time

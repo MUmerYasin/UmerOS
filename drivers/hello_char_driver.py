@@ -11,6 +11,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Umer OS example hello-world character device driver."""
+
+from __future__ import annotations
+
 from .example_driver import DriverBase, CHAR_DEVICES, FileOperations
 
 class HelloCharDriver(DriverBase, FileOperations):

@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/sudoers Configuration Manager
+UmerOS /etc/sudoers Configuration Manager  [TODAY]
 Manages sudo privilege escalation rules.
 """
 

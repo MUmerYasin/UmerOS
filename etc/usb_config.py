@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/usb manager
+UmerOS - /etc/usb manager  [TODAY]
 FHS 3.0: /etc/usb/ contains USB device configuration.
 """
 from __future__ import annotations

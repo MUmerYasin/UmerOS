@@ -20,6 +20,8 @@ Drivers can register resources with cleanup callbacks; when a device is
 unbound, all registered resources are released automatically.
 """
 
+from __future__ import annotations
+
 from typing import Callable, Any, List, Tuple
 
 class ResourceManager:

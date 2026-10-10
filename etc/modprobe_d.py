@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/modprobe.d/ Configuration Manager
+UmerOS /etc/modprobe.d/ Configuration Manager  [TODAY]
 Manages kernel module configuration files.
 """
 

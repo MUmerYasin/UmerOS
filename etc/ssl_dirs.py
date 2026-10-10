@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc SSL Directories
+UmerOS /etc SSL Directories  [TODAY]
 ==============================
 Manages SSL certificate directories and configuration.
 
@@ -25,7 +25,7 @@ FHS 3.0 entries:
   /etc/ca-certificates.conf    — CA certificates list
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

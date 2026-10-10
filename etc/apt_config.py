@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc APT Configuration
+UmerOS /etc APT Configuration  [TODAY]
 ================================
 Manages APT package manager configuration.
 
@@ -28,7 +28,7 @@ FHS 3.0 entries:
   /etc/apt/keyrings/        — APT keyrings
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

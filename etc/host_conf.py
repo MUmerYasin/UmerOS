@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/host.conf Configuration Manager
+UmerOS /etc/host.conf Configuration Manager  [TODAY]
 Manages resolver configuration.
 """
 

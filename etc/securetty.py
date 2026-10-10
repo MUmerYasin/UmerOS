@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/securetty Configuration Manager
+UmerOS /etc/securetty Configuration Manager  [TODAY]
 Manages terminals allowed for root login.
 """
 

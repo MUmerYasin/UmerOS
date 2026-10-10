@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/ppp/ Configuration Manager
+UmerOS /etc/ppp/ Configuration Manager  [TODAY]
 Manages PPP (Point-to-Point Protocol) configuration.
 """
 

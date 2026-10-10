@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc LVM Configuration
+UmerOS /etc LVM Configuration  [TODAY]
 ================================
 Manages Logical Volume Manager configuration.
 
@@ -24,7 +24,7 @@ FHS 3.0 entries:
   /etc/lvm/archive/   — LVM metadata archives
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

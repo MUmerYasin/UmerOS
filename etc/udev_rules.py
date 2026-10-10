@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS udev Rules Manager
+UmerOS udev Rules Manager  [TODAY]
 ==========================
 
 Manages udev rules, udev.conf, hardware database (hwdb),

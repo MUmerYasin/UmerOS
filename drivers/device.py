@@ -16,6 +16,8 @@
 Umer OS Device Model – extended with registration API
 """
 
+from __future__ import annotations
+
 from typing import Optional, List
 
 # Import registration helpers (will be created)

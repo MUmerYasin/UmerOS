@@ -28,11 +28,9 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import 'src/services/smart_action_tracker.dart';
@@ -1545,7 +1543,6 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
   int? _openSubmenuIndex;
   Timer? _submenuCloseTimer;
   Timer? _tooltipTimer;
-  String? _activeTooltip;
   OverlayEntry? _tooltipEntry;
 
   // Flatten categories into a single list of renderable items
@@ -1747,7 +1744,6 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
     _tooltipTimer?.cancel();
     _tooltipTimer = Timer(const Duration(milliseconds: 800), () {
       if (!mounted) return;
-      _activeTooltip = text;
       _tooltipEntry = OverlayEntry(
         builder: (_) => _TooltipOverlay(
           position: globalPosition,
@@ -1763,7 +1759,6 @@ class _ContextMenuOverlayState extends State<_ContextMenuOverlay>
     _tooltipTimer?.cancel();
     _tooltipEntry?.remove();
     _tooltipEntry = null;
-    _activeTooltip = null;
   }
 
   // ── Build ───────────────────────────────────────────────────
@@ -2002,7 +1997,6 @@ class _M3MenuState extends State<_M3Menu> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final bgColor = M3Theme.backgroundColor(context);
     final bdrColor = M3Theme.borderColor(context);
-    final textColor = M3Theme.textColor(context);
     final subtleColor = M3Theme.subtleTextColor(context);
     final isRtl = Directionality.of(context) == TextDirection.rtl;
 
@@ -2381,9 +2375,8 @@ class _MenuItemState extends State<_MenuItem> {
                       ),
                     ),
                   ),
-                // Content - constrain width to menu width
-                SizedBox(
-                  width: widget.isSubmenuItem ? widget.width : double.infinity,
+                // Content - use Positioned.fill to get proper constraints
+                Positioned.fill(
                   child: Row(
                     children: [
                     // Icon / Check / Radio
@@ -2399,18 +2392,22 @@ class _MenuItemState extends State<_MenuItem> {
                     if (action.icon != null && !action.isCheckable && !action.isRadio)
                       const SizedBox(width: 10),
 
-                    // Label with mnemonic support
+                    // Label with mnemonic support - takes priority
                     Expanded(
                       child: _buildLabel(context, action, baseTextColor, isHovered),
                     ),
 
-                    // Badge
+                    // Badge - flexible, won't overflow
                     if (action.badge != null)
-                      _buildBadge(context, action),
+                      Flexible(
+                        child: _buildBadge(context, action),
+                      ),
 
-                    // Shortcut hint
+                    // Shortcut hint - flexible, with ellipsis
                     if (action.shortcut != null && !hasSubmenu)
-                      _buildShortcut(context, action.shortcut!),
+                      Flexible(
+                        child: _buildShortcut(context, action.shortcut!),
+                      ),
 
                     // Submenu arrow
                     if (hasSubmenu)
@@ -2428,30 +2425,37 @@ class _MenuItemState extends State<_MenuItem> {
 
   Widget _buildCheckbox(BuildContext context, ContextMenuAction action) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Checkbox(
-      value: action.isChecked,
-      onChanged: action.isEnabled ? (_) => action.onTap?.call() : null,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(4),
-      ),
-      side: BorderSide(
-        color: action.isEnabled
-            ? colorScheme.outline
-            : colorScheme.outline.withAlpha(100),
-        width: 1.5,
+    return Material(
+      type: MaterialType.transparency,
+      child: Checkbox(
+        value: action.isChecked,
+        onChanged: action.isEnabled ? (_) => action.onTap?.call() : null,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+        side: BorderSide(
+          color: action.isEnabled
+              ? colorScheme.outline
+              : colorScheme.outline.withAlpha(100),
+          width: 1.5,
+        ),
       ),
     );
   }
 
   Widget _buildRadio(BuildContext context, ContextMenuAction action) {
-    return Radio<bool>(
-      value: true,
-      groupValue: action.isChecked,
-      onChanged: action.isEnabled ? (_) => action.onTap?.call() : null,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
+    // ignore: deprecated_member_use
+    return Material(
+      type: MaterialType.transparency,
+      child: Radio<bool>(
+        value: true,
+        groupValue: action.isChecked,
+        onChanged: action.isEnabled ? (_) => action.onTap?.call() : null,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ),
     );
   }
 

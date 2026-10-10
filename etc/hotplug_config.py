@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/hotplug manager
+UmerOS - /etc/hotplug manager  [TODAY]
 FHS 3.0: /etc/hotplug/ contains hotplug agent configurations.
 /etc/hotplug/usb/ — USB hotplug scripts
 """

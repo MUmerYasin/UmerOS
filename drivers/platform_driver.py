@@ -18,6 +18,8 @@ Umer OS Platform Driver Base
 Defines a base class for drivers that bind to platform devices.
 """
 
+from __future__ import annotations
+
 from .example_driver import DriverBase
 from .device import Device
 

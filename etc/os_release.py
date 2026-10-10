@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/os-release Configuration Manager
+UmerOS /etc/os-release Configuration Manager  [TODAY]
 Manages OS identification information.
 """
 

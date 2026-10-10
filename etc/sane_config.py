@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/sane.d/ Configuration Manager
+UmerOS /etc/sane.d/ Configuration Manager  [TODAY]
 Manages scanner (SANE) backend configurations.
 """
 

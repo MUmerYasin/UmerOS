@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS Init System Configuration Manager
+UmerOS Init System Configuration Manager  [TODAY]
 
 Manages init system configuration files:
   - /etc/inittab (SysV init default runlevel and actions)

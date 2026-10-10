@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/gai.conf Configuration Manager
+UmerOS /etc/gai.conf Configuration Manager  [TODAY]
 Manages getaddrinfo() address ordering.
 """
 

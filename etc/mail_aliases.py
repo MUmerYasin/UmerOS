@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/aliases manager
+UmerOS - /etc/aliases manager  [TODAY]
 FHS 3.0: /etc/aliases is a Postfix/sendmail aliases file.
 Maps mail aliases to real users or other aliases.
 """

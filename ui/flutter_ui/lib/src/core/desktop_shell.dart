@@ -1223,7 +1223,9 @@ class _NotificationTrayPopover extends StatelessWidget {
                     return Card(
                       color: colorScheme.surfaceContainer,
                       margin: const EdgeInsets.only(bottom: 8),
-                      child: ListTile(
+                      child: Material(
+                        color: Colors.transparent,
+                        child: ListTile(
                         leading: CircleAvatar(
                           backgroundColor: item.color.withValues(alpha: 0.2),
                           child: Icon(item.icon, color: item.color, size: 18),
@@ -1239,10 +1241,11 @@ class _NotificationTrayPopover extends StatelessWidget {
                           onPressed: () => appState.removeNotification(item.id),
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
+            ),
           ],
         ),
       ),
@@ -1497,7 +1500,9 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
                               shrinkWrap: true,
                               children: [
                                 for (final action in actionItems)
-                                  ListTile(
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: ListTile(
                                     leading: CircleAvatar(
                                       backgroundColor: (action.color ?? colorScheme.primary).withValues(alpha: 0.2),
                                       child: Icon(action.icon, color: action.color ?? colorScheme.primary),
@@ -1509,8 +1514,11 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
                                     trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                                     onTap: action.onTap,
                                   ),
+                                ),
                                 for (final app in filtered)
-                                  ListTile(
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: ListTile(
                                     leading: CircleAvatar(
                                       backgroundColor:
                                           app.color.withValues(alpha: 0.2),
@@ -1531,6 +1539,7 @@ class _GlobalSearchModalState extends State<_GlobalSearchModal> {
                                       widget.onOpenApp(app);
                                     },
                                   ),
+                                ),
                               ],
                             ),
                           ),

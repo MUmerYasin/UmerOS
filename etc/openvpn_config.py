@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc OpenVPN Configuration
+UmerOS /etc OpenVPN Configuration  [TODAY]
 ====================================
 Manages OpenVPN client/server configuration.
 
@@ -22,7 +22,7 @@ FHS 3.0 entries:
   /etc/openvpn/client/        — Client configurations
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

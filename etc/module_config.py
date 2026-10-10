@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS Kernel Module Configuration Manager
+UmerOS Kernel Module Configuration Manager  [TODAY]
 ==========================================
 
 Manages kernel module configurations across multiple locations:

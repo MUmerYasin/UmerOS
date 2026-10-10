@@ -26,6 +26,8 @@ Provides:
 - Backward-compatible SimpleGovernor
 """
 
+from __future__ import annotations
+
 from typing import Callable, List, Optional, Dict, Any
 import time
 import sys

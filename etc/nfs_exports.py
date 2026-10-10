@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/exports manager
+UmerOS - /etc/exports manager  [TODAY]
 FHS 3.0: /etc/exports defines NFS exported filesystems.
 /etc/exports.d/ directory contains additional export files.
 """

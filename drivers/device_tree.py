@@ -18,6 +18,8 @@ Umer OS Device Tree Helper
 Provides a very simple API to register platform devices using a compatible string list.
 """
 
+from __future__ import annotations
+
 from .device import Device
 from .bus import BUS_REGISTRY
 

@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/cron* and /var/spool/cron manager
+UmerOS - /etc/cron* and /var/spool/cron manager  [TODAY]
 Manages cron jobs: /etc/crontab, /etc/cron.d/*, /etc/cron.{hourly,daily,weekly,monthly}/*,
 /var/spool/cron/crontabs/*, /etc/anacrontab, /etc/cron.allow, /etc/cron.deny.
 Also manages 'at' and 'batch' jobs via /var/spool/at and /var/spool/batch.

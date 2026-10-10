@@ -70,6 +70,11 @@ except Exception:  # pragma: no cover - standalone fallback
     _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if _proj not in sys.path:
         sys.path.insert(0, _proj)
+    # A failed first attempt may have cached an unrelated "core"
+    # package in sys.modules; drop it so the retry resolves
+    # against the project root.
+    sys.modules.pop("core", None)
+    sys.modules.pop("core.capability_gate", None)
     from core.capability_gate import gate, CAP_FS_ADMIN
 
 # Base directory for temporary admin mounts
@@ -198,8 +203,9 @@ class MountPointManager:
         """Ensure *path* is within the mnt root."""
         if not self._enforce_prefix:
             return
+        root = os.path.normpath(self._mnt_root)
         norm = os.path.normpath(path)
-        if not norm.startswith(self._mnt_root + "/") and norm != self._mnt_root:
+        if not norm.startswith(root + os.sep) and norm != root:
             raise MountPointError(
                 f"Mount point {path!r} is not under {self._mnt_root}"
             )
@@ -241,7 +247,7 @@ class MountPointManager:
             if self._audit is not None:
                 self._audit.log_permission_deny(
                     "",
-                    f"{self._mnt_root}/{name}" if name else self._mnt_root,
+                    os.path.join(self._mnt_root, name) if name else self._mnt_root,
                     reason=f"CAP_FS_ADMIN required to create mount point {name}",
                 )
             raise
@@ -250,7 +256,7 @@ class MountPointManager:
             name = self._auto_name(device)
 
         self._validate_name(name)
-        path = f"{self._mnt_root}/{name}"
+        path = os.path.join(self._mnt_root, name)
 
         self._validate_path(path)
 

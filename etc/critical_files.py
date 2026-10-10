@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Critical Configuration Files
+UmerOS /etc Critical Configuration Files  [TODAY]
 ==========================================
 Manages additional critical configuration files required by FHS 3.0.
 
@@ -36,7 +36,7 @@ FHS 3.0 directories:
   /etc/cron.d/     — Cron drop-in directory
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

@@ -21,6 +21,8 @@ loads, unloads, and queries drivers at runtime.
 Equivalent to drivers/ subsystem and modprobe.
 """
 
+from __future__ import annotations
+
 
 from typing import Protocol, runtime_checkable, Dict, Any
 

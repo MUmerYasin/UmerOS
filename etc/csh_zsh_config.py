@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc C Shell & Z Shell Configuration
+UmerOS /etc C Shell & Z Shell Configuration  [TODAY]
 =============================================
 Manages C shell (csh/tcsh) and Z shell (zsh) system-wide configuration.
 
@@ -27,7 +27,7 @@ FHS 3.0 entries:
   /etc/zsh/zlogout   — Z shell logout script
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

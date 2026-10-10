@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/e2fsck.conf Configuration Manager
+UmerOS /etc/e2fsck.conf Configuration Manager  [TODAY]
 Manages ext2/3/4 filesystem check configuration.
 """
 

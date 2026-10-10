@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS /etc/locale and timezone manager.
+UmerOS /etc/locale and timezone manager.  [TODAY]
 
 Manages timezone, locale, and hardware clock settings.
 Handles /etc/localtime (symlink), /etc/timezone, /etc/locale.conf,

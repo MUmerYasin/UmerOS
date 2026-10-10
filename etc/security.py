@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Security Configuration
+UmerOS /etc Security Configuration  [TODAY]
 ====================================
 Manages security-related configuration files.
 
@@ -26,7 +26,7 @@ FHS 3.0 entries:
   /etc/security/time.conf         — Time-based access control
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

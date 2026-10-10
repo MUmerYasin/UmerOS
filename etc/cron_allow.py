@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/cron.allow / /etc/cron.deny manager
+UmerOS - /etc/cron.allow / /etc/cron.deny manager  [TODAY]
 FHS 3.0: Controls which users can use cron. If cron.allow exists, only
 listed users can use cron. If it doesn't exist, cron.deny is checked.
 """

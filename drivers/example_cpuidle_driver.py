@@ -17,6 +17,8 @@ This module demonstrates the kernel-like CPU idle management API with
 proper idle state definitions, governor integration, and device registration.
 """
 
+from __future__ import annotations
+
 try:
     from .cpuidle import (
         CpuidleState,

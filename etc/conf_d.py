@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/conf.d manager
+UmerOS - /etc/conf.d manager  [TODAY]
 FHS 3.0: /etc/conf.d/ stores configuration snippets for daemons.
 Common on Gentoo. Each file is sourced by init scripts.
 """

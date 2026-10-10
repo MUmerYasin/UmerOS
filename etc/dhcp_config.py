@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc DHCP & DNS Configuration
+UmerOS /etc DHCP & DNS Configuration  [TODAY]
 ======================================
 Manages DHCP client and DNS resolver configuration.
 
@@ -22,7 +22,7 @@ FHS 3.0 entries:
   /etc/resolvconf/     — Dynamic DNS resolver configuration directory
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

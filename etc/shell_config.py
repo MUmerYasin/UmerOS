@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Shell Configuration
+UmerOS /etc Shell Configuration  [TODAY]
 =================================
 Manages /etc/profile, /etc/shells, and shell environment configuration.
 
@@ -23,7 +23,7 @@ FHS 3.0:
   /etc/environment — System-wide environment variables
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

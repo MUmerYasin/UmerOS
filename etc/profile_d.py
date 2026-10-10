@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc/profile.d/ Configuration Manager
+UmerOS /etc/profile.d/ Configuration Manager  [TODAY]
 Manages shell profile scripts.
 """
 

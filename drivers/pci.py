@@ -27,6 +27,22 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+# Zero-trust capability gate for privileged driver operations
+# (MMIO mapping, raw port I/O, DMA allocation, PCI BAR claim, crypto TFM
+# alloc). Fail-closed when a CapabilityManager is wired via
+# core.capability_gate.gate.wire(); permissive (warning) standalone so
+# existing tooling keeps working.
+try:
+    from core.capability_gate import gate, CAP_SYS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_SYS_ADMIN
+
+
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -562,6 +578,7 @@ def pci_resource_flags(dev_name: str, bar_num: int) -> int:
 
 def pci_request_region(dev_name: str, bar_num: int, name: str = "") -> int:
     """Request PCI region."""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] claiming a PCI BAR is privileged
     dev = _devices.get(dev_name)
     if not dev:
         return -1

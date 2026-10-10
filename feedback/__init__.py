@@ -5,15 +5,15 @@
 # Implements the community feedback framework, bug/correction/suggestion
 # pipeline, and GNU Free Documentation License (GFDL) engine.
 #
-# Modules:
-# --------
-# models        - FeedbackEntry, FeedbackKind, FeedbackStatus, FeedbackPriority
-# collector     - FeedbackCollector: submit, validate & persist feedback reports
-# tracker       - FeedbackTracker: triage, assign, resolve & audit lifecycle
-# channels      - Channel definitions (email, GitHub Issues, mailing-list, IRC/Matrix)
-# gfdl          - GFDLLicense: GNU Free Documentation License 1.3 text & compliance checker
-# manager       - FeedbackManager: master coordinator
-# cli           - feedback_ctl command-line controller
+# Modules (only `models` exists today; the rest are planned stubs):
+# ---------
+# models        - FeedbackEntry, FeedbackKind, FeedbackStatus, FeedbackPriority  [IMPLEMENTED]
+# collector     - FeedbackCollector: submit, validate & persist reports          [PLANNED - not implemented]
+# tracker       - FeedbackTracker: triage, assign, resolve & audit lifecycle     [PLANNED - not implemented]
+# channels      - Channel definitions (email, GitHub, mailing-list, IRC/Matrix)  [PLANNED - not implemented]
+# gfdl          - GFDLLicense: GNU Free Documentation License 1.3 compliance     [PLANNED - not implemented]
+# manager       - FeedbackManager: master coordinator                            [PLANNED - not implemented]
+# cli           - feedback_ctl command-line controller                           [PLANNED - not implemented]
 #
 # Author: Muhammad Umer Yasin / UmerOS Project
 # License: GPL-3.0 (GNU General Public License Version 3)
@@ -21,6 +21,12 @@
 
 """
 UmerOS /feedback — Community Feedback, Bug Reports & GNU FDL Subsystem.
+
+[STUB] Only the data models (``feedback.models``) are implemented. The
+collector / tracker / channels / gfdl / manager / cli submodules listed above do
+**not** exist yet; their imports below are guarded (``try/except ImportError``)
+so ``import feedback`` succeeds and exports only the symbols that are actually
+present (the ``models`` names).
 """
 
 from __future__ import annotations

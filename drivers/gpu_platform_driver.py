@@ -16,6 +16,8 @@
 Example GPU Platform Driver
 """
 
+from __future__ import annotations
+
 from .platform_driver import PlatformDriver
 
 class GpuPlatformDriver(PlatformDriver):

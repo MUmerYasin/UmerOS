@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/cups + /etc/printcap manager
+UmerOS - /etc/cups + /etc/printcap manager  [TODAY]
 FHS 3.0: /etc/cups/ contains CUPS configuration.
 /etc/printcap is the printer capability database.
 """

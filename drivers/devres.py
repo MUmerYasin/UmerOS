@@ -18,6 +18,8 @@ Mimics the  kernel devm_* helpers: resources are attached to a Device and
 automatically released when the device is unregistered.
 """
 
+from __future__ import annotations
+
 from typing import Callable, Any
 from .device import Device
 

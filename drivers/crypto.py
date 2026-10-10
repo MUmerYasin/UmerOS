@@ -23,12 +23,31 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import math
 import os
 import struct
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+#  Zero-trust capability gate for privileged driver operations
+# (MMIO mapping, raw port I/O, DMA allocation, PCI BAR claim, crypto TFM
+# alloc). Fail-closed when a CapabilityManager is wired via
+# core.capability_gate.gate.wire(); permissive (warning) standalone so
+# existing tooling keeps working.
+try:
+    from core.capability_gate import gate, CAP_SYS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_SYS_ADMIN
+
+log = logging.getLogger("UmerOS.Drivers.Crypto")
+
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -75,6 +94,7 @@ class CryptoAlg:
     digest_size: int = 0
     priority: int = 100
     flags: int = 0
+    weak: bool = False  # [FIX H67] legacy/weak algo (DES, MD5) - opt-in only
     _impl: Any = field(default=None, repr=False)
 
 @dataclass
@@ -1045,6 +1065,7 @@ def crypto_list_algs() -> List[CryptoAlg]:
 
 def crypto_alloc_tfm(alg_name: str, tfm_type: str = "cipher") -> CryptoTFM:
     """Allocate transformation - like crypto_alloc_tfm()"""
+    gate.require(CAP_SYS_ADMIN)  # [FIX H66] crypto TFM (key/RNG) is privileged
     alg = crypto_get_alg(alg_name)
     if alg is None:
         raise ValueError(f"Algorithm '{alg_name}' not registered")
@@ -1381,8 +1402,29 @@ def crypto_create_instance(template_name: str, params: Optional[Dict[str, Any]] 
 # Register Built-in Algorithms
 # ---------------------------------------------------------------------------
 
-def _register_builtin_algorithms() -> None:
-    """Register all built-in crypto algorithms"""
+def _weak_crypto_allowed() -> bool:
+    """True when the operator explicitly opts in to legacy/weak algorithms.
+
+    DES (FIPS 46-3, 56-bit) and MD5 are retained only for kernel-compat
+    simulation; a zero-trust OS must not offer them by default (H67). Opt in
+    with ``UMEROS_ALLOW_WEAK_CRYPTO=1`` or ``_register_builtin_algorithms(allow_weak=True)``.
+    """
+    return os.environ.get("UMEROS_ALLOW_WEAK_CRYPTO", "").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _register_builtin_algorithms(allow_weak: Optional[bool] = None) -> None:
+    """Register all built-in crypto algorithms.
+
+    Weak/legacy algorithms (DES FIPS 46-3, MD5) are **not** registered unless
+    the caller explicitly opts in via ``allow_weak=True`` or the
+    ``UMEROS_ALLOW_WEAK_CRYPTO=1`` environment variable (H67): a zero-trust OS
+    must not offer broken primitives by default.
+    """
+    if allow_weak is None:
+        allow_weak = _weak_crypto_allowed()
+    _skipped_weak: List[str] = []
 
     # AES ciphers
     aes_ecb = CryptoAlg(
@@ -1417,22 +1459,25 @@ def _register_builtin_algorithms() -> None:
     )
     crypto_register_alg(aes_xts)
 
-    # DES
-    des_ecb = CryptoAlg(
-        name="des", driver_name="des-generic", algo_type=CRYPTO_ALG_CIPHER,
-        cipher_mode=CRYPTO_CIPHER_ECB, key_sizes=[8],
-        iv_size=0, block_size=8, priority=50, flags=CRYPTO_ALG_TYPE_CIPHER,
-        _impl=DesCryptoCipher(),
-    )
-    crypto_register_alg(des_ecb)
+    # DES (weak/legacy FIPS 46-3 - opt-in only, H67)
+    if allow_weak:
+        des_ecb = CryptoAlg(
+            name="des", driver_name="des-generic", algo_type=CRYPTO_ALG_CIPHER,
+            cipher_mode=CRYPTO_CIPHER_ECB, key_sizes=[8],
+            iv_size=0, block_size=8, priority=50, flags=CRYPTO_ALG_TYPE_CIPHER,
+            weak=True, _impl=DesCryptoCipher(),
+        )
+        crypto_register_alg(des_ecb)
 
-    des_cbc = CryptoAlg(
-        name="des-cbc", driver_name="des-generic", algo_type=CRYPTO_ALG_CIPHER,
-        cipher_mode=CRYPTO_CIPHER_CBC, key_sizes=[8],
-        iv_size=8, block_size=8, priority=50, flags=CRYPTO_ALG_TYPE_CIPHER,
-        _impl=DesCryptoCipher(),
-    )
-    crypto_register_alg(des_cbc)
+        des_cbc = CryptoAlg(
+            name="des-cbc", driver_name="des-generic", algo_type=CRYPTO_ALG_CIPHER,
+            cipher_mode=CRYPTO_CIPHER_CBC, key_sizes=[8],
+            iv_size=8, block_size=8, priority=50, flags=CRYPTO_ALG_TYPE_CIPHER,
+            weak=True, _impl=DesCryptoCipher(),
+        )
+        crypto_register_alg(des_cbc)
+    else:
+        _skipped_weak.extend(["des", "des-cbc"])
 
     # ChaCha20
     chacha20 = CryptoAlg(
@@ -1451,12 +1496,15 @@ def _register_builtin_algorithms() -> None:
     )
     crypto_register_alg(sha256)
 
-    md5 = CryptoAlg(
-        name="md5", driver_name="md5-generic", algo_type=CRYPTO_ALG_HASH,
-        block_size=64, digest_size=16, priority=50, flags=CRYPTO_ALG_TYPE_HASH,
-        _impl=Md5Hash(),
-    )
-    crypto_register_alg(md5)
+    if allow_weak:
+        md5 = CryptoAlg(
+            name="md5", driver_name="md5-generic", algo_type=CRYPTO_ALG_HASH,
+            block_size=64, digest_size=16, priority=50, flags=CRYPTO_ALG_TYPE_HASH,
+            weak=True, _impl=Md5Hash(),
+        )
+        crypto_register_alg(md5)
+    else:
+        _skipped_weak.append("md5")
 
     sha3_256 = CryptoAlg(
         name="sha3-256", driver_name="sha3-generic", algo_type=CRYPTO_ALG_HASH,
@@ -1489,6 +1537,13 @@ def _register_builtin_algorithms() -> None:
     )
     crypto_register_alg(mrd_rng)
 
+    if _skipped_weak:
+        log.warning(
+            "H67: weak/legacy crypto algorithms not registered (%s); set "
+            "UMEROS_ALLOW_WEAK_CRYPTO=1 to opt in.",
+            ", ".join(_skipped_weak),
+        )
+
 
 # ---------------------------------------------------------------------------
 # Demo
@@ -1500,7 +1555,7 @@ def _demo() -> None:
     print("UmerOS Crypto Framework Demo")
     print("=" * 70)
 
-    _register_builtin_algorithms()
+    _register_builtin_algorithms(allow_weak=True)  # [FIX H67] demo shows all algos
 
     # --- List algorithms ---
     print("\n[1] Registered Algorithms:")

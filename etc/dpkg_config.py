@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-UmerOS - /etc/dpkg manager
+UmerOS - /etc/dpkg manager  [TODAY]
 FHS 3.0: /etc/dpkg/ contains dpkg configuration and status.
 """
 from __future__ import annotations

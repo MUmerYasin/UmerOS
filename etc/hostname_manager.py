@@ -11,7 +11,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""UmerOS Hostname and Hosts Manager.
+"""UmerOS Hostname and Hosts Manager.  [TODAY]
 
 Manages hostname, domainname, NIS domain, and /etc/hosts files.
 """

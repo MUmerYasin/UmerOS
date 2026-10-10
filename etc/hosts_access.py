@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /etc Host Access Control
+UmerOS /etc Host Access Control  [TODAY]
 =================================
 Manages TCP Wrappers configuration and hostname resolution ordering.
 
@@ -23,7 +23,7 @@ FHS 3.0 entries:
   /etc/resolv.conf  — DNS resolver configuration (managed by NetworkConfigManager)
 
 Author:  Umer OS Project
-Licence: GPLv3
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

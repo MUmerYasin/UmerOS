@@ -11,6 +11,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""Umer OS advanced CPU-idle governor.
+
+History/predictive selection of CPU idle states beyond the basic governor."""
+
+from __future__ import annotations
+
 from typing import Callable, List, Optional, Dict, Any
 
 
