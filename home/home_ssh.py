@@ -390,8 +390,10 @@ class HomeSSHManager:
         """
         # [FIX H85] appending to authorized_keys grants SSH access
         gate.require(CAP_HOME_ADMIN)
-        validated = _validate_public_key(public_key)
+        # [FIX H87] resolve/validate the username (CWE-22) *before* parsing the
+        # key, so a traversal attempt fails as PathTraversalError, not a key error.
         ssh_dir = self._ssh_dir(username)
+        validated = _validate_public_key(public_key)
         ssh_dir.mkdir(parents=True, exist_ok=True)
         auth_file = ssh_dir / "authorized_keys"
         existing = ""

@@ -67,6 +67,18 @@ class _FakeManager:
         return cap in self.allow
 
 
+# A syntactically valid ed25519 public key (so the gate is what refuses,
+# not the H87 format validator). Generated once at import time.
+def _make_real_pubkey() -> str:
+    import tempfile
+    _m = hssh_mod.HomeSSHManager(home_path=tempfile.mkdtemp())
+    _m.setup_ssh("alice")
+    return _m.generate_key("alice", "ed25519").public_key
+
+
+_REAL_PUBKEY = _make_real_pubkey()
+
+
 @pytest.fixture
 def home(tmp_path):
     h = tmp_path / "home"
@@ -134,8 +146,8 @@ def test_remove_home_is_gated(home):
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("method,args", [
     ("generate_key", ("alice",)),
-    ("add_authorized_key", ("alice", "ssh-ed25519 AAAA")),
-    ("remove_authorized_key", ("alice", "ssh-ed25519 AAAA")),
+    ("add_authorized_key", ("alice", _REAL_PUBKEY)),
+    ("remove_authorized_key", ("alice", _REAL_PUBKEY)),
     ("write_config", ("alice", "Host *\n  ForwardAgent no\n")),
 ])
 def test_ssh_privileged_ops_gated(home, method, args):
@@ -148,8 +160,9 @@ def test_ssh_privileged_ops_gated(home, method, args):
 def test_ssh_ops_allowed_when_wired_with_cap(home):
     gate.wire(_FakeManager(allow=(CAP_HOME_ADMIN,)))
     mgr = hssh_mod.HomeSSHManager(home_path=str(home))
-    assert mgr.generate_key("alice") is not None
-    assert mgr.add_authorized_key("alice", "ssh-ed25519 AAAA") is True
+    key = mgr.generate_key("alice")
+    assert key is not None
+    assert mgr.add_authorized_key("alice", key.public_key) is True
     assert mgr.write_config("alice", "Host *\n") is True
 
 

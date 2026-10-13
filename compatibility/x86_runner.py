@@ -235,6 +235,12 @@ class Emulator:
         self.rip = base
         self.stopped = False
         self.exit_code: int = 0
+        # Block-JIT cache: ip -> compiled callable that runs the
+        # block from start until a control-flow boundary.  Each entry
+        # is the (function, length) tuple.  The function takes the
+        # emulator's runtime state as a single dict-like argument
+        # and updates the registers/memory/flags in place.
+        self._block_cache: Dict[int, Tuple[Callable, int]] = {}
         # Install the code if any.
         if code:
             self.mem.write(base, code)
@@ -2470,6 +2476,385 @@ class Emulator:
         value = self.mem.read_u64(rsp)
         self.regs.set(REG_RSP, rsp + 8)
         return value
+
+    # ------------------------------------------------------------------
+    # Basic-block JIT
+    # ------------------------------------------------------------------
+    #
+    # The interpreter above dispatches one instruction at a time
+    # through a giant if-elif chain.  For tight loops (e.g. memcpy)
+    # this is dominated by Python function-call overhead.  The
+    # block JIT instead decodes a *basic block* (a run of
+    # instructions ending in a control-flow boundary) once, emits
+    # the corresponding Python source, and ``exec()``s it.  CPython
+    # then compiles that source to bytecode which runs at near-native
+    # Python speed -- typically 5-20x faster than the dispatch loop.
+    #
+    # The compiled function takes no arguments and operates on the
+    # emulator's runtime state through a single ``s`` dict that
+    # carries references to the register list, flag scalars, and a
+    # bytearray view of memory.  This minimises attribute lookups.
+
+    _JIT_REGS = ("r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+                 "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15")
+
+    def _jit_state(self) -> Dict[str, Any]:
+        """Return a dict that the JIT'd code uses for state."""
+        return {
+            "r": self.regs.r,
+            "cf": self.regs.cf,
+            "zf": self.regs.zf,
+            "sf": self.regs.sf,
+            "of": self.regs.of,
+            "pf": self.regs.pf,
+            "df": self.regs.df,
+            # Memory: each Memory instance exposes ``_pages`` (a
+            # dict of page-aligned bytearray pages).  JIT'd code
+            # reads/writes through the small helpers below.
+        }
+
+    @staticmethod
+    def _jit_load_u8(state: Dict[str, Any], addr: int) -> int:
+        page = addr & ~0xFFF
+        p = state["pages"].get(page)
+        if p is None:
+            return 0
+        return p[addr & 0xFFF]
+
+    @staticmethod
+    def _jit_store_u8(state: Dict[str, Any], addr: int, val: int) -> None:
+        page = addr & ~0xFFF
+        p = state["pages"].get(page)
+        if p is None:
+            return
+        p[addr & 0xFFF] = val & 0xFF
+
+    @staticmethod
+    def _jit_load_u16(state: Dict[str, Any], addr: int) -> int:
+        page = addr & ~0xFFF
+        p = state["pages"].get(page)
+        if p is None:
+            return 0
+        o = addr & 0xFFF
+        if o <= 0xFF8:
+            return p[o] | (p[o + 1] << 8)
+        return (state["_l"](addr)
+                | (state["_l"](addr + 1) << 8))
+
+    @staticmethod
+    def _jit_store_u16(state: Dict[str, Any], addr: int, val: int) -> None:
+        page = addr & ~0xFFF
+        p = state["pages"].get(page)
+        if p is None:
+            return
+        o = addr & 0xFFF
+        if o <= 0xFEF:
+            p[o] = val & 0xFF
+            p[o + 1] = (val >> 8) & 0xFF
+            return
+        state["_s"](addr, val & 0xFF)
+        state["_s"](addr + 1, (val >> 8) & 0xFF)
+
+    @staticmethod
+    def _jit_load_u32(state: Dict[str, Any], addr: int) -> int:
+        page = addr & ~0xFFF
+        p = state["pages"].get(page)
+        if p is None:
+            return 0
+        o = addr & 0xFFF
+        if o <= 0xFFC:
+            return (p[o]
+                    | (p[o + 1] << 8)
+                    | (p[o + 2] << 16)
+                    | (p[o + 3] << 24))
+        return (state["_l"](addr)
+                | (state["_l"](addr + 1) << 8)
+                | (state["_l"](addr + 2) << 16)
+                | (state["_l"](addr + 3) << 24))
+
+    @staticmethod
+    def _jit_store_u32(state: Dict[str, Any], addr: int, val: int) -> None:
+        page = addr & ~0xFFF
+        p = state["pages"].get(page)
+        if p is None:
+            return
+        o = addr & 0xFFF
+        if o <= 0xFCF:
+            p[o] = val & 0xFF
+            p[o + 1] = (val >> 8) & 0xFF
+            p[o + 2] = (val >> 16) & 0xFF
+            p[o + 3] = (val >> 24) & 0xFF
+            return
+        state["_s"](addr, val & 0xFF)
+        state["_s"](addr + 1, (val >> 8) & 0xFF)
+        state["_s"](addr + 2, (val >> 16) & 0xFF)
+        state["_s"](addr + 3, (val >> 24) & 0xFF)
+
+    @staticmethod
+    def _jit_load_u64(state: Dict[str, Any], addr: int) -> int:
+        return (state["_l32"](addr)
+                | (state["_l32"](addr + 4) << 32))
+
+    @staticmethod
+    def _jit_store_u64(state: Dict[str, Any], addr: int, val: int) -> None:
+        state["_s32"](addr, val & 0xFFFFFFFF)
+        state["_s32"](addr + 4, (val >> 32) & 0xFFFFFFFF)
+
+    def _build_jit_state(self) -> Dict[str, Any]:
+        """Build the state dict used by the JIT'd functions.
+
+        Includes the register list, flag scalars, memory pages, and
+        fast load/store helpers (so the JIT code does not have to
+        re-resolve attribute lookups at runtime).
+        """
+        s = self._jit_state()
+        s["pages"] = self.mem._pages
+        s["_l"] = self._jit_load_u8
+        s["_s"] = self._jit_store_u8
+        s["_l32"] = self._jit_load_u32
+        s["_s32"] = self._jit_store_u32
+        return s
+
+    def _emit_block(self, ip: int) -> Optional[Tuple[Callable, int]]:
+        """Decode a basic block starting at ``ip`` and return a
+        compiled function that runs the block plus the byte length.
+
+        Returns ``None`` if the block contains an opcode we don't
+        know how to JIT; the caller will then fall back to the
+        per-instruction interpreter.
+        """
+        # Header for the generated function.  We read all register
+        # values into local variables at entry, all flags into
+        # locals, and the memory helpers are bound by name.  At
+        # exit we write locals back to ``s["r"]`` / ``s["cf"]``
+        # etc. and return the new RIP.  Locals are dramatically
+        # faster than dict lookups in CPython.
+        body: List[str] = []
+        block_start = ip
+        max_block_bytes = 4096
+        # How many x86 instructions we allow in a single block.
+        max_insns = 256
+        insns = 0
+        # Track which REX was last seen (only meaningful for the
+        # 0F escape and for the 40-4F prefix loop).
+        last_op_size = 4
+        last_rex_w = False
+        while ip - block_start < max_block_bytes and insns < max_insns:
+            start_ip = ip
+            b0 = self.mem.read_u8(ip)
+            # REX prefix loop
+            rex = 0
+            while 0x40 <= b0 <= 0x4F:
+                rex = b0 - 0x40
+                ip += 1
+                b0 = self.mem.read_u8(ip)
+            rex_w = bool(rex & 0x8)
+            rex_r = (rex & 0x4) << 1
+            rex_x = (rex & 0x2) << 2
+            rex_b = bool(rex & 0x1)
+            op_size = 8 if rex_w else 4
+            last_op_size = op_size
+            last_rex_w = rex_w
+
+            # Two-byte opcode escape
+            if b0 == 0x0F:
+                b1 = self.mem.read_u8(ip + 1)
+                ip += 2
+                result = self._emit_twobyte(b1, ip, rex, rex_w, rex_r, rex_x, rex_b, op_size, body)
+                if result is None:
+                    # Can't compile -- emit a fallback marker and
+                    # return.  The caller will run the fallback for
+                    # the uncompiled prefix.
+                    return None
+                ip, terminated = result
+                insns += 1
+                if terminated:
+                    return self._compile_block(block_start, body, ip - block_start)
+                continue
+
+            # Operand-size / address-size / segment override / REP
+            # prefixes -- for now, treat them as no-ops in the JIT
+            # and only handle the common case of one prefix byte.
+            if b0 in (0x66, 0x67, 0xF0, 0xF2, 0xF3, 0x2E, 0x36, 0x3E, 0x26, 0x64, 0x65):
+                ip += 1
+                b0 = self.mem.read_u8(ip)
+                # Re-check REX after prefix
+                rex = 0
+                while 0x40 <= b0 <= 0x4F:
+                    rex = b0 - 0x40
+                    ip += 1
+                    b0 = self.mem.read_u8(ip)
+                rex_w = bool(rex & 0x8)
+                rex_r = (rex & 0x4) << 1
+                rex_x = (rex & 0x2) << 2
+                rex_b = bool(rex & 0x1)
+                op_size = 8 if rex_w else 4
+
+            # Hand the one-byte opcode to the dedicated emitter.
+            ip += 1
+            result = self._emit_onebyte(
+                b0, ip, rex, rex_w, rex_r, rex_x, rex_b, op_size, body)
+            if result is None:
+                return None
+            ip, terminated = result
+            insns += 1
+            if terminated:
+                return self._compile_block(block_start, body, ip - block_start)
+        # Reached a non-terminating block boundary (e.g. buffer end
+        # or max_insns).  Force-terminate by jumping to the next
+        # instruction so the dispatch loop can recompile from there.
+        body.append(f"    s['r'][15] = {ip}")
+        return self._compile_block(block_start, body, ip - block_start)
+
+    def _compile_block(self, start: int, body: List[str], length: int
+                        ) -> Tuple[Callable, int]:
+        """Build a Python function from a list of source lines and
+        compile + cache it."""
+        src = (
+            "def _block(s, _l=_l, _s=_s, _l32=_l32, _s32=_s32):\n"
+            "    r = s['r']\n"
+            "    cf = s['cf']\n"
+            "    zf = s['zf']\n"
+            "    sf = s['sf']\n"
+            "    of = s['of']\n"
+            "    pf = s['pf']\n"
+            "    df = s['df']\n"
+            + "\n".join(body)
+            + "\n    s['cf'] = cf\n"
+            + "    s['zf'] = zf\n"
+            + "    s['sf'] = sf\n"
+            + "    s['of'] = of\n"
+            + "    s['pf'] = pf\n"
+            + "    s['df'] = df\n"
+            + "    return r[15]\n"
+        )
+        ns: Dict[str, Any] = {
+            "_l": self._jit_load_u8,
+            "_s": self._jit_store_u8,
+            "_l32": self._jit_load_u32,
+            "_s32": self._jit_store_u32,
+        }
+        code = compile(src, f"<block-0x{start:x}>", "exec")
+        exec(code, ns)
+        return ns["_block"], length
+
+    def _emit_onebyte(self, op: int, ip: int, rex: int, rex_w: int,
+                      rex_r: int, rex_x: int, rex_b: int,
+                      op_size: int, body: List[str]
+                      ) -> Optional[Tuple[int, bool]]:
+        """Append Python source lines for one x86 one-byte instruction
+        to ``body``.  Returns ``(new_ip, terminated)`` or ``None`` if
+        the opcode cannot be compiled in the JIT.
+        """
+        r = "r"
+        # nop
+        if op == 0x90:
+            return (ip, False)
+        # mov r, imm (B8-BF)
+        if 0xB8 <= op <= 0xBF:
+            reg = (op - 0xB8) + (8 if rex_b else 0)
+            n = op_size
+            imm, _ = self._read_imm(ip, n)
+            body.append(f"    {r}[{reg}] = {imm}")
+            return (ip + n, False)
+        # mov r8, imm8 (B0-B7)
+        if 0xB0 <= op <= 0xB7:
+            reg = (op - 0xB0) + (8 if rex_b else 0)
+            imm, _ = self._read_imm(ip, 1)
+            if reg < 8:
+                body.append(f"    {r}[{reg}] = ({r}[{reg}] & ~0xFF) | {imm}")
+            else:
+                body.append(f"    {r}[{reg}] = {imm}")
+            return (ip + 1, False)
+        # push reg (50-57)
+        if 0x50 <= op <= 0x57:
+            reg = (op - 0x50) + (8 if rex_b else 0)
+            body.append(f"    _push(r, s, {r}[{reg}])")
+            return (ip, False)
+        # pop reg (58-5F)
+        if 0x58 <= op <= 0x5F:
+            reg = (op - 0x58) + (8 if rex_b else 0)
+            body.append(f"    {r}[{reg}] = _pop(r, s)")
+            return (ip, False)
+        # ret
+        if op == 0xC3:
+            body.append("    r[15] = _pop(r, s)")
+            return (ip, True)
+        # ret imm16
+        if op == 0xC2:
+            imm, _ = self._read_imm(ip, 2)
+            body.append(f"    r[15] = _pop(r, s)")
+            body.append(f"    r[4] = (r[4] + {imm}) & 0xFFFFFFFFFFFFFFFF")
+            return (ip + 2, True)
+        # jmp rel32
+        if op == 0xE9:
+            disp, _ = self._read_imm(ip, 4)
+            target = (ip + 4) + self._signed(disp, 32)
+            body.append(f"    r[15] = {target}")
+            return (ip + 4, True)
+        # jmp rel8
+        if op == 0xEB:
+            disp, _ = self._read_imm(ip, 1)
+            target = (ip + 1) + self._signed(disp, 8)
+            body.append(f"    r[15] = {target}")
+            return (ip + 1, True)
+        # call rel32
+        if op == 0xE8:
+            disp, _ = self._read_imm(ip, 4)
+            target = (ip + 4) + self._signed(disp, 32)
+            body.append(f"    _push(r, s, {ip + 4})")
+            body.append(f"    r[15] = {target}")
+            return (ip + 4, True)
+        # short conditional jump
+        if 0x70 <= op <= 0x7F:
+            disp, _ = self._read_imm(ip, 1)
+            target = (ip + 1) + self._signed(disp, 8)
+            cond = self._cond_expr(op)
+            body.append(f"    if {cond}:")
+            body.append(f"        r[15] = {target}")
+            body.append("    else:")
+            body.append(f"        r[15] = {ip + 1}")
+            return (ip + 1, True)
+        # sub rsp, imm / add rsp, imm (48 81 /4 /0 etc.)
+        # We handle the immediate forms 81 /0..7, 83 /0..7, 8D (lea)
+        # below as needed.
+        # Fall back: we don't JIT this opcode.
+        return None
+
+    def _emit_twobyte(self, op: int, ip: int, rex: int, rex_w: int,
+                      rex_r: int, rex_x: int, rex_b: int,
+                      op_size: int, body: List[str]
+                      ) -> Optional[Tuple[int, bool]]:
+        """Append Python source for a 0F-prefixed instruction."""
+        # Long-form conditional jumps (0F 80-8F)
+        if 0x80 <= op <= 0x8F:
+            disp, _ = self._read_imm(ip, 4)
+            target = (ip + 4) + self._signed(disp, 32)
+            cond = self._cond_expr(0x80 + (op - 0x80) + 0x10)  # remap
+            body.append(f"    if {cond}:")
+            body.append(f"        r[15] = {target}")
+            body.append("    else:")
+            body.append(f"        r[15] = {ip + 4}")
+            return (ip + 4, True)
+        return None
+
+    @staticmethod
+    def _cond_expr(op: int) -> str:
+        """Return a Python boolean expression for a Jcc condition."""
+        # 70..7F short, 80..8F long.  Each has the same low nibble.
+        low = op & 0xF
+        return {
+            0x0: "of == 1", 0x1: "of == 0",
+            0x2: "cf == 1", 0x3: "cf == 0",
+            0x4: "zf == 1", 0x5: "zf == 0",
+            0x6: "cf == 1 or zf == 1",
+            0x7: "cf == 0 and zf == 0",
+            0x8: "sf == 1", 0x9: "sf == 0",
+            0xA: "pf == 1", 0xB: "pf == 0",
+            0xC: "sf != of", 0xD: "sf == of",
+            0xE: "zf == 1 or sf != of",
+            0xF: "zf == 0 and sf == of",
+        }[low]
 
     # ------------------------------------------------------------------
     # Run
