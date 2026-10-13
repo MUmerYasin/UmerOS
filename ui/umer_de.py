@@ -11,6 +11,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# Host-disk containment for the host-integration bridge.
+# `HostBridge` materialises VFS content onto the real host disk and can
+# hand it to the OS default application, so (a) every write target is
+# resolved through `core.path_guard.safe_child` (rejects `..`/abs/slashes
+# -> no HostFiles/ escape / CWE-22), (b) the file is created with
+# `O_CREAT|O_EXCL|O_NOFOLLOW` (no clobber, no symlink redirect), and
+# (c) auto-open is refused unless the operator opts in with
+# `UMEROS_ALLOW_HOST_AUTOOPEN=1` and the extension is on a small safe
+# allow-list. Without `core.path_guard` the bridge fails closed.
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 import threading
@@ -23,7 +32,31 @@ import vlc
 import fitz  # PyMuPDF
 from PIL import Image, ImageTk
 
+try:  # shared path guard; absent -> the bridge refuses to write
+    from core.path_guard import safe_child, PathTraversalError
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+
+    _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
+    try:
+        from core.path_guard import safe_child, PathTraversalError
+
+        _H90_PATH_GUARD = True
+    except Exception:
+        _H90_PATH_GUARD = False
+
+        class PathTraversalError(ValueError):
+            pass
+
+        def safe_child(root, name):
+            raise PathTraversalError("core.path_guard unavailable; refusing host write")
+else:
+    _H90_PATH_GUARD = True
+
 # ── Host OS Integration Bridge ──
+# Retired Tkinter DE (H25). Only kept as a documented legacy
+# fallback; the sanctioned UX path is ui/flutter_ui/.
 class HostBridge:
     """Bridges Umer OS VFS with the host Windows OS."""
     HOST_DIR = os.path.join(os.getcwd(), "HostFiles")
@@ -34,18 +67,29 @@ class HostBridge:
             os.makedirs(cls.HOST_DIR, exist_ok=True)
             
         try:
+            # Contain the leaf name: a vfs_path ending in `..`
+            # used to yield filename='..' and escape HostFiles/ entirely.
+            filename = vfs_path.strip('/').split('/')[-1]
+            host_path = safe_child(cls.HOST_DIR, filename)  # rejects .. / abs / separators
+
             # Read from VFS
             data = kernel.vfs.read_file(vfs_path)
             if data is None:
                 raise Exception("File not found in Virtual File System.")
-            
-            # Write to real host disk
-            filename = vfs_path.strip('/').split('/')[-1]
-            host_path = os.path.join(cls.HOST_DIR, filename)
-            
-            with open(host_path, "wb") as f:
-                f.write(data)
-                
+
+            # Create with O_CREAT|O_EXCL|O_NOFOLLOW: never clobber an
+            # existing host file and never follow a symlink out of HostFiles/.
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= os.O_NOFOLLOW
+            if hasattr(os, "O_BINARY"):
+                flags |= os.O_BINARY
+            fd = os.open(host_path, flags, 0o600)
+            try:
+                os.write(fd, data)
+            finally:
+                os.close(fd)
+
             return True, host_path
         except Exception as e:
             return False, str(e)
@@ -53,6 +97,14 @@ class HostBridge:
     @classmethod
     def open_in_host(cls, host_path: str):
         try:
+            # Refuse to auto-open untrusted content. Auto-open is
+            # opt-in (UMEROS_ALLOW_HOST_AUTOOPEN=1) + extension allow-listed.
+            if not _host_autoopen_allowed(host_path):
+                return False, (
+                    "Auto-open disabled: handing untrusted VFS content to the host OS "
+                    "is refused (set UMEROS_ALLOW_HOST_AUTOOPEN=1 and use a text/image "
+                    "file to enable)."
+                )
             # Ask Windows to open it with the default app
             if os.name == 'nt':
                 os.startfile(host_path)
@@ -66,6 +118,30 @@ class HostBridge:
 
 
 # ── Base App Window (for Taskbar Tracking) ──
+
+
+_HOST_AUTOOPEN_EXTS = frozenset({
+    "txt", "log", "md", "rst", "csv", "json", "yaml", "yml", "toml", "ini", "cfg",
+    "png", "jpg", "jpeg", "gif", "bmp", "webp", "ico",
+})
+
+
+def _host_autoopen_allowed(host_path: str) -> bool:
+    """Auto-open is opt-in and extension-restricted.
+
+    Handing attacker-influenced VFS content to the OS default application
+    is a host-execution surface, so it stays OFF unless the operator sets
+    ``UMEROS_ALLOW_HOST_AUTOOPEN=1`` *and* the extension is on the inert
+    allow-list below (text/image only). Executables, scripts, archives and
+    documents with embedded scripting (HTML, PDF, SVG, Office) are never
+    auto-opened.
+    """
+    if os.environ.get("UMEROS_ALLOW_HOST_AUTOOPEN") != "1":
+        return False
+    ext = os.path.splitext(host_path)[1].lower().lstrip(".")
+    return ext in _HOST_AUTOOPEN_EXTS
+
+
 class UmerAppWindow(tk.Toplevel):
     def __init__(self, master, kernel, title_text, desktop):
         super().__init__(master)

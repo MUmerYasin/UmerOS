@@ -45,13 +45,22 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import importlib
 import logging
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 log = logging.getLogger("UmerOS.Initrd.AIHelper")
+
+# Explicit allow-list of optional third-party modules this helper
+# may import by name. `_try_import` used to call `__import__(name)` with no
+# validation (fail-open-by-construction: safe only while the caller happens
+# to pass a hard-coded literal). Restricting the name set makes the dynamic
+# import safe even if a callsite ever becomes caller-influenced, and gives
+# the mapping (allow-listed name -> import name) in one place.
+_OPTIONAL_IMPORTS: Tuple[str, ...] = ("qiskit", "sklearn")
 
 
 # ---------------------------------------------------------------------------
@@ -165,8 +174,19 @@ class AIHelper:
     # -- internals --------------------------------------------------------
 
     def _try_import(self, name: str):
+        """Import an optional, allow-listed module by name.
+
+        The name is checked against :data:`_OPTIONAL_IMPORTS`
+        **before** any import is attempted, so a non-allow-listed (or
+        caller-supplied) name can never reach the import machinery. Returns
+        ``None`` for unknown names so callers keep their graceful-degrade
+        contract.
+        """
+        if name not in _OPTIONAL_IMPORTS:
+            log.warning("Refusing non-allow-listed import: %r", name)
+            return None
         try:
-            return __import__(name)
+            return importlib.import_module(name)
         except ImportError:
             return None
 

@@ -34,6 +34,7 @@ License: GPL-3.0 (GNU General Public License Version 3)
 
 from __future__ import annotations
 
+import importlib
 import json
 import logging
 import sys
@@ -67,16 +68,32 @@ Commands:
 """
 
 
+# Explicit allow-list of the first-party modules whose self-test
+# the CLI may import dynamically. `_cmd_selftest` used to feed a literal
+# tuple straight into `__import__(mod, fromlist=[...])`; hoisting the set to
+# a named constant documents the closed name space and lets a test assert
+# it, so the dynamic import can never silently widen to untrusted names.
+_SELFTEST_MODULES: tuple[str, ...] = (
+    "initrd.archivers", "initrd.cpio", "initrd.vfs_ops",
+    "initrd.ramdisk", "initrd.mounts", "initrd.signals",
+    "initrd.hooks", "initrd.phase_machine",
+    "initrd.pivot_root", "initrd.module_resolver",
+    "initrd.scenarios", "initrd.ai_helper", "initrd.builder",
+    "initrd.linuxrc",
+)
+
+
 def _cmd_selftest(_args: List[str]) -> int:
     results: List[tuple[str, bool]] = []
-    for mod in ("initrd.archivers", "initrd.cpio", "initrd.vfs_ops",
-                "initrd.ramdisk", "initrd.mounts", "initrd.signals",
-                "initrd.hooks", "initrd.phase_machine",
-                "initrd.pivot_root", "initrd.module_resolver",
-                "initrd.scenarios", "initrd.ai_helper", "initrd.builder",
-                "initrd.linuxrc"):
+    for mod in _SELFTEST_MODULES:
+        if not mod.startswith("initrd.") or mod not in _SELFTEST_MODULES:
+            # Defensive: only the allow-listed initrd.* modules may
+            # be imported dynamically (never a caller-supplied name).
+            log.error("Refusing non-allow-listed selftest module: %r", mod)
+            results.append((mod, False))
+            continue
         try:
-            mod_obj = __import__(mod, fromlist=["_selftest"])
+            mod_obj = importlib.import_module(mod)
             ok = bool(mod_obj._selftest())  # noqa: SLF001
         except Exception as exc:  # noqa: BLE001
             ok = False

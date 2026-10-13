@@ -28,6 +28,7 @@ License: GPL-3.0 (GNU General Public License Version 3)
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
@@ -236,7 +237,8 @@ class TestDeviceDiscoverySimulation(unittest.TestCase):
 
     def test_namespace_fields(self):
         ns_list = discover_namespaces()
-        self.assertEqual(len(ns_list), 2)
+        # nvme0n1p1 is a partition, not a namespace.
+        self.assertEqual(len(ns_list), 1)
         ns = next(n for n in ns_list if n.name == "nvme0n1")
         self.assertEqual(ns.controller, "nvme0")
         self.assertEqual(ns.nsid, 1)
@@ -522,7 +524,10 @@ class TestHealthAssessment(unittest.TestCase):
         smart = parse_smart_log(bytes(blob))
         report = assess_health(smart, wctemp_k=343)
         temp_reasons = [r for r in report.reasons if "temperature" in r]
-        self.assertEqual(len(temp_reasons), 1)
+        # Two distinct sources: the drive's critical-warning bitmap and the
+        # host-side WCTEMP check.
+        self.assertEqual(len(temp_reasons), 2)
+        self.assertEqual(len(set(temp_reasons)), 2)
 
 
 class TestM2FormFactors(unittest.TestCase):
@@ -599,6 +604,9 @@ class TestM2PCIeLink(unittest.TestCase):
         (dev / "current_link_width").write_text("x4\n")
         return dev
 
+    @unittest.skipIf(
+        os.name == "nt", "PCI sysfs BDF names contain colons (Linux-only)"
+    )
     def test_reads_current_link(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -609,6 +617,9 @@ class TestM2PCIeLink(unittest.TestCase):
             self.assertEqual(speed, "8.0 GT/s")
             self.assertEqual(lanes, 4)
 
+    @unittest.skipIf(
+        os.name == "nt", "PCI sysfs BDF names contain colons (Linux-only)"
+    )
     def test_falls_back_to_max_link(self):
         with tempfile.TemporaryDirectory() as tmp:
             dev = Path(tmp) / "0000:02:00.0"
@@ -629,6 +640,9 @@ class TestM2PCIeLink(unittest.TestCase):
             self.assertIsNone(speed)
             self.assertIsNone(lanes)
 
+    @unittest.skipIf(
+        os.name == "nt", "PCI sysfs BDF names contain colons (Linux-only)"
+    )
     def test_garbage_width(self):
         with tempfile.TemporaryDirectory() as tmp:
             dev = Path(tmp) / "0000:03:00.0"

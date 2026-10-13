@@ -64,7 +64,7 @@ _CTRL_RE = re.compile(r"^nvme[0-9]+$")
 _NS_RE = re.compile(r"^nvme[0-9]+n[0-9]+$")
 _PART_RE = re.compile(r"^nvme[0-9]+n[0-9]+p[0-9]+$")
 _ALIAS_RE = re.compile(r"^nvme[0-9]+c[0-9]+n[0-9]+$")
-_CTRL_PREFIX_RE = re.compile(r"^(nvme[0-9]+)n[0-9]+$")
+_CTRL_PREFIX_RE = re.compile(r"^(nvme[0-9]+)n[0-9]+(?:p[0-9]+)?$")
 
 
 def classify_nvme_name(name: str) -> Optional[str]:
