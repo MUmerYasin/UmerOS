@@ -21,6 +21,19 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 import shutil
 
+# [FIX H84] Fail-closed path-traversal containment (CWE-22): every caller-supplied
+# name (username / message id / subdir / filename) is validated as a single safe
+# path segment -- or a contained multi-segment join -- before any home path is built.
+try:
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+
 
 @dataclass
 class DotfileTemplate:
@@ -245,9 +258,18 @@ set convert-meta off
     def __init__(self, home_path: str = "/home"):
         self.home_path = Path(home_path)
 
+    def _user_home(self, username: str) -> Path:
+        """Return the validated ``<home_path>/<username>`` path.
+
+        [FIX H84] Fail-closed (CWE-22): ``username`` must be a single safe path
+        segment -- a traversal attempt (``..``/separators/absolute) raises
+        :class:`~core.path_guard.PathTraversalError` instead of touching disk.
+        """
+        return safe_child(self.home_path, username)
+
     def install_dotfiles(self, username: str, overwrite: bool = False) -> List[str]:
         """Install default dotfiles to a user's home directory."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         if not user_home.exists():
             user_home.mkdir(parents=True, exist_ok=True)
 
@@ -274,18 +296,18 @@ set convert-meta off
 
     def create_custom(self, username: str, filename: str, content: str) -> bool:
         """Create a custom dotfile for a user."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         if not user_home.exists():
             return False
-        dest = user_home / filename
+        dest = safe_child(user_home, filename)
         dest.write_text(content, encoding='utf-8')
         dest.chmod(0o644)
         return True
 
     def remove_dotfile(self, username: str, filename: str) -> bool:
         """Remove a dotfile from a user's home."""
-        user_home = self.home_path / username
-        target = user_home / filename
+        user_home = self._user_home(username)
+        target = safe_child(user_home, filename)
         if target.exists() and target.is_file():
             target.unlink()
             return True

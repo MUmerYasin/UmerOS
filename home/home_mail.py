@@ -22,6 +22,32 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import json
 
+# [FIX H84] Fail-closed path-traversal containment (CWE-22): every caller-supplied
+# name (username / message id / subdir / filename) is validated as a single safe
+# path segment -- or a contained multi-segment join -- before any home path is built.
+try:
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+
+# [FIX H85] Zero-trust capability gate for privileged /home mutations. When a
+# CapabilityManager is wired the gate is fail-closed (PermissionError); standalone it
+# is permissive-with-warning so existing tooling keeps working (H60/H66/H73/H80).
+try:
+    from core.capability_gate import gate, CAP_HOME_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_HOME_ADMIN
+
 
 @dataclass
 class MailMessage:
@@ -49,9 +75,18 @@ class HomeMailManager:
         self.home_path = Path(home_path)
         self.mailboxes: Dict[str, Dict[str, List[MailMessage]]] = {}
 
+    def _user_home(self, username: str) -> Path:
+        """Return the validated ``<home_path>/<username>`` path.
+
+        [FIX H84] Fail-closed (CWE-22): ``username`` must be a single safe path
+        segment -- a traversal attempt (``..``/separators/absolute) raises
+        :class:`~core.path_guard.PathTraversalError` instead of touching disk.
+        """
+        return safe_child(self.home_path, username)
+
     def setup_maildir(self, username: str) -> bool:
         """Create Maildir structure in user's home: Maildir/{new,tmp,cur}."""
-        maildir = self.home_path / username / "Maildir"
+        maildir = safe_join(self._user_home(username), "Maildir")
         for subdir in ["new", "tmp", "cur"]:
             (maildir / subdir).mkdir(parents=True, exist_ok=True)
         self.mailboxes[username] = {"new": [], "tmp": [], "cur": []}
@@ -59,14 +94,15 @@ class HomeMailManager:
 
     def get_maildir_path(self, username: str) -> Path:
         """Get the Maildir path for a user."""
-        return self.home_path / username / "Maildir"
+        return safe_join(self._user_home(username), "Maildir")
 
     def deliver(self, username: str, message: MailMessage) -> bool:
         """Deliver a message to a user's Maildir/new/."""
+        gate.require(CAP_HOME_ADMIN)  # [FIX H85] privileged /home mutation
         if username not in self.mailboxes:
             self.setup_maildir(username)
         maildir = self.get_maildir_path(username)
-        msg_file = maildir / "new" / f"{message.id}"
+        msg_file = safe_child(maildir / "new", message.id)
         content = (
             f"From: {message.from_addr}\n"
             f"To: {message.to_addr}\n"
@@ -98,8 +134,8 @@ class HomeMailManager:
                 mailbox["new"].pop(i)
                 mailbox.setdefault("cur", []).append(msg)
                 maildir = self.get_maildir_path(username)
-                src = maildir / "new" / msg_id
-                dst = maildir / "cur" / msg_id
+                src = safe_child(maildir / "new", msg_id)
+                dst = safe_child(maildir / "cur", msg_id)
                 if src.exists():
                     src.rename(dst)
                 return True
@@ -114,7 +150,7 @@ class HomeMailManager:
                 if msg.id == msg_id:
                     msgs.pop(i)
                     maildir = self.get_maildir_path(username)
-                    target = maildir / folder / msg_id
+                    target = safe_child(maildir / folder, msg_id)
                     if target.exists():
                         target.unlink()
                     return True
@@ -122,10 +158,11 @@ class HomeMailManager:
 
     def get_spool_path(self, username: str) -> Path:
         """Get /var/spool/mail/<username> path."""
-        return Path(self.SPOOL_DIR) / username
+        return safe_child(self.SPOOL_DIR, username)
 
     def setup_spool(self, username: str) -> bool:
         """Create mail spool file."""
+        gate.require(CAP_HOME_ADMIN)  # [FIX H85] privileged /home mutation
         spool = self.get_spool_path(username)
         spool.parent.mkdir(parents=True, exist_ok=True)
         if not spool.exists():

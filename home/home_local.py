@@ -21,6 +21,19 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 import shutil
 
+# [FIX H84] Fail-closed path-traversal containment (CWE-22): every caller-supplied
+# name (username / message id / subdir / filename) is validated as a single safe
+# path segment -- or a contained multi-segment join -- before any home path is built.
+try:
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+
 
 @dataclass
 class LocalEntry:
@@ -46,9 +59,18 @@ class HomeLocalManager:
     def __init__(self, home_path: str = "/home"):
         self.home_path = Path(home_path)
 
+    def _user_home(self, username: str) -> Path:
+        """Return the validated ``<home_path>/<username>`` path.
+
+        [FIX H84] Fail-closed (CWE-22): ``username`` must be a single safe path
+        segment -- a traversal attempt (``..``/separators/absolute) raises
+        :class:`~core.path_guard.PathTraversalError` instead of touching disk.
+        """
+        return safe_child(self.home_path, username)
+
     def setup_local(self, username: str) -> List[str]:
         """Create ~/.local/ hierarchy for a user."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         local_dir = user_home / ".local"
         created = []
 
@@ -62,9 +84,9 @@ class HomeLocalManager:
 
     def get_local_path(self, username: str, subdir: str = "") -> Path:
         """Get ~/.local/ or ~/.local/<subdir>/ path."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         if subdir:
-            return user_home / ".local" / subdir
+            return safe_join(user_home, ".local", subdir)
         return user_home / ".local"
 
     def list_local(self, username: str) -> List[Dict]:
@@ -90,7 +112,7 @@ class HomeLocalManager:
             return None
         bin_dir = self.get_local_path(username, "bin")
         bin_dir.mkdir(parents=True, exist_ok=True)
-        dest = bin_dir / (name or src.name)
+        dest = safe_child(bin_dir, name or src.name)
         shutil.copy2(str(src), str(dest))
         dest.chmod(0o755)
         return str(dest)
@@ -104,10 +126,10 @@ class HomeLocalManager:
         data_dir = self.get_local_path(username, subdir)
         data_dir.mkdir(parents=True, exist_ok=True)
         if src.is_dir():
-            dest = data_dir / src.name
+            dest = safe_child(data_dir, src.name)
             shutil.copytree(str(src), str(dest), dirs_exist_ok=True)
         else:
-            dest = data_dir / src.name
+            dest = safe_child(data_dir, src.name)
             shutil.copy2(str(src), str(dest))
         return str(dest)
 

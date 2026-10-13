@@ -21,6 +21,19 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass
 import json
 
+# [FIX H84] Fail-closed path-traversal containment (CWE-22): every caller-supplied
+# name (username / message id / subdir / filename) is validated as a single safe
+# path segment -- or a contained multi-segment join -- before any home path is built.
+try:
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+
 
 @dataclass
 class UserQuota:
@@ -60,6 +73,15 @@ class HomeQuotaManager:
         self.home_path = Path(home_path)
         self.quotas: Dict[str, UserQuota] = {}
 
+    def _user_home(self, username: str) -> Path:
+        """Return the validated ``<home_path>/<username>`` path.
+
+        [FIX H84] Fail-closed (CWE-22): ``username`` must be a single safe path
+        segment -- a traversal attempt (``..``/separators/absolute) raises
+        :class:`~core.path_guard.PathTraversalError` instead of touching disk.
+        """
+        return safe_child(self.home_path, username)
+
     def set_quota(self, username: str, hard_bytes: int = 0,
                   soft_bytes: int = 0, hard_inodes: int = 0,
                   soft_inodes: int = 0) -> UserQuota:
@@ -80,7 +102,7 @@ class HomeQuotaManager:
 
     def scan_usage(self, username: str) -> UserQuota:
         """Scan actual disk usage for a user."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         quota = self.quotas.get(username, UserQuota(username=username))
 
         total_bytes = 0

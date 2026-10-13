@@ -23,6 +23,32 @@ import stat
 import shutil
 import json
 
+# [FIX H84] Fail-closed path-traversal containment (CWE-22): every caller-supplied
+# name (username / message id / subdir / filename) is validated as a single safe
+# path segment -- or a contained multi-segment join -- before any home path is built.
+try:
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+
+# [FIX H85] Zero-trust capability gate for privileged /home mutations. When a
+# CapabilityManager is wired the gate is fail-closed (PermissionError); standalone it
+# is permissive-with-warning so existing tooling keeps working (H60/H66/H73/H80).
+try:
+    from core.capability_gate import gate, CAP_HOME_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_HOME_ADMIN
+
 
 @dataclass
 class HomeEntry:
@@ -56,6 +82,15 @@ class HomeManager:
         self.users: Dict[str, HomeEntry] = {}
         self._load_existing()
 
+    def _user_home(self, username: str) -> Path:
+        """Return the validated ``<home_path>/<username>`` path.
+
+        [FIX H84] Fail-closed (CWE-22): ``username`` must be a single safe path
+        segment -- a traversal attempt (``..``/separators/absolute) raises
+        :class:`~core.path_guard.PathTraversalError` instead of touching disk.
+        """
+        return safe_child(self.home_path, username)
+
     def _load_existing(self) -> None:
         """Scan /home for existing user directories."""
         if not self.home_path.exists():
@@ -70,7 +105,8 @@ class HomeManager:
     def create_home(self, username: str, uid: int = 1000, gid: int = 1000,
                     shell: str = "/bin/bash", skel_path: str = "/etc/skel") -> HomeEntry:
         """Create a new user home directory with FHS structure."""
-        user_home = self.home_path / username
+        gate.require(CAP_HOME_ADMIN)  # [FIX H85] privileged /home mutation
+        user_home = self._user_home(username)
         user_home.mkdir(parents=True, exist_ok=True)
 
         entry = HomeEntry(
@@ -105,11 +141,12 @@ class HomeManager:
 
     def remove_home(self, username: str, backup: bool = False) -> bool:
         """Remove a user home directory."""
+        gate.require(CAP_HOME_ADMIN)  # [FIX H85] privileged /home mutation
         if username not in self.users:
             return False
         entry = self.users[username]
         if backup:
-            backup_path = self.home_path / f".{username}.backup"
+            backup_path = safe_child(self.home_path, f".{username}.backup")
             if backup_path.exists():
                 shutil.rmtree(str(backup_path))
             shutil.copytree(str(entry.path), str(backup_path))
@@ -123,7 +160,7 @@ class HomeManager:
 
     def get_home_path(self, username: str) -> Path:
         """Get a user's home directory path."""
-        return self.home_path / username
+        return self._user_home(username)
 
     def list_users(self) -> List[str]:
         """List all users with home directories."""
@@ -131,7 +168,7 @@ class HomeManager:
 
     def get_disk_usage(self, username: str) -> int:
         """Get disk usage of a user's home directory."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         if not user_home.exists():
             return 0
         total = 0
@@ -142,7 +179,7 @@ class HomeManager:
 
     def list_dotfiles(self, username: str) -> List[str]:
         """List dotfiles in a user's home directory."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         if not user_home.exists():
             return []
         return [f.name for f in user_home.iterdir()
@@ -150,7 +187,7 @@ class HomeManager:
 
     def list_dotdirs(self, username: str) -> List[str]:
         """List dot directories in a user's home directory."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         if not user_home.exists():
             return []
         return [d.name for d in user_home.iterdir()

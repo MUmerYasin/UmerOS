@@ -21,6 +21,19 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 import shutil
 
+# [FIX H84] Fail-closed path-traversal containment (CWE-22): every caller-supplied
+# name (username / message id / subdir / filename) is validated as a single safe
+# path segment -- or a contained multi-segment join -- before any home path is built.
+try:
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+
 
 @dataclass
 class DirTemplate:
@@ -56,9 +69,18 @@ class HomeDirsManager:
     def __init__(self, home_path: str = "/home"):
         self.home_path = Path(home_path)
 
+    def _user_home(self, username: str) -> Path:
+        """Return the validated ``<home_path>/<username>`` path.
+
+        [FIX H84] Fail-closed (CWE-22): ``username`` must be a single safe path
+        segment -- a traversal attempt (``..``/separators/absolute) raises
+        :class:`~core.path_guard.PathTraversalError` instead of touching disk.
+        """
+        return safe_child(self.home_path, username)
+
     def setup_user_dirs(self, username: str) -> List[str]:
         """Create all standard directories for a user."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         created = []
 
         for d in self.XDG_USER_DIRS:
@@ -78,7 +100,7 @@ class HomeDirsManager:
 
     def list_user_dirs(self, username: str) -> List[Dict]:
         """List all directories in a user's home."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         if not user_home.exists():
             return []
         dirs = []
@@ -93,13 +115,13 @@ class HomeDirsManager:
 
     def get_xdg_dir(self, username: str, dir_name: str) -> Optional[Path]:
         """Get a specific XDG directory path."""
-        user_home = self.home_path / username
-        target = user_home / dir_name
+        user_home = self._user_home(username)
+        target = safe_child(user_home, dir_name)
         return target if target.exists() else None
 
     def create_xdg_defaults(self, username: str) -> Dict[str, str]:
         """Create .config/user-dirs.dirs with XDG paths."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         config_dir = user_home / ".config"
         config_dir.mkdir(parents=True, exist_ok=True)
 
@@ -130,7 +152,7 @@ class HomeDirsManager:
 
     def remove_user_dirs(self, username: str, xdg_only: bool = True) -> int:
         """Remove user directories. Returns count removed."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         removed = 0
 
         if xdg_only:
@@ -148,7 +170,7 @@ class HomeDirsManager:
 
     def get_disk_usage(self, username: str) -> Dict[str, int]:
         """Get disk usage per directory."""
-        user_home = self.home_path / username
+        user_home = self._user_home(username)
         usage = {}
         for item in user_home.iterdir():
             if item.is_dir():

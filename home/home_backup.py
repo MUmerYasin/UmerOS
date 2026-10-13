@@ -98,6 +98,11 @@ class HomeBackupManager:
 
     def create_backup(self, username: str, note: str = "") -> Optional[BackupRecord]:
         """Create a tar.gz backup of a user's home."""
+        gate.require(CAP_HOME_ADMIN)  # [FIX H85] privileged /home mutation
+        # [FIX H84] Fail-closed: reject a username that is not a single safe
+        # segment so neither the source home nor the archive name can escape.
+        if not _is_safe_segment(username):
+            return None
         user_home = self.home_path / username
         if not user_home.exists():
             return None

@@ -13,7 +13,7 @@
 
 #!/usr/bin/env python3
 """
-Virtual File System (VFS) Layer
+Virtual File System (VFS) Layer  [TODAY]
 
 Translates standard POSIX-style paths into QFS content-hash operations.
 This is the interface that user-space programs (and the Syscall Shim)
@@ -22,7 +22,29 @@ interact with — they never touch QFS directly.
 Equivalent to VFS layer (fs/namei.c, fs/read_write.c).
 """
 
+from __future__ import annotations
+
+import logging
+
 from fs.qfs import QFS, QuantumFileSystem
+
+# Zero-trust capability gate for filesystem mutations.
+# File-level writes/deletes/mkdir require `fs.write`; whole-filesystem
+# snapshot/restore require `fs.admin`. Fail-closed when a CapabilityManager
+# is wired; permissive (warning) standalone so existing tooling still works.
+try:
+    from core.capability_gate import gate, CAP_FS_WRITE, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_WRITE, CAP_FS_ADMIN
+
+
+log = logging.getLogger("UmerOS.VFS")
 
 
 class VFSNode:
@@ -49,7 +71,7 @@ class VirtualFileSystem:
         else:
             self._qfs = qfs
         self._root = VFSNode("/", is_dir=True)
-        print("[VFS] Virtual File System mounted on QFS.")
+        log.info("VFS mounted on QFS.")
 
     # ------------------------------------------------------------------
     # Path resolution
@@ -80,10 +102,12 @@ class VirtualFileSystem:
     # Public API
     # ------------------------------------------------------------------
     def mkdir(self, path: str):
+        gate.require(CAP_FS_WRITE)  
         self._resolve(path, create_dirs=True)
-        print(f"[VFS] mkdir '{path}'")
+        log.info("VFS mkdir '%s'.", path)
 
     def write_file(self, path: str, data: bytes) -> str:
+        gate.require(CAP_FS_WRITE)  
         parent, filename = self._resolve_parent(path)
         content_hash = self._qfs.write_file(path, data)
         file_node = VFSNode(filename, is_dir=False)
@@ -108,6 +132,7 @@ class VirtualFileSystem:
         return list(node.children.keys())
 
     def delete(self, path: str) -> bool:
+        gate.require(CAP_FS_WRITE)  
         parent, filename = self._resolve_parent(path)
         if filename in parent.children:
             del parent.children[filename]

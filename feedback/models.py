@@ -12,7 +12,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-UmerOS /feedback -- Feedback Data Models
+UmerOS /feedback -- Feedback Data Models  [TODAY]
 ========================================
 
 Core data structures for structured community feedback, bug reports,
@@ -24,16 +24,64 @@ Appendix G specifies:
   - No guarantee of response (volunteer-maintained)
 
 Author: Muhammad Umer Yasin / UmerOS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
 
 import enum
+import os
+import re
 import time
 import uuid
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# Shared path-traversal guard (CWE-22) for attachment paths.
+try:
+    from core.path_guard import PathTraversalError, safe_join
+except Exception:  # pragma: no cover - standalone fallback
+    import sys as _sys
+
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.path_guard import PathTraversalError, safe_join
+
+# Root under which attachment *paths* (not URLs) must stay.
+FEEDBACK_STORE_ROOT = os.path.expanduser("~/.umeros/feedback_store")
+
+_URL_RE = re.compile(r"^[A-Za-z][A-Za-z0-9+.\-]*://")
+_ALLOWED_URL_SCHEMES = ("http", "https")
+
+
+def _validate_attachment(attachment: str) -> str:
+    """Validate an attachment entry (a path or an http(s) URL). [FIX H79]
+
+    Rejects absolute paths, ``..`` traversal, and any path that escapes
+    :data:`FEEDBACK_STORE_ROOT`; URLs are limited to http/https.
+
+    Raises:
+        ValueError: if the attachment is not a safe path or an allowed URL.
+    """
+    if not isinstance(attachment, str) or not attachment.strip():
+        raise ValueError("attachment must be a non-empty string")
+    value = attachment.strip()
+    if _URL_RE.match(value):
+        scheme = value.split("://", 1)[0].lower()
+        if scheme not in _ALLOWED_URL_SCHEMES:
+            raise ValueError(f"refusing non-http(s) attachment URL: {attachment!r}")
+        return attachment
+    if Path(value).is_absolute() or value.startswith(("\\", "/")):
+        raise ValueError(f"refusing absolute attachment path: {attachment!r}")
+    try:
+        safe_join(FEEDBACK_STORE_ROOT, value)
+    except PathTraversalError as exc:
+        raise ValueError(
+            f"refusing attachment path escaping the feedback store: {attachment!r}"
+        ) from exc
+    return attachment
 
 
 class FeedbackKind(str, enum.Enum):
@@ -95,6 +143,27 @@ class FeedbackEntry:
     tags: List[str] = field(default_factory=list)
     attachments: List[str] = field(default_factory=list)  # Paths or URLs
 
+    # Consent / erasure modelling (§4.3, GDPR/ISO, H18).
+    consent_granted: bool = False
+    consent_at: Optional[float] = None
+    consent_scope: str = ""
+    erased_at: Optional[float] = None
+
+    def __post_init__(self) -> None:
+        """Enforce the consent gate + validate attachment paths. [FIX H79]
+
+        Raises:
+            ValueError: if submitter contact (PII) is present without consent,
+                or an attachment is an unsafe path / disallowed URL.
+        """
+        if self.submitter_contact and not self.consent_granted:
+            raise ValueError(
+                "refusing to store submitter contact (PII) without explicit "
+                "consent (§4.3/H18); pass consent_granted=True"
+            )
+        for attachment in self.attachments:
+            _validate_attachment(attachment)
+
     @classmethod
     def create(
         cls,
@@ -107,8 +176,16 @@ class FeedbackEntry:
         component: str = "general",
         priority: FeedbackPriority = FeedbackPriority.MEDIUM,
         tags: Optional[List[str]] = None,
+        attachments: Optional[List[str]] = None,
+        consent_granted: bool = False,
+        consent_scope: str = "",
     ) -> "FeedbackEntry":
-        """Factory to create a new feedback entry with a generated UUID."""
+        """Factory to create a new feedback entry with a generated UUID.
+
+        ``consent_granted`` is required whenever ``submitter_contact``
+        (PII) is supplied; ``attachments`` are path-validated by
+        :func:`_validate_attachment`.
+        """
         return cls(
             feedback_id=str(uuid.uuid4()),
             kind=kind,
@@ -121,14 +198,68 @@ class FeedbackEntry:
             component=component,
             priority=priority,
             tags=tags or [],
+            attachments=attachments or [],
+            consent_granted=consent_granted,
+            consent_at=time.time() if consent_granted else None,
+            consent_scope=consent_scope,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, include_pii: bool = True) -> Dict[str, Any]:
+        """Serialize the entry.
+
+        Args:
+            include_pii: When False, redact ``submitter_name``,
+                ``submitter_contact`` and ``attachments`` (safe for logging,
+                analytics, or third-party export).
+
+        Returns:
+            A JSON-serializable dict.
+        """
         d = asdict(self)
         d["kind"] = self.kind.value
         d["status"] = self.status.value
         d["priority"] = self.priority.value
+        if not include_pii:
+            d["submitter_name"] = "Anonymous"
+            d["submitter_contact"] = ""
+            d["attachments"] = []
         return d
+
+    def may_transmit(self) -> bool:
+        """Whether outbound channel egress is permitted. 
+
+        The (planned) collector/channels must *additionally* check
+        :meth:`ai.consent.AIGovernance.check_consent` for the target channel
+        before any egress, so that egress is never silent.
+
+        Returns:
+            True only when the submitter granted explicit consent.
+        """
+        return bool(self.consent_granted)
+
+    def erase_pii(self) -> "FeedbackEntry":
+        """Irreversibly erase submitter PII (GDPR right to erasure).
+
+        Clears ``submitter_name`` / ``submitter_contact`` / ``attachments`` and
+        the consent record, then stamps ``erased_at``. The non-PII content
+        (title / description / kind / status) is retained so the feedback item
+        itself is not lost.
+
+        Returns:
+            self, for chaining.
+        """
+        self.submitter_name = "Anonymous"
+        self.submitter_contact = ""
+        self.attachments = []
+        self.consent_granted = False
+        self.consent_at = None
+        self.consent_scope = ""
+        self.erased_at = time.time()
+        self.updated_at = self.erased_at
+        return self
+
+    # GDPR terminology alias for :meth:`erase_pii`.
+    anonymize = erase_pii
 
     def summary(self) -> str:
         return (

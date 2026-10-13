@@ -21,6 +21,41 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 import json
 import os
+import re
+import logging
+
+# [FIX H84] Fail-closed path-traversal containment (CWE-22): every caller-supplied
+# name (username / message id / subdir / filename) is validated as a single safe
+# path segment -- or a contained multi-segment join -- before any home path is built.
+try:
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.path_guard import PathTraversalError, safe_child, safe_join
+
+# [FIX H86] Shell-injection guard: `.profile` / `.bashrc` are *sourced* by the
+# login shell, so any user-controlled text interpolated into them is code
+# execution in the user's context. Identifiers (env keys, alias names) are
+# validated against the POSIX name grammar; every value / command is emitted as
+# a single-quoted shell literal so no metacharacter can break out.
+log = logging.getLogger("UmerOS.Home.UserProfile")
+
+_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_ALIAS_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _shell_quote(text: str) -> str:
+    """Return ``text`` as a POSIX single-quoted shell literal.
+
+    The only byte that cannot appear inside single quotes is ``'`` itself, so
+    the canonical ``'\''`` idiom closes/reopens the quote around it. The result
+    is inert: no expansion, command substitution, or newline breakout.
+    """
+    return "'" + str(text).replace("'", "'\\''") + "'"
 
 
 @dataclass
@@ -66,7 +101,7 @@ class UserProfileManager:
     def create_profile(self, username: str, uid: int = 1000,
                        gid: int = 1000, shell: str = "/bin/bash") -> UserProfile:
         """Create a new user profile."""
-        home = str(self.home_path / username)
+        home = str(safe_child(self.home_path, username))
         profile = UserProfile(
             username=username,
             uid=uid,
@@ -112,6 +147,10 @@ class UserProfileManager:
         profile = self.profiles.get(username)
         if not profile:
             return False
+        # [FIX H86] env keys are emitted unquoted as `export KEY=...`;
+        # reject anything that is not a valid shell identifier.
+        if not _ENV_KEY_RE.match(key or ""):
+            raise ValueError(f"Invalid environment variable name: {key!r}")
         profile.env_vars[key] = value
         self._write_profile_files(profile)
         return True
@@ -139,6 +178,10 @@ class UserProfileManager:
         profile = self.profiles.get(username)
         if not profile:
             return False
+        # [FIX H86] alias names are emitted unquoted as `alias NAME=...`;
+        # reject anything that is not a valid shell identifier.
+        if not _ALIAS_NAME_RE.match(name or ""):
+            raise ValueError(f"Invalid alias name: {name!r}")
         profile.aliases[name] = command
         self._write_profile_files(profile)
         return True
@@ -173,9 +216,14 @@ class UserProfileManager:
         lines.append("umask 022\n")
 
         for key, value in profile.env_vars.items():
-            lines.append(f'export {key}="{value}"')
+            # [FIX H86] never interpolate raw text: validate the identifier and
+            # single-quote the value so it cannot break out of the assignment.
+            if not _ENV_KEY_RE.match(key or ""):
+                log.warning("Skipping invalid env var name %r for %s", key, profile.username)
+                continue
+            lines.append(f"export {key}={_shell_quote(value)}")
 
-        lines.append(f'\nexport PATH="{":".join(profile.path_dirs)}"')
+        lines.append(f"\nexport PATH={_shell_quote(':'.join(profile.path_dirs))}")
         return "\n".join(lines) + "\n"
 
     def _generate_bashrc(self, profile: UserProfile) -> str:
@@ -187,7 +235,11 @@ class UserProfileManager:
         lines.append("shopt -s histappend checkwinsize\n")
 
         for name, cmd in profile.aliases.items():
-            lines.append(f"alias {name}='{cmd}'")
+            # [FIX H86] validate the alias name, single-quote the command body.
+            if not _ALIAS_NAME_RE.match(name or ""):
+                log.warning("Skipping invalid alias name %r for %s", name, profile.username)
+                continue
+            lines.append(f"alias {name}={_shell_quote(cmd)}")
 
         return "\n".join(lines) + "\n"
 

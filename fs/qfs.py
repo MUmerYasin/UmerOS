@@ -37,7 +37,7 @@ FUTURE:
   - TODO: QPU integration — Grover-inspired search acceleration.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -53,7 +53,35 @@ import threading
 import time
 from typing import Dict, List, Optional, Tuple
 
+# [FIX H80] Zero-trust capability gate for filesystem mutations.
+# File-level writes/deletes/mkdir require `fs.write`; whole-filesystem
+# snapshot/restore require `fs.admin`. Fail-closed when a CapabilityManager
+# is wired; permissive (warning) standalone so existing tooling still works.
+try:
+    from core.capability_gate import gate, CAP_FS_WRITE, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import os as _os
+    import sys as _sys
+
+    _proj = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_WRITE, CAP_FS_ADMIN
+
 log = logging.getLogger("UmerOS.QFS")
+
+# [FIX H82] CAS content addressing uses SHA3-256. This is a DELIBERATE,
+# documented exemption from the repo-wide SHA3-512 integrity mandate:
+#   * 256-bit already gives 128-bit collision resistance -- ample for
+#     content addressing (cf. Git/SHA-1, most CAS designs);
+#   * it keeps addresses compact (64 hex chars) and matches the
+#     ``CASStore`` contract relied on by snapshots;
+#   * the 512-bit mandate targets *content integrity / message signing*,
+#     a different purpose from block addressing.
+# Migrating would invalidate every existing address/snapshot, so the choice
+# is single-sourced here and intentionally pinned.
+CAS_HASH = hashlib.sha3_256
+CAS_ADDRESS_HEX_LEN = 64
 
 
 # ---------------------------------------------------------------------------
@@ -63,7 +91,9 @@ log = logging.getLogger("UmerOS.QFS")
 class CASStore:
     """In-memory content-addressable block store.
 
-    Files are addressed by SHA3-256 of their (compressed) content.
+    Files are addressed by SHA3-256 of their (compressed) content (see the
+    module-level :data:`CAS_HASH` note -- a documented exemption from the
+    repo-wide SHA3-512 integrity mandate). [FIX H82]
     Storing the same data twice costs zero extra memory — the second
     write returns the existing address.
 
@@ -94,7 +124,7 @@ class CASStore:
         Raises:
             MemoryError: If adding would exceed max_size_bytes.
         """
-        address = hashlib.sha3_256(data).hexdigest()
+        address = CAS_HASH(data).hexdigest()  # [FIX H82] SHA3-256 CAS address
         with self._lock:
             if address in self._blocks:
                 self._refs[address] += 1
@@ -149,6 +179,47 @@ class CASStore:
                 self._used -= freed
                 return True
         return False
+
+    def ref_count(self, address: str) -> int:
+        """Return the current reference count for ``address`` (0 if absent).
+
+        [FIX H82] Public accessor so callers never touch ``_refs`` directly.
+
+        Args:
+            address: SHA3-256 hex address.
+
+        Returns:
+            The reference count, or 0 when the address is unknown.
+        """
+        with self._lock:
+            return self._refs.get(address, 0)
+
+    def retain(self, address: str) -> int:
+        """Increment the reference count for ``address`` (public counterpart
+        to :meth:`release`). [FIX H82]
+
+        Args:
+            address: SHA3-256 hex address.
+
+        Returns:
+            The new reference count, or 0 if the address is not present.
+        """
+        with self._lock:
+            if address not in self._blocks:
+                return 0
+            self._refs[address] = self._refs.get(address, 1) + 1
+            return self._refs[address]
+
+    def snapshot_state(self) -> Dict[str, int]:
+        """Return a copy of the ``address -> refcount`` map. [FIX H82]
+
+        Public introspection API (replaces reading the private ``_refs``).
+
+        Returns:
+            A fresh dict mapping each address to its reference count.
+        """
+        with self._lock:
+            return dict(self._refs)
 
     def dedup_scan(self) -> int:
         """Return the number of bytes saved by deduplication.
@@ -473,6 +544,7 @@ class QFS:
         Returns:
             CAS address (SHA3-256 hex of compressed data).
         """
+        gate.require(CAP_FS_WRITE)  # [FIX H80]
         self._compressor.reset()
         compressed = self._compressor.compress(data)
         address    = self._store.put(compressed)
@@ -526,6 +598,7 @@ class QFS:
         Returns:
             True if deleted, False if it did not exist.
         """
+        gate.require(CAP_FS_WRITE)  # [FIX H80]
         with self._lock:
             address = self._files.pop(path, None)
             self._meta.pop(path, None)
@@ -582,18 +655,18 @@ class QFS:
         Returns:
             Snapshot ID (hex timestamp string).
         """
+        gate.require(CAP_FS_ADMIN)  # [FIX H80]
         snap_id = hex(int(time.time() * 1000))[2:]
         with self._lock:
             self._snapshots[snap_id] = (
                 copy.copy(self._files),
                 copy.deepcopy(self._meta),
             )
-            # Increment reference count for all current CAS blocks
-            for address in self._files.values():
-                if address in self._store._blocks:
-                    self._store._refs[address] = (
-                        self._store._refs.get(address, 1) + 1
-                    )
+            # Increment reference count for all current CAS blocks.
+            # [FIX H82] use the public CASStore.retain() API -- never the
+            # private _blocks/_refs internals (encapsulation).
+            for address in set(self._files.values()):
+                self._store.retain(address)
         log.info("QFS snapshot '%s' taken (%d files).", snap_id, len(self._files))
         return snap_id
 
@@ -606,6 +679,7 @@ class QFS:
         Returns:
             True if restored, False if snapshot not found.
         """
+        gate.require(CAP_FS_ADMIN)  # [FIX H80]
         with self._lock:
             snap = self._snapshots.get(snapshot_id)
         if snap is None:

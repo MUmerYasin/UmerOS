@@ -2478,8 +2478,8 @@ class Emulator:
     def run(self, *, max_steps: int = 100_000,
             hot_loop_window: int = 4096,
             hot_loop_range: int = 0x400,
-            hot_loop_min_steps: int = 50_000,
-            hot_loop_max_detections: int = 0) -> int:
+            hot_loop_min_steps: int = 100_000,
+            hot_loop_max_skips: int = 8) -> int:
         """Run until HLT, max_steps reached, or ``stopped`` set.
 
         Hot-loop short-circuit: if the last ``hot_loop_window`` RIPs
@@ -2514,7 +2514,7 @@ class Emulator:
                 hi = max(recent)
                 if hi - lo < hot_loop_range:
                     detections += 1
-                    if detections > hot_loop_max_detections:
+                    if detections > hot_loop_max_skips:
                         log.warning(
                             "emulator: %d hot loops detected; "
                             "aborting run at 0x%x (pure-Python "
@@ -2524,11 +2524,25 @@ class Emulator:
                         return self.exit_code
                     log.warning(
                         "emulator: hot loop detected near 0x%x "
-                        "(range 0x%x, %d steps) -- jumping past",
+                        "(range 0x%x, %d steps) -- short-circuiting "
+                        "as memcpy(dst=rcx, src=rdx, count=r8)",
                         rip_before, hi - lo, self.steps)
-                    # The recent window may only contain the loop's
-                    # body.  Jump ``range + 0x10`` past the highest
-                    # RIP to land just after the back-edge branch.
+                    # MSVC/CRT-style memcpy: rcx=dst, rdx=src, r8=count.
+                    # Bulk-copy in Python and jump past the loop.
+                    rcx = self.regs.get(1)        # REG_RCX
+                    rdx = self.regs.get(2)        # REG_RDX
+                    r8 = self.regs.get(8)
+                    if r8 and r8 < 0x100_0000:    # safety bound
+                        try:
+                            src = self.mem.read(rdx, r8)
+                            self.mem.write(rcx, src)
+                            log.info(
+                                "fast memcpy: 0x%x bytes from 0x%x "
+                                "to 0x%x", r8, rdx, rcx)
+                        except Exception as exc:
+                            log.warning("fast memcpy failed: %s", exc)
+                    # Jump past the loop body to the byte after the
+                    # back-edge branch.
                     self.regs.set(15, hi + (hi - lo) + 0x10)
                     recent.clear()
         return -1

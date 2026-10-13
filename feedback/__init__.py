@@ -1,6 +1,21 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 # UmerOS /feedback — Community Feedback, Bug Reports & GNU FDL Subsystem
 # =======================================================================
 # GPL-3.0 — see LICENSE and README for details.
+# License note: this package's *code* is GPL-3.0 (canonical). The
+# planned `gfdl` submodule is a docs-license engine — the GNU Free Documentation
 #
 # Implements the community feedback framework, bug/correction/suggestion
 # pipeline, and GNU Free Documentation License (GFDL) engine.
@@ -16,11 +31,11 @@
 # cli           - feedback_ctl command-line controller                           [PLANNED - not implemented]
 #
 # Author: Muhammad Umer Yasin / UmerOS Project
-# License: GPL-3.0 (GNU General Public License Version 3)
+# License: GPL-3.0 (GNU General Public License v3)
 # [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
 
 """
-UmerOS /feedback — Community Feedback, Bug Reports & GNU FDL Subsystem.
+UmerOS /feedback — Community Feedback, Bug Reports & GNU FDL Subsystem.  [EXPERIMENTAL]
 
 [STUB] Only the data models (``feedback.models``) are implemented. The
 collector / tracker / channels / gfdl / manager / cli submodules listed above do

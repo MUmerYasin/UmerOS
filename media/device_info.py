@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from .media_types import MediaDescriptor, MediaType
+from .nvme.device import classify_nvme_name
 
 log = logging.getLogger("UmerOS.Media.DeviceInfo")
 
@@ -190,8 +191,8 @@ def _classify_device(
     if "mmc" in name_lower or "mmcblk" in name_lower:
         return MediaType.MMC
 
-    # NVMe (removable)
-    if "nvme" in name_lower:
+    # NVMe (removable) - kernel naming via media.nvme
+    if classify_nvme_name(device_name) is not None:
         return MediaType.NVME
 
     # Tape
