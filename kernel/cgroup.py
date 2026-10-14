@@ -16,12 +16,29 @@ Umer OS Control Groups (cgroups)
 ================================
 Inspired by cgroups, this subsystem provides resource partitioning
 (CPU and Memory) for groups of tasks in the Umer OS kernel.
+
+Ungrouped-PID policy: ``CGroupManager.check_memory_limit`` used to
+return ``True`` (allow) for any PID not assigned to a cgroup, i.e. a silent
+fail-open resource gate. It now applies an explicit, auditable
+``ungrouped_policy`` that **defaults to fail-closed** (``"deny"``); the legacy
+implicit-allow behaviour is available only by opting into ``"allow"``.
 """
 
 import logging
 from typing import Dict, List, Set, Optional
 
 log = logging.getLogger("UmerOS.CGroup")
+
+# Explicit policy for PIDs that are not assigned to any cgroup.
+# Zero-trust default is fail-closed ("deny"); the historical silent-allow
+# behaviour must now be requested explicitly via "allow".
+UNGROUPED_POLICY_DENY = "deny"
+UNGROUPED_POLICY_ALLOW = "allow"
+UNGROUPED_POLICY_DEFAULT_CGROUP = "default_cgroup"
+_VALID_UNGROUPED_POLICIES = frozenset(
+    {UNGROUPED_POLICY_DENY, UNGROUPED_POLICY_ALLOW, UNGROUPED_POLICY_DEFAULT_CGROUP}
+)
+
 
 class CGroup:
     """A control group that limits resources for a set of tasks."""
@@ -54,7 +71,21 @@ class CGroup:
 class CGroupManager:
     """Manages all control groups in the system."""
     
-    def __init__(self):
+    def __init__(
+        self,
+        ungrouped_policy: str = UNGROUPED_POLICY_DENY,
+        default_cgroup: Optional[str] = None,
+    ):
+        # Validate the policy up front so a misconfiguration fails
+        # loudly instead of silently defaulting to a permissive posture.
+        if ungrouped_policy not in _VALID_UNGROUPED_POLICIES:
+            raise ValueError(
+                f"Unknown ungrouped_policy: {ungrouped_policy!r}; "
+                f"expected one of {sorted(_VALID_UNGROUPED_POLICIES)}"
+            )
+        self.ungrouped_policy = ungrouped_policy
+        self.default_cgroup = default_cgroup
+
         self.cgroups: Dict[str, CGroup] = {}
         
         # Pre-create standard cgroups
@@ -93,12 +124,56 @@ class CGroupManager:
             cg_name = self.pid_map.pop(pid)
             self.cgroups[cg_name].remove_task(pid)
 
+    def _handle_ungrouped(self, pid: int, requested_bytes: int) -> bool:
+        """Apply the explicit ``ungrouped_policy`` for a PID in no cgroup.
+
+        Zero-trust: PIDs that are not assigned to any cgroup are handled by the
+        explicit ``ungrouped_policy`` (fail-closed ``"deny"`` by default)
+        rather than being silently allowed.
+        """
+        if self.ungrouped_policy == UNGROUPED_POLICY_ALLOW:
+            # Documented, opt-in legacy behaviour — always audited.
+            log.warning(
+                "PID %d is not assigned to any cgroup; allowing %d-byte "
+                "allocation under explicit ungrouped_policy='allow'.",
+                pid, requested_bytes,
+            )
+            return True
+
+        if (
+            self.ungrouped_policy == UNGROUPED_POLICY_DEFAULT_CGROUP
+            and self.default_cgroup is not None
+        ):
+            cg = self.cgroups.get(self.default_cgroup)
+            if cg is not None:
+                requested_mb = requested_bytes / (1024 * 1024)
+                return cg.can_allocate_memory(requested_mb)
+            log.warning(
+                "PID %d is ungrouped and default_cgroup %r does not exist; "
+                "denying %d-byte allocation (fail-closed).",
+                pid, self.default_cgroup, requested_bytes,
+            )
+            return False
+
+        # Fail-closed default (zero-trust): deny allocations for ungrouped PIDs.
+        log.warning(
+            "PID %d is not assigned to any cgroup; denying %d-byte allocation "
+            "(fail-closed ungrouped_policy=%r).",
+            pid, requested_bytes, self.ungrouped_policy,
+        )
+        return False
+
     def check_memory_limit(self, pid: int, requested_bytes: int) -> bool:
-        """Check if a task is allowed to allocate the requested memory."""
+        """Check if a task is allowed to allocate the requested memory.
+
+        PIDs that are not assigned to any cgroup are handled by the
+        explicit ``ungrouped_policy`` (fail-closed ``"deny"`` by default)
+        rather than being silently allowed.
+        """
         cg_name = self.pid_map.get(pid)
         if not cg_name:
-            return True # Not in a cgroup, allow it implicitly or apply a global default
-            
+            return self._handle_ungrouped(pid, requested_bytes)
+
         cg = self.cgroups[cg_name]
         requested_mb = requested_bytes / (1024 * 1024)
         return cg.can_allocate_memory(requested_mb)

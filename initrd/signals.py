@@ -39,7 +39,7 @@ If the runtime is started from a real kernel and the host
 setting ``UMEROS_INITRD_SIGNALS=1`` in the environment.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

@@ -45,6 +45,12 @@ semantics preserved:
   * ``revert_creds()``      – restore the previous cred.
   * Capabilities are tracked separately from the ``CapabilityManager``
     (which enforces *checks*); cred carries the *set* the task owns.
+
+Zero-trust: ``euid == 0`` no longer implies any capability.
+``has_cap()`` consults only the explicit ``caps`` set, and root's power comes
+from ``DEFAULT_ROOT_CAPS`` — an explicit grant of every known capability
+(``KNOWN_CAPABILITIES``) — rather than a uid short-circuit. A root cred built
+with a restricted set (``with_capabilities``) is now genuinely restricted.
 """
 from __future__ import annotations
 
@@ -54,17 +60,37 @@ from typing import Any, FrozenSet, Iterable, Optional, Set
 
 log = logging.getLogger("UmerOS.Cred")
 
-# Root identity (uid 0) bypasses capability checks — mirrors ROOT.
+# Root identity (uid 0). uid 0 does NOT bypass capability checks:
+# root's power comes from the explicit DEFAULT_ROOT_CAPS grant below.
 ROOT_UID = 0
 NOBODY_UID = 65534  # "nobody" — unprivileged sentinel
 
-# Default capability set granted to root credentials.
-DEFAULT_ROOT_CAPS: FrozenSet[str] = frozenset({
-    "fs.read", "fs.write", "fs.admin",
+# The full capability vocabulary recognised by UmerOS (the union
+# of kernel/capability_manager.py and core/capability_gate.py constants).
+KNOWN_CAPABILITIES: FrozenSet[str] = frozenset({
+    # filesystem
+    "fs.read", "fs.write", "fs.admin", "fs.perms",
+    # networking
     "net.send", "net.recv", "net.admin",
+    # IPC
+    "ipc.send", "ipc.broadcast",
+    # process control
     "proc.spawn", "proc.kill",
+    # accelerators
+    "gpu.render", "gpu.compute",
+    "quantum.simulate", "quantum.hardware",
+    # AI
     "ai.inference", "ai.train",
+    # devices
+    "device.usb",
+    # administration
+    "install", "srv.backup", "tmp.reap", "sys.admin", "home.admin",
 })
+
+# Default capability set granted to root credentials. This is now
+# the *explicit* broad grant (previously root was omnipotent via a uid==0
+# short-circuit in has_cap). Root is powerful by grant, not by identity.
+DEFAULT_ROOT_CAPS: FrozenSet[str] = KNOWN_CAPABILITIES
 
 # Caps granted to an ordinary unprivileged user.
 DEFAULT_USER_CAPS: FrozenSet[str] = frozenset({
@@ -127,7 +153,11 @@ class Credentials:
     # ── Identity predicates ──────────────────────────────────────────────
 
     def is_root(self) -> bool:
-        """True if the *effective* uid is 0 (root bypass)."""
+        """True if the *effective* uid is 0.
+
+        Purely an identity predicate — it no longer implies any
+        capability. Use :meth:`has_cap` for capability checks.
+        """
         return self.euid == ROOT_UID
 
     def in_group(self, gid: int) -> bool:
@@ -135,8 +165,13 @@ class Credentials:
         return gid == self.gid or gid in self.groups
 
     def has_cap(self, cap: str) -> bool:
-        """True if the capability set contains ``cap`` (or euid is root)."""
-        return self.is_root() or cap in self.caps
+        """True if this credential's capability set contains ``cap``.
+
+        Zero-trust: ``euid == 0`` NO LONGER short-circuits the
+        check. Root is powerful because ``DEFAULT_ROOT_CAPS`` explicitly
+        grants every known capability, not because of its uid.
+        """
+        return cap in self.caps
 
     # ── Copy-on-write helpers ────────────────────────────────────────────
 

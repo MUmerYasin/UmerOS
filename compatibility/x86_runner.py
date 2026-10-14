@@ -2542,10 +2542,10 @@ class Emulator:
                     | (p[o + 1] << 8)
                     | (p[o + 2] << 16)
                     | (p[o + 3] << 24))
-        return (state["_l"](addr)
-                | (state["_l"](addr + 1) << 8)
-                | (state["_l"](addr + 2) << 16)
-                | (state["_l"](addr + 3) << 24))
+        return (state["_l"](state, addr)
+                | (state["_l"](state, addr + 1) << 8)
+                | (state["_l"](state, addr + 2) << 16)
+                | (state["_l"](state, addr + 3) << 24))
 
     @staticmethod
     def _jit_store_u32(state: Dict[str, Any], addr: int, val: int) -> None:
@@ -2560,20 +2560,20 @@ class Emulator:
             p[o + 2] = (val >> 16) & 0xFF
             p[o + 3] = (val >> 24) & 0xFF
             return
-        state["_s"](addr, val & 0xFF)
-        state["_s"](addr + 1, (val >> 8) & 0xFF)
-        state["_s"](addr + 2, (val >> 16) & 0xFF)
-        state["_s"](addr + 3, (val >> 24) & 0xFF)
+        state["_s"](state, addr, val & 0xFF)
+        state["_s"](state, addr + 1, (val >> 8) & 0xFF)
+        state["_s"](state, addr + 2, (val >> 16) & 0xFF)
+        state["_s"](state, addr + 3, (val >> 24) & 0xFF)
 
     @staticmethod
     def _jit_load_u64(state: Dict[str, Any], addr: int) -> int:
-        return (state["_l32"](addr)
-                | (state["_l32"](addr + 4) << 32))
+        return (state["_l32"](state, addr)
+                | (state["_l32"](state, addr + 4) << 32))
 
     @staticmethod
     def _jit_store_u64(state: Dict[str, Any], addr: int, val: int) -> None:
-        state["_s32"](addr, val & 0xFFFFFFFF)
-        state["_s32"](addr + 4, (val >> 32) & 0xFFFFFFFF)
+        state["_s32"](state, addr, val & 0xFFFFFFFF)
+        state["_s32"](state, addr + 4, (val >> 32) & 0xFFFFFFFF)
 
     def _build_jit_state(self) -> Dict[str, Any]:
         """Build the state dict used by the JIT'd functions.
@@ -2908,6 +2908,18 @@ class Emulator:
                     self._block_cache[rip_before] = compiled
                     cached = compiled
                 fn, _length = cached
+                # Refresh the flag scalars from the authoritative register
+                # file before running the block.  Non-compilable blocks run
+                # through ``step()``, which writes ``self.regs`` directly;
+                # the flag copies held in ``state`` would otherwise be stale,
+                # so a compiled block could branch on the wrong condition
+                # (e.g. a stale ZF wrongly taking a ``jne``).
+                state["cf"] = self.regs.cf
+                state["zf"] = self.regs.zf
+                state["sf"] = self.regs.sf
+                state["of"] = self.regs.of
+                state["pf"] = self.regs.pf
+                state["df"] = self.regs.df
                 # Refresh the page dict in case new pages were
                 # mapped by the loader after we cached the block.
                 state["pages"] = self.mem._pages
@@ -2916,6 +2928,15 @@ class Emulator:
                                  jit_l, jit_s, jit_l32, jit_s32,
                                  jit_l64, jit_s64)
                     self.regs.set(15, new_rip)
+                    # Write the block's flag results back to the register
+                    # file so a following interpreter ``step()`` (or the
+                    # next block) observes them.
+                    self.regs.cf = state["cf"]
+                    self.regs.zf = state["zf"]
+                    self.regs.sf = state["sf"]
+                    self.regs.of = state["of"]
+                    self.regs.pf = state["pf"]
+                    self.regs.df = state["df"]
                 except EmulatorHalt:
                     return self.exit_code
                 if self.stopped:

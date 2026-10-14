@@ -34,7 +34,7 @@ so that code running inside the RAM disk can still reach back to the
 host when needed (e.g. writing the next-stage image back to ``/boot``).
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

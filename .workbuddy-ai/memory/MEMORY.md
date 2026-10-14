@@ -14,9 +14,15 @@
 - **⚠ RED-loop file reverts repeatedly (sessions 95, 96→99, 100→101, 102→103, 104/105→106, 107→108):** `MainTask/Raw Data/RED Loop Prompt.md` gets regenerated back to an earlier state (session 95: post-session-93; session 99: post-session-H185; session 101: post-session-H195; session 103: post-session-101; session 106: post-session-103; session 108: post-session-106) with a reformatted layout (`  \- ` sub-bullets, sometimes a whole item's Issue+Action collapsed onto the box line). **Survives every revert:** the standard §9 rows and `MEMORY.md`. **Lost every revert:** the checklist boxes + RESOLVED notes (whole-file or, recent sessions, only the most-recent session(s)' edits). **Mitigation:** after each item, (a) always write the standard §9 row + MEMORY first (they persist), and (b) treat the checklist as rebuildable — re-apply lost boxes/notes bottom-up by anchoring on the NEXT box line, matching either `- [x] ` or `- [ ] ` prefix. If the file reverts again, rebuild from MEMORY's progress line.
 - Severity source of truth: standard §9 (rows whose Severity == 🔴).
 
+## ⚠ External rewrite strips `[FIX Hxxx]` tags (observed 2026-10-13, session 145)
+- An external process periodically **re-saves source files and strips the cosmetic `[FIX Hxxx]` comment tags** (kernel sources re-saved 17:32–17:36 with all H114–H119 *code* intact but every `[FIX Hxxx]` marker gone; it also truncated the H77 GFDL note in `feedback/__init__.py`). Sibling of the RED-loop-file reverts below.
+- **Consequence:** any test that asserts on the tag alone (`"[FIX Hxxx]" in src`) becomes brittle and will fail after a strip. **Rule: source-invariant tests must pin *code facts* (gate calls, method names, removed-excuse strings), never the tag.**
+- The remediation trail survives in the standard §9 rows, the checkpoint, and this file — not in the source tags. Do not fight the stripper by re-adding tags.
+
 ## Resumable remediation loop (H1–H307)
 - Checkpoint: `.workbuddy-ai/memory/remediation_progress.md` (307 items; flip `- [ ]`→`- [x]`, never regenerate). 6 bookkeeping surfaces per study: checkpoint box + NEXT pointer, standard §9 row (color + RESOLVED note), MEMORY YELLOW pointer + folder map, daily `YYYY-MM-DD.md`, per-session `remediation_sessionNN_overview.md`.
 - Test runner: stdlib `unittest` / pytest>=8 via venv `C:/Users/MC Raja Jang/.workbuddy-ai/binaries/python/envs/default` (QUOTE the path — it has a space). `cryptography` 50.0.0 present.
+- **Full-suite regression temp dir (session 146):** redirecting `TMP`/`TEMP` *into the project* causes **15 false failures** (9 `test_legal_scan`/`test_legal_security`, 6 `test_mnt`) because (a) `legal/licenses.py:scan_directory` skips any path with a `.`-prefixed component (a `.pytest_tmp` dir is skipped → `total_files_scanned=0`) and (b) `mnt/fstab.py` splits fstab lines on whitespace so a path with a **space** (`F:\Pension Person Details\UmerOS`) corrupts field offsets (`int('vfat')`). **Use a space-free, dot-free temp dir:** `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp` → clean run. These files pass in isolation (23 passed).
 - Shared guards: `core/path_guard.py` (`safe_child`/`safe_join`/`PathTraversalError`); `core/capability_gate.py` (`gate`/`require(cap)`, fail-closed when wired).
 - Project facts: ~735 Python modules; CI in `.github/workflows/` (`ci.yml`, `security_scan.yml`); `Old Linux Code/` (~93k) is reference-only (out of scope).
 - Pre-existing broken test to skip: `tests/test_ai.py` (collection error — `ai.providers` missing `AIConfigManager`); `home` package-shadow (`bin/home.py`/`root/home.py`) — load `home_backup.py` by file path under a unique module name in tests.
@@ -25,7 +31,7 @@
 ## Remediation status
 - **RED blockers: ALL CLOSED (sessions 1–33).**
 - **YELLOW sweep in progress (session 36+).** Large drift-recon resolutions: cloud/ fully 🟢 (H46,H154,H47,H48,H49). Many earlier H-items (H4,H5,H6,H7,H8,H9,H11,H13,H14,H15,H16,H19,H20,H23,H24,H26,H30) were RESOLVED with the premise proven stale/overstated — detail lives in the standard §9 + per-session overview files, not re-duplicated here.
-**Current pointer (session 132):** `compatibility/` + `core/` + `dev/` + `drivers/` + `etc/` + `feedback/` + `fs/` COMPLETE; `home/` in progress — **H94 RESOLVED (REAL FIX: both dynamic-import sites allow-listed — `ai_helper._try_import` validates against a module-level `_OPTIONAL_IMPORTS = ("qiskit","sklearn")` tuple before `importlib.import_module` (unknown names warn + return None, keeping the graceful-degrade contract); `__main__._cmd_selftest` hoists its 14-module tuple to `_SELFTEST_MODULES`; no live `__import__(...)` remains; new `tests/test_initrd_dynamic_import_h94.py` 20 passed)**. Next 🟡 **H95** - `initrd/` (all 17 modules): license line `GPL-3.0 (GNU General Public License Version 3)` is non-canonical (H7). Say **'continues'** for H95.
+**Current pointer (session 147):** `compatibility/` + `core/` + `dev/` + `drivers/` + `etc/` + `feedback/` + `fs/` + `home/` + `initrd/` + `installer/` COMPLETE; now in `kernel/` — **H121 RESOLVED (REAL FIX: header 3 copies → 1; removed a ~108-line commented-out duplicate of the whole module at the tail (220→114 lines); made the EULA `input()` EOF-safe; new `tests/test_kernel_bootloader_header_h121.py` 14 passed; full `tests/` 3445 passed / 0 failed)**. Next 💭 **H123** - `kernel/` off-baseline toy/REPL modules (`container_engine.py`, `umer_ai.py`, `qfs.py`, `pqcrypto_.py`, …). Say **'continues'** for H123.
 - **Standard §9 cleanup (2026-10-09):** all 63 resolved (🟢-severity) hotspot rows were removed from `MainTask/Raw Data/Code Review Standards and Process.md`; §9 now lists ONLY open hotspots (rows skip the removed IDs). Full resolution record remains in the checkpoint `remediation_progress.md`. Backup: `Code Review Standards and Process.md.pre-green-removal.bak`.
 - **⚠ Standard §9 REVERTED (session 84):** the live standard is now **973 lines / 217 rows (39🔴 63🟢 115🟡)** — the 🟢-removal edit was reverted/replaced externally (the file grew 736→673→973). H46 is duplicated (stale 🔴 at L356 + resolved 🟢 at L549). Awaiting user decision on whether to re-remove 🟢 rows.
 - **⚠ H62 REGRESSION (found session 117):** `drivers/` now has **0/75** `[TODAY]` tier labels despite H62 being marked RESOLVED (session 76). The tier-label convention still holds in `boot/` (23), `bin/` (44), `kernel/` (6), `core/` (1) and now `etc/` (81, H70) — but the drivers/ labels are gone (external revert or never persisted). Re-apply on request (same mechanical op as H70).
@@ -46,9 +52,9 @@
 - fs/ 🟢 H80,H81,H82
 - home/ 🟢 H83,H84,H85,H86,H87 (COMPLETE)
 - HostFiles/ 💭 H89
-- initrd/ 🟢 H2,H91,H92,H93,H94; 🟡 H95,H97; 💭 H96
-- installer/ 🟢 H98,H99,H100,H101,H102,H103; 🟡 H104–H109
-- kernel/ 🟢 H110,H111,H112; 🟡 H113–H127
+- initrd/ 🟢 H2,H91,H92,H93,H94,H95,H97 (sweep COMPLETE); 💭 H96
+- installer/ 🟢 H98,H99,H100,H101,H102,H103,H104,H106,H108,H109 (sweep COMPLETE)
+- kernel/ 🟢 H110–H121 (+ H122,H125 nits); 🟡 H127; 💭 H123,H124,H126
 - legal/ 🟢 H128,H129,H130,H131,H135; 🟡 H132,H136–H141; 💭 H137
 - lib/ 🟢 H3,H146,H147; 🟡 H148,H149,H150
 - liboqs/ 🟡 H151; 💭 H155

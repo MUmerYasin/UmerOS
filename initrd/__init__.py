@@ -65,7 +65,7 @@ Build a real initramfs image and run it through the runtime::
     print("built", result.output_path, "in", result.duration_seconds, "s")
 
     # Smoke test the runtime on the freshly built image.
-    blob = result.sha256_final  # placeholder
+    blob = result.sha3_512_final  # placeholder  # renamed field
     with open(result.output_path, "rb") as fh:
         from initrd.archivers import detect_archiver
         raw = detect_archiver(fh.read()).decompress(fh.seek(0) or fh.read())
@@ -80,7 +80,7 @@ The package also installs a small CLI: ``python -m initrd``.
 See :mod:`initrd.__main__` for the supported sub-commands.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

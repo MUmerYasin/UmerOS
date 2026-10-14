@@ -41,7 +41,7 @@ the kernel changes.  Real production setups would read from
 ``/lib/modules/$(uname -r)/modules.dep``.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

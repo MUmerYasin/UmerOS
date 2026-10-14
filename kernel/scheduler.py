@@ -26,6 +26,13 @@ EXPERIMENTAL: When a QPU becomes available the QuantumCircuitSimulator in
 quantum/quantum_sim.py will replace the placeholder probability.
 TODO: QPU integration hook at _select_next()
 
+Capability lifecycle is wired: ``attach_capability_manager()``
+makes task spawn register a PID (zero-trust default-deny; no capabilities
+unless ``default_capabilities`` is set) and task exit/removal revoke every
+grant. Until now the scheduler held no ``CapabilityManager``, so
+``exit_task``'s documented "revoke capabilities" step was inert — a grant
+leak on every task death.
+
 Author:  Umer OS Project
 License: GPL-3.0 (GNU General Public License Version 3)
 """
@@ -183,13 +190,17 @@ class HybridScheduler:
             When supplied, its ``evaluate_task_paths()`` refines task scores.
     """
 
-    def __init__(self, quantum_simulator=None) -> None:
+    def __init__(self, quantum_simulator=None, capability_manager=None) -> None:
         self._tasks:       Dict[int, Task]      = {}
         self._lock:        asyncio.Lock         = asyncio.Lock()
         self._ai                                = NullAIManager()
         self._running:     bool                 = False
         self._loop_task:   Optional[asyncio.Task] = None
         self._quantum_sim                       = quantum_simulator
+        # Capability lifecycle wiring. None => register/revoke
+        # on task spawn/exit is a no-op (backward compatible).
+        self.capability_manager                 = capability_manager
+        self.default_capabilities: tuple        = ()
         # Hung-task watchdog 
         self._watchdog_task: Optional[asyncio.Task] = None
         self._watchdog_interval: float = 10.0   # seconds between checks
@@ -207,6 +218,61 @@ class HybridScheduler:
         self._ai = ai_manager
         log.debug("AI manager injected into HybridScheduler: %s",
                   type(ai_manager).__name__)
+
+    # ── Capability lifecycle (H115) ──────────────────────────────────────────
+
+    def attach_capability_manager(self, manager, default_capabilities=()) -> None:
+        """Wire a ``CapabilityManager`` for task lifecycle gating.
+
+        The scheduler previously held no manager, so ``exit_task``'s
+        documented "revoke capabilities" step was a no-op and every task
+        death leaked its grants. Wiring a manager makes spawn register the
+        PID (zero-trust: no capabilities unless ``default_capabilities``
+        is set) and exit/removal actually revoke them.
+
+        Args:
+            manager: A ``CapabilityManager`` (or any object exposing
+                ``register``/``grant_many``/``revoke_all``).
+            default_capabilities: Capabilities granted to every newly
+                spawned task. Defaults to empty (default-deny).
+        """
+        self.capability_manager = manager
+        self.default_capabilities = tuple(default_capabilities)
+        if manager is not None:
+            # Back-fill tasks already scheduled before the manager was wired.
+            for pid in list(self._tasks):
+                self._register_task_caps(pid)
+
+    def _register_task_caps(self, pid: int) -> None:
+        """Register a task PID and grant its default capabilities."""
+        mgr = getattr(self, "capability_manager", None)
+        if mgr is None:
+            return
+        try:
+            mgr.register(pid)
+            defaults = getattr(self, "default_capabilities", ())
+            if defaults:
+                mgr.grant_many(pid, list(defaults))
+        except Exception as exc:  # noqa: BLE001 - never break scheduling
+            log.warning("Capability register failed for PID %d: %s", pid, exc)
+
+    def _revoke_task_caps(self, pid: int) -> int:
+        """Revoke every capability held by a dead task.
+
+        Never touches ``SYSTEM_PID`` (0) — the kernel's own omnipotent
+        grant must survive task churn.
+
+        Returns:
+            Number of capabilities revoked (0 when no manager is wired).
+        """
+        mgr = getattr(self, "capability_manager", None)
+        if mgr is None or pid == 0:
+            return 0
+        try:
+            return mgr.revoke_all(pid)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Capability revoke failed for PID %d: %s", pid, exc)
+            return 0
 
     # ── Task management ──────────────────────────────────────────────────────
 
@@ -232,6 +298,7 @@ class HybridScheduler:
                             task.pid, exc)
                 task.quantum_state["superposition"] = task.priority
             self._tasks[task.pid] = task
+        self._register_task_caps(task.pid)  # register on spawn
         log.debug("Task added: PID %d (%s) score=%.3f",
                   task.pid, task.name, task.quantum_state["superposition"])
 
@@ -266,6 +333,7 @@ class HybridScheduler:
             task.parent_pid = parent_pid
             self._tasks[parent_pid].children.add(task.pid)
             self._tasks[task.pid] = task
+        self._register_task_caps(task.pid)  # register on spawn
         log.debug("Child spawned: PID %d (%s) under parent PID %d",
                   task.pid, task.name, parent_pid)
 
@@ -279,7 +347,10 @@ class HybridScheduler:
             The removed Task, or None if not found.
         """
         async with self._lock:
-            return self._tasks.pop(pid, None)
+            removed = self._tasks.pop(pid, None)
+        if removed is not None:
+            self._revoke_task_caps(pid)  # revoke on removal
+        return removed
 
     async def get_task(self, pid: int) -> Optional[Task]:
         """Look up a task by PID without removing it.
@@ -506,6 +577,11 @@ class HybridScheduler:
 
             # Clear children set
             task.children.clear()
+
+            # Revoke every capability the task held. The
+            # docstring claimed this step but the body never did it, so a
+            # dead task's grants leaked until PID reuse.
+            self._revoke_task_caps(pid)
 
             task.state = TaskState.DONE
             task.touch_state()

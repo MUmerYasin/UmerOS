@@ -16,6 +16,8 @@
 # GPL-3.0 — see LICENSE and README for details.
 # License note: this package's *code* is GPL-3.0 (canonical). The
 # planned `gfdl` submodule is a docs-license engine — the GNU Free Documentation
+# License (GFDL) governs *documentation output*, not code; this note does
+# not relicense any code.
 #
 # Implements the community feedback framework, bug/correction/suggestion
 # pipeline, and GNU Free Documentation License (GFDL) engine.

@@ -47,7 +47,7 @@ kernel has already unpacked the archive into a tmpfs by the time
 Arch ``archlinux-*.img``) without spawning an external ``cpio``.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

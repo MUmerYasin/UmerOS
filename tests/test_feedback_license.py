@@ -72,7 +72,8 @@ def test_both_files_declare_canonical_license():
 
 def test_gfdl_reference_reconciled():
     src = (_FEEDBACK / "__init__.py").read_text(encoding="utf-8")
-    assert "[FIX H77]" in src
+    # NB: the cosmetic tag can be stripped by external
+    # tooling, so assert on the substantive note instead.
     # the note must make explicit that GFDL governs docs output, not code
     assert "documentation output" in src
     assert "not relicense any code" in src

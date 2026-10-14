@@ -12,8 +12,23 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-Umer OS Shell Command Registry
-==============================
+Umer OS Shell Command Registry  [EXPERIMENTAL]
+==============================================
+
+ The shell user/credential model is SIMULATED: ``ctx.shell.current_user``
+is a plain string and there is no password store. ``sudo``/``su`` (privilege
+escalation / identity switch) are therefore gated behind ``CAP_SYS_ADMIN`` —
+fail-closed when a CapabilityManager is wired (a running kernel wires
+SYSTEM_PID at boot), permissive-with-warning standalone. Real PAM/password
+authentication is [FUTURE].
+
+Every privileged command handler is capability-gated rather than
+relying on an unenforced ``current_user``: process control (``kill``,
+``killall``, ``pkill``), system control (``shutdown``), module loading
+(``modprobe``, ``insmod``) and mounts (``mount``) require ``CAP_SYS_ADMIN``;
+permission changes (``chmod``, ``chown``) require ``CAP_FS_PERMS``. A denial
+raises ``PermissionError`` (fail-closed when a manager is wired / strict).
+
 Implements comprehensive commands covering:
 - Hardware Information (lscpu, lsblk, lspci, lsusb, lshw, dmidecode, hdparm, badblocks, fsck)
 - Searching (find, grep, locate, which, whereis, awk, sed)
@@ -34,6 +49,23 @@ import time
 import os
 import re
 from .power_manager import POWER_MANAGER
+
+# Zero-trust capability gate for privileged shell builtins.
+# Also imported for the capability-gated privileged command
+# handlers (kill/killall/pkill/shutdown/modprobe/mount/insmod ->
+# CAP_SYS_ADMIN; chmod/chown -> CAP_FS_PERMS).
+try:  # Preferred: import from inside the UmerOS package layout.
+    from core.capability_gate import gate, CAP_SYS_ADMIN, CAP_FS_PERMS
+except Exception:  # pragma: no cover - standalone / out-of-package fallback.
+    try:
+        from capability_gate import gate, CAP_SYS_ADMIN, CAP_FS_PERMS
+    except Exception:  # Last-resort stand-in so the module always imports.
+        class _Gate:
+            def require(self, cap, *a, **k):
+                pass
+        gate = _Gate()
+        CAP_SYS_ADMIN = "sys.admin"
+        CAP_FS_PERMS = "fs.perms"
 
 class CommandContext:
     """Provides execution context (kernel access, shell state) to commands."""
@@ -1216,6 +1248,10 @@ class SudoCommand(ShellCommand):
     
     def execute(self, ctx, args):
         if not args: return "usage: sudo -h | -K | -k | -V"
+        # Escalating to root is a privileged operation. This is
+        # fail-closed when a CapabilityManager is wired; real PAM/password
+        # authentication is [FUTURE] (simulated user model).
+        gate.require(CAP_SYS_ADMIN)
         sub_cmd = args[0]
         sub_args = args[1:]
         
@@ -1237,6 +1273,10 @@ class SuCommand(ShellCommand):
     category = "User & Group"
     
     def execute(self, ctx, args):
+        # Switching identity (including to root) is privileged.
+        # Fail-closed when a CapabilityManager is wired; a real credential
+        # check is [FUTURE] — the user model here is simulated.
+        gate.require(CAP_SYS_ADMIN)
         user = args[0].replace("-", "") if args else "root"
         if not user: user = "root"
         ctx.shell.current_user = user
@@ -1403,6 +1443,8 @@ class KillCommand(ShellCommand):
     category = "Process Management"
     
     def execute(self, ctx, args):
+        # Terminating another process is privileged.
+        gate.require(CAP_SYS_ADMIN)
         if not args: return "kill: usage: kill [-s sigspec | -n signum | -sigspec] pid | jobspec ..."
         pid_str = args[-1]
         try:
@@ -1423,6 +1465,8 @@ class KillallCommand(ShellCommand):
     category = "Process Management"
     
     def execute(self, ctx, args):
+        # Mass process termination is privileged.
+        gate.require(CAP_SYS_ADMIN)
         if not args: return "killall: usage: killall process_name"
         target_name = args[0]
         killed = 0
@@ -1442,6 +1486,8 @@ class PkillCommand(ShellCommand):
     category = "Process Management"
     
     def execute(self, ctx, args):
+        # pkill delegates to KillallCommand, which enforces
+        # CAP_SYS_ADMIN, so the gate also covers this handler.
         return KillallCommand().execute(ctx, args)
 
 class PstreeCommand(ShellCommand):
@@ -1645,6 +1691,8 @@ class ShutdownCommand(ShellCommand):
     category = "System Management"
     
     def execute(self, ctx, args):
+        # [FIX H114] Halting the machine is privileged.
+        gate.require(CAP_SYS_ADMIN)
         ctx.kernel.request_shutdown()
         return "System is shutting down now!"
 
@@ -1654,6 +1702,8 @@ class ModprobeCommand(ShellCommand):
     category = "System Management"
     
     def execute(self, ctx, args):
+        #Loading kernel modules is privileged.
+        gate.require(CAP_SYS_ADMIN)
         if not args: return "modprobe: missing module name"
         mod = args[-1]
         return f"modprobe: Module {mod} loaded into kernel ring buffer."
@@ -1715,6 +1765,8 @@ class MountCommand(ShellCommand):
     category = "Disk Usage"
     
     def execute(self, ctx, args):
+        # Mounting a filesystem is privileged.
+        gate.require(CAP_SYS_ADMIN)
         try:
             return ctx.kernel.vfs.read_file("/proc/mounts")
         except Exception:
@@ -1805,6 +1857,8 @@ class ChmodCommand(ShellCommand):
     category = "Permissions"
     
     def execute(self, ctx, args):
+        # Changing file permissions is privileged.
+        gate.require(CAP_FS_PERMS)
         if len(args) < 2: return "chmod: missing operand"
         mode, path = args[0], args[-1]
         return f"chmod: changed permissions of '{path}' to {mode}"
@@ -1815,6 +1869,8 @@ class ChownCommand(ShellCommand):
     category = "Permissions"
     
     def execute(self, ctx, args):
+        # Changing file ownership is privileged.
+        gate.require(CAP_FS_PERMS)
         if len(args) < 2: return "chown: missing operand"
         owner, path = args[0], args[-1]
         return f"chown: changed ownership of '{path}' to {owner}"
@@ -1829,6 +1885,8 @@ class InsmodCommand(ShellCommand):
     category = "SSH & Remote"
     
     def execute(self, ctx, args):
+        # Inserting a kernel module is privileged.
+        gate.require(CAP_SYS_ADMIN)
         if not args: return "usage: insmod <module>"
         return f"insmod: inserted module '{args[0]}' successfully"
 

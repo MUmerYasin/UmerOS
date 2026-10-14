@@ -38,7 +38,7 @@ If you want richer behaviour, install the optional packages listed in
 ``qiskit-aer``) and the helper will pick them up automatically.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -149,13 +149,15 @@ class AIHelper:
 
         Tries to draw from a quantum RNG via qiskit-aer; if that is
         not available, falls back to :func:`os.urandom`.  Always
-        post-whitens with SHA-256 so callers don't have to.
+        post-whitens with SHA3-512 so callers don't have to.
         """
         if n <= 0:
             return b""
         raw = self._qiskit_entropy(n) if self._qiskit is not None else os.urandom(n)
-        # Whiten to remove any statistical bias from the QRNG.
-        return hashlib.sha256(raw + os.urandom(16)).digest()[:n]
+        # [FIX H97] Whiten to remove any statistical bias from the QRNG.
+        # SHA3-512 is the UmerOS design-mandate hash (not SHA-256), and its
+        # 64-byte digest covers every `n` this helper serves.
+        return hashlib.sha3_512(raw + os.urandom(16)).digest()[:n]
 
     # -- introspection ----------------------------------------------------
 

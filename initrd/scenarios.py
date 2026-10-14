@@ -31,7 +31,7 @@ Scenarios are pure data: they never touch the VFS or the phase
 machine directly.  That keeps them easy to unit-test in isolation.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

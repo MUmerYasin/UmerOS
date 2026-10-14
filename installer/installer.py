@@ -16,13 +16,25 @@ Umer OS Installer  [TODAY]
 ==========================
 Full interactive installation wizard for Umer OS.
 
-Legal requirements (non-negotiable):
+Honored guarantees ([TODAY] — enforced by this module):
   1. The EULA / liability waiver is displayed before ANY action is taken.
-  2. User must type exactly ``I AGREE`` (case-sensitive) to proceed.
-  3. A backup of the current bootloader / partition table is created before
-     any system modification.
-  4. ``rollback()`` fully restores the pre-installation state.
-  5. All actions are logged with timestamps to INSTALL_LOG.
+  2. The user must type exactly ``I AGREE`` (case-sensitive) to proceed.
+  3. All actions are logged with timestamps to INSTALL_LOG.
+
+Partial / [FUTURE] guarantees (NOT fully honored yet — do not over-read):
+  4. ``backup_bootloader()`` writes a **metadata-only** JSON snapshot of the
+     pre-install state (timestamp, platform, install root). Capturing real
+     MBR/GPT bytes and EFI entries is [FUTURE], so the installer does NOT
+     currently back up the partition table.
+  5. ``rollback()`` removes the files it installed (``rmtree`` of the install
+     root) and resets state. It does NOT restore a bootloader or partition
+     table; a true pre-install restore is [FUTURE].
+
+The waiver text was softened to match TODAY's behaviour so the
+module no longer over-promises a backup/restore contract it does not
+implement (compounds H99/H101). Machine-readable status:
+``BACKUP_CAPTURES_BOOT_BYTES`` and ``ROLLBACK_RESTORES_BOOT_STATE`` are both
+False until the [FUTURE] work lands.
 
 Usage (interactive)::
 
@@ -35,12 +47,13 @@ Usage (programmatic)::
     inst.run()
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -74,6 +87,27 @@ log = logging.getLogger("UmerOS.Installer")
 INSTALL_ROOT = os.environ.get("UMER_INSTALL_ROOT", "/opt/umer_os")
 BACKUP_DIR   = os.environ.get("UMER_BACKUP_DIR",   "/opt/umer_backup")
 INSTALL_LOG  = os.environ.get("UMER_INSTALL_LOG",  "/var/log/umer_install.log")
+
+# Pinned source-tree manifest. When this file is present in the
+# install source directory it is treated as the authority for what may be
+# copied: every source file's SHA3-512 digest must match the manifest entry,
+# or the install refuses to copy (fail-closed). Obtaining the manifest from a
+# trusted release channel is the operator's responsibility (the same
+# trust model as a signed release artefact); the installer enforces
+# hash-consistency against it. Format:
+#   {"files": {"<rel/path>": "<sha3-512 hex>", ...}, "tree": "<hex>"}
+INSTALL_MANIFEST_NAME = os.environ.get(
+    "UMER_INSTALL_MANIFEST", "umer-install-manifest.json"
+)
+
+# Honest capability flags. The waiver / docstring must not claim
+# more than the shipping code does. TODAY: the pre-install backup is a
+# metadata-only JSON snapshot (no MBR/GPT bytes, no EFI entries) and rollback
+# only removes the install root. Capturing boot bytes and performing a true
+# boot/partition restore are [FUTURE]. These flags are the single source of
+# truth the docs and tests reference.
+BACKUP_CAPTURES_BOOT_BYTES = False   # [FUTURE] real MBR/GPT/EFI byte backup
+ROLLBACK_RESTORES_BOOT_STATE = False  # [FUTURE] true boot/partition restore
 
 # EULA text (verbatim — must not be modified)
 EULA_TEXT = """
@@ -153,6 +187,34 @@ def _safe_join(root: str, rel: str) -> "Optional[str]":
         # Different drives / unnormalizable — treat as an escape.
         return None
     return target
+
+
+def _sha3_512_file(path: str) -> str:
+    """Return the SHA3-512 hex digest of ``path`` (streamed).
+
+    SHA3-512 is the UmerOS design-mandate hash (H97); streaming
+    keeps memory bounded for large artefacts.
+    """
+    h = hashlib.sha3_512()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _tree_digest(pairs: "List[tuple[str, str]]") -> str:
+    """Deterministic aggregate digest over ``(rel_path, sha3_512)`` pairs.
+
+    Sorted by path so the digest is order-independent; mirrors the
+    payload-hash construction used by ``packages.umer_pkg``.
+    """
+    h = hashlib.sha3_512()
+    for rel, digest in sorted(pairs, key=lambda x: x[0]):
+        h.update(rel.encode("utf-8"))
+        h.update(b"\x00")
+        h.update(digest.encode("ascii"))
+        h.update(b"\n")
+    return h.hexdigest()
 
 
 # ---------------------------------------------------------------------------
@@ -312,10 +374,13 @@ class UmerInstaller:
     # ── Backup ────────────────────────────────────────────────────────────
 
     def backup_bootloader(self, dest: Optional[str] = None) -> str:
-        """Save a snapshot of the current boot configuration.
+        """Save a **metadata-only** snapshot of the current boot configuration.
 
-        TODAY: Writes a JSON file documenting the pre-install state.
-        FUTURE: Saves MBR/GPT bytes and EFI entries.
+        TODAY: writes a JSON file documenting the pre-install state
+        (timestamp, platform, install root). It does **not** capture MBR/GPT
+        bytes or EFI entries, so it cannot be used to restore a bootloader or
+        partition table — that is [FUTURE] (see ``BACKUP_CAPTURES_BOOT_BYTES``).
+        The waiver text has been softened accordingly.
 
         Args:
             dest: Override backup destination directory.
@@ -342,6 +407,133 @@ class UmerInstaller:
         self._logger.record(f"Bootloader backup saved to '{path}'.")
         return path
 
+    # ── Source integrity (H108) ───────────────────────────────────────────
+
+    def _iter_source_files(self, src: str):
+        """Yield ``(rel_path, abs_path)`` for every copyable source file.
+
+        Mirrors the filtering used by :meth:`copy_os_files` (skip hidden
+        dirs/files) so verification and copy see the same file set.
+        """
+        for root, dirs, files in os.walk(src):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for fname in files:
+                if fname.startswith("."):
+                    continue
+                abs_path = os.path.join(root, fname)
+                yield os.path.relpath(abs_path, src), abs_path
+
+    def verify_source_integrity(
+        self,
+        source: Optional[str] = None,
+        require_manifest: Optional[bool] = None,
+    ):
+        """Verify the source tree against a pinned manifest.
+
+        The installer previously copied whatever was at ``source_dir`` with no
+        integrity check, so a swapped/tampered source tree was installed
+        unverified. This method enforces hash-consistency against
+        ``INSTALL_MANIFEST_NAME`` (a pinned ``{rel_path: sha3_512}`` manifest)
+        BEFORE anything is copied.
+
+        Args:
+            source: Override source directory (defaults to ``self._source``).
+            require_manifest: Force the no-manifest policy. ``None`` follows
+                the capability gate's strict mode (``gate.strict`` /
+                ``UMEROS_STRICT_GATE``); ``True`` always fails closed when no
+                manifest is present; ``False`` always permits-with-warning.
+
+        Returns:
+            ``(ok, tree_digest)``. ``ok`` is True when the tree may be copied
+            (verified, or permitted-with-warning). ``tree_digest`` is the
+            verified aggregate SHA3-512, or ``None`` when unverified.
+        """
+        src = os.path.abspath(source or self._source)
+        if require_manifest is None:
+            require_manifest = bool(getattr(gate, "strict", False))
+
+        manifest_path = os.path.join(src, INSTALL_MANIFEST_NAME)
+        if not os.path.isfile(manifest_path):
+            msg = (
+                f"No pinned source manifest ('{INSTALL_MANIFEST_NAME}') found in "
+                f"'{src}' — source integrity is UNVERIFIABLE."
+            )
+            if require_manifest:
+                log.error(msg + " Refusing to copy (strict).")
+                self._logger.record(msg + " Refusing to copy (fail-closed).")
+                return False, None
+            log.warning(msg + " Proceeding without verification.")
+            self._logger.record(msg + " Proceeding (non-strict).")
+            return True, None
+
+        # A manifest is present: it is authoritative. Any parse error, missing
+        # entry, or digest mismatch is a hard failure (fail-closed).
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as fh:
+                raw = json.load(fh)
+        except (OSError, ValueError) as exc:
+            log.error("Could not read source manifest '%s': %s", manifest_path, exc)
+            self._logger.record(f"Source manifest unreadable — refusing to copy: {exc}")
+            return False, None
+
+        if isinstance(raw, dict) and isinstance(raw.get("files"), dict):
+            expected: Dict[str, str] = raw["files"]
+        elif isinstance(raw, dict):
+            expected = raw
+        else:
+            log.error("Malformed source manifest (not a mapping): %s", manifest_path)
+            self._logger.record("Malformed source manifest — refusing to copy.")
+            return False, None
+
+        expected_norm = {
+            str(k).replace(os.sep, "/"): str(v).strip().lower()
+            for k, v in expected.items()
+        }
+
+        pairs: "List[tuple[str, str]]" = []
+        mismatches: List[str] = []
+        seen = set()
+        for rel, abs_path in self._iter_source_files(src):
+            if rel == INSTALL_MANIFEST_NAME:
+                continue  # the manifest does not attest itself
+            rel_norm = rel.replace(os.sep, "/")
+            seen.add(rel_norm)
+            try:
+                actual = _sha3_512_file(abs_path)
+            except OSError as exc:
+                mismatches.append(f"{rel_norm}: unreadable ({exc})")
+                continue
+            want = expected_norm.get(rel_norm)
+            if want is None:
+                mismatches.append(f"{rel_norm}: not listed in manifest")
+            elif want != actual:
+                mismatches.append(f"{rel_norm}: digest mismatch")
+            else:
+                pairs.append((rel_norm, actual))
+
+        # Files the manifest attests but which are absent on disk.
+        missing = sorted(set(expected_norm) - seen)
+        for rel_norm in missing:
+            mismatches.append(f"{rel_norm}: present in manifest but missing on disk")
+
+        if mismatches:
+            detail = "; ".join(mismatches[:10])
+            log.error("Source integrity FAILED (%d issue(s)): %s",
+                      len(mismatches), detail)
+            self._logger.record(
+                f"Source integrity FAILED ({len(mismatches)} issue(s)) — "
+                f"refusing to copy: {detail}"
+            )
+            return False, None
+
+        digest = _tree_digest(pairs)
+        log.info("Source integrity OK: %d file(s), tree SHA3-512=%s", len(pairs), digest)
+        self._logger.record(
+            f"Source integrity OK: {len(pairs)} file(s) verified against "
+            f"'{INSTALL_MANIFEST_NAME}'; tree SHA3-512={digest}"
+        )
+        return True, digest
+
     # ── File copy ─────────────────────────────────────────────────────────
 
     def copy_os_files(
@@ -351,22 +543,36 @@ class UmerInstaller:
     ) -> int:
         """Copy Umer OS source files to the installation directory.
 
+        The source tree is integrity-verified against the pinned
+        manifest BEFORE anything is copied; a failed verification copies
+        nothing and returns 0. The verified aggregate digest is recorded in
+        the install log.
+
         Args:
             source: Override source directory.
             dest:   Override destination directory.
 
         Returns:
-            Number of files copied.
+            Number of files copied (0 if verification refused the copy).
         """
         src  = source or self._source
         dst  = dest   or self._install_root
         count = 0
 
-        os.makedirs(dst, exist_ok=True)
-        self._logger.record(f"Copying files from '{src}' to '{dst}'.")
+        # Verify authenticity before touching the destination.
+        verified, digest = self.verify_source_integrity(src)
+        if not verified:
+            log.error("Aborting copy: source integrity verification failed.")
+            self._logger.record("Copy aborted — source integrity verification failed.")
+            return 0
+        if digest:
+            self._logger.record(f"Verified source tree digest: {digest}")
 
         #  Privileged copy requires a capability (fail-closed when wired).
         gate.require(CAP_FS_ADMIN)
+        os.makedirs(dst, exist_ok=True)
+        self._logger.record(f"Copying files from '{src}' to '{dst}'.")
+
         for root, dirs, files in os.walk(src):
             # Skip hidden dirs like .git (H103: also skip hidden files).
             dirs[:] = [d for d in dirs if not d.startswith(".")]
@@ -447,9 +653,13 @@ class UmerInstaller:
     # ── Rollback ──────────────────────────────────────────────────────────
 
     def rollback(self) -> bool:
-        """Restore the pre-installation state.
+        """Remove the files this installer created and mark the state rolled back.
 
-        Removes all installed files and marks the state as rolled back.
+        This is a **best-effort cleanup**, not a full restore: it
+        ``rmtree``s the install root and resets state. It does **not** restore
+        a bootloader or partition table (the metadata backup is not sufficient
+        for that) — a true pre-install restore is [FUTURE] (see
+        ``ROLLBACK_RESTORES_BOOT_STATE``).
 
         Returns:
             True if rollback completed, False if nothing to roll back.
@@ -485,7 +695,9 @@ class UmerInstaller:
         self._state["phase"] = "rolled_back"
         self._logger.record("Rollback complete.")
         self._logger.flush()
-        log.info("Rollback complete. System restored to pre-installation state.")
+        # Accurate wording — only the installed files were removed;
+        # no bootloader/partition state was restored.
+        log.info("Rollback complete. Installed files removed; install root cleaned up.")
         return True
 
     # ── Main orchestrator ─────────────────────────────────────────────────

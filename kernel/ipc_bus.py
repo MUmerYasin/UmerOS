@@ -27,8 +27,12 @@ Design:
   - ``send(src, dst, payload)`` — directed async send.
   - ``broadcast(src, channel, payload)`` — async fan-out to all channel subscribers.
   - ``receive(pid)``  — async blocking receive with HMAC verification.
-  - ``try_receive(pid)`` — non-blocking receive (returns None if empty).
+  - ``try_receive(pid)`` — non-blocking receive (HMAC-verified; None if empty).
   - ``sign(payload)`` — compute HMAC-SHA256 hex for an arbitrary dict.
+
+Zero-trust: ``send``/``broadcast`` are gated on the *sender's*
+capability (``ipc.send`` / ``ipc.broadcast``), and **every** receive path
+(``receive`` *and* ``try_receive``) verifies the HMAC signature.
 
 Author:  Umer OS Project
 License: GPL-3.0 (GNU General Public License Version 3)
@@ -48,6 +52,29 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.IPCBus")
+
+# Zero-trust capability gate for IPC message injection. Imported
+# defensively so the bus still loads standalone / out-of-package.
+try:  # Preferred: import from inside the UmerOS package layout.
+    from core.capability_gate import gate as _gate
+except Exception:  # pragma: no cover - standalone / out-of-package fallback.
+    try:
+        from capability_gate import gate as _gate
+    except Exception:  # Last-resort stand-in so the module always imports.
+        class _Gate:
+            def require(self, cap, *a, **k):
+                pass
+        _gate = _Gate()
+
+# Zero-trust IPC capabilities (mirrors kernel/capability_manager.py).
+try:
+    from kernel.capability_manager import CAP_IPC_SEND, CAP_IPC_BROADCAST
+except Exception:  # pragma: no cover
+    try:
+        from capability_manager import CAP_IPC_SEND, CAP_IPC_BROADCAST
+    except Exception:
+        CAP_IPC_SEND = "ipc.send"
+        CAP_IPC_BROADCAST = "ipc.broadcast"
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +263,12 @@ class IPCBus:
 
         Returns:
             True if the message was queued, False if dst is not registered.
+
+        Raises:
+            PermissionError: If the sender lacks ``ipc.send`` (H117).
         """
+        # Zero-trust gate for IPC message injection. Imported
+        _gate.require(CAP_IPC_SEND, src)
         if dst not in self._queues:
             log.warning("send: PID %d not registered; message dropped.", dst)
             return False
@@ -260,7 +292,12 @@ class IPCBus:
 
         Returns:
             Number of subscribers that received the message.
+
+        Raises:
+            PermissionError: If the sender lacks ``ipc.broadcast`` (H117).
         """
+        # Zero-trust gate for IPC message injection. Imported
+        _gate.require(CAP_IPC_BROADCAST, src)
         async with self._lock:
             subscribers = list(self._subscribers.get(channel, []))
 
@@ -308,24 +345,35 @@ class IPCBus:
         return msg
 
     def try_receive(self, pid: int) -> Optional[IPCMessage]:
-        """Non-blocking receive — returns next message or None.
+        """Non-blocking receive — returns next *verified* message or None.
 
-        Does *not* verify HMAC so it can be called without an event loop.
-        For production, prefer ``receive()`` which awaits and verifies.
+        Zero-trust HMAC verification is performed here too — it is
+        synchronous (``hmac`` + ``compare_digest``) and needs no event loop,
+        so the old "skip verification" rationale was unsound. Invalid
+        messages are dropped and the queue is drained until a valid one (or
+        the queue is empty), so a forged message cannot wedge the queue head.
 
         Args:
             pid: Recipient PID.
 
         Returns:
-            Next IPCMessage, or None if queue is empty or PID is unknown.
+            Next verified IPCMessage, or None if the queue is empty / PID is
+            unknown / every queued message failed verification.
         """
         queue = self._queues.get(pid)
         if queue is None:
             return None
-        try:
-            return queue.get_nowait()
-        except asyncio.QueueEmpty:
-            return None
+        while True:
+            try:
+                msg = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                return None
+            if msg.verify(self._key):
+                return msg
+            log.error(
+                "SECURITY: Dropped message with invalid HMAC (channel '%s') "
+                "in try_receive.", msg.channel,
+            )
 
     def pending(self, pid: int) -> int:
         """Return the number of messages queued for a PID.

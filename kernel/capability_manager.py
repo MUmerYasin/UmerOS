@@ -57,6 +57,7 @@ CAP_PROC_SPAWN    = "proc.spawn"
 CAP_PROC_KILL     = "proc.kill"
 CAP_DEVICE_USB    = "device.usb"
 CAP_IPC_BROADCAST = "ipc.broadcast"
+CAP_IPC_SEND      = "ipc.send"           # directed IPC send
 CAP_INSTALL       = "install"            # admin-only
 
 # Reserved kernel PID

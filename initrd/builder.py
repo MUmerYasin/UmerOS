@@ -53,7 +53,7 @@ build server, hand the resulting blob to the bootloader
 boot.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -175,8 +175,8 @@ class BuildResult:
     compressed_size: int
     entry_count: int
     duration_seconds: float
-    sha256_raw: str
-    sha256_final: str
+    sha3_512_raw: str   # raw-image SHA3-512 (was sha256_raw)
+    sha3_512_final: str  # final-image SHA3-512 (was sha256_final)
     archiver: str
     scenario: str
     notes: List[str] = field(default_factory=list)
@@ -188,8 +188,8 @@ class BuildResult:
             "compressed_size":  self.compressed_size,
             "entry_count":      self.entry_count,
             "duration_seconds": round(self.duration_seconds, 6),
-            "sha256_raw":       self.sha256_raw,
-            "sha256_final":     self.sha256_final,
+            "sha3_512_raw":     self.sha3_512_raw,
+            "sha3_512_final":   self.sha3_512_final,
             "archiver":         self.archiver,
             "scenario":         self.scenario,
             "notes":            list(self.notes),
@@ -304,7 +304,7 @@ class InitrdBuilder:
 
         # 4. Pack + compress.
         raw = pack_archive(entries)
-        raw_sha = hashlib.sha256(raw).hexdigest()
+        raw_sha = hashlib.sha3_512(raw).hexdigest()  # design-mandate hash
 
         out_path = Path(request.output_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -319,7 +319,7 @@ class InitrdBuilder:
             archiver = get_archiver(archiver_name)
             final_bytes = archiver.compress(raw, level=request.compression_level)
             out_path.write_bytes(final_bytes)
-        final_sha = hashlib.sha256(final_bytes).hexdigest()
+        final_sha = hashlib.sha3_512(final_bytes).hexdigest()  # design-mandate hash
         notes.append(f"scenario={scenario.id.value} modules={len(module_names)}")
 
         # 5. Optionally write the request next to the image for auditing.
@@ -338,8 +338,8 @@ class InitrdBuilder:
             compressed_size=len(final_bytes),
             entry_count=len(entries),
             duration_seconds=duration,
-            sha256_raw=raw_sha,
-            sha256_final=final_sha,
+            sha3_512_raw=raw_sha,
+            sha3_512_final=final_sha,
             archiver=archiver_name,
             scenario=scenario.id.value,
             notes=notes,
