@@ -50,6 +50,7 @@ TAINT_CRYPTO_FAIL:   str = "TAINT_CRYPTO_FAIL"   # Cryptographic verification fa
 TAINT_SANDBOX_VIOLATION: str = "TAINT_SANDBOX_VIOLATION"  # Sandbox was breached
 TAINT_IPC_TAMPER:    str = "TAINT_IPC_TAMPER"     # IPC message tampering detected
 TAINT_HUNG_TASK:     str = "TAINT_HUNG_TASK"      # A task was killed by watchdog
+TAINT_KERNEL_PANIC:  str = "TAINT_KERNEL_PANIC"   # Kernel panic() invoked (fatal error handler ran)
 
 # Internal mapping: flag name → bit position
 _FLAGS: List[str] = [
@@ -61,6 +62,7 @@ _FLAGS: List[str] = [
     TAINT_SANDBOX_VIOLATION,
     TAINT_IPC_TAMPER,
     TAINT_HUNG_TASK,
+    TAINT_KERNEL_PANIC,
 ]
 
 _FLAG_INDEX: dict = {name: 1 << i for i, name in enumerate(_FLAGS)}

@@ -1,79 +1,58 @@
 # UmerOS — Long-term Project Memory
 
-## Standing conventions (CodeReviewExpert / Kim)
+## Conventions (CodeReviewExpert / Kim)
 - After every study, bump the standard `MainTask/Raw Data/Code Review Standards and Process.md` (§1/§4/§7/§9/§11).
-- Authoritative sources order: `Skills/Context File/umer_os_skills.json` > `MainTask/prompt/*.md` > `MainTask/Raw Data/*.docx` > repo + LICENSE/setup.py.
-- **Drift-recon first:** always verify the standard's premise against live repo state (scoped Grep/Glob/Read) before editing — many H premises are stale/overstated. Trust `Read` over `Grep` for authoritative file state.
-- Do NOT batch multiple `Edit` calls on the SAME file in one message (they race); use an assert-first Python `pathlib` script for multi-line same-file edits.
+- Source authority: `Skills/Context File/umer_os_skills.json` > `MainTask/prompt/*.md` > `MainTask/Raw Data/*.docx` > repo + LICENSE/setup.py.
+- **Drift-recon first:** verify the standard's premise against live repo state (scoped Grep/Glob/Read) before editing — many H premises are stale/overstated. Trust `Read` over `Grep`.
+- Never batch multiple `Edit` calls on the SAME file in one message (they race); use an assert-first Python `pathlib` script for multi-line same-file edits.
 - Backend = Python only; GPL-3.0 canonical (`Licence`→`License`, `Version 3`→`v3`).
 
-## 🔴 RED loop (separate, resumable) — 2026-10-09
-- **File:** `MainTask/Raw Data/RED Loop Prompt.md` — self-contained loop prompt + 39-item 🔴 checklist + NEXT pointer.
-- Scope: ALL 39 🔴-severity hotspots from the standard §9. Procedure: drift-recon → fix in Python → test → bookkeeping. Say **"continues"** to resume at §NEXT.
-- **RED loop progress (session 112):** **🔴 RED LOOP COMPLETE — ALL 39 🔴 items RESOLVED.** H1, H3, H12, H18, H46, H51, H146, H147, H152, H156, H157, H166, H167, H168, H185, H186, H187, H195, H196, H197, H198, H205, H206, H207, H208, H215, H216, H217, H221, H244, H245, H246, H265, H266, H267, H268, H303 all resolved. **Real FIXES (8):** H184 (20 cap-gates in opt/), H194 (version-independent tar-slip guard), H245 (AV api_server `create_app` structural break fixed), H246 (`security/sandbox.py` relabelled + wired to the cap gate + `fs_root` no longer defaults to "/"), H265 (`_assert_safe_tar_members` tar-slip guard), H266 (`_assert_safe_zip_members` zip-slip guard + fixed the live `zipfile.extractall(filter=...)` TypeError on >=3.12), H267 (`restore_backup` refuses to `rmtree` the resolved srv root), H268 (`srv/hierarchy.py` `delete_service_tree` now contains `service_name` via `safe_join`). **H303: DRIFT** (var/* already use `safe_child`/`safe_join` + H304 cap-gates; `tests/test_var.py` 32 passed). All other 30 were drift. ➡ Next: resume the 🟡 YELLOW loop at **H66**.
-- **⚠ RED-loop file reverts repeatedly (sessions 95, 96→99, 100→101, 102→103, 104/105→106, 107→108):** `MainTask/Raw Data/RED Loop Prompt.md` gets regenerated back to an earlier state (session 95: post-session-93; session 99: post-session-H185; session 101: post-session-H195; session 103: post-session-101; session 106: post-session-103; session 108: post-session-106) with a reformatted layout (`  \- ` sub-bullets, sometimes a whole item's Issue+Action collapsed onto the box line). **Survives every revert:** the standard §9 rows and `MEMORY.md`. **Lost every revert:** the checklist boxes + RESOLVED notes (whole-file or, recent sessions, only the most-recent session(s)' edits). **Mitigation:** after each item, (a) always write the standard §9 row + MEMORY first (they persist), and (b) treat the checklist as rebuildable — re-apply lost boxes/notes bottom-up by anchoring on the NEXT box line, matching either `- [x] ` or `- [ ] ` prefix. If the file reverts again, rebuild from MEMORY's progress line.
+## 🔴 RED loop — COMPLETE (2026-10-09 / session 112)
+- `MainTask/Raw Data/RED Loop Prompt.md` — 39-item 🔴 checklist, **all RESOLVED** (session 112; full list in the checkpoint). **8 real fixes:** H184 (20 cap-gates in `opt/`), H194 (tar-slip guard), H245 (AV `api_server` `create_app` break), H246 (`security/sandbox.py` cap-gate + `fs_root` no longer "/"), H265/H266 (tar/zip-slip guards + fixed `zipfile.extractall(filter=...)` TypeError on ≥3.12), H267 (`restore_backup` srv-root guard), H268 (`delete_service_tree` `safe_join` containment). Rest were drift. ➡ Resume the 🟡 sweep.
+- **⚠ That file reverts repeatedly** (sessions 95–108): regenerated to an earlier state, losing checklist boxes/RESOLVED notes. **Survives:** standard §9 rows + `MEMORY.md`. **Mitigation:** write standard §9 + MEMORY first; treat the checklist as rebuildable (re-apply boxes bottom-up anchored on the NEXT box line, matching `- [x] ` / `- [ ] `).
 - Severity source of truth: standard §9 (rows whose Severity == 🔴).
 
-## ⚠ External rewrite strips `[FIX Hxxx]` tags (observed 2026-10-13, session 145)
-- An external process periodically **re-saves source files and strips the cosmetic `[FIX Hxxx]` comment tags** (kernel sources re-saved 17:32–17:36 with all H114–H119 *code* intact but every `[FIX Hxxx]` marker gone; it also truncated the H77 GFDL note in `feedback/__init__.py`). Sibling of the RED-loop-file reverts below.
-- **Consequence:** any test that asserts on the tag alone (`"[FIX Hxxx]" in src`) becomes brittle and will fail after a strip. **Rule: source-invariant tests must pin *code facts* (gate calls, method names, removed-excuse strings), never the tag.**
-- The remediation trail survives in the standard §9 rows, the checkpoint, and this file — not in the source tags. Do not fight the stripper by re-adding tags.
+## ⚠ External rewrite strips `[FIX Hxxx]` tags (2026-10-13, s145)
+- An external process periodically re-saves sources and **strips the cosmetic `[FIX Hxxx]` comment tags** (H114–H119 *code* intact; also truncated the H77 GFDL note in `feedback/__init__.py`). **Rule: source-invariant tests must pin *code facts* (gate calls, method names, removed-excuse strings), never the tag.** Do not re-add tags. The trail lives in standard §9 + checkpoint + this file.
 
 ## Resumable remediation loop (H1–H307)
-- Checkpoint: `.workbuddy-ai/memory/remediation_progress.md` (307 items; flip `- [ ]`→`- [x]`, never regenerate). 6 bookkeeping surfaces per study: checkpoint box + NEXT pointer, standard §9 row (color + RESOLVED note), MEMORY YELLOW pointer + folder map, daily `YYYY-MM-DD.md`, per-session `remediation_sessionNN_overview.md`.
-- Test runner: stdlib `unittest` / pytest>=8 via venv `C:/Users/MC Raja Jang/.workbuddy-ai/binaries/python/envs/default` (QUOTE the path — it has a space). `cryptography` 50.0.0 present.
-- **Full-suite regression temp dir (session 146):** redirecting `TMP`/`TEMP` *into the project* causes **15 false failures** (9 `test_legal_scan`/`test_legal_security`, 6 `test_mnt`) because (a) `legal/licenses.py:scan_directory` skips any path with a `.`-prefixed component (a `.pytest_tmp` dir is skipped → `total_files_scanned=0`) and (b) `mnt/fstab.py` splits fstab lines on whitespace so a path with a **space** (`F:\Pension Person Details\UmerOS`) corrupts field offsets (`int('vfat')`). **Use a space-free, dot-free temp dir:** `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp` → clean run. These files pass in isolation (23 passed).
+- Checkpoint: `.workbuddy-ai/memory/remediation_progress.md` (307 items; flip `- [ ]`→`- [x]`, never regenerate). Bookkeeping per study: checkpoint box + NEXT pointer, standard §9 row (color + RESOLVED note), MEMORY pointer + folder map, daily `YYYY-MM-DD.md`.
+- Test runner: pytest>=8 via venv `C:/Users/MC Raja Jang/.workbuddy-ai/binaries/python/envs/default` (QUOTE — has a space). `cryptography` 50.0.0.
+- **Full-suite temp dir:** redirecting `TMP`/`TEMP` *into the project* causes **15 false failures** (9 `test_legal_scan`/`test_legal_security`, 6 `test_mnt`): `legal/licenses.py:scan_directory` skips any `.`-prefixed path component; `mnt/fstab.py` whitespace-splits fstab lines so a space in the path (`F:\Pension Person Details\UmerOS`) corrupts field offsets. **Use `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`** (space-free, dot-free). Use `--junitxml` (basetemp cleanup trips the safe-delete guard and kills the terminal summary).
 - Shared guards: `core/path_guard.py` (`safe_child`/`safe_join`/`PathTraversalError`); `core/capability_gate.py` (`gate`/`require(cap)`, fail-closed when wired).
-- Project facts: ~735 Python modules; CI in `.github/workflows/` (`ci.yml`, `security_scan.yml`); `Old Linux Code/` (~93k) is reference-only (out of scope).
-- Pre-existing broken test to skip: `tests/test_ai.py` (collection error — `ai.providers` missing `AIConfigManager`); `home` package-shadow (`bin/home.py`/`root/home.py`) — load `home_backup.py` by file path under a unique module name in tests.
-- CWE-22 / zero-trust families: fail-closed path traversal + signature verification are the norm; many "leaky/dummy-crypto" items were already fixed or were false premises.
+- Project: ~735 Python modules; CI in `.github/workflows/` (`ci.yml`, `security_scan.yml`); `Old Linux Code/` (~93k) reference-only (out of scope).
+- Skip pre-existing broken `tests/test_ai.py` (collection error — `ai.providers` missing `AIConfigManager`); `home` package-shadow (`bin/home.py`/`root/home.py`) — load `home_backup.py` by file path under a unique module name in tests.
+- CWE-22 / zero-trust norm: fail-closed path traversal + signature verification; many "leaky/dummy-crypto" items were already fixed or false premises.
 
 ## Remediation status
-- **RED blockers: ALL CLOSED (sessions 1–33).**
-- **YELLOW sweep in progress (session 36+).** Large drift-recon resolutions: cloud/ fully 🟢 (H46,H154,H47,H48,H49). Many earlier H-items (H4,H5,H6,H7,H8,H9,H11,H13,H14,H15,H16,H19,H20,H23,H24,H26,H30) were RESOLVED with the premise proven stale/overstated — detail lives in the standard §9 + per-session overview files, not re-duplicated here.
-**Current pointer (session 147):** `compatibility/` + `core/` + `dev/` + `drivers/` + `etc/` + `feedback/` + `fs/` + `home/` + `initrd/` + `installer/` COMPLETE; now in `kernel/` — **H121 RESOLVED (REAL FIX: header 3 copies → 1; removed a ~108-line commented-out duplicate of the whole module at the tail (220→114 lines); made the EULA `input()` EOF-safe; new `tests/test_kernel_bootloader_header_h121.py` 14 passed; full `tests/` 3445 passed / 0 failed)**. Next 💭 **H123** - `kernel/` off-baseline toy/REPL modules (`container_engine.py`, `umer_ai.py`, `qfs.py`, `pqcrypto_.py`, …). Say **'continues'** for H123.
-- **Standard §9 cleanup (2026-10-09):** all 63 resolved (🟢-severity) hotspot rows were removed from `MainTask/Raw Data/Code Review Standards and Process.md`; §9 now lists ONLY open hotspots (rows skip the removed IDs). Full resolution record remains in the checkpoint `remediation_progress.md`. Backup: `Code Review Standards and Process.md.pre-green-removal.bak`.
-- **⚠ Standard §9 REVERTED (session 84):** the live standard is now **973 lines / 217 rows (39🔴 63🟢 115🟡)** — the 🟢-removal edit was reverted/replaced externally (the file grew 736→673→973). H46 is duplicated (stale 🔴 at L356 + resolved 🟢 at L549). Awaiting user decision on whether to re-remove 🟢 rows.
-- **⚠ H62 REGRESSION (found session 117):** `drivers/` now has **0/75** `[TODAY]` tier labels despite H62 being marked RESOLVED (session 76). The tier-label convention still holds in `boot/` (23), `bin/` (44), `kernel/` (6), `core/` (1) and now `etc/` (81, H70) — but the drivers/ labels are gone (external revert or never persisted). Re-apply on request (same mechanical op as H70).
-- H1 standing user action (not mine): user must rotate the leaked OpenRouter key + purge git history.
+- **RED blockers: ALL CLOSED (sessions 1–33). YELLOW sweep in progress (session 36+).**
+- **Current pointer (session 149):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/` COMPLETE; now in `kernel/` — **H127 RESOLVED (REAL FIX: registered `TAINT_KERNEL_PANIC` in `kernel/taint.py` (bit 256); `panic()` now uses the imported constant instead of a bare literal; dropped 3 dead taint imports; fixed the stale `kernel/__init__` taint re-export (`TaintFlag`/`TaintFlags`/`TaintReason` → `KernelTaint`/`TAINT_KERNEL_PANIC`); new `tests/test_kernel_panic_taint_h127.py` 20 passed; full `tests/` 3566 testcases / 0 failed)**. Next 💭 **H124** — `kernel/pqcrypto_.py`/`onnxruntime_.py` import-time execution (likely DRIFT after H123). Then H126. Say **'continues'** for H124.
+- **⚠ Standard §9 REVERTED (session 84):** live standard = 973 lines / 217 rows (39🔴 63🟢 115🟡) — the 🟢-removal was reverted/replaced externally (file grew 736→673→973). H46 duplicated (stale 🔴 L356 + resolved 🟢 L549). Backup: `Code Review Standards and Process.md.pre-green-removal.bak`. Awaiting user decision on re-removing 🟢 rows.
+- **⚠ H62 REGRESSION (found s117):** `drivers/` has **0/75** `[TODAY]` tier labels despite H62 RESOLVED (s76); the labels still hold in `boot/` (23), `bin/` (44), `kernel/` (6), `core/` (1), `etc/` (81). Re-apply on request (same mechanical op as H70).
+- H1 (user action, not mine): rotate the leaked OpenRouter key + purge git history.
 
 ## Folder scope map — hotspots (🟢 fixed / 🟡 yellow / 💭 nit)
-- boot/ 🟢 H27,H28,H29,H30,H31,H32,H33,H34
-- bin/ 🟢 H4,H5,H37,H6,H8,H35,H36,H38,H39,H40
-- build/ 🟢 H42,H41,H43,H44,H45
-- cloud/ 🟢 H46,H154,H47,H48,H49
-- compatibility/ 🟢 H50,H51,H52,H53,H54
-- core/ 🟢 H55,H56; 💭 H57
-- dev/ 🟢 H59,H60; 💭 H61
-- drivers/ 🟢 H64,H66,H67,H68,H69; 🟡 H63; 💭 H62,H65
-- etc/ 🟢 H5,H70,H71,H72,H73
-- examples/ 💭 H74,H75
-- feedback/ 🟢 H76,H77,H78,H79
-- fs/ 🟢 H80,H81,H82
-- home/ 🟢 H83,H84,H85,H86,H87 (COMPLETE)
-- HostFiles/ 💭 H89
-- initrd/ 🟢 H2,H91,H92,H93,H94,H95,H97 (sweep COMPLETE); 💭 H96
-- installer/ 🟢 H98,H99,H100,H101,H102,H103,H104,H106,H108,H109 (sweep COMPLETE)
-- kernel/ 🟢 H110–H121 (+ H122,H125 nits); 🟡 H127; 💭 H123,H124,H126
-- legal/ 🟢 H128,H129,H130,H131,H135; 🟡 H132,H136–H141; 💭 H137
-- lib/ 🟢 H3,H146,H147; 🟡 H148,H149,H150
-- liboqs/ 🟡 H151; 💭 H155
+- boot/ 🟢 H27–H34 | bin/ 🟢 H4,H5,H6,H8,H35–H40 | build/ 🟢 H41–H45
+- cloud/ 🟢 H46–H49,H154 | compatibility/ 🟢 H50–H54
+- core/ 🟢 H55,H56; 💭 H57 | dev/ 🟢 H59,H60; 💭 H61
+- drivers/ 🟢 H64,H66–H69; 🟡 H63; 💭 H62,H65
+- etc/ 🟢 H5,H70–H73 | examples/ 💭 H74,H75 | feedback/ 🟢 H76–H79 | fs/ 🟢 H80–H82
+- home/ 🟢 H83–H87 (COMPLETE) | HostFiles/ 💭 H89
+- initrd/ 🟢 H2,H91–H95,H97; 💭 H96 | installer/ 🟢 H98–H104,H106,H108,H109 (COMPLETE)
+- kernel/ 🟢 H110–H123 (+ H122,H125 nits), H127; 💭 H124,H126
+- legal/ 🟢 H128–H131,H135; 🟡 H132,H136–H141; 💭 H137
+- lib/ 🟢 H3,H146,H147; 🟡 H148–H150 | liboqs/ 🟡 H151; 💭 H155
 - media/ 🟢 H156,H157; 🟡 H158–H160; 💭 H161–H165
-- mnt/ 🟢 H166,H167,H168; 🟡 H169–H171,H176; 💭 H172–H175
+- mnt/ 🟢 H166–H168; 🟡 H169–H171,H176; 💭 H172–H175
 - network/ 🟢 H177,H178; 🟡 H179,H180; 💭 H181,H182
-- opt/ 🟢 H184,H185,H186,H187; 🟡 H188–H193,H200; 💭 H183
-- packages/ 🟢 H194,H195,H196,H197,H198; 🟡 H199,H201,H204
-- proc/ 🟢 H205,H206,H207,H208; 🟡 H209,H210,H211; 💭 H212–H214
-- quantum/ 🟢 H152,H215,H216,H217,H221; 🟡 H218,H219,H220; 💭 H222–H225
-- root/ 🟢 H227; 🟡 H226,H228; 💭 H229,H230,H231
-- sbin/ 🟢 H233; 🟡 H232; 💭 H234,H235
-- scripts/ 🟡 H236,H237; 💭 H238,H239
-- sdk/ 🟡 H240,H241; 💭 H242,H243
-- security/ 🟢 H17,H244,H245,H246; 🟡 H247–H254; 💭 H255–H258
-- sources/ 🟡 H259,H260,H261,H262; 💭 H263,H264
-- srv/ 🟢 H265,H266,H267,H268,H271,H273; 🟡 H269,H270,H272; 💭 H274–H277
-- tmp/ 🟢 H281,H282,H283; 🟡 H278,H279,H280; 💭 H284–H287
-- tools/ 🟡 H288–H292; 💭 H293–H295
-- ui/ 🟢 H90 (H25 legacy flagged)
-- usr/ 🟢 H296; 🟡 H297,H298,H299,H300; 💭 H301,H302
-- var/ 🟢 H303,H304,H305,H306,H307
+- opt/ 🟢 H184–H187; 🟡 H188–H193,H200; 💭 H183
+- packages/ 🟢 H194–H198; 🟡 H199,H201,H204 | proc/ 🟢 H205–H208; 🟡 H209–H211; 💭 H212–H214
+- quantum/ 🟢 H152,H215–H217,H221; 🟡 H218–H220; 💭 H222–H225
+- root/ 🟢 H227; 🟡 H226,H228; 💭 H229–H231 | sbin/ 🟢 H233; 🟡 H232; 💭 H234,H235
+- scripts/ 🟡 H236,H237; 💭 H238,H239 | sdk/ 🟡 H240,H241; 💭 H242,H243
+- security/ 🟢 H17,H244–H246; 🟡 H247–H254; 💭 H255–H258
+- sources/ 🟡 H259–H262; 💭 H263,H264
+- srv/ 🟢 H265–H268,H271,H273; 🟡 H269,H270,H272; 💭 H274–H277
+- tmp/ 🟢 H281–H283; 🟡 H278–H280; 💭 H284–H287
+- tools/ 🟡 H288–H292; 💭 H293–H295 | ui/ 🟢 H90 (H25 legacy flagged)
+- usr/ 🟢 H296; 🟡 H297–H300; 💭 H301,H302 | var/ 🟢 H303–H307

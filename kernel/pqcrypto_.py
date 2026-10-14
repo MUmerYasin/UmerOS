@@ -11,25 +11,39 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#Implementation Example: Key Encapsulation (ML-KEM / Kyber)
-#Because standard libraries like the core cryptography package depend on native OpenSSL support (which handles PQC primarily for TLS transport layers rather than raw primitives), developers use specialized wrappers for individual application logic.
-#The following snippet demonstrates how to generate a key pair and establish a shared secret using the popular pqcrypto interface
+"""
+UmerOS /kernel — ML-KEM / Kyber key-encapsulation example  [FUTURE]
+====================================================================
+Reference snippet showing a post-quantum key exchange through the ``pqcrypto``
+interface (ML-KEM / Kyber1024).
+
+.. note:: This is a documentation/reference example, NOT part of the kernel.
+   It is guarded behind ``__main__`` so that ``pqcrypto`` is never imported and
+   no key material is generated at import time.  The canonical post-quantum
+   crypto lives under ``liboqs/`` and ``security/``.
+"""
+
+from __future__ import annotations
+
+import logging
+
+log = logging.getLogger("UmerOS.Kernel.PQCryptoExample")
 
 
+def demo() -> None:
+    """Run the ML-KEM key-exchange example (requires ``pip install pqcrypto``)."""
+    from pqcrypto.kem import kyber1024
 
-# Installation: pip install pqcrypto
-from pqcrypto.kem import kyber1024
+    # 1. Alice generates her public and private keys.
+    public_key, private_key = kyber1024.generate_keypair()
+    # 2. Bob uses Alice's public key to produce a shared secret + ciphertext
+    #    (Bob sends this ciphertext back to Alice over the network).
+    ciphertext, bob_shared_secret = kyber1024.encrypt(public_key)
+    # 3. Alice decrypts the ciphertext using her private key.
+    alice_shared_secret = kyber1024.decrypt(private_key, ciphertext)
+    assert alice_shared_secret == bob_shared_secret
+    log.info("Secure post-quantum key exchange successful!")
 
-# 1. Alice generates her public and private keys
-public_key, private_key = kyber1024.generate_keypair()
 
-# 2. Bob uses Alice's public key to generate a shared secret and ciphertext
-# (Bob sends this ciphertext back to Alice over the network)
-ciphertext, bob_shared_secret = kyber1024.encrypt(public_key)
-
-# 3. Alice decrypts the ciphertext using her private key to get the same secret
-alice_shared_secret = kyber1024.decrypt(private_key, ciphertext)
-
-# Verify both secrets match
-assert alice_shared_secret == bob_shared_secret
-print("Secure post-quantum key exchange successful!")
+if __name__ == "__main__":
+    demo()

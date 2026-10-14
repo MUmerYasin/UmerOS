@@ -42,6 +42,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .media_types import MediaDescriptor, MediaType
 from .nvme.device import classify_nvme_name
+from .bluetooth.device import classify_bt_name
 
 log = logging.getLogger("UmerOS.Media.DeviceInfo")
 
@@ -194,6 +195,11 @@ def _classify_device(
     # NVMe (removable) - kernel naming via media.nvme
     if classify_nvme_name(device_name) is not None:
         return MediaType.NVME
+
+    # Bluetooth - kernel naming via media.bluetooth
+    # (hciN controllers and BD-address device entries)
+    if classify_bt_name(device_name) is not None:
+        return MediaType.BLUETOOTH
 
     # Tape
     if "st" == name_lower[:2] or "tape" in model_lower:
@@ -357,8 +363,8 @@ def get_mount_info(device_path: str) -> Optional[Dict[str, str]]:
 
 def _selftest():
     """Run a basic self-test for this module."""
-    result = detect_device("/dev/sda1")
-    assert result is not None, "detect_device should return a MediaType"
+    result = detect_media_type("/dev/sda1")
+    assert result is not None, "detect_media_type should return a MediaType"
 
     print("selftest OK")
 

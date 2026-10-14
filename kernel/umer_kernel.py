@@ -41,7 +41,7 @@ import hmac     # constant-time signature compare
 
 # ── kernel modules (NEW) ──────────────────────────────────────
 from kernel.pid_allocator import PidAllocator, PID_SYSTEM, PID_INIT
-from kernel.taint import KernelTaint, TAINT_OOM_KILL, TAINT_CRYPTO_FAIL, TAINT_SANDBOX_VIOLATION
+from kernel.taint import KernelTaint, TAINT_KERNEL_PANIC
 from kernel.sysctl import SysctlRegistry, TYPE_INT, TYPE_BOOL
 from kernel.panic import PanicNotifier, WarnCounter, OopsContext
 from kernel.signals import SIGKILL, SIGTERM, SIGCHLD
@@ -1029,7 +1029,7 @@ class UmerKernel:
         await self.panic_notifier.fire(message)
 
         # Taint the kernel
-        self.taint.add("TAINT_KERNEL_PANIC")
+        self.taint.add(TAINT_KERNEL_PANIC) 
 
         # Decide recovery action based on panic_timeout
         timeout = self.sysctl.get("kernel.panic_timeout", 0)

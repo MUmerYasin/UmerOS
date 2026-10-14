@@ -11,19 +11,34 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#An ONNX-based predictor stub for an AI Orchestrator acts as a lightweight, local-first inference endpoint. It allows routing layers to offload sub-tasks to local hardware (CPU/GPU) without the privacy and latency overhead of cloud APIs.
+"""
+UmerOS /kernel — ONNX predictor example  [FUTURE]
+==================================================
+Reference snippet showing a lightweight, local-first ONNX inference endpoint so
+that routing layers can offload sub-tasks to local hardware (CPU/GPU) without
+the privacy and latency overhead of cloud APIs.
 
+.. note:: This is a documentation/reference example, NOT part of the kernel.
+   ``onnxruntime`` is imported lazily inside the class so that importing this
+   module has no third-party dependency and no side effects.
+"""
 
-import onnxruntime as ort
-import numpy as np
+from __future__ import annotations
+
+import logging
+
+log = logging.getLogger("UmerOS.Kernel.OnnxExample")
+
 
 class OnnxPredictorStub:
+    """Minimal ONNX Runtime predictor wrapper (requires ``onnxruntime``)."""
+
     def __init__(self, model_path: str):
-        # Initialize the ONNX runtime
+        import onnxruntime as ort
+
         self.session = ort.InferenceSession(model_path)
         self.input_name = self.session.get_inputs()[0].name
-        
-    def predict(self, input_tensor: np.ndarray):
-        # Run inference on the provided tensor
-        raw_output = self.session.run(None, {self.input_name: input_tensor})
-        return raw_output
+
+    def predict(self, input_tensor):
+        """Run inference on the provided tensor and return the raw output."""
+        return self.session.run(None, {self.input_name: input_tensor})

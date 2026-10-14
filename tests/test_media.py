@@ -194,6 +194,27 @@ class TestDeviceInfo(unittest.TestCase):
         mt = detect_media_type("/dev/sr0")
         self.assertIsInstance(mt, MediaType)
 
+    def test_detect_media_type_bluetooth(self):
+        """Bluetooth kernel names classify as MediaType.BLUETOOTH."""
+        # HCI controller names
+        self.assertEqual(
+            detect_media_type("hci0"), MediaType.BLUETOOTH
+        )
+        self.assertEqual(
+            detect_media_type("/dev/hci0"), MediaType.BLUETOOTH
+        )
+        # BD-address device entries (dash form is portable;
+        # colon form matches the Linux sysfs layout)
+        self.assertEqual(
+            detect_media_type("00-11-22-33-44-55"),
+            MediaType.BLUETOOTH,
+        )
+        if os.name != "nt":
+            self.assertEqual(
+                detect_media_type("00:11:22:33:44:55"),
+                MediaType.BLUETOOTH,
+            )
+
     def test_get_mount_info(self):
         info = get_mount_info("/nonexistent")
         self.assertTrue(info is None or isinstance(info, dict))

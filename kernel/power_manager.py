@@ -11,20 +11,39 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""
+UmerOS /kernel — power manager  [TODAY]
+=======================================
+Manages power-related actions for the kernel.
+
+``PowerManager.cpu_idle`` invokes the registered ``kernel.cpuidle`` driver and
+returns the name of the idle state entered.  ``POWER_MANAGER`` is the singleton
+used by the shell ``cpu_idle`` command.
+"""
+
+from __future__ import annotations
+
+import logging
+
 from . import cpuidle
 
+log = logging.getLogger("UmerOS.Kernel.PowerManager")
+
+
 class PowerManager:
-    """Manages power‑related actions for the kernel.
+    """Manages power-related actions for the kernel.
 
     Currently it provides a simple ``cpu_idle`` method which invokes the
     registered ``cpuidle`` driver (if any) and returns the name of the idle
     state entered.
     """
+
     def cpu_idle(self):
         state_name = cpuidle.cpuidle_enter()
         if state_name is None:
             return 'No cpuidle driver registered – idle skipped.'
         return f'CPU entered idle state: {state_name}'
+
 
 # Export a singleton instance used by the shell command.
 POWER_MANAGER = PowerManager()

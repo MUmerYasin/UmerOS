@@ -11,14 +11,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#!/usr/bin/env python3
 """
-Umer OS Local AI Assistant
-Rule-based system with simulated self-healing and predictive resource hints.
+UmerOS /kernel — Local AI Assistant (rule-based prototype)  [EXPERIMENTAL]
+==========================================================================
+A rule-based assistant with simulated self-healing and predictive resource
+hints.
+
+.. note:: This is a legacy prototype.  The canonical AI assistant lives in
+   ``ai/umer_ai.py``.
 """
 
+from __future__ import annotations
+
+import logging
 import random
 import time
+
+log = logging.getLogger("UmerOS.Kernel.UmerAI")
+
 
 class AIAssistant:
     def __init__(self):
@@ -48,23 +58,22 @@ class AIAssistant:
         return f"CPU: {cpu}% | Memory: {mem}% | AI status: Online"
 
     def optimize_system(self):
-        print("[AI] Analyzing resource patterns...")
+        log.info("Analyzing resource patterns...")
         time.sleep(1)
-        # Simulate optimization
+        # Simulate optimization.
         return "Optimized cache, freed 150 MB. Predicted next app launch, preloaded libraries."
 
     def self_heal(self):
         if not self.bug_fixed:
-            print("[AI] Scanning for code anomalies...")
+            log.info("Scanning for code anomalies...")
             time.sleep(1.5)
-            print("[AI] Critical bug detected in memory allocator (simulated).")
-            print("[AI] Generating patch...")
+            log.info("Critical bug detected in memory allocator (simulated).")
+            log.info("Generating patch...")
             time.sleep(1)
-            print("[AI] Patch applied. System stable.")
+            log.info("Patch applied. System stable.")
             self.bug_fixed = True
             return "Self-healing complete: memory allocator bug fixed."
-        else:
-            return "System is healthy. No bugs detected."
+        return "System is healthy. No bugs detected."
 
     def predict_load(self):
         last = random.randint(10, 90)
@@ -76,23 +85,5 @@ class AIAssistant:
         cmd = user_input.strip().lower()
         if cmd in self.commands:
             return self.commands[cmd]()
-        else:
-            return ("I'm a prototype AI assistant. "
-                    "I can handle help, status, optimize, heal, predict, exit.")
-
-def main():
-    assistant = AIAssistant()
-    print("Umer AI Assistant (type 'help' for commands, 'exit' to quit)")
-    while True:
-        try:
-            user = input("AI> ")
-        except (EOFError, KeyboardInterrupt):
-            print("\nAI session ended.")
-            break
-        if user.lower() == "exit":
-            print(assistant.process("exit"))
-            break
-        print(assistant.process(user))
-
-if __name__ == "__main__":
-    main()
+        return ("I'm a prototype AI assistant. "
+                "I can handle help, status, optimize, heal, predict, exit.")

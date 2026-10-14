@@ -11,27 +11,35 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#!/usr/bin/env python3
 """
-Quantum File System (QFS) – Quantum-inspired compression
-Uses a simple dictionary-based compression to simulate "super-compression"
-without real quantum hardware.
+UmerOS /kernel — Quantum File System toy  [EXPERIMENTAL]
+========================================================
+A zlib-based "quantum-inspired" compressor plus a tiny QFS facade.
+
+.. note:: This is a legacy prototype.  The canonical, content-addressable QFS
+   lives in ``fs/qfs.py`` (``QFS`` / ``QuantumFileSystem``); prefer that for
+   real use.
 """
 
+from __future__ import annotations
+
+import logging
 import zlib
-import json
 from pathlib import Path
 
+log = logging.getLogger("UmerOS.Kernel.QFS")
+
+
 class QuantumCompressor:
-    """Quantum-inspired compressor (actually using zlib with dedup simulation)."""
+    """Quantum-inspired compressor (actually zlib with a dedup simulation)."""
+
     def compress(self, data: bytes) -> bytes:
-        # Simulate quantum deduplication: hash chunks and remove duplicates
-        # Then apply standard compression
-        compressed = zlib.compress(data, level=9)
-        return compressed
+        # Simulate quantum deduplication, then apply standard compression.
+        return zlib.compress(data, level=9)
 
     def decompress(self, compressed_data: bytes) -> bytes:
         return zlib.decompress(compressed_data)
+
 
 class QFS:
     def __init__(self, root: str = "./umer_fs"):
@@ -47,21 +55,13 @@ class QFS:
         original_size = len(content.encode())
         compressed_size = len(compressed)
         ratio = (1 - compressed_size / original_size) * 100 if original_size else 0
-        print(f"[QFS] Written '{filename}': {original_size}B → {compressed_size}B ({ratio:.1f}% reduction)")
+        log.info(
+            "Written '%s': %dB -> %dB (%.1f%% reduction)",
+            filename, original_size, compressed_size, ratio,
+        )
 
     def read_file(self, filename: str) -> str:
         filepath = self.root / filename
         with open(filepath, "rb") as f:
             compressed = f.read()
         return self.compressor.decompress(compressed).decode()
-
-def demo():
-    fs = QFS()
-    text = "Umer OS quantum compression demonstration. " * 20
-    fs.write_file("demo.txt", text)
-    recovered = fs.read_file("demo.txt")
-    assert recovered == text, "Decompression mismatch!"
-    print("[QFS] File integrity verified.")
-
-if __name__ == "__main__":
-    demo()

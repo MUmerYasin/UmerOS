@@ -61,7 +61,7 @@ for _mod, _names in (
     ("softirq", ("SoftIRQ", "SoftIRQAction")),
     ("workqueue", ("WorkQueue", "WorkItem")),
     ("pid_allocator", ("PIDAllocator",)),
-    ("taint", ("TaintFlag", "TaintFlags", "TaintReason")),
+    ("taint", ("KernelTaint", "TAINT_KERNEL_PANIC")),
     ("resource", ("ResourceManager", "Rlimit")),
 ):
     _try_import(_mod, _names)
