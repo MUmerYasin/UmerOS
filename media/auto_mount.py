@@ -37,6 +37,9 @@ Quick start::
     daemon = AutoMountDaemon(policy=policy)
     daemon.start()
     # daemon now reacts to hotplug events
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -76,8 +79,21 @@ class AutoMountPolicy:
     default_options: List[str] = field(default_factory=list)
     read_only_types: Set[str] = field(default_factory=lambda: {"iso9660", "udf"})
     deny_list: Set[str] = field(default_factory=set)
-    user_mode: bool = True
+    # `user_mode` scopes mount points to `<base>/<user>/` (the udisks2
+    # `--enable-fhs-media` layout) so one user's removable media is not
+    # visible inside another user's namespace.  It requires `user` to be set;
+    # the default is False (system-wide) because that is what the daemon has
+    # always done - the old `True` default was inert.
+    user_mode: bool = False
+    # Requesting identity: used for the `user_mode` namespace and passed to
+    # media.mount_ops for the H158 authorization check.  None = no user context.
+    user: Optional[str] = None
     flush_before_unmount: bool = True
+    # consent gate.  When `require_consent` is set, a mount is
+    # only performed if `consent_provider(device_path, media_type)` returns
+    # True; a missing provider fails closed (deny).
+    require_consent: bool = False
+    consent_provider: Optional[Callable[[str, MediaType], bool]] = None
 
     def should_mount(self, media_type: MediaType) -> bool:
         """Return True if this media type should be auto-mounted."""
@@ -120,6 +136,36 @@ class AutoMountPolicy:
                 opts.append(flag)
         return opts
 
+    def mount_base(self, base_path: str) -> str:
+        """Resolve the mount-point root, honouring :attr:`user_mode`.
+
+        With ``user_mode`` enabled *and* a :attr:`user` configured, mounts
+        land under ``<base_path>/<user>/`` so they are scoped to that user's
+        namespace.  Otherwise the system-wide root is returned unchanged.
+        """
+        if self.user_mode and self.user:
+            return os.path.join(base_path, self.user)
+        return base_path
+
+    def consent_for(self, device_path: str, media_type: MediaType) -> Optional[bool]:
+        """Ask the consent provider whether *device_path* may be mounted.
+
+        Returns:
+            ``True``  - consent granted (or not required).
+            ``False`` - consent explicitly denied, or the provider raised.
+            ``None``  - consent is required but no provider is configured;
+                        callers MUST treat this as a denial (fail-closed).
+        """
+        if self.consent_provider is None:
+            return None if self.require_consent else True
+        try:
+            return bool(self.consent_provider(device_path, media_type))
+        except Exception:  # pragma: no cover - defensive
+            log.exception(
+                "consent_provider raised for %s; denying auto-mount", device_path
+            )
+            return False
+
 
 # ---------------------------------------------------------------------------
 #  Events
@@ -131,6 +177,7 @@ class AutoMountStatus(Enum):
     MOUNTED = "mounted"
     UNMOUNTED = "unmounted"
     SKIPPED_POLICY = "skipped_policy"
+    SKIPPED_CONSENT = "skipped_consent"
     SKIPPED_DENY = "skipped_deny"
     FAILED = "failed"
     ALREADY_MOUNTED = "already_mounted"
@@ -213,6 +260,13 @@ class AutoMountDaemon:
         already-connected devices)."""
         if self._running:
             return
+        if self._policy.user_mode and not self._policy.user:
+            log.warning(
+                "AutoMountPolicy.user_mode is enabled but no `user` is "
+                "configured; mounting into the system-wide %s root instead "
+                "of a per-user namespace",
+                self._base_path,
+            )
         self._running = True
         log.info("AutoMount daemon started (base=%s)", self._base_path)
         self._scan_existing()
@@ -284,6 +338,23 @@ class AutoMountDaemon:
             self._emit(ev)
             return ev
 
+        # Consent gate.  Fail-closed when consent is required
+        # but cannot be established (no provider) or is explicitly denied.
+        consent = self._policy.consent_for(device_path, media_type)
+        if consent is not True:
+            ev = AutoMountEvent(
+                status=AutoMountStatus.SKIPPED_CONSENT,
+                device_path=device_path,
+                media_type=media_type,
+                message=(
+                    "Consent denied for auto-mount"
+                    if consent is False
+                    else "Consent required but no consent_provider is configured"
+                ),
+            )
+            self._emit(ev)
+            return ev
+
         if device_path in self._active_mounts:
             ev = AutoMountEvent(
                 status=AutoMountStatus.ALREADY_MOUNTED,
@@ -294,9 +365,9 @@ class AutoMountDaemon:
             self._emit(ev)
             return ev
 
-        # Compute mount point
+        # Compute mount point (honour user_mode's per-user namespace).
         mount_point = MountNaming.mount_point_for(
-            media_type, self._base_path, index=0
+            media_type, self._policy.mount_base(self._base_path), index=0
         )
         if not mount_point:
             ev = AutoMountEvent(
@@ -323,13 +394,17 @@ class AutoMountDaemon:
         if actual_fs in self._policy.read_only_types:
             opts.append("ro")
 
-        # Mount
-        result = mount(
-            device_path, mount_point,
-            fs_type=actual_fs,
-            options=opts if opts else None,
-            create_dir=True,
-        )
+        # Mount.  thread the requesting identity to media.mount_ops so
+        # the authorization check sees it (omitted when unset, keeping
+        # the no-user-context daemon flow unchanged).
+        mount_kwargs: Dict[str, Any] = {
+            "fs_type": actual_fs,
+            "options": opts if opts else None,
+            "create_dir": True,
+        }
+        if self._policy.user:
+            mount_kwargs["user"] = self._policy.user
+        result = mount(device_path, mount_point, **mount_kwargs)
 
         if result.success:
             self._active_mounts[device_path] = mount_point
@@ -369,7 +444,10 @@ class AutoMountDaemon:
         if self._policy.flush_before_unmount:
             sync_mount(mount_point)
 
-        result = unmount(mount_point, sync=False)
+        unmount_kwargs: Dict[str, Any] = {"sync": False}
+        if self._policy.user:
+            unmount_kwargs["user"] = self._policy.user
+        result = unmount(mount_point, **unmount_kwargs)
 
         if result.success:
             del self._active_mounts[device_path]
@@ -482,5 +560,33 @@ def _selftest() -> bool:
         assert events[-1].status == AutoMountStatus.UNMOUNTED
 
     daemon2.stop()
+
+    # Consent gate + user_mode scoping.
+    assert AutoMountPolicy().consent_for("/dev/sdb1", MediaType.USB) is True
+    assert AutoMountPolicy(require_consent=True).consent_for(
+        "/dev/sdb1", MediaType.USB) is None          # fail-closed: no provider
+    assert AutoMountPolicy(
+        require_consent=True,
+        consent_provider=lambda _d, _m: False,
+    ).consent_for("/dev/sdb1", MediaType.USB) is False
+    assert AutoMountPolicy(
+        require_consent=True,
+        consent_provider=lambda _d, _m: True,
+    ).consent_for("/dev/sdb1", MediaType.USB) is True
+
+    assert AutoMountPolicy().mount_base("/media") == "/media"
+    assert AutoMountPolicy(user_mode=False, user="alice").mount_base("/media") == "/media"
+    assert AutoMountPolicy(user_mode=True, user="alice").mount_base(
+        "/media") == os.path.join("/media", "alice")
+
+    # A daemon that requires consent must skip (never mount) without a provider.
+    consent_daemon = AutoMountDaemon(
+        bus=HotplugBus(), policy=AutoMountPolicy(require_consent=True))
+    consent_daemon.start()
+    ev_denied = consent_daemon.mount_device("/dev/sdz1", MediaType.USB)
+    assert ev_denied.status is AutoMountStatus.SKIPPED_CONSENT
+    assert "/dev/sdz1" not in consent_daemon.active_mounts
+    consent_daemon.stop()
+
     clear_sim_mounts()
     return True

@@ -24,6 +24,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 # Add project root and legal folder to sys.path
 _leg_dir = Path(__file__).resolve().parent
@@ -122,7 +123,7 @@ def test_consent_gate() -> bool:
 
 def test_contributors() -> bool:
     print("\n" + "=" * 60)
-    print("Test 4: Contributors Roster & DCO Certification")
+    print("Test 4: Contributors Roster & DCO Declaration Status")
     print("=" * 60)
     from legal.contributors import ContributorRegistry
 
@@ -130,17 +131,19 @@ def test_contributors() -> bool:
     roster = reg.list_contributors()
     assert len(roster) >= 3
 
-    assert reg.verify_dco("Muhammad Umer Yasin (MUmerYasin)")
-    assert reg.verify_dco("The Linux Documentation Project (TLDP)")
+    assert reg.has_dco_declaration("Muhammad Umer Yasin (MUmerYasin)")
+    assert reg.has_dco_declaration("The Linux Documentation Project (TLDP)")
 
-    # Add community contributor
-    reg.add_contributor("Jane Doe", role="Tester", contributions=["Quantum unit tests"])
+    # Add community contributor — DCO status is NOT assumed (fail-closed).
+    jane = reg.add_contributor("Jane Doe", role="Tester", contributions=["Quantum unit tests"])
     assert reg.get_contributor("Jane Doe") is not None
+    assert jane.dco_flag is False
+    assert not reg.has_dco_declaration("Jane Doe")
 
     md = reg.generate_acknowledgements_md()
     assert "# UmerOS Project Contributors" in md
 
-    print(f"[OK] Contributors roster ({len(roster)} entries) and DCO checks verified.")
+    print(f"[OK] Contributors roster ({len(roster)} entries) and DCO declarations verified.")
     return True
 
 
@@ -188,8 +191,10 @@ def test_licenses_and_maintainers() -> bool:
     lead = m_reg.get("MUmerYasin")
     assert lead is not None
     assert "DILITHIUM5" in lead.pqc_public_key_fingerprint
+    # H138: the fingerprints are marked placeholders, not real key material.
+    assert lead.key_fingerprints_are_placeholders
 
-    print("[OK] License manager and maintainer PQC profiles verified.")
+    print("[OK] License manager and maintainer profiles verified (key fingerprints are placeholders).")
     return True
 
 
@@ -228,21 +233,128 @@ def test_legal_manager_and_cli() -> bool:
         ledger = Path(tmpdir) / "ledger.json"
         from legal.manager import LegalManager
         from legal.cli import main as cli_main
+        import legal.consent as consent_mod
 
         mgr = LegalManager(ledger_path=ledger)
         s = mgr.get_summary()
         assert s["disclaimer_notices"] >= 4
 
-        # CLI tests
-        assert cli_main(["summary"]) == 0
-        assert cli_main(["disclaimer", "general"]) == 0
-        assert cli_main(["contributors"]) == 0
-        assert cli_main(["donations"]) == 0
-        assert cli_main(["maintainers"]) == 0
-        assert cli_main(["consent", "general", "--user", "test_user", "--i-agree"]) == 0
-        assert cli_main(["verify", "general"]) == 0
+        # The CLI builds its own LegalManager() against the *default* ledger.
+        # Redirect that to a temp path so the suite never writes the user's
+        # real consent ledger (test hygiene).
+        with mock.patch.object(consent_mod, "DEFAULT_LEDGER_PATH", ledger):
+            assert cli_main(["summary"]) == 0
+            assert cli_main(["disclaimer", "general"]) == 0
+            assert cli_main(["contributors"]) == 0
+            assert cli_main(["donations"]) == 0
+            assert cli_main(["maintainers"]) == 0
+            # Fail-CLOSED: consent is never auto-granted non-interactively.
+            with mock.patch.object(sys.stdin, "isatty", return_value=False):
+                assert cli_main(["consent", "general", "--user", "test_user"]) == 1
+            # Explicit --i-agree is the out-of-band assertion that grants.
+            assert cli_main(["consent", "general", "--user", "test_user", "--i-agree"]) == 0
+            assert cli_main(["verify", "general"]) == 0
 
         print("[OK] LegalManager master coordinator and CLI commands executed successfully.")
+        return True
+
+
+def test_consent_interactive_fail_closed() -> bool:
+    print("\n" + "=" * 60)
+    print("Test 9: Interactive Consent Gate is FAIL-CLOSED")
+    print("=" * 60)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ledger_path = (Path(tmpdir) / "consent_ledger.json").resolve()
+        from legal.consent import ConsentManager, ConsentGateError
+
+        mgr = ConsentManager(ledger_path=ledger_path)
+
+        # Dry-run must NOT record legal consent (H131).
+        assert mgr.require_consent_interactive("installer", dry_run=True) is False
+        assert not mgr.has_consented("installer")
+
+        # Non-interactive with no explicit override must fail CLOSED.
+        with mock.patch.object(sys.stdin, "isatty", return_value=False):
+            try:
+                mgr.require_consent_interactive("installer")
+                assert False, "Should fail closed without a TTY or explicit override"
+            except ConsentGateError:
+                pass
+        assert not mgr.has_consented("installer")
+
+        # An explicit out-of-band opt-in grants consent.
+        with mock.patch.object(sys.stdin, "isatty", return_value=False):
+            assert mgr.require_consent_interactive("installer", allow_non_interactive=True) is True
+        assert mgr.has_consented("installer")
+
+        print("[OK] Interactive consent gate fails closed (no dry-run/non-TTY auto-grant).")
+        return True
+
+
+def test_license_audit_accuracy() -> bool:
+    print("\n" + "=" * 60)
+    print("Test 10: License Audit Accuracy (fail-CLOSED) & Strict License Text")
+    print("=" * 60)
+    from legal.licenses import LicenseManager
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        d = Path(tmpdir)
+        # A loose prose mention of "GPL-3.0" is NOT a license declaration.
+        (d / "prose.py").write_text('"""Not GPL-3.0 compatible, see NOTICE."""\n', encoding="utf-8")
+        (d / "bare.py").write_text("x = 1\n", encoding="utf-8")
+        # The canonical header IS an explicit declaration.
+        (d / "ok.py").write_text(LicenseManager.GPL_HEADER_TEMPLATE + "\n", encoding="utf-8")
+
+        res = LicenseManager.scan_directory(d)
+        assert res.total_files_scanned == 3
+        assert res.compliant_files == 1
+        assert res.is_fully_compliant is False
+        assert sorted(Path(p).name for p in res.missing_license_files) == ["bare.py", "prose.py"]
+
+    # get_license_text is GPL-3.0-only and rejects other names.
+    assert "GNU General Public License" in LicenseManager.get_license_text("GPL-3.0")
+    for bad in ("Apache-2.0", "MIT", "GPL-2.0"):
+        try:
+            LicenseManager.get_license_text(bad)
+            assert False, f"Should reject non-GPL-3.0 license name: {bad}"
+        except ValueError:
+            pass
+
+    print("[OK] License audit fails closed and license text is GPL-3.0-only.")
+    return True
+
+
+def test_safety_gate_fail_closed() -> bool:
+    print("\n" + "=" * 60)
+    print("Test 11: Pre-Execution Safety Gate is FAIL-CLOSED (HIGH/CRITICAL)")
+    print("=" * 60)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        target = Path(tmpdir) / "critical_data"
+        target.mkdir()
+        (target / "config.sys").write_text("critical boot config", encoding="utf-8")
+
+        from legal.safety_check import SafetyChecker
+        from legal.disclaimer import RiskLevel
+
+        # HIGH with a successful checkpoint backup -> safe.
+        ok = SafetyChecker.verify_safety("flash_firmware", RiskLevel.HIGH, target, create_backup=True)
+        assert ok.is_safe and ok.backup_created
+
+        # HIGH without a backup request -> blocked.
+        blocked = SafetyChecker.verify_safety("flash_firmware", RiskLevel.HIGH, target, create_backup=False)
+        assert not blocked.is_safe
+        assert "BLOCKED" in blocked.summary()
+        assert "NONE (required for HIGH/CRITICAL)" in blocked.summary()
+
+        # HIGH with a FAILED backup -> blocked.
+        with mock.patch("legal.safety_check.shutil.copytree", side_effect=OSError("disk full")):
+            failed = SafetyChecker.verify_safety("flash_firmware", RiskLevel.HIGH, target, create_backup=True)
+        assert not failed.is_safe and not failed.backup_created
+
+        # SAFE/MODERATE unchanged — no checkpoint is mandated.
+        assert SafetyChecker.verify_safety("read", RiskLevel.SAFE).is_safe
+
+        print("[OK] Safety gate blocks HIGH/CRITICAL without a successful checkpoint backup.")
         return True
 
 
@@ -256,6 +368,9 @@ def run_all_tests() -> bool:
         test_licenses_and_maintainers,
         test_safety_check,
         test_legal_manager_and_cli,
+        test_consent_interactive_fail_closed,
+        test_license_audit_accuracy,
+        test_safety_gate_fail_closed,
     ]
 
     passed = 0

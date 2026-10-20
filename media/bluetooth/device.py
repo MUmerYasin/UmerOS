@@ -47,7 +47,7 @@ sysfs attributes (``/sys/class/bluetooth/hciN``):
 * ``ertm``          0/1 (enhanced retransmission mode)
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

@@ -38,6 +38,9 @@ Phases (matching e2fsprogs pass ordering):
              * Move all discovered orphans into lost+found.
 
 Reference: man 8 fsck, man 8 e2fsck.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

@@ -31,19 +31,18 @@ mount table but whose backing device no longer exists (e.g. a USB
 stick pulled without ``umount``).
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
 
 import logging
-import os
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-from .media_types import MediaDescriptor, MediaType
 from .mount_manager import MediaConfig
 
 log = logging.getLogger("UmerOS.Media.Cleanup")
@@ -82,7 +81,7 @@ class CleanupResult:
 # Helpers
 # ---------------------------------------------------------------------------
 
-_DIR_RE = __import__("re").compile(r"^[a-z]+[0-9]*$", __import__("re").ASCII)
+_DIR_RE = re.compile(r"^[a-z]+[0-9]*$", re.ASCII)
 
 
 def _is_media_subdir(name: str) -> bool:
@@ -266,17 +265,24 @@ def validate_fhs_media(media_root: Optional[Path] = None) -> Dict[str, bool]:
 #  Self-test
 # ---------------------------------------------------------------------------
 
-def _selftest():
+def _selftest() -> bool:
     """Run a basic self-test for this module."""
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        cfg = MediaConfig(media_root=tmpdir)
-        result = scan_stale_mounts(cfg)
-        assert hasattr(result, "stale_count") or hasattr(result, "summary"), "result should have stale_count or summary"
+        cfg = CleanupConfig(
+            config=MediaConfig(media_root=Path(tmpdir)),
+            dry_run=True,
+            check_orphans=False,
+        )
+        result = cleanup_media(cfg)
+        assert isinstance(result, CleanupResult), "cleanup_media should return a CleanupResult"
+        assert result.scanned >= 0
 
     print("selftest OK")
+    return True
 
 
 if __name__ == "__main__":
-    _selftest()
+    import sys
+    sys.exit(0 if _selftest() else 1)

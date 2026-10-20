@@ -40,6 +40,9 @@ Quick start::
         options="uid=1000,noauto,user",
     )
     mgr.add(entry)
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -53,6 +56,19 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set
 
 log = logging.getLogger("UmerOS.Media.Fstab")
+
+# Writing /etc/fstab is a privileged operation. Gate FstabManager.save()
+# behind the zero-trust capability bridge (core/capability_gate): fail-closed
+# when a CapabilityManager is wired, permissive-with-warning standalone.
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in sys.path:
+        sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
 
 # ---------------------------------------------------------------------------
 #  Constants
@@ -327,7 +343,13 @@ class FstabManager:
         return len(self._entries)
 
     def save(self) -> bool:
-        """Write entries back to fstab."""
+        """Write entries back to fstab.
+
+        Writing ``/etc/fstab`` is a privileged operation; the write path
+        requires the ``fs.admin`` capability (fail-closed when a
+        CapabilityManager is wired).
+        """
+        gate.require(CAP_FS_ADMIN)
         if self._simulate:
             log.info("[sim] Would write %d entries to %s",
                      len(self._entries), self._path)
@@ -396,14 +418,43 @@ class FstabManager:
 
     # -- Mutate ---------------------------------------------------------------
 
-    def add(self, entry: FstabEntry, *, position: Optional[int] = None) -> None:
-        """Add an entry."""
+    def add(
+        self,
+        entry: FstabEntry,
+        *,
+        position: Optional[int] = None,
+        validate: bool = True,
+    ) -> List[FstabIssueEntry]:
+        """Add an entry, validating it first by default.
+
+        Validation *errors* (missing device / mount point, conflicting
+        options) raise ``ValueError`` — fail-closed, so a malformed entry
+        can never reach ``/etc/fstab``. Warnings are logged and returned.
+        Comment / empty lines are structural and skip validation. Pass
+        ``validate=False`` for trusted bulk loads.
+
+        Returns:
+            The list of non-fatal (warning) issues.
+        """
+        issues: List[FstabIssueEntry] = []
+        if validate and not entry.is_comment and not entry.is_empty:
+            validator = FstabValidator(self._entries)
+            issues = validator.validate(entry)
+            errors = [i for i in issues if i.is_error]
+            if errors:
+                raise ValueError(
+                    "Invalid fstab entry: "
+                    + "; ".join(i.message for i in errors)
+                )
+            for warning in issues:
+                log.warning("fstab entry warning: %s", warning.message)
         if position is not None:
             self._entries.insert(position, entry)
         else:
             self._entries.append(entry)
         self._dirty = True
         log.info("Added fstab entry: %s -> %s", entry.device, entry.mount_point)
+        return issues
 
     def remove(self, mount_point: str) -> bool:
         """Remove entries matching *mount_point*.  Returns True if removed."""
@@ -476,11 +527,20 @@ def make_removable_entry(
     fs_type: str = "auto",
     uid: Optional[int] = None,
     extra_options: Optional[List[str]] = None,
+    harden: bool = True,
 ) -> FstabEntry:
-    """Create an fstab entry for a removable device with safe defaults."""
+    """Create an fstab entry for a removable device with safe defaults.
+
+    With ``harden`` (the default) the entry carries ``nosuid,nodev,noexec``
+    so removable media is never suid/dev/exec-capable — matching the
+    auto-mount hardening in ``media/auto_mount.py``. Pass
+    ``harden=False`` to opt out.
+    """
     opts = ["noauto", "user"]
     if uid is not None:
         opts.append(f"uid={uid}")
+    if harden:
+        opts.extend(["nosuid", "nodev", "noexec"])
     if extra_options:
         opts.extend(extra_options)
     if fs_type in ("iso9660", "udf"):
@@ -544,5 +604,24 @@ def _selftest() -> bool:
     assert entry.is_user_mount
     assert entry.get_option("uid") == "1000"
     assert "ro" in entry.option_set or entry.fs_type != "iso9660"
+
+    # removable entries are hardened by default.
+    assert {"nosuid", "nodev", "noexec"} <= entry.option_set
+    soft = make_removable_entry("/dev/sdb1", "/media/usb0", harden=False)
+    assert "noexec" not in soft.option_set
+
+    # add() fails closed on an invalid entry.
+    bad_mgr = FstabManager(simulate=True)
+    try:
+        bad_mgr.add(FstabEntry("", "/media/usb0", "vfat"))
+        raise AssertionError("add() accepted an entry with an empty device")
+    except ValueError:
+        pass
+    # ...but validate=False is an explicit escape hatch.
+    bad_mgr.add(FstabEntry("", "/media/usb0", "vfat"), validate=False)
+    assert bad_mgr.count == 1
+    # Warnings are returned, not raised (duplicate mount point).
+    warn = bad_mgr.add(FstabEntry("/dev/sdz", "/media/usb0", "vfat"))
+    assert isinstance(warn, list)
 
     return True

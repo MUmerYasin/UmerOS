@@ -12,8 +12,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """
-SSL/TLS Certificate and Key Management for UmerOS /lib/ssl
-==========================================================
+SSL/TLS Certificate and Key Management for UmerOS /lib/ssl [EXPERIMENTAL]
+=========================================================================
 Manages the /lib/ssl and /usr/lib/ssl certificate stores, CA bundles,
 private keys, and certificate chains.
 
@@ -21,8 +21,18 @@ private keys, and certificate chains.
 (CA certificates, root certificates, intermediate bundles) used by
 the dynamic linker and system-wide crypto libraries.
 
+Tier: [EXPERIMENTAL] — this is NOT a production TLS stack.  When the optional
+``cryptography`` library is installed, certificates are parsed for real
+(validity window, BasicConstraints, key size, signature algorithm,
+subject/issuer/serial, SAN, extended key usage) and trust is decided
+fail-closed by comparing a certificate's SHA-256 fingerprint against the
+configured CA bundles.  Without ``cryptography`` the module degrades to
+simplified text heuristics and reports unknown metadata.  There is no
+handshake and no cryptographic chain-signature verification — only
+bundle-membership + expiry checks.
+
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -392,46 +402,52 @@ class SslManager:
         elif ext in (".p12", ".pfx"):
             fmt = CertFormat.PKCS12
 
-        # Simplified metadata extraction — in production use OpenSSL/cryptography
-        # Read the REAL certificate validity period (not_before /
-        # not_after) so is_expired()/days_until_expiry() are accurate instead of
-        # always False / 365. Previously empty dates made expiry a fail-open.
-        not_before = ""
-        not_after = ""
-        if _HAS_CRYPTOGRAPHY:
-            try:
-                raw = Path(path).read_bytes()
-                if fmt == CertFormat.DER:
-                    cert = _x509.load_der_x509_certificate(raw)
-                else:
-                    cert = _x509.load_pem_x509_certificate(raw)
-                not_before = cert.not_valid_before_utc.isoformat()
-                not_after = cert.not_valid_after_utc.isoformat()
-            except Exception:
-                # Not a parseable X.509 certificate (or unreadable) — leave the
-                # dates empty; is_expired() then treats it as "no validity data".
-                pass
+        # Real metadata extraction via ``cryptography`` when available;
+        # the text heuristics are only a fallback for unparseable inputs.
+        cert = self._load_x509(path, fmt)
+        if cert is not None:
+            not_before = cert.not_valid_before_utc.isoformat()
+            not_after = cert.not_valid_after_utc.isoformat()
+            subject = self._name_str(cert.subject)
+            issuer = self._name_str(cert.issuer)
+            serial = format(cert.serial_number, "x")
+            key_size, signature_algorithm = self._key_meta(cert)
+            san = self._san_of(cert)
+        else:
+            # Not a parseable X.509 certificate (or cryptography unavailable) —
+            # leave the validity dates empty (is_expired() then treats the cert
+            # as "no validity data") and fall back to the text heuristics.
+            not_before = ""
+            not_after = ""
+            subject = self._extract_field(path, "subject")
+            issuer = self._extract_field(path, "issuer")
+            serial = self._extract_field(path, "serial")
+            key_size, signature_algorithm = 2048, "SHA256withRSA"  # unknown default
+            san = []
+
+        is_ca = self._check_is_ca(path)
 
         info = CertInfo(
             path=path,
             filename=filename,
             format=fmt,
-            purpose=CertPurpose.UNKNOWN,
-            subject=self._extract_field(path, "subject"),
-            issuer=self._extract_field(path, "issuer"),
-            serial=self._extract_field(path, "serial"),
+            purpose=self._purpose_of(cert, is_ca),
+            subject=subject,
+            issuer=issuer,
+            serial=serial,
             not_before=not_before,
             not_after=not_after,
-            # Use the canonical X.509 DER fingerprint (or a
-            # whitespace-normalised PEM-block hash) so it compares directly with
-            # the bundle fingerprints computed in _bundle_fingerprints.
+            # Canonical X.509 DER fingerprint (or a whitespace-normalised
+            # PEM-block hash) so it compares directly with the bundle
+            # fingerprints computed in _bundle_fingerprints.
             fingerprint_sha256=self._fingerprint_pem_cert(
                 (Path(path).read_bytes() if Path(path).exists() else b"")
             ),
-            is_ca=self._check_is_ca(path),
+            is_ca=is_ca,
             is_trusted=False,
-            key_size=2048,
-            signature_algorithm="SHA256withRSA",
+            key_size=key_size,
+            signature_algorithm=signature_algorithm,
+            san=san,
         )
 
         # Check if trusted
@@ -440,6 +456,84 @@ class SslManager:
 
         self._cert_cache[path] = info
         return info
+
+    # --- real X.509 parsing helpers ---------------------------------
+    def _load_x509(self, path: str, fmt: CertFormat):
+        """Load an X.509 certificate via ``cryptography``, or None.
+
+        Returns None when ``cryptography`` is unavailable or the file is not a
+        parseable X.509 certificate (callers then use text heuristics).
+        """
+        if not _HAS_CRYPTOGRAPHY:
+            return None
+        try:
+            raw = Path(path).read_bytes()
+            if fmt == CertFormat.DER:
+                return _x509.load_der_x509_certificate(raw)
+            return _x509.load_pem_x509_certificate(raw)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _name_str(name) -> str:
+        """Render an X.509 ``Name`` as an RFC 4514 string (e.g. ``CN=Test CA``)."""
+        try:
+            return name.rfc4514_string()
+        except Exception:
+            return str(name)
+
+    @staticmethod
+    def _key_meta(cert) -> tuple[int, str]:
+        """Return ``(key_size_bits, signature_algorithm_name)`` for a parsed cert."""
+        try:
+            key_size = int(getattr(cert.public_key(), "key_size", 0) or 0)
+        except Exception:
+            key_size = 0
+        try:
+            oid = cert.signature_algorithm_oid
+            sig = getattr(oid, "_name", "") or oid.dotted_string
+        except Exception:
+            sig = ""
+        return key_size, sig
+
+    @staticmethod
+    def _purpose_of(cert, is_ca: bool) -> CertPurpose:
+        """Derive the certificate purpose from its Extended Key Usage extension."""
+        if cert is None:
+            return CertPurpose.UNKNOWN
+        try:
+            eku = cert.extensions.get_extension_for_class(
+                _x509.ExtendedKeyUsage
+            ).value
+        except Exception:
+            return CertPurpose.CA if is_ca else CertPurpose.UNKNOWN
+        oids = {getattr(oid, "dotted_string", "") for oid in eku}
+        try:
+            from cryptography.x509.oid import ExtendedKeyUsageOID as _EKU
+            if _EKU.SERVER_AUTH.dotted_string in oids:
+                return CertPurpose.SERVER
+            if _EKU.CLIENT_AUTH.dotted_string in oids:
+                return CertPurpose.CLIENT
+            if _EKU.CODE_SIGNING.dotted_string in oids:
+                return CertPurpose.CODE_SIGNING
+            if _EKU.EMAIL_PROTECTION.dotted_string in oids:
+                return CertPurpose.EMAIL
+        except Exception:
+            pass
+        return CertPurpose.CA if is_ca else CertPurpose.UNKNOWN
+
+    @staticmethod
+    def _san_of(cert) -> list[str]:
+        """Return the certificate's Subject Alternative Names as strings."""
+        if cert is None:
+            return []
+        try:
+            san = cert.extensions.get_extension_for_class(
+                _x509.SubjectAlternativeName
+            ).value
+            return [str(name.value) for name in san]
+        except Exception:
+            return []
 
     def _inspect_key(self, path: str) -> Optional[KeyInfo]:
         """Parse a private key file and extract metadata."""

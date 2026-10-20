@@ -21,6 +21,9 @@ entries.  Any allocated inode that has no directory reference is an
 "orphan" and is queued for recovery into /lost+found.
 
 Reference: ``e2fsck`` pass 3 (``pass3.c`` in e2fsprogs).
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

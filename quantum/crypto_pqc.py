@@ -92,6 +92,21 @@ from cryptography.hazmat.primitives.serialization import (  # type: ignore
     NoEncryption,
 )
 
+# Vendored-liboqs integration bridge: reports whether the vendored
+# `liboqs/` C source (pinned submodule) is present/declared and whether the
+# `oqs` Python bindings are importable. Imported defensively so crypto_pqc
+# keeps working even if the helper is unavailable.
+try:  # pragma: no cover - import wiring
+    from .liboqs_integration import integration_status as _liboqs_integration_status
+    from .liboqs_integration import summarize as _liboqs_integration_summary
+except ImportError:  # imported as a top-level module (no package context)
+    try:
+        from liboqs_integration import integration_status as _liboqs_integration_status  # type: ignore
+        from liboqs_integration import summarize as _liboqs_integration_summary  # type: ignore
+    except ImportError:
+        _liboqs_integration_status = None  # type: ignore
+        _liboqs_integration_summary = None  # type: ignore
+
 
 # ---------------------------------------------------------------------------
 # Hash utilities
@@ -283,6 +298,20 @@ class PostQuantumCrypto:
                 "— NOT quantum-safe. Install liboqs-python for real PQC, or call "
                 "assert_post_quantum() to refuse non-PQC operation."
             )
+        if _liboqs_integration_summary is not None:
+            log.info("liboqs integration: %s", _liboqs_integration_summary())
+
+    def provenance(self) -> dict:
+        """Return the vendored-liboqs <-> Python-bindings integration status.
+
+        Combines the static provenance report (vendored C source version,
+        ``.gitmodules`` pin, ``oqs`` bindings) with this instance's *active*
+        backend so callers can see exactly which PQC implementation is in use.
+        """
+        status = dict(_liboqs_integration_status()) if _liboqs_integration_status else {}
+        status["active_backend"] = self.backend
+        status["is_post_quantum"] = self.is_post_quantum
+        return status
 
     def assert_post_quantum(self) -> None:
         """Raise if the active backend is not post-quantum.

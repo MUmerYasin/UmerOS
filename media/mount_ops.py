@@ -38,6 +38,9 @@ Quick start::
     mount("/dev/sdb1", "/media/usb0", fs_type="vfat")
     assert is_mounted("/media/usb0")
     unmount("/media/usb0")
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -72,6 +75,56 @@ except Exception:  # pragma: no cover - standalone fallback
     if _proj not in sys.path:
         sys.path.insert(0, _proj)
     from core.capability_gate import gate, CAP_FS_ADMIN
+
+# Media access-control hook. When a MountPermissionManager is wired via
+# set_permission_manager(), mount/unmount/remount consult it before acting
+# (fail-closed). With no manager wired the path stays permissive so existing
+# flows (auto-mount daemon, udisks2) keep working.
+try:
+    from .permissions import MountPermissionManager
+except Exception:  # pragma: no cover - standalone fallback
+    MountPermissionManager = None  # type: ignore
+
+_permission_manager = None  # type: ignore  # Optional[MountPermissionManager]
+
+
+def set_permission_manager(manager) -> None:
+    """Wire (or clear) the media access-control manager."""
+    global _permission_manager
+    _permission_manager = manager
+
+
+def get_permission_manager():
+    """Return the currently wired media access-control manager, if any."""
+    return _permission_manager
+
+
+def _permission_denied(user, mount_point, action):
+    """Return a denial MountResult when the wired permission manager forbids *action*.
+
+    Fail-closed: once a manager is wired, a missing user context or a failed
+    check denies the operation. With no manager wired, returns ``None``
+    (permissive) so unauthenticated daemon flows keep working.
+    """
+    mgr = _permission_manager
+    if mgr is None:
+        return None
+    mp = os.path.normpath(mount_point)
+    if user is None:
+        return MountResult(
+            success=False,
+            error=MountError.PERMISSION_DENIED,
+            message=f"{action} denied: no user context (permission manager is wired)",
+            mount_point=mp,
+        )
+    if not mgr.can_mount(user, mp):
+        return MountResult(
+            success=False,
+            error=MountError.PERMISSION_DENIED,
+            message=f"{action} denied for user {user!r} on {mp}",
+            mount_point=mp,
+        )
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -332,47 +385,6 @@ def _real_mount(
     )
 
 
-def _real_unmount(mount_point: str, *, sync: bool = True) -> MountResult:
-    """Unmount using the system umount(8) command."""
-    start = time.monotonic()
-    mp = os.path.realpath(mount_point) if os.path.exists(mount_point) else mount_point
-
-    if sync:
-        # Flush pending writes
-        _run_cmd(["sync"], timeout=10)
-
-    cmd = ["umount"]
-    if sync:
-        cmd.append("-l")   # lazy unmount if busy
-    cmd.append(mp)
-
-    rc, stdout, stderr = _run_cmd(cmd)
-    elapsed = (time.monotonic() - start) * 1000
-
-    if rc == 0:
-        return MountResult(
-            success=True,
-            mount_point=mp,
-            duration_ms=elapsed,
-        )
-
-    err = MountError.UNKNOWN
-    if "Permission denied" in stderr or "must be superuser" in stderr:
-        err = MountError.PERMISSION_DENIED
-    elif "not mounted" in stderr:
-        err = MountError.NOT_MOUNTED
-    elif "busy" in stderr or "target is busy" in stderr:
-        err = MountError.BUSY
-
-    return MountResult(
-        success=False,
-        error=err,
-        message=stderr.strip() or f"umount returned {rc}",
-        mount_point=mp,
-        duration_ms=elapsed,
-    )
-
-
 def _real_remount(mount_point: str, options: List[str]) -> MountResult:
     """Remount with new options."""
     start = time.monotonic()
@@ -477,6 +489,7 @@ def mount(
     fs_type: str = "auto",
     options: Optional[List[str]] = None,
     create_dir: bool = True,
+    user: Optional[str] = None,
 ) -> MountResult:
     """Mount *device* at *mount_point*.
 
@@ -486,6 +499,9 @@ def mount(
         fs_type: Filesystem type (``"auto"`` for auto-detect).
         options: Extra mount options.
         create_dir: Create mount point if missing.
+        user: Requesting user, checked against the wired permission manager
+            (H158; fail-closed when a manager is set — see
+            :func:`set_permission_manager`).
 
     Returns:
         ``MountResult`` with success status and details.
@@ -494,6 +510,11 @@ def mount(
     # `fs.admin` capability (fail-closed when a CapabilityManager is wired).
     # media/auto_mount.py and media/udisks2.py both route here (see module note).
     gate.require(CAP_FS_ADMIN)
+
+    # Media access control: consult the wired permission manager.
+    denied = _permission_denied(user, mount_point, "mount")
+    if denied is not None:
+        return denied
 
     mp = os.path.normpath(mount_point)
 
@@ -521,6 +542,7 @@ def unmount(
     sync: bool = True,
     lazy: bool = False,
     force: bool = False,
+    user: Optional[str] = None,
 ) -> MountResult:
     """Unmount a mounted filesystem.
 
@@ -531,6 +553,8 @@ def unmount(
         sync: Flush pending writes first.
         lazy: Use lazy unmount if device is busy.
         force: Force unmount (dangerous).
+        user: Requesting user, checked against the wired permission manager
+            ( fail-closed when a manager is set).
 
     Returns:
         ``MountResult`` with success status.
@@ -538,7 +562,21 @@ def unmount(
     # Unmounting is privileged; require fs.admin (fail-closed when wired).
     gate.require(CAP_FS_ADMIN)
 
+    # Media access control.
+    denied = _permission_denied(user, mount_point, "unmount")
+    if denied is not None:
+        return denied
+
     mp = os.path.normpath(mount_point)
+
+    # H164: `force` and `lazy` are mutually exclusive umount modes; make
+    # the precedence explicit instead of silently dropping `lazy`.
+    if force and lazy:
+        log.warning(
+            "unmount(%s): force and lazy are mutually exclusive; "
+            "-f takes precedence",
+            mp,
+        )
 
     if _use_simulation:
         return _sim_unmount(mp, sync=sync)
@@ -581,13 +619,26 @@ def unmount(
 def remount(
     mount_point: str,
     options: List[str],
+    *,
+    user: Optional[str] = None,
 ) -> MountResult:
     """Remount with new options.
 
     Useful for switching between read-only and read-write modes.
+
+    Args:
+        mount_point: Directory to remount.
+        options: New mount options.
+        user: Requesting user, checked against the wired permission manager
+            ( fail-closed when a manager is set).
     """
     # Remounting is privileged; require fs.admin (fail-closed when wired).
     gate.require(CAP_FS_ADMIN)
+
+    # Media access control ( fail-closed when a manager is set).
+    denied = _permission_denied(user, mount_point, "remount")
+    if denied is not None:
+        return denied
 
     mp = os.path.normpath(mount_point)
 
@@ -651,6 +702,19 @@ def _selftest() -> bool:
     mount("/dev/sdb2", "/media/test2")
     status = mount_status()
     assert len(status) >= 2
+
+    #  `-l` must be driven by `lazy`, never by `sync` (the removed
+    # `_real_unmount` conflated the two).
+    mount("/dev/sdc1", "/media/test3")
+    r6 = unmount("/media/test3", sync=False, lazy=True)
+    assert r6.success, r6.message
+    assert not is_mounted("/media/test3")
+
+    # force + lazy are mutually exclusive: force wins, no failure.
+    mount("/dev/sdd1", "/media/test4")
+    r7 = unmount("/media/test4", sync=False, force=True, lazy=True)
+    assert r7.success, r7.message
+    assert not is_mounted("/media/test4")
 
     clear_sim_mounts()
     return True

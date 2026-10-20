@@ -41,18 +41,30 @@ This module:
     configured in ``/etc/fstab`` with the ``user`` option.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
+import stat
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Set
+
+try:  # POSIX advisory locking
+    import fcntl
+except ImportError:  # pragma: no cover - Windows
+    fcntl = None  # type: ignore[assignment]
+try:  # Windows advisory locking
+    import msvcrt
+except ImportError:  # pragma: no cover - POSIX
+    msvcrt = None  # type: ignore[assignment]
 
 from .audit import AuditEvent, AuditLog
 from .fstab import Fstab, FstabEntry
@@ -90,6 +102,102 @@ class MtabEntry:
         """
         base = f"{self.device} {self.mount_point} {self.fstype} {self.options} 0 0"
         return f"{base} # umeros mounted_by={self.mounted_by} uid={self.uid}"
+
+
+# ---------------------------------------------------------------------------
+# mtab merging
+# ---------------------------------------------------------------------------
+
+def merge_mtab_entries(
+    local: Sequence[MtabEntry],
+    on_disk: Sequence[MtabEntry],
+    removed: Optional[Set[str]] = None,
+) -> List[MtabEntry]:
+    """Merge this manager's view with the current on-disk mtab.
+
+    ``/etc/mtab`` is shared state: ``mount(8)``, the udisks2 daemon and any
+    other ``UserMountManager`` write to it too.  A manager can only ever see
+    the rows that existed when it was constructed, so rewriting the file from
+    its in-memory list silently deletes every row it never loaded.  This
+    merge is the fix:
+
+    * on-disk order is preserved, so the file keeps its shape and only the
+      rows that actually changed are touched;
+    * a row whose mount point this manager knows about is replaced by the
+      local version (local wins -- it reflects the operation just performed);
+    * a row whose mount point is in *removed* is dropped (the tombstone that
+      lets :meth:`UserMountManager.user_umount` delete a row without
+      resurrecting it on the next save);
+    * every other on-disk row is carried through untouched;
+    * local rows not present on disk are appended.
+
+    Args:
+        local:     This manager's entries.
+        on_disk:   Entries currently in the file.
+        removed:   Mount points this manager unmounted.
+
+    Returns:
+        The list to write back, in on-disk order followed by new rows.
+    """
+    tombstones = removed or set()
+
+    local_by_point: Dict[str, MtabEntry] = {}
+    for entry in local:
+        local_by_point.setdefault(entry.mount_point, entry)
+
+    merged: List[MtabEntry] = []
+    seen: Set[str] = set()
+
+    for entry in on_disk:
+        point = entry.mount_point
+        if point in seen:
+            continue
+        seen.add(point)
+        if point in tombstones:
+            continue
+        merged.append(local_by_point.get(point, entry))
+
+    for entry in local:
+        point = entry.mount_point
+        if point in seen:
+            continue
+        seen.add(point)
+        merged.append(entry)
+
+    return merged
+
+
+@contextlib.contextmanager
+def _mtab_lock(lock_path: str):
+    """Hold an exclusive advisory lock around the mtab read-modify-write.
+
+    Without it two concurrent mounters both read the old file and the second
+    ``os.replace()`` wins, dropping the first one's row -- the race half of
+     ``fcntl.flock`` is used on POSIX and ``msvcrt.locking`` on Windows;
+    if neither is available the merge still happens, just unserialised.
+    """
+    handle = open(lock_path, "a+b")
+    locked = False
+    try:
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            locked = True
+        elif msvcrt is not None:
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+            locked = True
+        yield
+    finally:
+        if locked:
+            try:
+                if fcntl is not None:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                elif msvcrt is not None:
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            except OSError:  # pragma: no cover - best-effort unlock
+                pass
+        handle.close()
 
     def as_dict(self) -> Dict[str, object]:
         return {
@@ -138,43 +246,116 @@ class UserMountManager:
         # boot-time `mount -a` behaviour.
         self._mount_mgr = mount_mgr or MountManager(enforce_noauto=False)
         self._mtab: List[MtabEntry] = []
+        # mount points this manager unmounted, so the read-modify-write
+        # in _save_mtab() cannot resurrect them from the on-disk file.
+        self._removed: Set[str] = set()
         self._load_mtab()
 
     # -- Mtab I/O ------------------------------------------------------------
 
-    def _load_mtab(self) -> None:
-        """Load ``/etc/mtab``.
+    @staticmethod
+    def _parse_mtab_lines(lines: Sequence[str]) -> List[MtabEntry]:
+        """Parse raw mtab lines into entries.
 
         Ownership written by :meth:`MtabEntry.to_mtab_line` rides in a
         trailing ``#`` comment that standard mtab readers ignore.
         """
+        entries: List[MtabEntry] = []
+        for line in lines:
+            parts = line.strip().split()
+            if len(parts) < 4:
+                continue
+            comment = line.split("#", 1)[1] if "#" in line else ""
+            by_match = re.search(r"mounted_by=(\S+)", comment)
+            uid_match = re.search(r"uid=(\d+)", comment)
+            entries.append(MtabEntry(
+                device=parts[0],
+                mount_point=parts[1],
+                fstype=parts[2],
+                options=parts[3],
+                mounted_by=by_match.group(1) if by_match else "unknown",
+                uid=int(uid_match.group(1)) if uid_match else 0,
+            ))
+        return entries
+
+    def _read_mtab_entries(self) -> List[MtabEntry]:
+        """Read the current on-disk mtab (empty when absent/unreadable)."""
         try:
             with open(self._mtab_path, "r", encoding="utf-8") as fh:
-                for line in fh:
-                    parts = line.strip().split()
-                    if len(parts) >= 4:
-                        comment = line.split("#", 1)[1] if "#" in line else ""
-                        by_match = re.search(r"mounted_by=(\S+)", comment)
-                        uid_match = re.search(r"uid=(\d+)", comment)
-                        self._mtab.append(MtabEntry(
-                            device=parts[0],
-                            mount_point=parts[1],
-                            fstype=parts[2],
-                            options=parts[3],
-                            mounted_by=by_match.group(1) if by_match else "unknown",
-                            uid=int(uid_match.group(1)) if uid_match else 0,
-                        ))
+                return self._parse_mtab_lines(fh.readlines())
         except (FileNotFoundError, PermissionError):
-            pass
+            return []
+
+    def _load_mtab(self) -> None:
+        """Load ``/etc/mtab`` into memory."""
+        self._mtab = self._read_mtab_entries()
+
+    def _write_mtab_atomic(self, entries: Sequence[MtabEntry]) -> None:
+        """Replace the mtab file atomically.
+
+        Writes a sibling temp file, fsyncs it and ``os.replace()``s it into
+        place, so a reader (or a crash) never observes a half-written mtab.
+        The existing file mode is preserved rather than inheriting
+        ``mkstemp``'s 0600.
+        """
+        parent = os.path.dirname(os.path.abspath(self._mtab_path)) or "."
+        try:
+            mode = stat.S_IMODE(os.stat(self._mtab_path).st_mode)
+        except OSError:
+            mode = 0o644
+
+        fd, tmp_path = tempfile.mkstemp(dir=parent, prefix=".mtab-", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
+                for entry in entries:
+                    fh.write(entry.to_mtab_line() + "\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+            os.chmod(tmp_path, mode)
+            os.replace(tmp_path, self._mtab_path)
+        except BaseException:
+            try:
+                os.unlink(tmp_path)
+            except OSError:  # pragma: no cover - already gone
+                pass
+            raise
 
     def _save_mtab(self) -> None:
-        """Persist mtab entries."""
+        """Persist mtab entries.
+
+        This used to truncate the file and rewrite it from this
+        process's in-memory list, which deleted every row the manager had not
+        loaded (another process's mount, a ``mount(8)`` run after
+        construction) and lost whole writes when two mounters raced.  It is
+        now a locked read-modify-write merge (:func:`merge_mtab_entries`)
+        followed by an atomic replace, so concurrent writers compose instead
+        of overwriting each other.
+        """
+        if os.path.islink(self._mtab_path):
+            # Modern Linux ships /etc/mtab as a symlink to
+            # /proc/self/mounts.  os.replace() would swap that symlink for a
+            # stale regular file and break mount(8)/df, and the kernel
+            # already maintains the real table -- there is nothing to write.
+            log.warning(
+                "mtab %s is a symlink (kernel-managed); not rewriting",
+                self._mtab_path,
+            )
+            return
+
         try:
-            with open(self._mtab_path, "w", encoding="utf-8") as fh:
-                for entry in self._mtab:
-                    fh.write(entry.to_mtab_line() + "\n")
-        except PermissionError:
-            log.error("Cannot write mtab: %s", self._mtab_path)
+            with _mtab_lock(self._mtab_path + ".lock"):
+                merged = merge_mtab_entries(
+                    self._mtab,
+                    self._read_mtab_entries(),
+                    self._removed,
+                )
+                self._write_mtab_atomic(merged)
+                self._mtab = merged
+                # The tombstones have been honoured on disk; a later save
+                # must not keep suppressing a row someone else re-created.
+                self._removed.clear()
+        except OSError as exc:
+            log.error("Cannot write mtab %s: %s", self._mtab_path, exc)
 
     # -- Fstab lookups -------------------------------------------------------
 
@@ -341,6 +522,7 @@ class UserMountManager:
             uid=uid or 0,
         )
         self._mtab.append(mtab_entry)
+        self._removed.discard(mount_point)
         self._save_mtab()
 
         log.info(
@@ -376,6 +558,9 @@ class UserMountManager:
         self._mtab = [
             e for e in self._mtab if e.mount_point != mount_point
         ]
+        # tombstone the removal so the merge in _save_mtab() cannot
+        # bring the row back from the on-disk file.
+        self._removed.add(mount_point)
         self._save_mtab()
 
         log.info("User umount: %s unmounted %s", username, mount_point)
@@ -410,14 +595,21 @@ class UserMountManager:
         gid: Optional[int] = None,
         umask: Optional[str] = None,
         ro: bool = False,
+        noexec: bool = True,
     ) -> FstabEntry:
         """Create a standard user-mount fstab entry.
 
         Equivalent to::
 
             /dev/fd0 /floppy msdos user,noauto 0 0
+
+        This used to apply ``noexec`` by default (see
+        :func:`mnt.fstab.make_user_mount`); pass ``noexec=False`` for
+        a deliberately executable mount.
         """
         opts = ["user", "noauto", "nosuid", "nodev"]
+        if noexec:
+            opts.append("noexec")
         if ro:
             opts.append("ro")
         if uid is not None:
@@ -513,6 +705,49 @@ def _selftest() -> bool:
             return False
         if "uid=1000" not in entry.options:
             print("make_fstab_entry missing uid")
+            return False
+        if "noexec" not in entry.options:
+            print("make_fstab_entry missing noexec")
+            return False
+
+        # mtab writes merge with the on-disk file instead of
+        # clobbering it, and tombstones suppress unmounted rows.
+        disk = [
+            MtabEntry("/dev/sdb1", "/mnt/usb", "vfat", "user", "alice"),
+            MtabEntry("/dev/sdc1", "/mnt/other", "ext4", "rw", "root"),
+        ]
+        merged = merge_mtab_entries(disk[:1], disk)
+        if [e.mount_point for e in merged] != ["/mnt/usb", "/mnt/other"]:
+            print(f"merge_mtab_entries dropped on-disk rows: {merged}")
+            return False
+
+        if merge_mtab_entries([], disk[1:], {"/mnt/other"}):
+            print("merge_mtab_entries ignored a tombstone")
+            return False
+
+        merged = merge_mtab_entries(
+            [MtabEntry("/dev/sdb1", "/mnt/usb", "vfat", "user,noexec", "bob")],
+            disk[:1],
+        )
+        if len(merged) != 1 or merged[0].mounted_by != "bob":
+            print(f"local entry should win: {merged}")
+            return False
+
+        # End-to-end: a row appended by "another process" after this
+        # manager loaded the file must survive the next save.
+        with open(mtab_path, "w", encoding="utf-8") as fh:
+            fh.write(disk[0].to_mtab_line() + "\n")
+        writer = UserMountManager(fstab_path=fstab_path, mtab_path=mtab_path)
+        with open(mtab_path, "a", encoding="utf-8") as fh:
+            fh.write(disk[1].to_mtab_line() + "\n")
+        writer._mtab.append(
+            MtabEntry("/dev/sdd1", "/mnt/new", "xfs", "rw", "root")
+        )
+        writer._save_mtab()
+        with open(mtab_path, "r", encoding="utf-8") as fh:
+            points = sorted(ln.split()[1] for ln in fh if ln.strip())
+        if points != ["/mnt/new", "/mnt/other", "/mnt/usb"]:
+            print(f"mtab merge clobbered rows: {points}")
             return False
 
         return True

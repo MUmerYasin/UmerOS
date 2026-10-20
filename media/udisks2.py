@@ -38,6 +38,9 @@ Quick start::
     client.scan()
     for dev in client.block_devices:
         print(dev.device, dev.id_type, dev.mount_points)
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

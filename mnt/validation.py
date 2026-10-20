@@ -38,8 +38,16 @@ This module checks:
 7. Network mounts have proper ``noauto`` semantics.
 8. User-mountable entries have ``user`` or ``users`` option.
 
+Two entry points share those checks:
+
+* :meth:`MntValidator.validate` -- whole-tree audit, reporting anomalies as
+  ``WARNING``.  Useful as a report; too broad to gate a single mount.
+* :meth:`MntValidator.validate_mount_request` -- request-scoped gate used by
+  :meth:`mnt.mount_ops.MountManager.mount`.  The same anomalies become
+  ``ERROR`` so a pending mount is **refused** rather than merely reported.
+
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -55,6 +63,10 @@ from typing import Dict, List, Optional, Sequence
 log = logging.getLogger("UmerOS.Mnt.Validation")
 
 MNT_ROOT = "/mnt"
+
+# Single source of truth for mount-point leaf names (shared by the
+# whole-tree audit and the per-request gate in `validate_mount_request`).
+_NAME_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +159,104 @@ class MntValidator:
     def is_valid(self) -> bool:
         return len(self.errors) == 0
 
+    def validate_mount_request(
+        self,
+        device: str,
+        mount_point: str,
+        fstype: str = "auto",
+        options: str = "defaults",
+    ) -> List[Finding]:
+        """Validate a single *pending* mount request.
+
+        :meth:`validate` audits the whole ``/mnt`` tree plus ``/etc/fstab``
+        and is therefore only ever usable as a report: an unrelated
+        world-writable directory elsewhere under ``/mnt`` must not veto an
+        otherwise sound mount, and re-walking the tree on every ``mount()``
+        would be both slow and racy.  This method inspects only the
+        properties of *one* request so the mount path can **fail closed** on
+        the findings that genuinely concern it.
+
+        Only requests whose target lies under ``mnt_root`` are inspected;
+        anything else returns an empty list, because ``/mnt`` policy does not
+        govern ``/media`` or arbitrary administrator mounts.
+
+        Severity note: findings that the whole-tree audit reports as
+        ``WARNING`` (a symlinked mount point, an unusual leaf name) are
+        promoted to ``ERROR`` here.  An audit should describe an existing
+        system without failing it, whereas a *new* request must be refused.
+
+        Args:
+            device:       Block device or special name being mounted.
+            mount_point:  Target directory.
+            fstype:       Filesystem type (``auto`` for kernel detection).
+            options:      Comma-separated mount options (already hardened).
+
+        Returns:
+            Findings scoped to this request.  ``ERROR`` means the request
+            must be refused; ``WARNING`` means proceed but tell someone.
+        """
+        findings: List[Finding] = []
+
+        root = os.path.normpath(self._mnt_root)
+        target = os.path.normpath(mount_point)
+        if target != root and not target.startswith(root + os.sep):
+            return findings
+
+        path = Path(mount_point)
+
+        # MNT004: mounting over a symlink redirects the mount somewhere
+        # else entirely -- a zero-trust traversal vector, so refuse.
+        if path.is_symlink():
+            findings.append(Finding(
+                severity=Severity.ERROR,
+                code="MNT004",
+                message=f"Mount point is a symlink: {mount_point}",
+                path=mount_point,
+            ))
+        # MNT003: the target must be a directory.
+        elif path.exists() and not path.is_dir():
+            findings.append(Finding(
+                severity=Severity.ERROR,
+                code="MNT003",
+                message=f"Mount point is not a directory: {mount_point}",
+                path=mount_point,
+            ))
+
+        # MNT005: leaf name validation.
+        name = path.name
+        if name and not _NAME_RE.match(name):
+            findings.append(Finding(
+                severity=Severity.ERROR,
+                code="MNT005",
+                message=f"Mount point name contains unusual characters: {name}",
+                path=mount_point,
+            ))
+
+        # MNT009: user-mountable requests must stay hardened.  `mount_ops`
+        # auto-hardens them, so this only fires when the caller
+        # deliberately overrode a flag with exec/suid/dev -- warn, don't
+        # block, because that override is an explicit decision.
+        opts = {o.strip() for o in options.split(",") if o.strip()}
+        if opts & {"user", "users"}:
+            weak = [o for o in ("noexec", "nosuid", "nodev") if o not in opts]
+            if weak:
+                findings.append(Finding(
+                    severity=Severity.WARNING,
+                    code="MNT009",
+                    message=(
+                        f"User-mountable {mount_point} lacks "
+                        f"{', '.join(weak)}"
+                    ),
+                    path=mount_point,
+                    context={
+                        "device": device,
+                        "fstype": fstype,
+                        "options": options,
+                    },
+                ))
+
+        return findings
+
     # -- Checks --------------------------------------------------------------
 
     def _check_root_exists(self) -> List[Finding]:
@@ -234,7 +344,7 @@ class MntValidator:
                 ))
 
             # MNT005: Name validation
-            if not re.match(r"^[a-zA-Z0-9._-]+$", entry.name):
+            if not _NAME_RE.match(entry.name):
                 findings.append(Finding(
                     severity=Severity.WARNING,
                     code="MNT005",

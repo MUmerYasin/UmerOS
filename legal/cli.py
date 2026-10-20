@@ -71,13 +71,13 @@ def create_parser() -> argparse.ArgumentParser:
     ver_p.add_argument("key", nargs="?", default="general", help="Disclaimer key")
 
     # contributors
-    subparsers.add_parser("contributors", help="List recognized project contributors & DCO status")
+    subparsers.add_parser("contributors", help="List recognized project contributors & declared DCO status")
 
     # donations
     subparsers.add_parser("donations", help="Show funding channels and sponsor wall")
 
     # maintainers
-    subparsers.add_parser("maintainers", help="View verified maintainer profiles & PQC keys")
+    subparsers.add_parser("maintainers", help="View maintainer profiles & placeholder key fingerprints")
 
     # licenses
     lic_p = subparsers.add_parser("licenses", help="Manage GPL-3.0 license and scan repository compliance")
@@ -173,6 +173,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"    Email:        {m.email}")
             print(f"    PQC Key:      {m.pqc_public_key_fingerprint}")
             print(f"    PGP Key:      {m.pgp_fingerprint}")
+            if m.key_fingerprints_are_placeholders:
+                print("    (placeholders — not real key material, not trust anchors)")
             print(f"    Subsystems:   {', '.join(m.subsystems_maintained)}")
         print("=" * 70 + "\n")
         return 0

@@ -18,8 +18,10 @@ UmerOS Legal & Compliance — Donations & Sustainability Subsystem
 Manages open-source project funding, donor recognition tiers, grant allocations,
 and sustainability channels.
 
-Support Muhammad Umer Yasin (creator of UmerOS) financially — even buying him a
-coffee helps keep UmerOS alive and growing!
+Sensitive creator/donor details (bank IBANs, phone numbers, personal e-mail and
+payment links) are **not** hardcoded here — they are loaded at runtime from a
+git-ignored external config (see :mod:`legal.creator_config`).  When no
+config is present, only the non-sensitive public funding channels are shown.
 
 Author: UmerOS Project
 License: GPL-3.0 (GNU General Public License Version 3)
@@ -28,10 +30,12 @@ License: GPL-3.0 (GNU General Public License Version 3)
 from __future__ import annotations
 
 import enum
-import json
 import time
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from .creator_config import DEFAULT_FUNDING_CHANNELS, load_creator_config
 
 
 class DonationTier(str, enum.Enum):
@@ -59,122 +63,42 @@ class DonationRecord:
 
 
 # ======================================================================
-# CREATOR BANK ACCOUNTS - Muhammad Umer Yasin (UmerOS Lead Architect)
+# Creator bank accounts / funding channels
 # ======================================================================
-# If UmerOS has helped you, please consider supporting Umer financially!
-# Even buying him a coffee (PKR 300 / $1) keeps this project going.
-#
-# PAKISTAN (Direct IBAN Transfer):
-#   NayaPay (Current Account)
-#     IBAN:    PK79NAYA1234503060084827
-#     ID:      mumeryasin@nayapay      Mobile: 0306-0084827
-#
-#   The Bank of Punjab (231 Raiwind Branch)
-#     IBAN:    PK53BPUN6010296643300013
-#
-#   FINCA Microfinance Bank Pakistan
-#     IBAN:    PK29FINC0000923060084827   Account: 03060084827
-#
-#   EasyPaisa
-#     IBAN:    PK47TMFB0000000035783567   Mobile: 0306-0084827
-#
-#   JazzCash
-#     IBAN:    PK97JCMA3011923060084827   Mobile: 0306-0084827
-#
-#   National Bank of Pakistan (1552 Raja Jang Branch)
-#     IBAN:    PK05NBPA1552004252285402
-#
-#   ABHI Wallet
-#     IBAN:    PK29FINC0000923060084827
-#
-#   United Bank Limited / UBL (Branch 1927 Chowk Lalak Jan, Lahore)
-#     IBAN:    PK09UNIL0109000276650059
-#
-# INTERNATIONAL:
-#   Payoneer:  Muhammad Umer Yasin | +923140422313 | waumsoftwarehouse@gmail.com
-#   Wise:      https://wise.com/pay/me/muhammadumery
-# ======================================================================
+# Sensitive personal & financial data (bank IBANs, phone numbers, personal
+# e-mail addresses) is NOT committed to source control.  It is loaded at
+# runtime from a git-ignored JSON file — see ``legal/creator_config.py`` and
+# the committed schema ``creator_accounts.example.json``.  When no config is
+# present, only the non-sensitive public channels are shown.
 
-CREATOR_BANK_ACCOUNTS: List[Dict[str, str]] = [
-    {
-        "method": "NayaPay",
-        "description": "Current Account, Pakistan",
-        "iban": "PK79NAYA1234503060084827",
-        "id": "mumeryasin@nayapay",
-        "mobile": "0306-0084827",
-    },
-    {
-        "method": "The Bank of Punjab",
-        "description": "231 Raiwind Branch, Pakistan",
-        "iban": "PK53BPUN6010296643300013",
-    },
-    {
-        "method": "FINCA Microfinance Bank",
-        "description": "Pakistan",
-        "iban": "PK29FINC0000923060084827",
-        "account_number": "03060084827",
-    },
-    {
-        "method": "EasyPaisa",
-        "description": "Pakistan",
-        "iban": "PK47TMFB0000000035783567",
-        "mobile": "0306-0084827",
-    },
-    {
-        "method": "JazzCash",
-        "description": "Pakistan",
-        "iban": "PK97JCMA3011923060084827",
-        "mobile": "0306-0084827",
-    },
-    {
-        "method": "National Bank of Pakistan",
-        "description": "1552 Raja Jang Branch, Pakistan",
-        "iban": "PK05NBPA1552004252285402",
-    },
-    {
-        "method": "ABHI Wallet",
-        "description": "Pakistan",
-        "iban": "PK29FINC0000923060084827",
-    },
-    {
-        "method": "United Bank Limited (UBL)",
-        "description": "Branch 1927, Chowk Lalak Jan, Lahore, Pakistan",
-        "iban": "PK09UNIL0109000276650059",
-    },
-    {
-        "method": "Payoneer",
-        "description": "International",
-        "name": "Muhammad Umer Yasin",
-        "phone": "+923140422313",
-        "email": "waumsoftwarehouse@gmail.com",
-    },
-    {
-        "method": "Wise",
-        "description": "International",
-        "url": "https://wise.com/pay/me/muhammadumery",
-    },
-]
+#: Backwards-compatible module snapshot of the configured creator accounts
+#: (empty when unconfigured).  Prefer :meth:`DonationsManager.get_creator_accounts`.
+CREATOR_BANK_ACCOUNTS: List[Dict[str, str]] = list(
+    load_creator_config().get("bank_accounts", []) or []
+)
 
 
 class DonationsManager:
     """Manages donation records, recognition tiers, and funding channels."""
 
-    def __init__(self) -> None:
+    def __init__(self, config_path: Optional[Path | str] = None) -> None:
+        # PII lives in a git-ignored external file; nothing sensitive is
+        # hardcoded here.  Public channels are always available.
+        self._cfg: Dict[str, Any] = load_creator_config(config_path)
         self._donations: List[DonationRecord] = []
-        self._funding_channels: Dict[str, str] = {
-            "wise": "https://wise.com/pay/me/muhammadumery",
-            "payoneer": "waumsoftwarehouse@gmail.com | +923140422313",
-            "nayapay": "mumeryasin@nayapay  (0306-0084827)",
-            "jazzcash": "0306-0084827",
-            "easypaisa": "0306-0084827",
-            "github_sponsors": "https://github.com/sponsors/umeros",
-            "opencollective": "https://opencollective.com/umeros",
-            "direct_grant": "grants@umeros.local",
-        }
+        self._bank_accounts: List[Dict[str, str]] = list(
+            self._cfg.get("bank_accounts", []) or []
+        )
+        channels: Dict[str, str] = dict(DEFAULT_FUNDING_CHANNELS)
+        channels.update(self._cfg.get("funding_channels", {}) or {})
+        self._funding_channels = channels
 
     def get_creator_accounts(self) -> List[Dict[str, str]]:
-        """Returns all bank accounts for creator Muhammad Umer Yasin."""
-        return list(CREATOR_BANK_ACCOUNTS)
+        """Returns the configured creator accounts (empty when unconfigured)."""
+        return list(self._bank_accounts)
+
+    def _founder_name(self) -> str:
+        return str((self._cfg.get("founder") or {}).get("name") or "the UmerOS maintainers")
 
     def add_donation(
         self,
@@ -212,88 +136,95 @@ class DonationsManager:
         return dict(self._funding_channels)
 
     def generate_sponsors_md(self) -> str:
-        """Generates markdown sponsor wall with full creator bank details."""
+        """Generates the markdown sponsor wall from the configured channels (H137)."""
+        international = [a for a in self._bank_accounts if not a.get("iban")]
+        domestic = [a for a in self._bank_accounts if a.get("iban")]
+
         lines = [
             "# UmerOS Project — Support & Sponsorship",
             "",
-            "UmerOS is a free, open-source, Python-first quantum-native operating system",
-            "built by **Muhammad Umer Yasin**, a solo developer from Pakistan.",
-            "If this project brings you value, please consider supporting Umer financially",
-            "— even buying him a coffee makes a real difference!",
+            "UmerOS is a free, open-source, Python-first quantum-native operating system.",
+            f"If this project brings you value, please consider supporting {self._founder_name()}",
+            "financially — even buying a coffee makes a real difference!",
             "",
             "---",
-            "",
-            "## Support Muhammad Umer Yasin",
-            "",
-            "### International Payments",
-            "",
-            "| Method | Details |",
-            "|--------|---------|",
-            "| **Wise** | https://wise.com/pay/me/muhammadumery |",
-            "| **Payoneer** | Muhammad Umer Yasin &nbsp; `+923140422313` &nbsp; `waumsoftwarehouse@gmail.com` |",
-            "",
-            "### Pakistan Bank Accounts (Direct IBAN Transfer)",
-            "",
-            "| Bank / Wallet | IBAN | Extra Details |",
-            "|---------------|------|---------------|",
-            "| **NayaPay** (Current Account) | `PK79NAYA1234503060084827` | `mumeryasin@nayapay` &nbsp; 0306-0084827 |",
-            "| **The Bank of Punjab** (231 Raiwind Branch) | `PK53BPUN6010296643300013` | — |",
-            "| **FINCA Microfinance Bank Pakistan** | `PK29FINC0000923060084827` | Account: 03060084827 |",
-            "| **EasyPaisa** | `PK47TMFB0000000035783567` | 0306-0084827 |",
-            "| **JazzCash** | `PK97JCMA3011923060084827` | 0306-0084827 |",
-            "| **National Bank of Pakistan** (1552 Raja Jang Branch) | `PK05NBPA1552004252285402` | — |",
-            "| **ABHI Wallet** | `PK29FINC0000923060084827` | — |",
-            "| **United Bank Limited / UBL** (Branch 1927, Chowk Lalak Jan, Lahore) | `PK09UNIL0109000276650059` | — |",
-            "",
-            "---",
-            "",
-            "## Official Project Funding Channels",
             "",
         ]
+
+        if international:
+            lines += ["## International Payments", "", "| Method | Details |", "|--------|---------|"]
+            for a in international:
+                detail = a.get("url") or " &nbsp; ".join(
+                    str(x) for x in (a.get("name"), a.get("phone"), a.get("email")) if x
+                )
+                lines.append(f"| **{a.get('method', '')}** | {detail} |")
+            lines.append("")
+
+        if domestic:
+            lines += [
+                "## Bank Accounts (Direct IBAN Transfer)",
+                "",
+                "| Bank / Wallet | IBAN | Extra Details |",
+                "|---------------|------|---------------|",
+            ]
+            for a in domestic:
+                extra = a.get("id") or a.get("mobile") or a.get("account_number") or "—"
+                lines.append(
+                    f"| **{a.get('method', '')}** ({a.get('description', '')}) | "
+                    f"`{a.get('iban', '')}` | {extra} |"
+                )
+            lines.append("")
+
+        if not self._bank_accounts:
+            lines += [
+                "> *Direct donation details are not configured in this build.*",
+                "> *Maintainers: copy `legal/creator_accounts.example.json` to "
+                "`legal/creator_accounts.local.json` (git-ignored) to enable them.*",
+                "",
+            ]
+
+        lines += ["---", "", "## Official Project Funding Channels", ""]
         for k, v in self._funding_channels.items():
             lines.append(f"- **{k.replace('_', ' ').title()}:** {v}")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-        lines.append("## Recognized Project Sponsors & Backers")
-        lines.append("")
+        lines += ["", "---", "", "## Recognized Project Sponsors & Backers", ""]
         if not self._donations:
             lines.append("> *No public sponsorships registered yet. Be the first to support UmerOS!*")
         else:
             for d in self._donations:
                 note_str = f" -- \"{d.public_note}\"" if d.public_note else ""
                 lines.append(f"- **{d.donor_name}** [{d.tier.value}]{note_str}")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-        lines.append("> *Thank you for supporting open-source Pakistani innovation!*")
-        lines.append("> --- Muhammad Umer Yasin")
+        lines += ["", "---", "", "> *Thank you for supporting open-source innovation!*"]
         return "\n".join(lines)
 
     def print_donation_appeal(self) -> None:
-        """Prints a terminal-friendly donation appeal for Muhammad Umer Yasin."""
+        """Prints a terminal-friendly donation appeal from the configured channels (H137)."""
+        international = [a for a in self._bank_accounts if not a.get("iban")]
+        domestic = [a for a in self._bank_accounts if a.get("iban")]
         print()
         print("=" * 65)
-        print("  SUPPORT UMEROS -- BUY UMER A COFFEE!")
+        print("  SUPPORT UMEROS -- BUY A COFFEE!")
         print("=" * 65)
-        print("  UmerOS is built by Muhammad Umer Yasin, a solo developer")
-        print("  from Pakistan. Your support -- big or small -- directly")
-        print("  fuels innovation and keeps this project going.")
+        print(f"  UmerOS is built by {self._founder_name()}. Your support -- big or")
+        print("  small -- directly fuels innovation and keeps this project going.")
         print()
-        print("  INTERNATIONAL:")
-        print("    Wise     -> https://wise.com/pay/me/muhammadumery")
-        print("    Payoneer -> +923140422313 | waumsoftwarehouse@gmail.com")
-        print()
-        print("  PAKISTAN (Direct IBAN Transfer):")
-        for acc in CREATOR_BANK_ACCOUNTS:
-            if "iban" in acc:
-                method = acc["method"]
-                iban = acc["iban"]
+        if international:
+            print("  INTERNATIONAL:")
+            for a in international:
+                detail = a.get("url") or " | ".join(
+                    str(x) for x in (a.get("name"), a.get("phone"), a.get("email")) if x
+                )
+                print(f"    {a.get('method', ''):<10} -> {detail}")
+            print()
+        if domestic:
+            print("  PAKISTAN (Direct IBAN Transfer):")
+            for acc in domestic:
                 extra = acc.get("mobile") or acc.get("id") or acc.get("account_number") or ""
                 extra_str = f"  ({extra})" if extra else ""
-                print(f"    {method:<40} {iban}{extra_str}")
-        print()
-        print("  Even PKR 300 ($1) helps! Thank you.")
-        print("  -- Muhammad Umer Yasin, Pakistan")
+                print(f"    {acc.get('method', ''):<40} {acc.get('iban', '')}{extra_str}")
+            print()
+        if not self._bank_accounts:
+            print("  (Direct donation details are not configured in this build.)")
+            print()
+        print("  Even a small amount helps! Thank you.")
         print("=" * 65)
         print()

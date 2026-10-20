@@ -30,7 +30,7 @@ This module models ldconfig behaviour for UmerOS so that user-space
 programs can look up shared libraries.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

@@ -520,6 +520,19 @@ class Emulator:
             # ret -- pop RIP.
             self.regs.set(15, self._pop())
             return
+        if op == 0xC8:
+            # enter imm16, imm8 -- undefined in long mode; we treat
+            # it as a stack-alloc + push rbp, the typical use.
+            size, _ = self._read_imm(ip, 2)
+            nesting, _ = self._read_imm(ip + 2, 1)
+            if nesting:
+                # Simplified: push rbp once.
+                self._push(self.regs.get(REG_RBP))
+            self.regs.set(REG_RSP,
+                          (self.regs.get(REG_RSP) - size)
+                          & 0xFFFFFFFFFFFFFFFF)
+            self.regs.set(15, ip + 4)
+            return
         if op == 0x60:
             # 0x60 = PUSHAD in 32-bit mode; in 64-bit (long) mode the
             # opcode is undefined.  Some Win10 binaries emit it as
@@ -843,6 +856,10 @@ class Emulator:
             # REP / REPZ (3) prefix -- ignore.
             self.regs.set(15, ip)
             return
+        if op == 0xF0:
+            # LOCK prefix -- ignore (we are single-threaded).
+            self.regs.set(15, ip)
+            return
         if op in (0x26, 0x2E, 0x36, 0x3E, 0x64, 0x65):
             # Segment override prefixes -- in flat 64-bit mode, ignore.
             self.regs.set(15, ip)
@@ -1001,6 +1018,28 @@ class Emulator:
             else:
                 self.mem.write(val, struct.pack("<H",
                             self.regs.get(op_reg) & 0xFFFF))
+            self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x88:
+            # mov r/m8, r8 (byte form)
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, 1)
+            byte_val = self.regs.get(op_reg) & 0xFF
+            if kind == "reg":
+                self.regs.set(val,
+                              (self.regs.get(val) & ~0xFF) | byte_val)
+            else:
+                self.mem.write_u8(val, byte_val)
+            self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x8A:
+            # mov r8, r/m8 (byte form)
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, 1)
+            if kind == "reg":
+                src = self.regs.get(val) & 0xFF
+            else:
+                src = self.mem.read_u8(val)
+            self.regs.set(op_reg,
+                          (self.regs.get(op_reg) & ~0xFF) | src)
             self.regs.set(15, rm_addr + n)
             return
         if op == 0x8B:
@@ -1267,6 +1306,28 @@ class Emulator:
             else:
                 self.regs.set(op_reg, (self.regs.get(op_reg) & ~0xFF) | res)
             self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x21:
+            # and r/m32, r32
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            src = (self.regs.get(val) if kind == "reg"
+                   else self.mem.read_u64(val))
+            tgt = (self.regs.get(op_reg) if kind == "reg"
+                   else self.mem.read_u64(val))
+            mask = (1 << (op_size * 8)) - 1
+            res = tgt & src & mask
+            if kind == "reg":
+                self.regs.set(op_reg, res)
+            elif kind == "mem64":
+                self.mem.write_u64(val, res)
+            else:
+                self.mem.write_u32(val, res & 0xFFFFFFFF)
+            self.regs.set(15, rm_addr + n)
+            return
+        if op == 0x26:
+            # (segment prefix, handled elsewhere -- but a bare 0x26
+            # reaching here means we mis-decoded; treat as NOP.)
+            self.regs.set(15, ip)
             return
         if op == 0x3D:
             # cmp eax, imm32 (or rax, imm32 with REX.W)
@@ -2441,6 +2502,87 @@ class Emulator:
                 self.regs.set(op_reg, res)
             self.regs.set(15, rm_addr + n)
             return
+        # SETcc r/m8 (0F 90-9F)
+        if 0x90 <= op <= 0x9F:
+            modrm = self.mem.read_u8(ip)
+            mod = (modrm >> 6) & 3
+            rm = modrm & 7
+            rm_addr = ip + 1
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, 1)
+            taken = self._test_cc(op - 0x90)
+            byte_val = 0xFF if taken else 0x00
+            if kind == "reg":
+                self.regs.set(val,
+                              (self.regs.get(val) & ~0xFF) | byte_val)
+            else:
+                self.mem.write_u8(val, byte_val)
+            self.regs.set(15, rm_addr + n)
+            return
+        # BSF r, r/m (0F BC) and BSR r, r/m (0F BD)
+        if op in (0xBC, 0xBD):
+            modrm = self.mem.read_u8(ip)
+            mod = (modrm >> 6) & 3
+            reg = (modrm >> 3) & 7
+            rm = modrm & 7
+            op_reg = (reg + rex_r) & 0xF if (rex & 0x4) else reg
+            rm_addr = ip + 1
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b, op_size)
+            if kind == "reg":
+                src = self.regs.get(val)
+            elif kind == "mem64":
+                src = self.mem.read_u64(val)
+            else:
+                src = self.mem.read_u32(val)
+            self.regs.zf = 1 if src == 0 else 0
+            if src != 0:
+                idx = 0
+                if op == 0xBC:      # bsf: lowest set bit
+                    while not (src >> idx) & 1:
+                        idx += 1
+                else:               # bsr: highest set bit
+                    idx = src.bit_length() - 1
+                self.regs.set(op_reg, idx)
+            self.regs.set(15, rm_addr + n)
+            return
+        # BSWAP r32/r64 (0F C8-CF)
+        if 0xC8 <= op <= 0xCF:
+            reg = (op - 0xC8) + (8 if rex_b else 0)
+            v = self.regs.get(reg)
+            if op_size == 8:
+                b = v.to_bytes(8, "little")
+                self.regs.set(reg, int.from_bytes(b, "big"))
+            else:
+                v32 = v & 0xFFFFFFFF
+                b = v32.to_bytes(4, "little")
+                self.regs.set(reg,
+                              (v & ~0xFFFFFFFF)
+                              | int.from_bytes(b, "big"))
+            self.regs.set(15, ip)
+            return
+        # MOVZX r, r/m8 (0F B6) and MOVSX r, r/m8 (0F BE)
+        if op in (0xB6, 0xBE, 0xB7, 0xBF):
+            modrm = self.mem.read_u8(ip)
+            mod = (modrm >> 6) & 3
+            reg = (modrm >> 3) & 7
+            rm = modrm & 7
+            op_reg = (reg + rex_r) & 0xF if (rex & 0x4) else reg
+            rm_addr = ip + 1
+            src_size = 1 if op in (0xB6, 0xBE) else 2
+            kind, val, n = self._resolve_rm(rm_addr, mod, rm, rex_b,
+                                            src_size)
+            if kind == "reg":
+                src = self.regs.get(val) & ((1 << (src_size * 8)) - 1)
+            elif src_size == 1:
+                src = self.mem.read_u8(val)
+            else:
+                src = self.mem.read_u16(val)
+            if op in (0xBE, 0xBF):      # sign-extend
+                src = self._signed(src, src_size * 8) & (
+                    (1 << (op_size * 8)) - 1)
+            mask = (1 << (op_size * 8)) - 1
+            self.regs.set(op_reg, src & mask)
+            self.regs.set(15, rm_addr + n)
+            return
         raise EmulatorDecodeError(
             f"unsupported 2-byte opcode 0F {op:02x} at 0x{ip-2:x}")
 
@@ -2457,6 +2599,34 @@ class Emulator:
         self.regs.sf = 1 if r & (1 << (op_size * 8 - 1)) else 0
         # Carry if borrow occurred (a < b for unsigned subtraction).
         self.regs.cf = 1 if a < b else 0
+
+    def _test_cc(self, low: int) -> bool:
+        """Evaluate condition-code ``low`` (0x0-0xF) against flags.
+
+        The mapping matches both the short (0x70-0x7F), long
+        (0x0F 0x80-0x8F), SETcc (0x0F 0x90-0x9F) and CMOVcc
+        (0x0F 0x40-0x4F) opcode families.
+        """
+        return (
+            (low == 0x0 and self.regs.of == 1)
+            or (low == 0x1 and self.regs.of == 0)
+            or (low == 0x2 and self.regs.cf == 1)
+            or (low == 0x3 and self.regs.cf == 0)
+            or (low == 0x4 and self.regs.zf == 1)
+            or (low == 0x5 and self.regs.zf == 0)
+            or (low == 0x6 and (self.regs.cf == 1 or self.regs.zf == 1))
+            or (low == 0x7 and self.regs.cf == 0 and self.regs.zf == 0)
+            or (low == 0x8 and self.regs.sf == 1)
+            or (low == 0x9 and self.regs.sf == 0)
+            or (low == 0xA and self.regs.pf == 1)
+            or (low == 0xB and self.regs.pf == 0)
+            or (low == 0xC and self.regs.sf != self.regs.of)
+            or (low == 0xD and self.regs.sf == self.regs.of)
+            or (low == 0xE and (self.regs.zf == 1
+                                or self.regs.sf != self.regs.of))
+            or (low == 0xF and self.regs.zf == 0
+                and self.regs.sf == self.regs.of)
+        )
 
     def _cmp_arith(self, a: int, b: int, r: int, op_size: int) -> None:
         mask = (1 << (op_size * 8)) - 1
@@ -2650,8 +2820,8 @@ class Emulator:
                 continue
 
             # Operand-size / address-size / segment override / REP
-            # prefixes -- for now, treat them as no-ops in the JIT
-            # and only handle the common case of one prefix byte.
+            # / LOCK prefixes.  LOCK has no effect in our single-
+            # threaded emulator so we ignore it.
             if b0 in (0x66, 0x67, 0xF0, 0xF2, 0xF3, 0x2E, 0x36, 0x3E, 0x26, 0x64, 0x65):
                 ip += 1
                 b0 = self.mem.read_u8(ip)
@@ -2669,19 +2839,172 @@ class Emulator:
 
             # Hand the one-byte opcode to the dedicated emitter.
             ip += 1
-            result = self._emit_onebyte(
-                b0, ip, rex, rex_w, rex_r, rex_x, rex_b, op_size, body)
+            try:
+                result = self._emit_onebyte(
+                    b0, ip, rex, rex_w, rex_r, rex_x, rex_b, op_size, body)
+            except NotImplementedError:
+                result = None
             if result is None:
+                # Unknown opcode.  Discard any partially emitted body
+                # and let the caller fall back to step() at block_start.
                 return None
             ip, terminated = result
             insns += 1
             if terminated:
-                return self._compile_block(block_start, body, ip - block_start)
-        # Reached a non-terminating block boundary (e.g. buffer end
-        # or max_insns).  Force-terminate by jumping to the next
-        # instruction so the dispatch loop can recompile from there.
-        body.append(f"    s['r'][15] = {ip}")
-        return self._compile_block(block_start, body, ip - block_start)
+                length = ip - block_start
+                if not self._validate_block(block_start, length):
+                    log.debug(
+                        "jit: rejecting block 0x%x (len %d) -- "
+                        "interpreter disagrees on length",
+                        block_start, length)
+                    return None
+                return self._compile_block(block_start, body, length)
+        # Hit the max_insns / max_block_bytes guard without reaching a
+        # control-flow instruction.  We deliberately refuse to JIT this:
+        # a truncated block would leave r[15] pointing at whatever the
+        # last emitted instruction happened to set, which desyncs the
+        # decoder.  The interpreter handles it one instruction at a time.
+        return None
+
+    def _validate_block(self, start: int, length: int) -> bool:
+        """Cross-check a JIT block's decoded length against an
+        independent instruction-length walk.
+
+        The JIT emitter computes instruction sizes on its own, separate
+        from ``step()``.  Any disagreement (a wrong ModR/M length, a
+        missed prefix, a bad RIP-relative displacement) would desync the
+        decoder and eventually run off into garbage.
+
+        We deliberately do **not** execute the instructions here: that
+        would fire Win32 thunks and mutate memory as a side effect of
+        "validating".  Instead we walk the byte stream computing only
+        instruction lengths, using the same ModR/M/SIB rules the
+        interpreter uses but without touching any state.
+        """
+        ip = start
+        end = start + length
+        guard = 0
+        while ip < end:
+            nxt = self._instruction_length(ip)
+            if nxt is None or nxt <= ip:
+                return False
+            ip = nxt
+            guard += 1
+            if guard > 1024:
+                return False
+        return ip == end
+
+    def _instruction_length(self, ip: int) -> Optional[int]:
+        """Return the address of the instruction after the one at
+        ``ip``, or ``None`` if the length can't be determined.
+
+        This is a pure read of the byte stream -- no register or memory
+        writes, no thunk dispatch.
+        """
+        b0 = self.mem.read_u8(ip)
+        while 0x40 <= b0 <= 0x4F:      # REX prefixes
+            ip += 1
+            b0 = self.mem.read_u8(ip)
+        if b0 in (0x66, 0x67, 0xF0, 0xF2, 0xF3,
+                  0x2E, 0x36, 0x3E, 0x26, 0x64, 0x65):
+            ip += 1
+            b0 = self.mem.read_u8(ip)
+            while 0x40 <= b0 <= 0x4F:
+                ip += 1
+                b0 = self.mem.read_u8(ip)
+        ip += 1                        # opcode byte
+
+        # Opcodes with no ModR/M and no immediate.
+        no_modrm = {
+            0x04, 0x05, 0x0C, 0x0D, 0x14, 0x15, 0x1C, 0x1D, 0x24, 0x25,
+            0x2C, 0x2D, 0x34, 0x35, 0x3C, 0x3D,
+            0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+            0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F,
+            0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+            0x58, 0x59, 0x5A, 0x5B, 0x5C, 0x5D, 0x5E, 0x5F,
+            0x60, 0x61, 0x63, 0x90, 0x91, 0x98, 0x99, 0x9C, 0x9D,
+            0x9E, 0x9F, 0xA4, 0xA5, 0xA6, 0xA7, 0xAA, 0xAB,
+            0xAC, 0xAD, 0xAE, 0xAF,
+            0xC2, 0xC3, 0xC9, 0xCA, 0xCC, 0xCD, 0xD7,
+            0xE8, 0xE9, 0xEA, 0xEB, 0xF4, 0xF5, 0xF8, 0xF9,
+            0xFA, 0xFB, 0xFC, 0xFD,
+        }
+        # ModR/M + imm8/imm16/imm32/imm64.
+        modrm_imm8 = {
+            0x80, 0x82, 0x83, 0xC0, 0xC1, 0xC6,
+            0x6A, 0x6B, 0xA8, 0xA9, 0xB0, 0xB1, 0xB2, 0xB3, 0xB4,
+            0xB5, 0xB6, 0xB7, 0xC8, 0xE0, 0xE1, 0xE2, 0xE3,
+            0xE4, 0xE5, 0xE6, 0xE7, 0xD4, 0xD5,
+        }
+        modrm_imm16 = {0xC2,}
+        modrm_imm32 = {0x81, 0xA1, 0xA2, 0xA3, 0xC2}
+        modrm_rel32 = {0x0F80, 0x0F81, 0x0F82, 0x0F83, 0x0F84, 0x0F85,
+                       0x0F86, 0x0F87, 0x0F88, 0x0F89, 0x0F8A, 0x0F8B,
+                       0x0F8C, 0x0F8D, 0x0F8E, 0x0F8F}
+
+        if b0 == 0x0F:
+            b1 = self.mem.read_u8(ip)
+            ip += 1
+            two = 0x0F00 | b1
+            if two in modrm_rel32:
+                modrm = self.mem.read_u8(ip)
+                ip += 1 + self._modrm_tail(ip, modrm)
+                return ip + 4
+            # All other 0F opcodes we're willing to reason about take a
+            # ModR/M and nothing else.
+            modrm = self.mem.read_u8(ip)
+            ip += 1 + self._modrm_tail(ip, modrm)
+            return ip
+        if b0 in no_modrm:
+            return ip
+        if 0x70 <= b0 <= 0x7F:         # Jcc rel8
+            return ip + 1
+        if b0 in modrm_imm8:
+            modrm = self.mem.read_u8(ip)
+            ip += 1 + self._modrm_tail(ip, modrm)
+            return ip + 1
+        if b0 in modrm_imm16:
+            modrm = self.mem.read_u8(ip)
+            ip += 1 + self._modrm_tail(ip, modrm)
+            return ip + 2
+        if b0 in modrm_imm32:
+            modrm = self.mem.read_u8(ip)
+            ip += 1 + self._modrm_tail(ip, modrm)
+            return ip + 4
+        if 0xB8 <= b0 <= 0xBF:         # mov r, imm32/imm64
+            rex = self.mem.read_u8(ip - 1)
+            return ip + (8 if (rex & 0x8) else 4)
+        if 0x50 <= b0 <= 0x5F:
+            return ip
+        if b0 in (0x6C, 0x6D, 0x6E, 0x6F):
+            return ip
+        if 0x70 <= b0 <= 0x7F:
+            return ip + 1
+        # Generic ModR/M opcode.
+        modrm = self.mem.read_u8(ip)
+        ip += 1 + self._modrm_tail(ip, modrm)
+        return ip
+
+    @staticmethod
+    def _modrm_tail(ip: int, modrm: int) -> int:
+        """Return the byte length of the SIB + displacement that
+        follows a ModR/M byte, *without* reading memory.
+
+        ``ip`` is the address just past the ModR/M byte.
+        """
+        mod = (modrm >> 6) & 3
+        rm = modrm & 7
+        if mod == 0:
+            if rm == 5:
+                return 4             # disp32
+            if rm == 4:
+                return 1             # SIB
+            return 0
+        if mod == 1:
+            if rm == 4:
+                return 2             # SIB + disp8
+            return 1                 # disp8
+        return 5 if rm == 4 else 4   # SIB + disp32, or disp32
 
     def _compile_block(self, start: int, body: List[str], length: int
                         ) -> Tuple[Callable, int]:
@@ -2796,14 +3119,60 @@ class Emulator:
             body.append("    else:")
             body.append(f"        r[15] = {ip + 1}")
             return (ip + 1, True)
+        # ---- Group with ModR/M (memory / register) ----
+        # Try a generic ModR/M emitter for the common ALU / data-move
+        # opcodes.  We bail out (return None) for SIB / RIP-relative /
+        # non-register r/m cases so the caller falls back to the
+        # per-instruction interpreter.
+        if op in (0x89, 0x8B, 0x01, 0x03, 0x09, 0x0B, 0x21, 0x23,
+                  0x29, 0x2B, 0x31, 0x33, 0x39, 0x3B, 0x85, 0x84,
+                  0x86, 0x87, 0x8D, 0x88, 0x8A):
+            return self._emit_modrm_op(
+                op, ip, rex, rex_w, rex_r, rex_x, rex_b, op_size, body)
+        # sub/add r/m, imm32 (81 /0..7)
+        if op == 0x81:
+            modrm = self.mem.read_u8(ip)
+            mod = (modrm >> 6) & 3
+            reg = (modrm >> 3) & 7
+            rm = modrm & 7
+            op_reg = (reg + rex_r) & 0xF if (rex & 0x4) else reg
+            if mod == 3 and op_size == 8 and reg in (0, 5):
+                # add r64, imm32 (sign-extended)  or  sub r64, imm32
+                target_reg = (rm + (8 if rex_b else 0)) & 0xF
+                imm, _ = self._read_imm(ip + 1, 4)
+                se = self._signed(imm, 32)
+                if reg == 0:
+                    body.append(f"    {r}[{target_reg}] = ({r}[{target_reg}] + {se}) & 0xFFFFFFFFFFFFFFFF")
+                else:
+                    body.append(f"    {r}[{target_reg}] = ({r}[{target_reg}] - {se}) & 0xFFFFFFFFFFFFFFFF")
+                return (ip + 5, False)
+            # ModR/M forms with /4 (and), /6 (xor), /7 (cmp) and
+            # 32-bit /0, /1, /5 are not JIT'd yet.
+            return None
+        # sub/add/and/or/xor r/m64, imm8 (REX.W 83 /0, /4, /5, etc.)
+        if op == 0x83:
+            modrm = self.mem.read_u8(ip)
+            mod = (modrm >> 6) & 3
+            reg = (modrm >> 3) & 7
+            rm = modrm & 7
+            if mod == 3 and op_size == 8 and reg in (0, 5):
+                target_reg = (rm + (8 if rex_b else 0)) & 0xF
+                imm, _ = self._read_imm(ip + 1, 1)
+                se = self._signed(imm, 8)
+                if reg == 0:
+                    body.append(f"    {r}[{target_reg}] = ({r}[{target_reg}] + {se}) & 0xFFFFFFFFFFFFFFFF")
+                else:
+                    body.append(f"    {r}[{target_reg}] = ({r}[{target_reg}] - {se}) & 0xFFFFFFFFFFFFFFFF")
+                return (ip + 2, False)
+            return None
         # sub rsp, imm / add rsp, imm (48 81 /4 /0 etc.)
         # We handle the immediate forms 81 /0..7, 83 /0..7, 8D (lea)
         # below as needed.
         # Fall back: we don't JIT this opcode.
         return None
 
-    def _emit_twobyte(self, op: int, ip: int, rex: int, rex_w: int,
-                      rex_r: int, rex_x: int, rex_b: int,
+    def _emit_twobyte(self, op: int, ip: int, rex: int, rex_w: bool,
+                      rex_r: int, rex_x: int, rex_b: bool,
                       op_size: int, body: List[str]
                       ) -> Optional[Tuple[int, bool]]:
         """Append Python source for a 0F-prefixed instruction."""
@@ -2817,7 +3186,308 @@ class Emulator:
             body.append("    else:")
             body.append(f"        r[15] = {ip + 4}")
             return (ip + 4, True)
+        # CMOVcc r, r/m (0F 40-4F)
+        if 0x40 <= op <= 0x4F:
+            modrm = self.mem.read_u8(ip)
+            mod = (modrm >> 6) & 3
+            reg = (modrm >> 3) & 7
+            rm = modrm & 7
+            op_reg = (reg + rex_r) & 0xF if (rex & 0x4) else reg
+            target_reg = (rm + (8 if rex_b else 0)) & 0xF
+            if mod == 3:
+                mask = (1 << (op_size * 8)) - 1
+                cond = self._cond_expr(op - 0x40)
+                body.append(f"    if {cond}:")
+                body.append(
+                    f"        r[{op_reg}] = r[{target_reg}] & {mask}")
+                return (ip + 1, False)
+            return None
+        # SETcc r/m8 (0F 90-9F)
+        if 0x90 <= op <= 0x9F:
+            modrm = self.mem.read_u8(ip)
+            mod = (modrm >> 6) & 3
+            reg = (modrm >> 3) & 7
+            rm = modrm & 7
+            target_reg = (rm + (8 if rex_b else 0)) & 0xF
+            cond = self._cond_expr(op - 0x90)
+            if mod == 3:
+                body.append(f"    if {cond}:")
+                body.append(f"        r[{target_reg}] |= 0xFF")
+                body.append("    else:")
+                body.append(f"        r[{target_reg}] &= ~0xFF")
+                body.append(f"    r[{target_reg}] &= 0xFFFFFFFFFFFFFFFF")
+                return (ip + 1, False)
+            return None
+        # BSF / BSR (0F BC / 0F BD) and BSWAP (0F C8-CF)
+        if op in (0xBC, 0xBD, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE,
+                  0xCF):
+            return None
         return None
+
+    def _emit_modrm_op(self, op: int, ip: int, rex: int, rex_w: int,
+                        rex_r: int, rex_x: int, rex_b: int,
+                        op_size: int, body: List[str]
+                        ) -> Optional[Tuple[int, bool]]:
+        """Common ModR/M emitter for the most-used opcodes.
+
+        Supports only the register/register and register/[rsp+disp8]
+        / [rsp+disp32] / [rbp+disp8] addressing modes.  Anything with
+        SIB, RIP-relative, or non-rsp/rbp base registers bails out
+        (``return None``) so the per-instruction interpreter takes
+        over.
+        """
+        modrm = self.mem.read_u8(ip)
+        mod = (modrm >> 6) & 3
+        reg = (modrm >> 3) & 7
+        rm = modrm & 7
+        op_reg = (reg + rex_r) & 0xF if (rex & 0x4) else reg
+        target_reg = (rm + (8 if rex_b else 0)) & 0xF
+
+        # Determine operand size in bytes.
+        size = 8 if op_size == 8 else 4
+        if op in (0x84, 0x86, 0xA8):    # byte-form test/xchg
+            size = 1
+
+        # reg-reg form (mod=3)
+        if mod == 3:
+            self._emit_alu_reg_reg(
+                op, op_size, op_reg, target_reg, size, body)
+            return (ip + 1, False)
+
+        # Memory form.  We compute the effective address as a Python
+        # expression and the number of bytes the whole instruction
+        # occupies (modrm + sib + disp).  RIP-relative (mod=0, rm=5)
+        # is resolved at *emit* time against the end of this
+        # instruction, which is why we need nbytes first.
+        #
+        # Only simple SIB (base=rsp/rbp, no index) is supported;
+        # anything else bails out to the interpreter.
+        disp = 0
+        have_disp = False
+        nbytes = 1                      # modrm byte
+        if mod == 0:
+            if rm == 5:
+                # RIP-relative: addr = next_insn_ip + disp32.
+                disp = self._signed(self.mem.read_u32(ip + 1), 32)
+                have_disp = True
+                nbytes += 4
+            elif rm == 4:
+                sib = self.mem.read_u8(ip + 1)
+                if sib != 0x24:
+                    return None        # indexed SIB
+                nbytes += 1            # the SIB byte itself
+            else:
+                pass                    # [reg], no extra bytes
+        elif mod == 1:
+            if rm == 4:
+                sib = self.mem.read_u8(ip + 1)
+                if sib != 0x24:
+                    return None
+                nbytes += 1
+                disp = self._signed(self.mem.read_u8(ip + 2), 8)
+                have_disp = True
+            else:
+                disp = self._signed(self.mem.read_u8(ip + 1), 8)
+                have_disp = True
+            nbytes += 1
+        elif mod == 2:
+            if rm == 4:
+                sib = self.mem.read_u8(ip + 1)
+                if sib != 0x24:
+                    return None
+                nbytes += 1
+                disp = self._signed(self.mem.read_u32(ip + 2), 32)
+                have_disp = True
+                nbytes += 4
+            else:
+                disp = self._signed(self.mem.read_u32(ip + 1), 32)
+                have_disp = True
+                nbytes += 4
+        else:
+            return None
+
+        # Build the address expression now that nbytes is known.
+        end_ip = ip + nbytes
+        if mod == 0 and rm == 5:
+            # RIP-relative, resolved statically at emit time.
+            addr_expr = f"0x{(end_ip + disp) & 0xFFFFFFFFFFFFFFFF:x}"
+        elif rm == 4:
+            base = "r[4]"              # rsp (SIB base with rex_b=0)
+            addr_expr = (f"({base} + {disp})" if have_disp else base)
+        elif mod == 0:
+            base_reg = target_reg
+            addr_expr = f"r[{base_reg}]"
+        else:
+            base_reg = (rm + (8 if rex_b else 0)) & 0xF
+            addr_expr = (f"(r[{base_reg}] + {disp})" if have_disp
+                         else f"r[{base_reg}]")
+
+        if size == 8:
+            load_fn = "_l64"
+            store_fn = "_s64"
+        elif size == 4:
+            load_fn = "_l32"
+            store_fn = "_s32"
+        else:
+            load_fn = "_l"
+            store_fn = "_s"
+
+        self._emit_alu_mem(
+            op, op_size, op_reg, addr_expr, load_fn, store_fn, size, body)
+        return (ip + nbytes, False)
+
+    def _emit_alu_reg_reg(self, op: int, op_size: int,
+                          dst: int, src: int, size: int,
+                          body: List[str]) -> None:
+        """Emit a reg,reg ALU op."""
+        r = "r"
+        mask = (1 << (op_size * 8)) - 1
+        if op == 0x89:    # mov r/m, r -- reg,reg form
+            body.append(f"    {r}[{dst}] = {r}[{src}] & 0xFFFFFFFFFFFFFFFF")
+            return
+        if op == 0x88:    # mov r/m8, r8 -- byte form
+            body.append(f"    {r}[{dst}] = ({r}[{dst}] & ~0xFF) | ({r}[{src}] & 0xFF)")
+            return
+        if op == 0x8B:    # mov r, r/m -- reg,reg form
+            body.append(f"    {r}[{dst}] = {r}[{src}] & 0xFFFFFFFFFFFFFFFF")
+            return
+        if op == 0x8A:    # mov r8, r/m8 -- byte form
+            body.append(f"    {r}[{dst}] = ({r}[{dst}] & ~0xFF) | ({r}[{src}] & 0xFF)")
+            return
+        if op == 0x01:    # add r/m, r
+            body.append(
+                f"    {r}[{dst}] = ({r}[{dst}] + {r}[{src}]) & {mask}")
+            return
+        if op == 0x03:    # add r, r/m
+            body.append(
+                f"    {r}[{dst}] = ({r}[{dst}] + {r}[{src}]) & {mask}")
+            return
+        if op == 0x29:    # sub r/m, r
+            body.append(
+                f"    {r}[{dst}] = ({r}[{dst}] - {r}[{src}]) & {mask}")
+            return
+        if op == 0x2B:    # sub r, r/m
+            body.append(
+                f"    {r}[{dst}] = ({r}[{dst}] - {r}[{src}]) & {mask}")
+            return
+        if op == 0x09:    # or r/m, r
+            body.append(f"    {r}[{dst}] = ({r}[{dst}] | {r}[{src}]) & {mask}")
+            return
+        if op == 0x0B:    # or r, r/m
+            body.append(f"    {r}[{dst}] = ({r}[{dst}] | {r}[{src}]) & {mask}")
+            return
+        if op == 0x21:    # and r/m, r
+            body.append(f"    {r}[{dst}] = ({r}[{dst}] & {r}[{src}]) & {mask}")
+            return
+        if op == 0x23:    # and r, r/m
+            body.append(f"    {r}[{dst}] = ({r}[{dst}] & {r}[{src}]) & {mask}")
+            return
+        if op == 0x31:    # xor r/m, r
+            body.append(f"    {r}[{dst}] = ({r}[{dst}] ^ {r}[{src}]) & {mask}")
+            return
+        if op == 0x33:    # xor r, r/m
+            body.append(f"    {r}[{dst}] = ({r}[{dst}] ^ {r}[{src}]) & {mask}")
+            return
+        if op == 0x39:    # cmp r/m, r
+            a = f"({r}[{dst}] & {mask})"
+            b = f"({r}[{src}] & {mask})"
+            body.append(f"    cf = 1 if {a} < {b} else 0")
+            body.append(f"    zf = 1 if {a} == {b} else 0")
+            return
+        if op == 0x3B:    # cmp r, r/m
+            a = f"({r}[{dst}] & {mask})"
+            b = f"({r}[{src}] & {mask})"
+            body.append(f"    cf = 1 if {a} < {b} else 0")
+            body.append(f"    zf = 1 if {a} == {b} else 0")
+            return
+        if op == 0x85:    # test r, r/m
+            a = f"({r}[{dst}] & {mask})"
+            b = f"({r}[{src}] & {mask})"
+            body.append(f"    cf = 0")
+            body.append(f"    zf = 1 if ({a} & {b}) == 0 else 0")
+            return
+        if op == 0x87:    # xchg r, r/m
+            body.append(
+                f"    _t = {r}[{dst}]; {r}[{dst}] = {r}[{src}]; "
+                f"{r}[{src}] = _t")
+            return
+        raise NotImplementedError(f"unsupported ALU reg,reg 0x{op:02x}")
+        # NOTE: _emit_block() catches NotImplementedError and falls back
+        # to the per-instruction interpreter for this block, so raising
+        # here is the correct "I don't know this opcode" signal.
+
+    def _emit_alu_mem(self, op: int, op_size: int, dst_reg: int,
+                      addr_expr: str, load_fn: str, store_fn: str,
+                      size: int, body: List[str]) -> None:
+        """Emit an r/m (memory),r ALU op."""
+        r = "r"
+        mask = (1 << (op_size * 8)) - 1
+        # mov [m], r (89)
+        if op == 0x89:
+            body.append(
+                f"    {store_fn}(s, {addr_expr}, {r}[{dst_reg}])")
+            return
+        # mov [m]8, r8 (88) -- byte store
+        if op == 0x88:
+            body.append(
+                f"    {store_fn}(s, {addr_expr}, {r}[{dst_reg}] & 0xFF)")
+            return
+        # mov r, [m] (8B)
+        if op == 0x8B:
+            body.append(
+                f"    {r}[{dst_reg}] = {load_fn}(s, {addr_expr})")
+            return
+        # mov r8, [m]8 (8A) -- byte load
+        if op == 0x8A:
+            body.append(
+                f"    {r}[{dst_reg}] = ({r}[{dst_reg}] & ~0xFF) | "
+                f"({load_fn}(s, {addr_expr}) & 0xFF)")
+            return
+        # lea (8D): dst_reg = address itself, no memory access
+        if op == 0x8D:
+            body.append(
+                f"    {r}[{dst_reg}] = {addr_expr} & 0xFFFFFFFFFFFFFFFF")
+            return
+        # cmp [m], r (39) / cmp r, [m] (3B)
+        if op == 0x39:
+            a = f"({load_fn}(s, {addr_expr}) & {mask})"
+            b = f"({r}[{dst_reg}] & {mask})"
+            body.append(f"    cf = 1 if {a} < {b} else 0")
+            body.append(f"    zf = 1 if {a} == {b} else 0")
+            return
+        if op == 0x3B:
+            a = f"({r}[{dst_reg}] & {mask})"
+            b = f"({load_fn}(s, {addr_expr}) & {mask})"
+            body.append(f"    cf = 1 if {a} < {b} else 0")
+            body.append(f"    zf = 1 if {a} == {b} else 0")
+            return
+        if op == 0x85:    # test r, [m]
+            a = f"({r}[{dst_reg}] & {mask})"
+            b = f"({load_fn}(s, {addr_expr}) & {mask})"
+            body.append(f"    cf = 0")
+            body.append(f"    zf = 1 if ({a} & {b}) == 0 else 0")
+            return
+        # ALU r/m, r (01 add, 29 sub, 09 or, 21 and, 31 xor)
+        op_table = {0x01: "+", 0x29: "-", 0x09: "|",
+                    0x21: "&", 0x31: "^"}
+        if op in op_table:
+            sym = op_table[op]
+            body.append(
+                f"    {store_fn}(s, {addr_expr}, "
+                f"({load_fn}(s, {addr_expr}) {sym} {r}[{dst_reg}]) & {mask})")
+            return
+        # ALU r, r/m (03 add, 2B sub, 0B or, 23 and, 33 xor)
+        op_table2 = {0x03: "+", 0x2B: "-", 0x0B: "|",
+                     0x23: "&", 0x33: "^"}
+        if op in op_table2:
+            sym = op_table2[op]
+            line = (
+                f"    {r}[{dst_reg}] = "
+                f"({r}[{dst_reg}] {sym} {load_fn}(s, {addr_expr})) & {mask}"
+            )
+            body.append(line)
+            return
+        raise NotImplementedError(f"unsupported ALU mem 0x{op:02x}")
 
     @staticmethod
     def _cond_expr(op: int) -> str:
@@ -2844,8 +3514,8 @@ class Emulator:
     def run(self, *, max_steps: int = 100_000,
             hot_loop_window: int = 4096,
             hot_loop_range: int = 0x400,
-            hot_loop_min_steps: int = 100_000,
-            hot_loop_max_skips: int = 8,
+            hot_loop_min_steps: int = 5_000,
+            hot_loop_max_skips: int = 32,
             use_jit: bool = True) -> int:
         """Run until HLT, max_steps reached, or ``stopped`` set.
 
@@ -2953,6 +3623,8 @@ class Emulator:
                 lo = min(recent)
                 hi = max(recent)
                 if hi - lo < hot_loop_range:
+                    log.info("hot loop check: range=0x%x (threshold=0x%x)",
+                             hi - lo, hot_loop_range)
                     detections += 1
                     if detections > hot_loop_max_skips:
                         log.warning(
@@ -2962,11 +3634,39 @@ class Emulator:
                             detections - 1, rip_before)
                         self.stopped = True
                         return self.exit_code
+                    # Only short-circuit if the loop body looks
+                    # like a SIMD memory copy (lots of 0xC4 / 0xC5
+                    # VEX prefix bytes in the loop body range).
+                    simd_count = 0
+                    if hi - lo < 0x200:
+                        try:
+                            for off in range(lo, hi + 1):
+                                b = self.mem.read_u8(off)
+                                if b in (0xC4, 0xC5):
+                                    simd_count += 1
+                        except Exception:
+                            pass
+                    if simd_count < 16:
+                        log.debug(
+                            "emulator: hot loop at 0x%x "
+                            "(range 0x%x, %d steps) but only %d "
+                            "VEX bytes -- not a SIMD copy, "
+                            "resetting detector",
+                            rip_before, hi - lo, self.steps, simd_count)
+                        # Don't treat as a detection; just clear
+                        # the recent window and let the program
+                        # continue.  This avoids false positives
+                        # on TLS / exception-table walkers that
+                        # happen to have a hot loop.
+                        detections -= 1
+                        recent.clear()
+                        continue
                     log.warning(
                         "emulator: hot loop detected near 0x%x "
                         "(range 0x%x, %d steps) -- short-circuiting "
-                        "as memcpy(dst=rcx, src=rdx, count=r8)",
-                        rip_before, hi - lo, self.steps)
+                        "as memcpy(dst=rcx, src=rdx, count=r8) "
+                        "(detection #%d)",
+                        rip_before, hi - lo, self.steps, detections)
                     rcx = self.regs.get(1)
                     rdx = self.regs.get(2)
                     r8 = self.regs.get(8)

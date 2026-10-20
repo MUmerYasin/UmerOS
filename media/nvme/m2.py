@@ -31,7 +31,7 @@ Pure Python (standard library only), no third-party
 packages.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

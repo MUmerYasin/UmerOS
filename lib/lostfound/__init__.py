@@ -53,7 +53,7 @@ FilesystemPartition — A simulated partition with its own inode table, superblo
 - ext4(5):          man5/ext4.5
 
 Author:  UmerOS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from .manager import LostFoundManager

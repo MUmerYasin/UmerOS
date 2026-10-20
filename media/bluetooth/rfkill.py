@@ -32,7 +32,7 @@ Pure Python (standard library only), with the same
 real-sysfs / simulation split used across ``media``.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

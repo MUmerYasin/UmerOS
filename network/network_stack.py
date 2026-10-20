@@ -24,6 +24,9 @@ EXPERIMENTAL:
 FUTURE:
     Post-quantum TLS policy, QKD research hooks, and hardware offload.
     # TODO: QPU integration for future quantum-secure session negotiation.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -78,13 +81,33 @@ class DNSOverHTTPS:
         secondary: str = SECONDARY,
         timeout: float = 3.0,
         cache_ttl: float = 300.0,
+        *,
+        allow_system_fallback: bool = False,
+        require_dnssec: bool = False,
     ) -> None:
-        """Initialize the DoH resolver."""
+        """Initialize the DoH resolver.
+
+        Args:
+            allow_system_fallback: Explicit opt-in to answering from the
+                host resolver when no DoH endpoint replies.  **Off by
+                default** because it is exactly the H180 hole: the
+                caller asked for authenticated DoH and would silently
+                receive an unauthenticated, spoofable answer instead.
+                Set it only for offline/local-only deployments.
+            require_dnssec: Drop answers whose DNSSEC ``AD`` (authentic
+                data) bit is not set, so only validated answers are
+                returned.  Off by default because it needs a
+                DNSSEC-validating resolver upstream.
+        """
         self.primary = primary
         self.secondary = secondary
         self.timeout = timeout
         self.cache_ttl = cache_ttl
+        self.allow_system_fallback = allow_system_fallback
+        self.require_dnssec = require_dnssec
         self._cache: Dict[tuple[str, str], tuple[List[str], float]] = {}
+        #: Parallel to ``_cache``: was the answer DNSSEC-validated?
+        self._dnssec_ok: Dict[tuple[str, str], bool] = {}
 
     def resolve(self, hostname: str, record_type: str = "A") -> List[str]:
         """Resolve a hostname through DoH, falling back to system DNS."""
@@ -96,14 +119,27 @@ class DNSOverHTTPS:
             return list(cached[0])
 
         for endpoint in (self.primary, self.secondary):
-            answers = self._query_endpoint(endpoint, name, record)
+            answers, dnssec_ok = self._query_endpoint(endpoint, name, record)
             if answers:
                 self._cache[cache_key] = (answers, time.time() + self.cache_ttl)
+                self._dnssec_ok[cache_key] = dnssec_ok
                 return answers
+
+        # Every DoH endpoint failed.  Falling back to the host
+        # resolver here is what made "DoH" a lie -- the caller asked for
+        # an authenticated answer and would silently receive a spoofable
+        # one that then feeds NetworkStack.connect().  It is now opt-in.
+        if not self.allow_system_fallback:
+            raise PermissionError(
+                f"no DoH endpoint answered for {name!r}; system DNS "
+                "fallback is disabled (allow_system_fallback=False) "
+                "because it returns unauthenticated answers"
+            )
 
         answers = self._system_resolve(name, record)
         if answers:
             self._cache[cache_key] = (answers, time.time() + min(60.0, self.cache_ttl))
+            self._dnssec_ok[cache_key] = False
         return answers
 
     async def resolve_async(self, hostname: str, record_type: str = "A") -> List[str]:
@@ -114,9 +150,28 @@ class DNSOverHTTPS:
     def flush_cache(self) -> None:
         """Clear DoH cache."""
         self._cache.clear()
+        self._dnssec_ok.clear()
 
-    def _query_endpoint(self, endpoint: str, hostname: str, record_type: str) -> List[str]:
-        """Query one DoH JSON endpoint."""
+    def dnssec_status(self, hostname: str, record_type: str = "A") -> Optional[bool]:
+        """Return the cached DNSSEC validation state, or ``None``.
+
+        DNSSEC -- not DoH -- is what actually *authenticates* an
+        answer.  DoH only hides the query behind TLS.  Exposing the AD
+        state lets a caller tell the two apart instead of assuming that
+        "using DoH" means "authenticated".
+        """
+        key = (self._normalize_hostname(hostname), record_type.upper().strip() or "A")
+        return self._dnssec_ok.get(key)
+
+    def _query_endpoint(
+        self, endpoint: str, hostname: str, record_type: str
+    ) -> Tuple[List[str], bool]:
+        """Query one DoH JSON endpoint.
+
+        Returns ``(answers, dnssec_ok)`` where ``dnssec_ok`` is True when
+        **every** returned answer carried the DNSSEC ``AD`` (authentic
+        data) bit, i.e. was validated by the upstream resolver.
+        """
         query = urllib.parse.urlencode({"name": hostname, "type": record_type})
         separator = "&" if "?" in endpoint else "?"
         url = f"{endpoint}{separator}{query}"
@@ -126,14 +181,27 @@ class DNSOverHTTPS:
                 payload = json.loads(resp.read().decode("utf-8"))
         except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
             log.debug("DoH endpoint failed for %s via %s: %s", hostname, endpoint, exc)
-            return []
+            return [], False
 
         expected_type = self._rtype_int(record_type)
         answers: List[str] = []
-        for answer in payload.get("Answer", []):
+        dnssec_ok = False
+        raw = payload.get("Answer", [])
+        for answer in raw:
             if answer.get("type") == expected_type and "data" in answer:
                 answers.append(str(answer["data"]))
-        return self._dedupe(answers)
+                # JSON DoH APIs set "AD": 1 on DNSSEC-validated answers.
+                if not answer.get("AD"):
+                    dnssec_ok = False
+                elif not dnssec_ok:
+                    dnssec_ok = True
+        if self.require_dnssec and answers and not dnssec_ok:
+            log.debug(
+                "DNSSEC-validated answers required; %s via %s is not AD",
+                hostname, endpoint,
+            )
+            return [], False
+        return self._dedupe(answers), dnssec_ok
 
     @staticmethod
     def _system_resolve(hostname: str, record_type: str) -> List[str]:
@@ -431,10 +499,26 @@ class NetworkStack:
         low_bandwidth_kbps: int = 1000,
         dns_timeout: float = 5.0,
         http_timeout: float = 10.0,
+        dns_allow_system_fallback: bool = False,
+        dns_require_dnssec: bool = False,
     ) -> None:
-        """Initialize network services."""
+        """Initialize network services.
+
+        Args:
+            dns_allow_system_fallback: Permit the DoH resolver to answer
+                from the host resolver when no DoH endpoint replies.
+                **Off by default**: the fallback returns
+                unauthenticated, spoofable answers, so it used to be a
+                silent fail-open.  Set it only for offline/local-only
+                deployments.
+            dns_require_dnssec: Return only DNSSEC-validated answers.
+        """
         self.resolver = DNSResolver(timeout=dns_timeout)
-        self.dns = DNSOverHTTPS(timeout=min(3.0, dns_timeout))
+        self.dns = DNSOverHTTPS(
+            timeout=min(3.0, dns_timeout),
+            allow_system_fallback=dns_allow_system_fallback,
+            require_dnssec=dns_require_dnssec,
+        )
         self.http = HTTPClient(timeout=http_timeout)
         self.internet = InternetAccessManager(self.http, self.resolver)
         self.vpn = VPNClient(vpn_config)
@@ -552,7 +636,13 @@ class NetworkStack:
         return await self.resolver.resolve_all(hostname)
 
     def resolve(self, hostname: str, record_type: str = "A") -> List[str]:
-        """Resolve a hostname synchronously through DoH with fallback."""
+        """Resolve a hostname synchronously through DoH.
+
+        H180: raises ``PermissionError`` when no DoH endpoint answers
+        unless the stack was built with ``dns_allow_system_fallback=True``
+        -- the old behaviour silently returned unauthenticated system
+        DNS answers.
+        """
         return self.dns.resolve(hostname, record_type)
 
     async def fetch_url(self, url: str) -> str:
@@ -603,3 +693,145 @@ class NetworkStack:
             }
             for info in self._connections.values()
         ]
+
+
+
+async def _selftest_async() -> bool:
+    """Self-test for the whole stack without leaving the loopback interface.
+
+    Covers the fail-closed DoH contract, the DoH helpers, the mDNS peer
+    registry, the QoS classifier, the WireGuard wrapper and the full stack
+    lifecycle.  No upstream network is contacted: the DoH endpoints point at
+    two closed loopback ports so resolution must fail closed.
+    """
+
+    def fail(message: str) -> bool:
+        print(f"network_stack selftest: {message}")
+        return False
+
+    # -- H180: DoH must fail closed, not silently degrade --------------------
+    doh = DNSOverHTTPS(
+        primary="http://127.0.0.1:1/dns-query",
+        secondary="http://127.0.0.1:2/dns-query",
+    )
+    try:
+        doh.resolve("example.com")
+    except PermissionError:
+        pass
+    else:
+        return fail("DoH degraded silently instead of failing closed")
+    if doh.dnssec_status("example.com") is not None:
+        return fail("dnssec_status() must be None before any successful answer")
+    doh.flush_cache()  # must be a no-op on an empty cache
+
+    # -- DoH helpers -----------------------------------------------------------
+    if DNSOverHTTPS._normalize_hostname("  EXAMPLE.com.  ") != "example.com":
+        return fail("DoH hostname normalization is wrong")
+    if DNSOverHTTPS._rtype_int("a") != 1 or DNSOverHTTPS._rtype_int("aaaa") != 28:
+        return fail("the DoH record-type mapping is wrong")
+    if DNSOverHTTPS._rtype_int("NOPE") != 1:
+        return fail("an unknown record type must default to A")
+    if DNSOverHTTPS._dedupe(["1.1.1.1", "1.1.1.1", "8.8.8.8"]) != ["1.1.1.1", "8.8.8.8"]:
+        return fail("DoH dedupe lost its order or dropped duplicates")
+
+    # -- mDNS peer registry ------------------------------------------------------
+    mdns = MDNSDiscovery()
+    mdns.announce("node-a", "127.0.0.1", 7000)
+    mdns.register_peer("node-b", "127.0.0.2", 7001)
+    if mdns.peer_count() != 2 or len(mdns.discover()) != 2:
+        return fail("the peer registry did not record both peers")
+    if not mdns.remove_peer("node-b") or mdns.remove_peer("node-b"):
+        return fail("remove_peer() must report whether a peer was removed")
+    if mdns.status()["peers"] != 1:
+        return fail("mdns.status() disagrees with the registry")
+    if mdns.status()["service_type"] != MDNSDiscovery.SERVICE_TYPE:
+        return fail("mdns.status() lost the service type")
+    for blank in ("", "   "):
+        try:
+            mdns.announce(blank)
+        except ValueError:
+            continue
+        return fail(f"announce() accepted a blank device name {blank!r}")
+    try:
+        mdns.register_peer("peer-c", "  ", 7002)
+    except ValueError:
+        pass
+    else:
+        return fail("register_peer() accepted a blank host")
+
+    # -- heuristic QoS -------------------------------------------------------------
+    qos = AINetworkQoS(low_bandwidth_kbps=1000)
+    expectations = (
+        (("zoom.us", 443), "video_conference"),
+        (("sip.example", 5060), "voip"),
+        (("live.stream", 1935), "streaming"),
+        (("shell.example", 22), "interactive"),
+        (("example.com", 443), "web_browse"),
+        (("mirror.example", 21), "download"),
+        (("example.com", 9999), "background"),
+    )
+    for (host, port), expected in expectations:
+        got = qos.classify_connection(host, port)
+        if got != expected:
+            return fail(f"QoS classified {host}:{port} as {got!r}, want {expected!r}")
+    if qos.get_priority("video_conference") <= qos.get_priority("background"):
+        return fail("video_conference must outrank background traffic")
+    if qos.get_priority("not-a-type") != 1:
+        return fail("an unknown traffic type must fall back to priority 1")
+    qos.update_bandwidth(500)
+    if not qos.is_low_bandwidth() or qos.status()["bandwidth_kbps"] != 500:
+        return fail("bandwidth bookkeeping is wrong")
+    try:
+        qos.update_bandwidth(-1)
+    except ValueError:
+        pass
+    else:
+        return fail("update_bandwidth() accepted a negative measurement")
+
+    # -- the WireGuard wrapper without wg tooling -----------------------------------
+    vpn = VPNClient("/etc/wireguard/wg0.conf")
+    if vpn.is_connected:
+        return fail("a fresh VPNClient cannot be connected")
+    if set(vpn.status()) != {"available", "connected", "config", "wg", "wg_quick"}:
+        return fail("VPNClient.status() lost a field")
+    if vpn.status()["config"] != "/etc/wireguard/wg0.conf":
+        return fail("VPNClient.status() lost the config path")
+
+    # -- full stack lifecycle ---------------------------------------------------------
+    stack = NetworkStack()
+    if stack.running:
+        return fail("a fresh NetworkStack must not be running")
+    stack.start()
+    if not stack.running:
+        return fail("start() did not activate the stack")
+    if await stack.resolve_async("127.0.0.1") != ["127.0.0.1"]:
+        return fail("the stack could not resolve a literal address")
+    if not await stack.internet.can_resolve("127.0.0.1"):
+        return fail("InternetAccessManager.can_resolve() failed on a literal")
+    status = stack.status()
+    if status["running"] is not True:
+        return fail("NetworkStack.status() disagrees with the running flag")
+    if set(status) != {"running", "connections", "vpn", "mdns", "qos"}:
+        return fail(f"NetworkStack.status() is malformed: {sorted(status)}")
+    if stack.connection_table() != []:
+        return fail("an idle stack must report an empty connection table")
+    await stack.stop()
+    if stack.running:
+        return fail("stop() did not deactivate the stack")
+    if stack.connection_table() != []:
+        return fail("stop() left connection metadata behind")
+
+    return True
+
+
+def _selftest() -> bool:
+    """Run the module self-test (async body driven through ``asyncio.run``)."""
+    return asyncio.run(_selftest_async())
+
+
+if __name__ == "__main__":
+    import sys as _sys
+
+    _ok = _selftest()
+    print("network_stack selftest:", "OK" if _ok else "FAIL")
+    _sys.exit(0 if _ok else 1)

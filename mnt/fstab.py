@@ -38,7 +38,7 @@ fstab entries with mount points under /mnt define what the admin
 can temporarily mount using ``mount /mnt/<name>``.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 log = logging.getLogger("UmerOS.Mnt.Fstab")
 
@@ -226,8 +226,25 @@ class Fstab:
     def __init__(self, entries: Optional[List[FstabEntry]] = None) -> None:
         self._entries: List[FstabEntry] = list(entries or [])
         self._comments: List[str] = []
-        self._header: str = ""
+        # source line number for each entry in `_comments`
+        # (parallel list).  Comments used to be collected flat, so
+        # `to_string()` could only ever re-emit them as one hoisted
+        # block above the entries -- a mid-file note such as
+        # "# --- removable media below ---" lost the section it
+        # documented.  With the position recorded, the comment is
+        # written back exactly where the operator put it.
+        self._comment_lines: List[int] = []
         self._source_path: Optional[str] = None
+
+    def _add_comment(self, text: str, line_num: int = 0) -> None:
+        """Record a comment *and* the line it was found on.
+
+        Keeping the line number is what lets :meth:`to_string` put the
+        comment back where the operator wrote it instead of hoisting
+        every comment above every entry.
+        """
+        self._comments.append(text)
+        self._comment_lines.append(line_num)
 
     # -- Factory -------------------------------------------------------------
 
@@ -253,7 +270,7 @@ class Fstab:
             # Skip empty lines and comments
             if not line or line.startswith("#"):
                 if line.startswith("#"):
-                    fstab._comments.append(line)
+                    fstab._add_comment(line, i)
                 continue
 
             entry = _parse_line(line, line_num=i)
@@ -273,7 +290,7 @@ class Fstab:
                 # Capture comments here too so a round-trip through
                 # from_string() -> to_string() no longer silently drops them.
                 if line.startswith("#"):
-                    fstab._comments.append(line)
+                    fstab._add_comment(line, i)
                 continue
             entry = _parse_line(line, line_num=i)
             if entry is not None:
@@ -373,18 +390,34 @@ class Fstab:
     def to_string(self) -> str:
         """Render the fstab as a string.
 
-        Comments and the header captured by ``from_file`` /
-        ``from_string`` are preserved (they used to be dropped on write,
-        destroying operator documentation in the boot-critical
-        ``/etc/fstab``). Entry lines follow the comment block.
+        Comments captured by ``from_file`` / ``from_string`` are written
+        back **in their original position** relative to the entries, not
+        as one hoisted block.  Two fixes are combined here:
+
+        * family: comments used to be dropped entirely on write,
+          destroying operator documentation in the boot-critical
+          ``/etc/fstab``.
+        * with comments flat-listed they were emitted as a single
+          block above all entries, so a note like
+          ``# --- removable media below ---`` ended up describing the
+          wrong section.  Both comments and entries carry their source
+          line number (``_comment_lines`` / ``FstabEntry._line_num``),
+          so the two streams can be re-interleaved faithfully.
+
+        Items with no line number (0 -- added programmatically) are
+        emitted after everything that came from a file.
         """
-        parts: List[str] = []
-        if self._header:
-            parts.append(self._header)
-        parts.extend(self._comments)
+        merged: List[Tuple[int, str]] = []
+        for text, line_num in zip(self._comments, self._comment_lines):
+            merged.append((line_num, text))
         for e in self._entries:
-            parts.append(e.to_line())
-        rendered = "\n".join(p for p in parts if p != "")
+            merged.append((e._line_num, e.to_line()))
+        # sort by line number; line 0 ("unknown origin") sinks to
+        # the bottom.  `sorted` is stable, so equal keys keep insertion
+        # order -- which is fine, since two distinct source lines can
+        # never share a line number.
+        merged.sort(key=lambda item: (item[0] == 0, item[0]))
+        rendered = "\n".join(text for _, text in merged if text != "")
         return rendered + "\n" if rendered else ""
 
     def write_file(self, path: str | Path, backup: bool = True) -> None:
@@ -434,6 +467,33 @@ class Fstab:
 # Line parser
 # ---------------------------------------------------------------------------
 
+def _parse_advisory_int(value: str, field: str, line_num: int = 0) -> int:
+    """Parse an advisory numeric fstab field, defaulting to 0 on garbage.
+
+    ``dump`` and the fsck ``passno`` are *advisory*: ``dump(8)`` and
+    ``fsck(8)`` read them, but they do not decide whether a filesystem
+    is mountable -- the first four fields do.  A typo in the fifth or
+    sixth column must therefore not cost us the row: an uncaught
+    ``ValueError`` from ``int()`` propagated out of ``_parse_line`` and
+    aborted the *whole* loop in ``Fstab.from_file()`` /
+    ``Fstab.from_string()``, so every entry after the bad line was
+    silently lost and a boot-time mount disappeared.
+
+    A non-numeric value degrades to ``0`` with a warning instead, which
+    is also what libmount does (it uses ``atoi()``).  The offending line
+    is kept in ``_raw_line``/``_line_num`` so the row is still auditable
+    and round-trips through :meth:`fstab.to_string` unmodified.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        log.warning(
+            "fstab line %d: %s field %r is not an integer; using 0",
+            line_num, field, value,
+        )
+        return 0
+
+
 def _parse_line(line: str, line_num: int = 0) -> Optional[FstabEntry]:
     """Parse a single non-comment fstab line.
 
@@ -456,8 +516,17 @@ def _parse_line(line: str, line_num: int = 0) -> Optional[FstabEntry]:
     mount_point = parts[1]
     fstype = parts[2]
     options = parts[3] if len(parts) > 3 else "defaults"
-    dump = int(parts[4]) if len(parts) > 4 else 0
-    pass_num = int(parts[5]) if len(parts) > 5 else 0
+    # `dump`/`pass_num` are advisory metadata.  Parse them
+    # defensively so a typo in those columns cannot raise a ValueError
+    # out of the caller's parse loop and discard every later entry.
+    dump = (
+        _parse_advisory_int(parts[4], "dump", line_num)
+        if len(parts) > 4 else 0
+    )
+    pass_num = (
+        _parse_advisory_int(parts[5], "fsck passno", line_num)
+        if len(parts) > 5 else 0
+    )
 
     if not mount_point.startswith("/"):
         log.warning(
@@ -510,15 +579,25 @@ def make_user_mount(
     gid: Optional[int] = None,
     umask: Optional[str] = None,
     ro: bool = False,
+    noexec: bool = True,
 ) -> FstabEntry:
     """Create a user-mountable fstab entry.
 
-    This is the TLDP-recommended way to let non-root users mount
+    This is the recommended way to let non-root users mount
     devices::
 
         /dev/fd0 /floppy msdos user,noauto 0 0
+
+    ``noexec`` is applied by default.  A user-mountable entry
+    lets an unprivileged account mount untrusted removable media, so
+    the mount must not honour executable payloads planted on it (the
+    ``nosuid``/``nodev`` pair was already applied; sibling of the
+    ``media``).  Pass ``noexec=False`` only for a
+    deliberately executable mount.
     """
     opts = ["user", "noauto", "nosuid", "nodev"]
+    if noexec:
+        opts.append("noexec")
     if ro:
         opts.append("ro")
     if uid is not None:
@@ -625,6 +704,68 @@ def _selftest() -> bool:
         return False
     if "uid=1000" not in user_entry.options:
         print("make_user_mount: uid not in options")
+        return False
+    if not user_entry.is_noexec:
+        print("make_user_mount: noexec missing")
+        return False
+
+    # a non-numeric dump/passno must not abort the parse loop.
+    messy = Fstab.from_string(
+        "# header\n"
+        "/dev/sda1 / ext4 defaults 0 1\n"
+        "/dev/sdb1 /mnt/usb vfat defaults junk 2\n"
+        "/dev/sdc1 /mnt/last ext4 defaults 0 2\n"
+    )
+    if len(messy.entries) != 3:
+        print(f" malformed dump aborted the parse: {len(messy.entries)}/3")
+        return False
+    bad = messy.find_by_mount("/mnt/usb")
+    if bad.dump != 0 or bad.pass_num != 2:
+        print(
+            f"expected dump=0/pass=2, got "
+            f"dump={bad.dump}/pass={bad.pass_num}"
+        )
+        return False
+    if len(messy._comments) != 1:
+        print(" malformed header comment lost")
+        return False
+
+    # a mid-file comment must stay between the entries it documents,
+    # not be hoisted above every entry.
+    positioned = Fstab.from_string(
+        "# /etc/fstab: managed by hand\n"
+        "/dev/sda1 / ext4 defaults 0 1\n"
+        "# --- removable media below ---\n"
+        "/dev/sdb1 /mnt/usb vfat defaults 0 0\n"
+    )
+    if len(positioned._comments) != 2:
+        print(f"expected 2 comments, got {len(positioned._comments)}")
+        return False
+    if len(positioned._comment_lines) != 2:
+        print("comment line numbers not tracked")
+        return False
+    out_lines = positioned.to_string().splitlines()
+    try:
+        comment_at = out_lines.index("# --- removable media below ---")
+        entry_at = next(i for i, l in enumerate(out_lines) if "/mnt/usb" in l)
+        root_at = next(i for i, l in enumerate(out_lines) if l.startswith("/dev/sda1"))
+    except (ValueError, StopIteration) as exc:
+        print(f"rendering lost a line: {exc}")
+        return False
+    if not (root_at < comment_at < entry_at):
+        print(
+            "comment was hoisted out of position "
+            f"(root={root_at}, comment={comment_at}, entry={entry_at})"
+        )
+        return False
+    # A programmatically added entry must not reorder sourced content.
+    positioned.add(make_fstab_entry("/dev/sdc1", "/mnt/new", "ext4"))
+    added = positioned.to_string().splitlines()
+    if added[-1].find("/mnt/new") < 0:
+        print(" malformed entry did not sink to the bottom")
+        return False
+    if added[: len(out_lines)] != out_lines:
+        print(" malformed entry reordered existing lines")
         return False
 
     return True

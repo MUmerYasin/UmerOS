@@ -18,6 +18,10 @@ UmerOS Legal & Safety — Pre-Execution Safety & Backup Checkpoint Engine
 Enforces the safety mandate from Appendix E:
 "Users are strongly recommended to perform system backups before proceeding."
 
+The gate is FAIL-CLOSED for HIGH/CRITICAL operations: ``verify_safety``
+reports ``is_safe=True`` only when a pre-execution checkpoint backup was
+actually created.
+
 Author: UmerOS Project
 License: GPL-3.0 (GNU General Public License Version 3)
 """
@@ -44,6 +48,7 @@ class SafetyCheckResult:
     operation: str
     risk_level: RiskLevel
     backup_path: Optional[str] = None
+    backup_created: bool = False
     warnings: List[str] = field(default_factory=list)
     recommendations: List[str] = field(default_factory=list)
 
@@ -53,6 +58,8 @@ class SafetyCheckResult:
         lines.append(f"  - Risk Level: {self.risk_level.value}")
         if self.backup_path:
             lines.append(f"  - Checkpoint Backup: {self.backup_path}")
+        elif self.risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL):
+            lines.append("  - Checkpoint Backup: NONE (required for HIGH/CRITICAL)")
         for w in self.warnings:
             lines.append(f"  - [WARN] {w}")
         for r in self.recommendations:
@@ -74,6 +81,11 @@ class SafetyChecker:
     ) -> SafetyCheckResult:
         """
         Executes a pre-operation safety check and optionally creates a snapshot backup.
+
+        Fail-CLOSED for ``RiskLevel.HIGH`` / ``RiskLevel.CRITICAL``: ``is_safe``
+        is only True when a checkpoint backup was actually created.  A
+        failed backup, ``create_backup=False``, or a missing/nonexistent target
+        therefore blocks the operation.
         """
         result = SafetyCheckResult(
             is_safe=True,
@@ -110,10 +122,29 @@ class SafetyChecker:
                     shutil.copy2(target, backup_dest)
 
                 result.backup_path = str(backup_dest)
+                result.backup_created = True
                 result.recommendations.append(f"Safety snapshot created at {backup_dest}")
             except Exception as e:
                 result.warnings.append(f"Could not create pre-execution safety backup: {e}")
-                if risk_level == RiskLevel.CRITICAL:
-                    result.is_safe = False
+
+        # 3. Fail-CLOSED gate: a HIGH/CRITICAL operation is only "safe"
+        #    once a checkpoint backup has actually been created.  Previously a
+        #    failed backup on a HIGH operation (or create_backup=False) still
+        #    reported is_safe=True — a soft/fail-open gate.
+        if risk_level in (RiskLevel.HIGH, RiskLevel.CRITICAL) and not result.backup_created:
+            result.is_safe = False
+            if not create_backup:
+                reason = "the checkpoint backup was not requested (create_backup=False)"
+            elif target is None:
+                reason = "no target_path was given, so no checkpoint could be created"
+            elif not target.exists():
+                reason = f"the target {target} does not exist, so no checkpoint could be created"
+            else:
+                reason = "the checkpoint backup did not succeed"
+            result.warnings.append(
+                f"{risk_level.value.upper()} operation '{operation_name}' requires a "
+                f"successful pre-execution checkpoint backup before it is safe to "
+                f"proceed — {reason}."
+            )
 
         return result

@@ -18,7 +18,7 @@
 ## Resumable remediation loop (H1–H307)
 - Checkpoint: `.workbuddy-ai/memory/remediation_progress.md` (307 items; flip `- [ ]`→`- [x]`, never regenerate). Bookkeeping per study: checkpoint box + NEXT pointer, standard §9 row (color + RESOLVED note), MEMORY pointer + folder map, daily `YYYY-MM-DD.md`.
 - Test runner: pytest>=8 via venv `C:/Users/MC Raja Jang/.workbuddy-ai/binaries/python/envs/default` (QUOTE — has a space). `cryptography` 50.0.0.
-- **Full-suite temp dir:** redirecting `TMP`/`TEMP` *into the project* causes **15 false failures** (9 `test_legal_scan`/`test_legal_security`, 6 `test_mnt`): `legal/licenses.py:scan_directory` skips any `.`-prefixed path component; `mnt/fstab.py` whitespace-splits fstab lines so a space in the path (`F:\Pension Person Details\UmerOS`) corrupts field offsets. **Use `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`** (space-free, dot-free). Use `--junitxml` (basetemp cleanup trips the safe-delete guard and kills the terminal summary).
+- **Full-suite temp dir:** redirecting `TMP`/`TEMP` *into the project* causes **15 false failures** (9 `test_legal_scan`/`test_legal_security`, 6 `test_mnt`): `legal/licenses.py:scan_directory` skips any `.`-prefixed path component; `mnt/fstab.py` whitespace-splits fstab lines so a space in the path (`F:\Pension Person Details\UmerOS`) corrupts field offsets. **Use `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`** (space-free, dot-free) — **and `mkdir -p /f/umeros_tmp` FIRST**: `tempfile.gettempdir()` silently falls back to the space-containing Windows temp dir (`…\Temp\pytest-of-MC Raja Jang`) if the target does not exist, which reintroduces the 6 `test_mnt` false failures. Use `--junitxml` (basetemp cleanup trips the safe-delete guard and kills the terminal summary). **H140:** the full/CI run now targets `tests/ legal/ opt/ sources/ srv/ tmp/` (in-package suites included).
 - Shared guards: `core/path_guard.py` (`safe_child`/`safe_join`/`PathTraversalError`); `core/capability_gate.py` (`gate`/`require(cap)`, fail-closed when wired).
 - Project: ~735 Python modules; CI in `.github/workflows/` (`ci.yml`, `security_scan.yml`); `Old Linux Code/` (~93k) reference-only (out of scope).
 - Skip pre-existing broken `tests/test_ai.py` (collection error — `ai.providers` missing `AIConfigManager`); `home` package-shadow (`bin/home.py`/`root/home.py`) — load `home_backup.py` by file path under a unique module name in tests.
@@ -26,7 +26,7 @@
 
 ## Remediation status
 - **RED blockers: ALL CLOSED (sessions 1–33). YELLOW sweep in progress (session 36+).**
-- **Current pointer (session 149):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/` COMPLETE; now in `kernel/` — **H127 RESOLVED (REAL FIX: registered `TAINT_KERNEL_PANIC` in `kernel/taint.py` (bit 256); `panic()` now uses the imported constant instead of a bare literal; dropped 3 dead taint imports; fixed the stale `kernel/__init__` taint re-export (`TaintFlag`/`TaintFlags`/`TaintReason` → `KernelTaint`/`TAINT_KERNEL_PANIC`); new `tests/test_kernel_panic_taint_h127.py` 20 passed; full `tests/` 3566 testcases / 0 failed)**. Next 💭 **H124** — `kernel/pqcrypto_.py`/`onnxruntime_.py` import-time execution (likely DRIFT after H123). Then H126. Say **'continues'** for H124.
+- **Current pointer (session 185):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/ kernel/ legal/` COMPLETE; `lib/`/`liboqs/` COMPLETE; `media/` COMPLETE (H156–H165); `mnt/` **COMPLETE** (H166–H176, 11 items); **`network/` IN PROGRESS** (H177,H178 ✅ from s13; H179 ✅ XOR fallback now opt-in; H180 ✅ DoH fail-open closed + DNSSEC visible; **H181 ✅ — canonical H7 `License: GPL-3.0 (GNU General Public License v3)` + `Author:` trailer added to all six module docstrings, and `network/__init__.py` (the only package `__init__` in the tree without one) gained `from __future__ import annotations`**). Next 💭 **H182** — no `_selftest()` in `network/` (partially pre-empted: `vpn_tunnel.py` got one in H179); leaves `dns_resolver.py`, `http_client.py`, `network_stack.py`, `tcp_server.py`. Say **'continues'** for H182.
 - **⚠ Standard §9 REVERTED (session 84):** live standard = 973 lines / 217 rows (39🔴 63🟢 115🟡) — the 🟢-removal was reverted/replaced externally (file grew 736→673→973). H46 duplicated (stale 🔴 L356 + resolved 🟢 L549). Backup: `Code Review Standards and Process.md.pre-green-removal.bak`. Awaiting user decision on re-removing 🟢 rows.
 - **⚠ H62 REGRESSION (found s117):** `drivers/` has **0/75** `[TODAY]` tier labels despite H62 RESOLVED (s76); the labels still hold in `boot/` (23), `bin/` (44), `kernel/` (6), `core/` (1), `etc/` (81). Re-apply on request (same mechanical op as H70).
 - H1 (user action, not mine): rotate the leaked OpenRouter key + purge git history.
@@ -39,12 +39,12 @@
 - etc/ 🟢 H5,H70–H73 | examples/ 💭 H74,H75 | feedback/ 🟢 H76–H79 | fs/ 🟢 H80–H82
 - home/ 🟢 H83–H87 (COMPLETE) | HostFiles/ 💭 H89
 - initrd/ 🟢 H2,H91–H95,H97; 💭 H96 | installer/ 🟢 H98–H104,H106,H108,H109 (COMPLETE)
-- kernel/ 🟢 H110–H123 (+ H122,H125 nits), H127; 💭 H124,H126
-- legal/ 🟢 H128–H131,H135; 🟡 H132,H136–H141; 💭 H137
-- lib/ 🟢 H3,H146,H147; 🟡 H148–H150 | liboqs/ 🟡 H151; 💭 H155
-- media/ 🟢 H156,H157; 🟡 H158–H160; 💭 H161–H165
-- mnt/ 🟢 H166–H168; 🟡 H169–H171,H176; 💭 H172–H175
-- network/ 🟢 H177,H178; 🟡 H179,H180; 💭 H181,H182
+- kernel/ 🟢 H110–H127 (incl. H122,H125 nits) — sweep COMPLETE
+- legal/ 🟢 H128–H141; 💭 H137 (COMPLETE)
+- lib/ 🟢 H3,H146,H147,H148,H149,H150 | liboqs/ 🟢 H151,H155
+- media/ 🟢 H156–H165 **COMPLETE** (H156,H157,H158,H159,H160,H161,H162,H163,H164,H165)
+- mnt/ 🟢 H166–H176 (H166,H167,H168,H169,H170,H171,H172,H173,H174,H175,H176) **COMPLETE**
+- network/ 🟢 H177,H178,H179,H180,H181; 💭 H182
 - opt/ 🟢 H184–H187; 🟡 H188–H193,H200; 💭 H183
 - packages/ 🟢 H194–H198; 🟡 H199,H201,H204 | proc/ 🟢 H205–H208; 🟡 H209–H211; 💭 H212–H214
 - quantum/ 🟢 H152,H215–H217,H221; 🟡 H218–H220; 💭 H222–H225

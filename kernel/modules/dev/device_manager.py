@@ -24,8 +24,9 @@ The device manager handles:
 
 from __future__ import annotations
 
+import functools
 import logging
-import stat
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -62,7 +63,7 @@ class DeviceNode:
     dev_type: DeviceType
     major: int = 0
     minor: int = 0
-    mode: int = 0o666
+    mode: int = 0o660
     uid: int = 0
     gid: int = 0
     symlinks: list[Path] = field(default_factory=list)
@@ -115,6 +116,21 @@ class DeviceNode:
         }
 
 
+
+def _synchronized(method):
+    """Serialize access to the device registry via ``self._lock``.
+
+    Re-entrant: ``get_stats()`` calls ``list_devices()`` while already
+    holding the lock, so ``_lock`` is an ``RLock``.
+    """
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
+
 class DeviceManager:
     """
     Manages device nodes in /dev.
@@ -132,8 +148,9 @@ class DeviceManager:
         self._by_devnum: dict[int, str] = {}
         self._symlink_map: dict[Path, str] = {}
         self._major_allocators: dict[int, MinorAllocator] = {}
-        self._lock = None  # Would use threading.Lock in real implementation
+        self._lock = threading.RLock()  # re-entrant: get_stats() -> list_devices()
 
+    @_synchronized
     def create(self, device: DeviceNode) -> DeviceNode:
         """
         Create a device node.
@@ -160,6 +177,7 @@ class DeviceManager:
 
         return device
 
+    @_synchronized
     def remove(self, name: str) -> DeviceNode | None:
         """Remove a device node and its symlinks."""
         device = self._devices.pop(name, None)
@@ -185,6 +203,7 @@ class DeviceManager:
         name = self._symlink_map.get(symlink)
         return self._devices.get(name) if name else None
 
+    @_synchronized
     def list_devices(
         self,
         dev_type: DeviceType | None = None,
@@ -213,6 +232,7 @@ class DeviceManager:
         """List all character devices."""
         return self.list_devices(dev_type=DeviceType.CHAR)
 
+    @_synchronized
     def allocate_major_minor(
         self,
         dev_type: DeviceType = DeviceType.CHAR,
@@ -235,11 +255,13 @@ class DeviceManager:
         minor = self._major_allocators[major].allocate()
         return major, minor
 
+    @_synchronized
     def free_major_minor(self, major: int, minor: int):
         """Free major/minor numbers."""
         if major in self._major_allocators:
             self._major_allocators[major].free(minor)
 
+    @_synchronized
     def get_stats(self) -> dict[str, Any]:
         """Get device manager statistics."""
         block_count = len(self.list_block_devices())

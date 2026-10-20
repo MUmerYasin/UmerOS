@@ -17,7 +17,7 @@ UmerOS /media/nvme - package entry point (``python -m media.nvme``).
 Runs the package-level selftest.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

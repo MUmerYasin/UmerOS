@@ -18,19 +18,22 @@ Based on Greg Kroah-Hartman's udev paper (OLS 2003)
 Rules format:
     KERNEL=="name", SUBSYSTEM=="subsystem", ACTION=="add|remove", \
     ENV{key}=="value", \
-    NAME="devname", SYMLINK="link", OWNER="user", GROUP="group", MODE="0666"
+    NAME="devname", SYMLINK="link", OWNER="user", GROUP="group", MODE="0660"
 """
 
 from __future__ import annotations
 
+import logging
 import re
-import stat
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
 from .device_manager import DeviceManager, DeviceNode, DeviceType  # noqa: F401
+
+
+log = logging.getLogger("UmerOS.Dev.UdevRules")
 
 
 class UdevAction(Enum):
@@ -71,7 +74,7 @@ class UdevRuleMatch:
 @dataclass
 class UdevRuleAction:
     """A single action to perform when rule matches."""
-    key: str  # NAME, SYMLINK, OWNER, GROUP, MODE, RUN, etc.
+    key: str  # NAME, SYMLINK, OWNER, GROUP, MODE (RUN deliberately unsupported)
     value: str  # Value to set
 
 
@@ -146,7 +149,7 @@ class UdevRule:
         symlinks: list[str] = []
         owner = "root"
         group = "root"
-        mode = 0o666
+        mode = 0o660
 
         for action in self.actions:
             action_key = action.key.upper()
@@ -163,7 +166,14 @@ class UdevRule:
                 try:
                     mode = int(action.value, 8)  # Parse octal
                 except ValueError:
-                    mode = 0o666
+                    mode = 0o660
+            else:
+                # RUN and any other unimplemented key are deliberately NOT
+                # executed — no arbitrary-program-execution vector.
+                log.warning(
+                    "Ignoring unsupported udev action key %r (RUN is not implemented)",
+                    action.key,
+                )
 
         if not name:
             name = event.kernel
@@ -360,7 +370,7 @@ class UdevRulesEngine:
         return None
 
     def _parse_action(self, token: str) -> UdevRuleAction | None:
-        """Parse an action token like NAME="sda" or MODE="0666"."""
+        """Parse an action token like NAME="sda" or MODE="0660"."""
         if "=" in token:
             key, value = token.split("=", 1)
             value = value.strip('"').strip("'")

@@ -104,6 +104,9 @@ settings.local.json
 api_key.txt
 secrets.yml
 secrets.json
+# Creator/donor PII config (H137) — matched by *.local.json above; listed
+# explicitly so the intent stays discoverable.
+legal/creator_accounts.local.json
 
 # --- Editor / OS / scratch -----------------------------------------------
 *.swp

@@ -61,8 +61,17 @@ UmerOS ships the same set as stub metadata so the security subsystem
 (``security/`` + ``kernel/cred.py``) can ask "is PAM module X available?"
 without needing the C code.
 
+Fail-open modules:
+-------------------------
+``pam_permit.so`` unconditionally *succeeds*, so selecting it for an
+authentication or password stack fails open.  Such modules are flagged with
+``PamModule.is_fail_open`` and listed in :data:`FAIL_OPEN_PAM_MODULES`; they
+are **never** returned by :meth:`PamLibraryManager.default_auth_modules` and
+must not be auto-selected into a default auth stack.  This registry is
+metadata only — it makes no authentication decisions.
+
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -106,7 +115,16 @@ class PamModule:
     provides: List[str] = field(default_factory=list)   # keywords this implements
     is_legacy: bool = False
     is_uncommon: bool = False                           # e.g. needs extra deps
+    #: True when the module unconditionally SUCCEEDS (e.g. ``pam_permit``).
+    #: Fail-open modules must never be auto-selected into a default auth stack
+    #: see :meth:`PamLibraryManager.default_auth_modules`.
+    is_fail_open: bool = False
     md5: str = ""
+
+
+#: PAM modules that unconditionally SUCCEED (fail-open).  They must never be
+#: auto-selected into a default authentication stack.
+FAIL_OPEN_PAM_MODULES: frozenset = frozenset({"pam_permit.so"})
 
 
 _STOCK_PAM_MODULES: List[PamModule] = [
@@ -126,8 +144,11 @@ _STOCK_PAM_MODULES: List[PamModule] = [
     PamModule("pam_deny.so", "/lib/security/pam_deny.so",
         "Always deny",
         supports={PamModuleType.AUTH, PamModuleType.ACCOUNT, PamModuleType.SESSION, PamModuleType.PASSWORD}),
+    # pam_permit unconditionally succeeds — flag it so it is never
+    # auto-selected into a default authentication stack (fail-open risk).
     PamModule("pam_permit.so", "/lib/security/pam_permit.so",
-        "Always permit",
+        "Always permit (FAIL-OPEN: never auto-select for auth)",
+        is_fail_open=True,
         supports={PamModuleType.AUTH, PamModuleType.ACCOUNT, PamModuleType.SESSION, PamModuleType.PASSWORD}),
     PamModule("pam_warn.so", "/lib/security/pam_warn.so",
         "Log a warning and continue",
@@ -259,6 +280,12 @@ class PamService:
             type_ = type_.value
         if hasattr(control, "value"):
             control = control.value
+        if module in FAIL_OPEN_PAM_MODULES and type_ in ("auth", "password"):
+            log.warning(
+                "PAM service %r: fail-open module %r added to a %r rule — "
+                "never place it in a default auth stack",
+                self.service, module, type_,
+            )
         self.rules.append({
             "type": type_,
             "control": control,
@@ -301,8 +328,24 @@ class PamLibraryManager:
     def modules_supporting(self, type_: PamModuleType) -> List[PamModule]:
         return [m for m in self._modules.values() if type_ in m.supports]
 
-    def modules_for_auth(self) -> List[PamModule]:
-        return self.modules_supporting(PamModuleType.AUTH)
+    def modules_for_auth(self, *, safe_only: bool = False) -> List[PamModule]:
+        """Modules implementing the AUTH interface.
+
+        With ``safe_only=True`` the fail-open modules (``pam_permit``) are
+        excluded — use this when constructing a default authentication stack.
+        The default (``False``) returns the raw list for inspection.
+        """
+        mods = self.modules_supporting(PamModuleType.AUTH)
+        if safe_only:
+            mods = [m for m in mods if not m.is_fail_open]
+        return mods
+
+    def default_auth_modules(self) -> List[PamModule]:
+        """AUTH modules safe to auto-select into a default stack.
+
+        Excludes fail-open modules such as ``pam_permit.so``.
+        """
+        return self.modules_for_auth(safe_only=True)
 
     def register_module(self, module: PamModule) -> None:
         self._modules[module.name] = module
@@ -343,6 +386,7 @@ class PamLibraryManager:
             "total_modules": len(self._modules),
             "legacy_modules": sum(1 for m in self._modules.values() if m.is_legacy),
             "uncommon_modules": sum(1 for m in self._modules.values() if m.is_uncommon),
+            "fail_open_modules": sum(1 for m in self._modules.values() if m.is_fail_open),
             "modules_per_type": {
                 t.value: len(self.modules_supporting(t))
                 for t in PamModuleType

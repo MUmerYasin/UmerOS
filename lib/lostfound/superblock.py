@@ -27,6 +27,9 @@ is corrupt, the filesystem cannot be mounted.
 
 Reference: man 5 ext4, fsck(8) ``-f`` flag forces a check regardless of
 the clean flag.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

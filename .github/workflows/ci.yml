@@ -37,8 +37,10 @@ jobs:
         # `pythonpath = ["."]` is set in pyproject.toml so repo modules import.
         # Coverage floor is data-driven: measured 36% on 2026-08-26; set
         # conservatively and raised over time (§7 "start conservative").
+        # also collect the in-package test_*.py suites (legal/opt/
+        # sources/srv/tmp) so a broken in-package test cannot hide from CI.
         run: |
-          python -m pytest tests/ \
+          python -m pytest tests/ legal/ opt/ sources/ srv/ tmp/ \
             -q \
             --tb=short \
             --cov=. \

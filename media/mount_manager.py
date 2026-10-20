@@ -36,7 +36,7 @@ Key responsibilities
   filesystem operations.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -390,17 +390,21 @@ class MountManager:
 #  Self-test
 # ---------------------------------------------------------------------------
 
-def _selftest():
+def _selftest() -> bool:
     """Run a basic self-test for this module."""
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        mgr = MountManager(media_root=tmpdir)
+        cfg = MediaConfig(media_root=Path(tmpdir), create_fhs_dirs=False)
+        mgr = MountManager(config=cfg)
+        assert mgr.bootstrap() == []
         summary = mgr.stats
         assert isinstance(summary, dict), "stats should be a dict"
 
     print("selftest OK")
+    return True
 
 
 if __name__ == "__main__":
-    _selftest()
+    import sys
+    sys.exit(0 if _selftest() else 1)

@@ -15,8 +15,10 @@
 UmerOS Legal & Compliance — Maintainers & Authorship Subsystem (Appendix C)
 ================================================================================
 
-Maintains cryptographic identities, signing fingerprints, and maintainer
-profiles for the core architects and contributors of UmerOS.
+Maintains maintainer profiles for the core architects and contributors of
+UmerOS.  The key-fingerprint fields are illustrative **placeholders**
+(prefixed ``PLACEHOLDER:``); they are NOT derived from real key material and
+must not be treated as trust anchors.
 
 
 Author: UmerOS Project
@@ -29,10 +31,26 @@ import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
+from .creator_config import get_founder_email
+
+#: Prefix marking a fingerprint value as an illustrative placeholder rather
+#: than a real key fingerprint (H138).
+PLACEHOLDER_PREFIX = "PLACEHOLDER:"
+
+
+def is_placeholder_fingerprint(value: str) -> bool:
+    """Return True when ``value`` is an illustrative placeholder, not a real key."""
+    return not value or value.startswith(PLACEHOLDER_PREFIX)
+
 
 @dataclass
 class MaintainerProfile:
-    """Represents a verified UmerOS subsystem maintainer."""
+    """Represents a UmerOS subsystem maintainer profile.
+
+    ``pqc_public_key_fingerprint`` and ``pgp_fingerprint`` are **illustrative
+    placeholders** (prefixed with :data:`PLACEHOLDER_PREFIX`) — they are not
+    derived from real key material and are not trust anchors.
+    """
     name: str
     handle: str
     email: str
@@ -41,6 +59,12 @@ class MaintainerProfile:
     pgp_fingerprint: str
     bio: str
     subsystems_maintained: List[str] = field(default_factory=list)
+
+    @property
+    def key_fingerprints_are_placeholders(self) -> bool:
+        """True when both fingerprints are placeholders, not real key material."""
+        return (is_placeholder_fingerprint(self.pqc_public_key_fingerprint)
+                and is_placeholder_fingerprint(self.pgp_fingerprint))
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -52,10 +76,12 @@ CORE_MAINTAINERS: List[MaintainerProfile] = [
     MaintainerProfile(
         name="Muhammad Umer Yasin (Umer)",
         handle="MUmerYasin",
-        email="mumeryasin123456789@gmail.com",
+        # E-mail is loaded from the git-ignored creator config; the
+        # default is a non-PII project address.
+        email=get_founder_email(),
         role="Lead Architect & Kernel Maintainer",
-        pqc_public_key_fingerprint="DILITHIUM5:8f3a9e2b1c4d701e65fa890bc41235de",
-        pgp_fingerprint="4A9F 82C1 3E0B 9D82 17F6 448E 993B 2108 CD81 99A2",
+        pqc_public_key_fingerprint=PLACEHOLDER_PREFIX + "DILITHIUM5:8f3a9e2b1c4d701e65fa890bc41235de",
+        pgp_fingerprint=PLACEHOLDER_PREFIX + "4A9F 82C1 3E0B 9D82 17F6 448E 993B 2108 CD81 99A2",
         bio="Founder and lead architect of UmerOS, pioneering Python-first quantum-classical hybrid OS architectures.",
         subsystems_maintained=["kernel", "quantum", "qfs", "security", "fs", "hal"],
     ),
@@ -63,7 +89,11 @@ CORE_MAINTAINERS: List[MaintainerProfile] = [
 
 
 class MaintainerRegistry:
-    """Registry of trusted core subsystem maintainers."""
+    """Registry of core subsystem maintainers.
+
+    The profiles' key fingerprints are illustrative placeholders, not verified
+    keys.
+    """
 
     def __init__(self, maintainers: Optional[List[MaintainerProfile]] = None) -> None:
         self._maintainers: Dict[str, MaintainerProfile] = {}

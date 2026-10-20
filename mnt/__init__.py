@@ -46,6 +46,9 @@ Quick start::
     # Manage mount points
     pmgr = MountPointManager()
     mp = pmgr.create("usb", device="/dev/sdb1", purpose="USB drive")
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

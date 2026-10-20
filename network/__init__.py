@@ -13,7 +13,13 @@
 
 # [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
 
-"""UmerOS network subsystem public API."""
+"""UmerOS network subsystem public API.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
+"""
+
+from __future__ import annotations
 
 from .dns_resolver import DNSResolver
 from .http_client import HTTPClient, HTTPResponse
@@ -56,6 +62,30 @@ def _selftest() -> bool:
             file=_sys.stderr,
         )
         return False
+    # Every leaf module now carries its own ``_selftest()``, so run them
+    # all from here too -- ``python network/__init__.py`` becomes a one-command
+    # regression check for the whole subsystem.
+    for _module_name in (
+        "dns_resolver",
+        "http_client",
+        "network_stack",
+        "tcp_server",
+        "vpn_tunnel",
+    ):
+        _module = _il.import_module(f"{__name__}.{_module_name}")
+        _checker = getattr(_module, "_selftest", None)
+        if _checker is None:
+            print(
+                f"{__name__} selftest FAIL: {_module_name} has no _selftest()",
+                file=_sys.stderr,
+            )
+            return False
+        if not _checker():
+            print(
+                f"{__name__} selftest FAIL: {_module_name}._selftest() failed",
+                file=_sys.stderr,
+            )
+            return False
     return True
 
 

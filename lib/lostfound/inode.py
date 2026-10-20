@@ -28,6 +28,9 @@ In real ext4:
   - An inode with data but no directory references is an "orphan".
 
 Reference: man 5 ext4, Documentation/filesystems/ext4/inodes.rst
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

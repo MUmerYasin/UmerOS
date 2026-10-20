@@ -29,6 +29,8 @@ This module faithfully reproduces the behaviour of:
     lost+found, but it is the only tool that re-links files found in
     lost+found back into the live tree.
 
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

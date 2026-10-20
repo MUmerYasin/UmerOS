@@ -29,7 +29,7 @@ compatible with the data shape produced by ``pyudev`` so that
 existing udev-rule logic can be ported with minimal changes.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -260,7 +260,7 @@ def get_default_bus() -> HotplugBus:
 #  Self-test
 # ---------------------------------------------------------------------------
 
-def _selftest():
+def _selftest() -> bool:
     """Run a basic self-test for this module."""
     bus = HotplugBus()
     called = []
@@ -269,11 +269,17 @@ def _selftest():
         called.append(event)
 
     bus.subscribe(handler)
-    bus.emit(HotplugEvent(event_type=HotplugEventType.CONNECT, device_path="/dev/sdb1"))
+    invoked = bus.emit(
+        HotplugEvent(action=HotplugAction.ADD, device_path="/dev/sdb1")
+    )
+    assert invoked == 1, f"emit should invoke 1 handler, got {invoked}"
     assert len(called) == 1, f"handler should be called once, got {len(called)}"
+    assert called[0].devname == "sdb1"
 
     print("selftest OK")
+    return True
 
 
 if __name__ == "__main__":
-    _selftest()
+    import sys
+    sys.exit(0 if _selftest() else 1)

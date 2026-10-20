@@ -41,7 +41,7 @@ This module provides a Pythonic interface that:
     :class:`MountManager` which enforces the temporary-use policy.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -53,9 +53,12 @@ import time
 from dataclasses import dataclass, field
 from enum import Flag, auto
 from pathlib import Path
-from typing import Dict, FrozenSet, List, Optional, Sequence, Set
+from typing import Dict, FrozenSet, List, Optional, Sequence, Set, Tuple
 
 from .audit import AuditEvent, AuditLog
+# the /mnt validator is a leaf module (stdlib only), so importing
+# it here cannot create a cycle with mnt/__init__.py.
+from .validation import MntValidator, Severity
 
 log = logging.getLogger("UmerOS.Mnt.MountOps")
 
@@ -143,6 +146,63 @@ def parse_options(opt_str: str) -> FrozenSet[str]:
     if not opt_str or opt_str == "defaults":
         return frozenset()
     return frozenset(o.strip().lower() for o in opt_str.split(",") if o.strip())
+
+
+#: (hardening flag, explicit opt-out) pairs applied to user mounts.
+_HARDEN_PAIRS: Tuple[Tuple[str, str], ...] = (
+    ("noexec", "exec"),
+    ("nosuid", "suid"),
+    ("nodev", "dev"),
+)
+
+
+def format_mount_intent(operation: str, **fields: str) -> str:
+    """Render a structured log line describing a *simulated* mount op.
+
+    ``mount()``, ``umount()`` and ``remount()`` used to build
+    shell-shaped command strings -- ``"mount /dev/sdb1 /mnt/usb -t vfat"``
+    -- purely to log them.  That pattern is misleading twice over:
+
+    * it reads as though the code shells out to ``mount(8)``.  It does
+      not -- UmerOS records the request in memory, and the real path is
+      the kernel's; a reader auditing the log cannot tell that from the
+      line itself.
+    * the fields are space-separated, so a device path or mount point
+      containing a space silently splits into what looks like two
+      arguments, and a path containing ``$(...)`` or ``;`` reads like a
+      shell injection attempt to anyone who later copies the line.
+
+    Logging *intent* with ``repr()``-quoted fields keeps every value's
+    boundaries visible, stays copy-paste safe, and states plainly that
+    the operation is simulated.  ``MountRecord.__repr__`` already uses
+    the same convention, so log lines and record reprs now agree.
+    """
+    body = ", ".join(f"{key}={value!r}" for key, value in fields.items())
+    return f"{operation} [{body}] (simulated)"
+
+
+def harden_user_options(options: str) -> str:
+    """Append ``noexec,nosuid,nodev`` to a user-mountable option string.
+
+    A ``user``/``users`` fstab option lets an unprivileged account mount
+    untrusted removable media, so the resulting mount must not honour
+    setuid bits, device nodes or executable payloads planted on it (the
+    same hardening the H157 fix applies to ``/media``).
+
+    Each flag is appended only when the caller has not explicitly chosen
+    its opposite (``exec``/``suid``/``dev``), so a deliberate override by
+    a privileged caller is preserved.  Non-user mounts are returned
+    unchanged.
+    """
+    parts = [p.strip() for p in options.split(",") if p.strip()]
+    names = {p.lower() for p in parts}
+    if "user" not in names and "users" not in names:
+        return options
+    for hard, soft in _HARDEN_PAIRS:
+        if hard not in names and soft not in names:
+            parts.append(hard)
+            names.add(hard)
+    return ",".join(parts)
 
 
 def options_to_flags(opts: FrozenSet[str]) -> MountOpt:
@@ -265,6 +325,8 @@ class MountManager:
     * Validates mount points (must exist as directories).
     * Prevents double-mounts.
     * Enforces ``noauto`` semantics.
+    * Optionally enforces ``user``/``users`` semantics (``enforce_user``):
+      when enabled, only user-mountable requests may proceed.
     * Remount read-only on unmount failure (busy device).
     * Maintains in-memory mount table for queries.
     """
@@ -276,11 +338,24 @@ class MountManager:
         enforce_noauto: bool = True,
         enforce_user: bool = False,
         audit: Optional[AuditLog] = None,
+        mnt_root: str | Path = "/mnt",
+        validate_mounts: bool = True,
+        validator: Optional[MntValidator] = None,
     ) -> None:
         self._proc_mounts = str(proc_mounts)
+        self._mnt_root = str(mnt_root)
         self._enforce_noauto = enforce_noauto
+        # `enforce_user` was stored and never read.  It now gates
+        # `mount()` as the sibling of `enforce_noauto`: when set, a request
+        # that lacks the fstab `user`/`users` option is refused.
         self._enforce_user = enforce_user
         self._audit = audit
+        # every /mnt request is checked by MntValidator before it is
+        # recorded, and error-severity findings abort the mount.  Previously
+        # the validator's findings were advisory-only -- nothing on the mount
+        # path ever consulted it (detect-but-don't-fail-closed).
+        self._validate_mounts = validate_mounts
+        self._validator = validator or MntValidator(mnt_root=self._mnt_root)
         self._mounts: List[MountRecord] = []
         self._load_mounts()
 
@@ -342,6 +417,49 @@ class MountManager:
         if fstype not in KNOWN_FS_TYPES:
             log.warning("Unknown filesystem type: %s", fstype)
         return errors
+
+    def _check_mount_request(
+        self,
+        device: str,
+        mount_point: str,
+        fstype: str,
+        options: str,
+    ) -> None:
+        """Consult :class:`MntValidator` for a pending mount request.
+
+        Findings are request-scoped (see
+        :meth:`MntValidator.validate_mount_request`), so an unrelated problem
+        elsewhere in ``/mnt`` cannot block this mount.
+
+        Raises:
+            MountError: if the validator reports any ``ERROR`` finding.
+        """
+        if not self._validate_mounts or self._validator is None:
+            return
+
+        findings = self._validator.validate_mount_request(
+            device=device,
+            mount_point=mount_point,
+            fstype=fstype,
+            options=options,
+        )
+        if not findings:
+            return
+
+        errors = [f for f in findings if f.severity == Severity.ERROR]
+        for finding in findings:
+            if finding.severity != Severity.ERROR:
+                log.warning("Mount request %s: %s", mount_point, finding)
+
+        if errors:
+            reason = "; ".join(f"{f.code}: {f.message}" for f in errors)
+            log.error("Mount request %s refused: %s", mount_point, reason)
+            if self._audit is not None:
+                self._audit.log_mount(
+                    device, mount_point, fstype, options,
+                    success=False, message=f"denied: {reason}",
+                )
+            raise MountError("\n".join(f"{f.code}: {f.message}" for f in errors))
 
     # -- Mount ---------------------------------------------------------------
 
@@ -407,9 +525,45 @@ class MountManager:
                 fstype=fstype, options=options,
             )
 
+        # `enforce_user` is the sibling of `enforce_noauto`.  When
+        # enabled, only user-mountable requests (fstab `user`/`users`) may
+        # proceed.  `noauto` is an expected "don't mount now" condition and
+        # is therefore skipped; this is a policy denial, so it fails closed.
+        if self._enforce_user and not ({"user", "users"} & opts):
+            reason = (
+                f"{mount_point} is not user-mountable: mount() requires "
+                f"the 'user' or 'users' option (enforce_user=True)"
+            )
+            log.warning("Mount %s -> %s denied: %s", device, mount_point, reason)
+            if self._audit is not None:
+                self._audit.log_permission_deny(
+                    device, mount_point, reason=reason,
+                )
+            raise MountError(reason)
+
+        # user-mountable filesystems get the removable-media
+        # hardening (noexec,nosuid,nodev) before anything is recorded.
+        options = harden_user_options(options)
+
+        # validate the (already hardened) request and fail closed on
+        # error-severity findings before the mount table is mutated.
+        self._check_mount_request(device, mount_point, fstype, options)
+
         # Actually mount (simulated in UmerOS)
         if not dry_run:
-            log.info("mount %s %s -t %s -o %s", device, mount_point, fstype, options)
+            # log the intent, not a fake `mount(8)` argv.  A real
+            # command line would fragment a device path or mount point
+            # containing whitespace and make `$(...)`/`;` in a path look
+            # like shell injection.  repr()-quoting keeps the boundaries
+            # visible and says plainly that this is simulated.
+            log.info(
+                "%s",
+                format_mount_intent(
+                    "mount",
+                    device=device, target=mount_point,
+                    fstype=fstype, options=options,
+                ),
+            )
             # In real UmerOS, this calls the kernel mount(2) syscall.
             # For simulation, we just record it.
 
@@ -470,21 +624,26 @@ class MountManager:
         if record is None:
             raise MountError(f"Not mounted: {mount_point}")
 
-        # Simulate lazy/force
-        flag_parts = []
+        # these were `--lazy`/`--force`/`--remount-ro` argv flags.
+        # They are not argv any more -- there is no argv -- so they are
+        # recorded as the unmount *mode* instead of being joined into a
+        # command string that was built only to be logged.
+        mode_parts = []
         if lazy:
-            flag_parts.append("--lazy")
+            mode_parts.append("lazy")
         if force:
-            flag_parts.append("--force")
+            mode_parts.append("force")
         if remount_ro and not record.is_readonly:
-            flag_parts.append("--remount-ro")
+            mode_parts.append("remount-ro")
 
-        cmd = "umount"
-        if flag_parts:
-            cmd += " " + " ".join(flag_parts)
-        cmd += f" {mount_point}"
-
-        log.info(cmd)
+        log.info(
+            "%s",
+            format_mount_intent(
+                "umount",
+                target=mount_point, device=record.device,
+                mode=",".join(mode_parts) or "normal",
+            ),
+        )
         log.info("Unmounted: %s", record)
         if self._audit is not None:
             self._audit.log_umount(mount_point, device=record.device)
@@ -527,7 +686,13 @@ class MountManager:
 
         old_opts = record.options
         record.options = options
-        log.info("remount %s -o %s (was: %s)", mount_point, options, old_opts)
+        log.info(
+            "%s",
+            format_mount_intent(
+                "remount", target=mount_point,
+                options=options, previous=old_opts,
+            ),
+        )
         if self._audit is not None:
             self._audit.log_remount(mount_point, options, device=record.device)
         return record
@@ -602,6 +767,17 @@ def _selftest() -> bool:
         print(f"defaults should parse to empty, got {opts_def}")
         return False
 
+    # user mounts are hardened; non-user mounts are untouched.
+    if harden_user_options("user,noauto") != "user,noauto,noexec,nosuid,nodev":
+        print(f"harden_user_options(user,noauto) -> {harden_user_options('user,noauto')}")
+        return False
+    if harden_user_options("defaults") != "defaults":
+        print("harden_user_options must not touch non-user mounts")
+        return False
+    if harden_user_options("users,exec") != "users,exec,nosuid,nodev":
+        print(f"explicit exec must be preserved: {harden_user_options('users,exec')}")
+        return False
+
     # Test MountRecord
     rec = MountRecord("/dev/sda1", "/mnt/usb", "vfat", "rw,user,noauto")
     if rec.is_readonly:
@@ -660,6 +836,137 @@ def _selftest() -> bool:
         if mgr2.is_mounted(mnt_fd0):
             print("noauto mount should not register as mounted")
             return False
+
+        # enforce_user refuses requests without user/users ...
+        strict = MountManager(
+            proc_mounts="/nonexistent",
+            enforce_noauto=False,
+            enforce_user=True,
+        )
+        try:
+            strict.mount("/dev/sdb1", mnt_fd0, "msdos", "rw")
+            print("enforce_user should refuse a non-user mount")
+            return False
+        except MountError:
+            pass
+        if strict.is_mounted(mnt_fd0):
+            print("refused mount must not be recorded")
+            return False
+
+        # ... and allows user-mountable ones through.
+        strict.mount("/dev/sdb1", mnt_fd0, "msdos", "user,noexec,nosuid,nodev")
+        if not strict.is_mounted(mnt_fd0):
+            print("enforce_user should allow a user mount")
+            return False
+
+        # `users` is the shared variant and must be accepted too.
+        strict.umount(mnt_fd0)
+        strict.mount("/dev/sdb1", mnt_fd0, "msdos", "users,noexec,nosuid,nodev")
+        if not strict.is_mounted(mnt_fd0):
+            print("enforce_user should allow a 'users' mount")
+            return False
+
+        # The default stays permissive (behaviour-neutral for existing callers).
+        lax = MountManager(proc_mounts="/nonexistent", enforce_noauto=False)
+        lax.mount("/dev/sdb1", mnt_usb, "vfat", "rw")
+        if not lax.is_mounted(mnt_usb):
+            print("enforce_user=False must not restrict mounts")
+            return False
+
+    # H170: MntValidator findings gate /mnt requests (fail closed).
+    with tempfile.TemporaryDirectory() as tmpdir:
+        mnt_root = os.path.join(tmpdir, "mnt")
+        os.makedirs(os.path.join(mnt_root, "good"))
+        os.makedirs(os.path.join(mnt_root, "target"))
+        os.makedirs(os.path.join(mnt_root, "plain"))
+        with open(os.path.join(mnt_root, "afile"), "w") as fh:
+            fh.write("x")
+
+        gate_mgr = MountManager(proc_mounts="/nonexistent", mnt_root=mnt_root)
+
+        # MNT003: a regular file is not a mount point.
+        try:
+            gate_mgr.mount("/dev/sdb1", os.path.join(mnt_root, "afile"), "vfat")
+            print("file mount point should be refused")
+            return False
+        except MountError:
+            pass
+
+        # MNT005: unusual leaf name.
+        try:
+            gate_mgr.mount("/dev/sdb1", os.path.join(mnt_root, "bad name"), "vfat")
+            print("unusual mount point name should be refused")
+            return False
+        except MountError:
+            pass
+
+        # MNT004: symlinked mount point (skipped where symlinks are
+        # unavailable, e.g. an unprivileged Windows session).
+        link = os.path.join(mnt_root, "link")
+        try:
+            os.symlink(os.path.join(mnt_root, "target"), link)
+        except (OSError, NotImplementedError):
+            link = ""
+        if link:
+            try:
+                gate_mgr.mount("/dev/sdb1", link, "vfat")
+                print("symlinked mount point should be refused")
+                return False
+            except MountError:
+                pass
+
+        # A sound request still succeeds, with H169 hardening applied.
+        ok = gate_mgr.mount("/dev/sdb1", os.path.join(mnt_root, "good"), "vfat", "user")
+        if "noexec" not in ok.options_set:
+            print("hardening lost on validated mount")
+            return False
+
+        # Opt-out restores the permissive behaviour.
+        lax = MountManager(
+            proc_mounts="/nonexistent",
+            mnt_root=mnt_root,
+            validate_mounts=False,
+        )
+        lax.mount("/dev/sdb2", os.path.join(mnt_root, "plain"), "vfat")
+        if not lax.is_mounted(os.path.join(mnt_root, "plain")):
+            print("validate_mounts=False should not consult the validator")
+            return False
+
+    # log intent, never a shell-shaped fake argv.
+    line = format_mount_intent(
+        "mount", device="/dev/sdb1", target="/mnt/my usb",
+        fstype="vfat", options="defaults",
+    )
+    if " /mnt/my usb " in line or "/mnt/my usb -" in line:
+        print("space in a mount point still looks like an argv separator")
+        return False
+    if "'/mnt/my usb'" not in line:
+        print("mount point is not repr-quoted")
+        return False
+    if "(simulated)" not in line:
+        print("the log line does not say the op is simulated")
+        return False
+    for field in ("device=", "target=", "fstype=", "options="):
+        if field not in line:
+            print(f"{field!r} missing from the intent line")
+            return False
+    # The umount mode must survive the argv -> mode rename.
+    if format_mount_intent("umount", target="/mnt/x", mode="normal") != (
+        "umount [target='/mnt/x', mode='normal'] (simulated)"
+    ):
+        print("unexpected umount intent rendering")
+        return False
+    # No dead argv construction may be left behind: `cmd` must no longer be
+    # a local of umount(), and the mode list must be the replacement.
+    umount_locals = MountManager.umount.__code__.co_varnames
+    if "cmd" in umount_locals:
+        print("umount() still builds a command string")
+        return False
+    if "mode_parts" not in umount_locals:
+        print("umount() lost its mode_parts list")
+        return False
+
+    return True
 
     return True
 

@@ -26,6 +26,9 @@ This module provides the top-level glue for the ``/lib`` rules:
 
 The lower-level managers in this package own the individual catalogues.
 ``LibHierarchyManager`` owns the cross-directory audit and bootstrap flow.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

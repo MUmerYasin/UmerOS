@@ -45,6 +45,9 @@ Quick start::
         slot = mgr.allocate(desc.media_type, desc.device_path,
                             label=desc.label)
         print(f"Mounted at {slot.mount_point}")
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

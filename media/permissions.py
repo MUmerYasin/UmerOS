@@ -36,6 +36,9 @@ Quick start::
     mgr = MountPermissionManager()
     mgr.grant("alice", "/media/usb0", owner=True)
     assert mgr.can_mount("alice", "/media/usb0")
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -117,7 +120,7 @@ STANDARD_MOUNT_GROUPS: FrozenSet[str] = frozenset({
     "floppy",       # floppy drives
     "tape",         # tape drives
     "video",        # video devices
-    " optical",     # optical (alternate)
+    "optical",      # optical (alternate group)
 })
 
 # Group -> which media types they cover
@@ -129,6 +132,7 @@ GROUP_MEDIA_MAP: Dict[str, FrozenSet[str]] = {
                        "cdrom", "dvd", "blu_ray", "floppy", "tape",
                        "internal"}),
     "cdrom": frozenset({"cdrom", "dvd", "blu_ray"}),
+    "optical": frozenset({"cdrom", "dvd", "blu_ray"}),
     "floppy": frozenset({"floppy"}),
     "tape": frozenset({"tape"}),
 }
@@ -140,13 +144,25 @@ class GroupPolicy:
 
     Checks whether a user belongs to groups that grant access
     to a given media type.
+
+    When ``require_primary_group`` is set, only the user's *primary* group
+    (``primary_group``) may grant access — membership in a secondary mount
+    group is not sufficient.  With ``require_primary_group`` set but no
+    ``primary_group`` supplied, the policy denies (fail-closed).
     """
     user_groups: Set[str] = field(default_factory=set)
     require_primary_group: bool = False
+    primary_group: Optional[str] = None
+
+    def _effective_groups(self) -> Set[str]:
+        """Groups that participate in the decision."""
+        if self.require_primary_group:
+            return {self.primary_group} if self.primary_group else set()
+        return self.user_groups
 
     def can_access_media_type(self, user: str, media_type: str) -> bool:
         """Check if user's groups grant access to *media_type*."""
-        for group in self.user_groups:
+        for group in self._effective_groups():
             allowed = GROUP_MEDIA_MAP.get(group, frozenset())
             if media_type in allowed:
                 return True
@@ -155,7 +171,7 @@ class GroupPolicy:
     def get_allowed_media_types(self) -> Set[str]:
         """Return all media types accessible by the current groups."""
         result: Set[str] = set()
-        for group in self.user_groups:
+        for group in self._effective_groups():
             result.update(GROUP_MEDIA_MAP.get(group, frozenset()))
         return result
 
@@ -166,9 +182,20 @@ class GroupPolicy:
         self.user_groups.discard(group)
 
     @classmethod
-    def for_user(cls, user: str, groups: Optional[Set[str]] = None) -> "GroupPolicy":
+    def for_user(
+        cls,
+        user: str,
+        groups: Optional[Set[str]] = None,
+        *,
+        require_primary_group: bool = False,
+        primary_group: Optional[str] = None,
+    ) -> "GroupPolicy":
         """Create a policy for a user with given groups."""
-        return cls(user_groups=groups or set())
+        return cls(
+            user_groups=groups or set(),
+            require_primary_group=require_primary_group,
+            primary_group=primary_group,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -247,6 +274,30 @@ class MountPermissionManager:
         for perm in self._permissions.get(user, []):
             if perm.mount_point == mp and not perm.is_expired and perm.can_write:
                 return True
+        return False
+
+    def authorize_mount(
+        self,
+        user: str,
+        mount_point: str,
+        *,
+        media_type: Optional[str] = None,
+        group_policy: Optional[GroupPolicy] = None,
+    ) -> bool:
+        """Single pre-mount authorization check.
+
+        Returns ``True`` when *user* may mount *mount_point*.  A user with a
+        direct (non-expired) permission, or a global admin, always passes.
+        Otherwise, when a *media_type* and *group_policy* are supplied, group
+        membership can grant access (Linux plugdev/storage convention).
+
+        This is the entry point the mount path consults before mounting, so
+        the authorization layer is no longer decorative.
+        """
+        if self.can_mount(user, mount_point):
+            return True
+        if media_type and group_policy is not None:
+            return group_policy.can_access_media_type(user, media_type)
         return False
 
     def is_owner(self, user: str, mount_point: str) -> bool:
@@ -371,6 +422,27 @@ def _selftest() -> bool:
     types = gp.get_allowed_media_types()
     assert "usb" in types
     assert "cdrom" in types
+
+    # the stray-space literal is fixed and the entry is functional.
+    assert "optical" in STANDARD_MOUNT_GROUPS
+    assert " optical" not in STANDARD_MOUNT_GROUPS
+    assert GroupPolicy(user_groups={"optical"}).can_access_media_type("u", "cdrom")
+
+    # require_primary_group is enforced (fail-closed without a primary).
+    strict = GroupPolicy(user_groups={"plugdev"}, require_primary_group=True)
+    assert not strict.can_access_media_type("u", "usb")  # no primary -> deny
+    strict_ok = GroupPolicy(user_groups={"plugdev"}, require_primary_group=True,
+                            primary_group="plugdev")
+    assert strict_ok.can_access_media_type("u", "usb")
+    strict_deny = GroupPolicy(user_groups={"plugdev"}, require_primary_group=True,
+                              primary_group="cdrom")
+    assert not strict_deny.can_access_media_type("u", "usb")  # primary cdrom has no usb
+
+    # authorize_mount combines direct perms + group policy.
+    assert mgr.authorize_mount("alice", "/media/usb0")
+    assert not mgr.authorize_mount("nobody", "/media/usb0")
+    assert mgr.authorize_mount("nobody", "/media/usb0", media_type="usb",
+                               group_policy=GroupPolicy(user_groups={"plugdev"}))
 
     # fstab helpers
     assert parse_fstab_uid("uid=1000,gid=1000") == 1000

@@ -1,0 +1,33 @@
+{
+  "legacy_service": {
+    "base_path": "F:\\umeros_tmp\\tmpklxveo48\\srv\\legacy",
+    "cgi_path": null,
+    "conf_path": null,
+    "config": {
+      "access_mode": "rw",
+      "admin_contact": "admin@umeros.local",
+      "allow_anonymous": false,
+      "custom_settings": {},
+      "department": null,
+      "domain": null,
+      "enable_cgi": false,
+      "enable_ssl": false,
+      "name": "legacy_service",
+      "port": null,
+      "protocol": "www",
+      "quota_bytes": 0,
+      "scheme": "by_protocol"
+    },
+    "created_at": 1792483483.7393806,
+    "data_path": "F:\\umeros_tmp\\tmpklxveo48\\srv\\legacy",
+    "dir_count": 0,
+    "file_count": 0,
+    "is_fhs_compliant": false,
+    "metadata": {},
+    "name": "legacy_service",
+    "size_bytes": 0,
+    "status": "active",
+    "updated_at": 1792483483.739381,
+    "upload_path": null
+  }
+}

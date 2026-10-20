@@ -11,11 +11,11 @@
 # --------
 # disclaimer   - DisclaimerNotice, DisclaimerRegistry, RiskLevel, UmerOS waivers
 # consent      - ConsentManager, ConsentRecord, ConsentGateError, 'I AGREE' validator
-# contributors - ContributorRegistry, ContributorRecord, DCO certification
+# contributors - ContributorRegistry, ContributorRecord, declared DCO status
 # donations    - DonationsManager, DonationRecord, DonationTier, funding channels
 # licenses     - LicenseManager, LicenseScanResult, multi-license auditor
-# maintainers  - MaintainerRegistry, MaintainerProfile, PQC & PGP signing keys
-# safety_check - SafetyChecker, SafetyCheckResult, pre-execution backup runner
+# maintainers  - MaintainerRegistry, MaintainerProfile, placeholder key fingerprints
+# safety_check - SafetyChecker, SafetyCheckResult, fail-closed pre-execution backup gate
 # manager      - LegalManager (master unified controller)
 # cli          - legal_ctl command-line controller
 #

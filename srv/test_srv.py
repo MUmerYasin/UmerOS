@@ -276,7 +276,9 @@ def test_srv_manager_and_persistence() -> bool:
         # 2. Create new service
         rec = mgr.create_service("test_api", protocol=StandardProtocol.WWW)
         assert rec.name == "test_api"
-        assert rec.base_path == str(srv_root / "test_api")
+        # create_service resolves the path, so compare resolved paths
+        # (on Windows the unresolved form may be the 8.3 short name).
+        assert Path(rec.base_path).resolve() == (srv_root / "test_api").resolve()
 
         # 3. Check JSON persistence
         assert reg_file.exists()

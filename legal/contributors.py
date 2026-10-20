@@ -15,8 +15,10 @@
 UmerOS Legal & Compliance — Contributors & Attribution Subsystem
 ===================================================================================
 
-Tracks, verifies, and credits contributors, open-source maintainers, and
-AI engineering intelligence pairing.
+Tracks and credits contributors, open-source maintainers, and AI engineering
+intelligence pairing, and records their **declared** Developer Certificate of
+Origin (DCO) status.  DCO status here is a recorded declaration, not a
+cryptographic verification.
 
 
 Author: UmerOS Project
@@ -28,6 +30,8 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
+
+from .creator_config import get_founder_contact
 
 
 class ContributorRole(str):
@@ -41,13 +45,29 @@ class ContributorRole(str):
 
 @dataclass
 class ContributorRecord:
-    """Represents a recognized contributor to UmerOS."""
+    """Represents a recognized contributor to UmerOS.
+
+    ``dco_flag`` records whether the contributor has *declared* acceptance of
+    the Developer Certificate of Origin (e.g. a ``Signed-off-by`` trailer or a
+    CLA on file).  It is a recorded **declaration**, not a cryptographic
+    verification — see :meth:`ContributorRegistry.has_dco_declaration`.
+    """
     name: str
     role: str
     email_or_handle: str
     organization: str
     contributions: List[str] = field(default_factory=list)
-    dco_signed: bool = True
+    #: Declared DCO acceptance. Fail-closed default: NOT assumed signed.
+    dco_flag: bool = False
+
+    @property
+    def dco_signed(self) -> bool:
+        """Legacy alias for :attr:`dco_flag` (the old name over-claimed)."""
+        return self.dco_flag
+
+    @dco_signed.setter
+    def dco_signed(self, value: bool) -> None:
+        self.dco_flag = bool(value)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -59,10 +79,12 @@ CANONICAL_CONTRIBUTORS: List[ContributorRecord] = [
     ContributorRecord(
         name="Muhammad Umer Yasin (MUmerYasin)",
         role=ContributorRole.FOUNDER_AUTHOR,
-        email_or_handle="mumeryasin123456789@gmail.com",
+        # Contact is loaded from the git-ignored creator config; the
+        # default is a non-PII public handle.
+        email_or_handle=get_founder_contact(),
         organization="UmerOS Project",
         contributions=["OS Architecture", "Quantum-Hybrid Microkernel Design", "QFS Filesystem", "Fluidic UI"],
-        dco_signed=True,
+        dco_flag=True,
     ),
     
     ContributorRecord(
@@ -71,7 +93,7 @@ CANONICAL_CONTRIBUTORS: List[ContributorRecord] = [
         email_or_handle="tldp@tldp.org",
         organization="TLDP Community",
         contributions=["Linux Filesystem Hierarchy Standard Guide", "FSSTND Specifications", "UNIX System V Documentation"],
-        dco_signed=True,
+        dco_flag=True,
     ),
     ContributorRecord(
         name="Free Standards Group / Linux Foundation",
@@ -79,13 +101,19 @@ CANONICAL_CONTRIBUTORS: List[ContributorRecord] = [
         email_or_handle="fhs@freestandards.org",
         organization="Linux Foundation",
         contributions=["Filesystem Hierarchy Standard (FHS 2.3 & 3.0)"],
-        dco_signed=True,
+        dco_flag=True,
     ),
 ]
 
 
 class ContributorRegistry:
-    """Registry and verification engine for UmerOS contributors."""
+    """Roster of UmerOS contributors and their **declared** DCO status.
+
+    This class records whether a contributor has *declared* acceptance of the
+    Developer Certificate of Origin; it does **not** cryptographically verify a
+    signed DCO/CLA.  The flag is therefore named ``dco_flag`` and the query is
+    :meth:`has_dco_declaration`.
+    """
 
     def __init__(self, initial_roster: Optional[List[ContributorRecord]] = None) -> None:
         self._roster: Dict[str, ContributorRecord] = {}
@@ -99,16 +127,20 @@ class ContributorRegistry:
         email_or_handle: str = "",
         organization: str = "Independent",
         contributions: Optional[List[str]] = None,
-        dco_signed: bool = True,
+        dco_flag: bool = False,
     ) -> ContributorRecord:
-        """Registers a new contributor in the roster."""
+        """Registers a new contributor in the roster.
+
+        ``dco_flag`` defaults to ``False``: a new contributor is **not**
+        assumed to have accepted the DCO (fail-closed).
+        """
         rec = ContributorRecord(
             name=name,
             role=role,
             email_or_handle=email_or_handle,
             organization=organization,
             contributions=contributions or [],
-            dco_signed=dco_signed,
+            dco_flag=dco_flag,
         )
         self._roster[name.lower()] = rec
         return rec
@@ -119,10 +151,22 @@ class ContributorRegistry:
     def list_contributors(self) -> List[ContributorRecord]:
         return list(self._roster.values())
 
-    def verify_dco(self, name: str) -> bool:
-        """Verifies if a contributor has signed the Developer Certificate of Origin."""
+    def has_dco_declaration(self, name: str) -> bool:
+        """Return whether ``name`` has a **declared** DCO acceptance on record.
+
+        This reports a recorded declaration; it is NOT a cryptographic
+        signature check.
+        """
         c = self.get_contributor(name)
-        return bool(c and c.dco_signed)
+        return bool(c and c.dco_flag)
+
+    def verify_dco(self, name: str) -> bool:
+        """Deprecated alias for :meth:`has_dco_declaration`.
+
+        The old name over-claimed: nothing is *verified* here, only a
+        declaration is reported.
+        """
+        return self.has_dco_declaration(name)
 
     def generate_acknowledgements_md(self) -> str:
         """Generates a formatted markdown document of all contributors."""
@@ -133,7 +177,7 @@ class ContributorRegistry:
             "",
         ]
         for c in self._roster.values():
-            dco_str = " (DCO Certified)" if c.dco_signed else ""
+            dco_str = " (DCO declared)" if c.dco_flag else ""
             lines.append(f"### {c.name}{dco_str}")
             lines.append(f"- **Role:** {c.role}")
             lines.append(f"- **Organization:** {c.organization}")

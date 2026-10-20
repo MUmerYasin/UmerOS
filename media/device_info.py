@@ -28,7 +28,7 @@ The module works in two modes:
    hardware.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -361,13 +361,16 @@ def get_mount_info(device_path: str) -> Optional[Dict[str, str]]:
 #  Self-test
 # ---------------------------------------------------------------------------
 
-def _selftest():
+def _selftest() -> bool:
     """Run a basic self-test for this module."""
     result = detect_media_type("/dev/sda1")
-    assert result is not None, "detect_media_type should return a MediaType"
+    assert isinstance(result, MediaType), "detect_media_type should return a MediaType"
+    assert detect_media_type("/dev/nonexistent") is not None
 
     print("selftest OK")
+    return True
 
 
 if __name__ == "__main__":
-    _selftest()
+    import sys
+    sys.exit(0 if _selftest() else 1)

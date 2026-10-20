@@ -35,7 +35,7 @@ This module owns the policy that decides where a binary of a given
 triplet should look for its shared libraries.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

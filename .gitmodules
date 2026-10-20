@@ -1,0 +1,10 @@
+# [FIX H151] Declares the vendored liboqs submodule so its upstream pin and
+# provenance are recorded in-tree and `git submodule update --init --recursive`
+# works on a fresh clone. Previously the root index carried an *undeclared*
+# gitlink (mode 160000, commit 5a1a854b0dc9f2141bdc771c555ee60c37950183) with no
+# .gitmodules file, so the Open Quantum Safe C library could silently drift with
+# no declared upstream. See THIRD_PARTY_NOTICES.md for the pinned revision and
+# the MIT license terms.
+[submodule "liboqs"]
+	path = liboqs
+	url = https://github.com/open-quantum-safe/liboqs.git

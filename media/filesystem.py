@@ -32,6 +32,9 @@ Quick start::
 
     fs = detect_fs_type("/dev/sr0")          # -> FsType.ISO9660
     opts = mount_options_for(FsType.EXT4)     # -> ["noatime","data=ordered"]
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -331,11 +334,11 @@ def detect_fs_type(
         return FsType.ISO9660
     if name.startswith("fd"):
         return FsType.VFAT
-    if name.startswith("loop"):
-        # Could be anything; try magic
+    if name.startswith("loop") or name.startswith("nvme"):
+        # Loop devices and NVMe namespaces can hold any filesystem
+        # (NVMe is a transport/controller interface, not a filesystem
+        # type) -> fall through to the magic-byte probe below.
         pass
-    if name.startswith("nvme"):
-        return FsType.NVME  # type: ignore[attr-defined]
 
     # --- 2. Magic-byte probe ---
     if probe_magic and os.path.exists(device_path):
@@ -443,7 +446,7 @@ def list_removable_fs() -> List[FsType]:
     return [
         FsType.VFAT, FsType.FAT32, FsType.EXFAT, FsType.NTFS,
         FsType.ISO9660, FsType.UDF, FsType.HFS_PLUS, FsType.EXT2,
-        FsType.EXT3, FsType.EXT4, FsType.EXT4, FsType.BTRFS,
+        FsType.EXT3, FsType.EXT4, FsType.BTRFS,
         FsType.XFS, FsType.SQUASHFS,
     ]
 
@@ -461,5 +464,10 @@ def _selftest() -> bool:
     opts = mount_options_for(FsType.EXT4, read_only=True, removable=True)
     assert "ro" in opts
     assert "noexec" in opts
-    assert len(list_removable_fs()) > 0
+    removable = list_removable_fs()
+    assert len(removable) > 0
+    assert len(removable) == len(set(removable)), "list_removable_fs has duplicates"
+    # NVMe is a transport, not a filesystem: detection must fall
+    # through to the magic probe rather than raise AttributeError.
+    assert detect_fs_type("/dev/nvme0n1p1", probe_magic=False) == FsType.UNKNOWN
     return True
