@@ -507,39 +507,43 @@ class OptManager:
         if not self.opt_root.exists():
             return packages
         
-        for item in self.opt_root.iterdir():
-            if item.is_dir() and not item.name.startswith('.'):
-                # Check if it's a provider directory or a package
-                if item.is_dir():
-                    for subitem in item.iterdir():
-                        if subitem.is_dir() and not subitem.name.startswith('.'):
-                            package = OptPackage(
-                                subitem.name,
-                                item.name,
-                                str(self.opt_root),
-                                str(self.etc_opt_root),
-                                str(self.var_opt_root),
-                            )
-                            packages.append({
-                                "name": subitem.name,
-                                "provider": item.name,
-                                "path": subitem,
-                                "integrity": package.verify_integrity()
-                            })
-                else:
-                    package = OptPackage(
+        for item in sorted(self.opt_root.iterdir()):
+            if not (item.is_dir() and not item.name.startswith('.')):
+                continue
+            # The previous `if item.is_dir():` was always true (the
+            # enclosing test had already checked it), so the `else` was dead
+            # code: the flat /opt/<pkg>/ layout was never listed and every
+            # *subdirectory* of a package (bin, lib, include, ...) was reported
+            # as a package in its own right.
+            if (item / "bin").is_dir():
+                packages.append({
+                    "name": item.name,
+                    "provider": "",
+                    "path": item,
+                    "integrity": OptPackage(
                         item.name,
                         "",
                         str(self.opt_root),
                         str(self.etc_opt_root),
                         str(self.var_opt_root),
-                    )
-                    packages.append({
-                        "name": item.name,
-                        "provider": "",
-                        "path": item,
-                        "integrity": package.verify_integrity()
-                    })
+                    ).verify_integrity()
+                })
+                continue
+            for subitem in sorted(item.iterdir()):
+                if not (subitem.is_dir() and not subitem.name.startswith('.')):
+                    continue
+                packages.append({
+                    "name": subitem.name,
+                    "provider": item.name,
+                    "path": subitem,
+                    "integrity": OptPackage(
+                        subitem.name,
+                        item.name,
+                        str(self.opt_root),
+                        str(self.etc_opt_root),
+                        str(self.var_opt_root),
+                    ).verify_integrity()
+                })
         
         return sorted(packages, key=lambda x: x["name"])
     

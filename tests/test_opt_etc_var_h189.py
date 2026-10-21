@@ -168,8 +168,10 @@ def test_traversal_provider_still_raises(tmp_path):
         OptPackage("ok", "../../etc", str(root), str(etc), str(var))
 
 
-def test_etc_root_is_also_contained(tmp_path):
-    """A hostile *root* must not let the package escape either."""
+def test_name_is_contained_against_the_injected_etc_root(tmp_path):
+    """The traversal guard applies to the injected root, not just the default."""
     root, etc, var = _make_root(tmp_path)
     with pytest.raises(PathTraversalError):
-        OptPackage("ok", "", str(root), str(tmp_path), str(var))
+        OptPackage("../../etc", "", str(root), str(etc), str(var))
+    with pytest.raises(PathTraversalError):
+        OptPackage("ok", "../../etc", str(root), str(etc), str(var))

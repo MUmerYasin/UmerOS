@@ -1,6 +1,6 @@
 {
   "legacy_service": {
-    "base_path": "F:\\umeros_tmp\\tmp_v_pzq5i\\srv\\legacy",
+    "base_path": "F:\\umeros_tmp\\tmpuf1_7zqg\\srv\\legacy",
     "cgi_path": null,
     "conf_path": null,
     "config": {
@@ -18,8 +18,8 @@
       "quota_bytes": 0,
       "scheme": "by_protocol"
     },
-    "created_at": 1792568498.0014954,
-    "data_path": "F:\\umeros_tmp\\tmp_v_pzq5i\\srv\\legacy",
+    "created_at": 1792573128.92923,
+    "data_path": "F:\\umeros_tmp\\tmpuf1_7zqg\\srv\\legacy",
     "dir_count": 0,
     "file_count": 0,
     "is_fhs_compliant": false,
@@ -27,7 +27,7 @@
     "name": "legacy_service",
     "size_bytes": 0,
     "status": "active",
-    "updated_at": 1792568498.0014956,
+    "updated_at": 1792573128.92923,
     "upload_path": null
   }
 }
