@@ -266,9 +266,14 @@ async def _selftest_async() -> bool:
 
         # abuse control 3: the cap is enforced over real sockets.  Two
         # connections (echo + oversized) already consumed this window.
+        # NOTE: every connection must carry a payload.  A client that sends
+        # nothing makes the server block in ``reader.read()`` until
+        # READ_TIMEOUT (30s) while the client gives up after ``timeout``
+        # (5s), so an empty payload would make this phase take ~40s for no
+        # extra coverage.
         for _ in range(TCPServer.MAX_CONNECTIONS_PER_IP - 2):
-            await TCPClient().connect(live.host, live.port, b"")
-        refused = await TCPClient().connect(live.host, live.port, b"")
+            await TCPClient().connect(live.host, live.port, b"x")
+        refused = await TCPClient().connect(live.host, live.port, b"x")
         if refused != b"Rate limit exceeded.\n":
             return fail(f"the per-IP cap was not enforced over sockets: {refused!r}")
     finally:

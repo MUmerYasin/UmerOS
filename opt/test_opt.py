@@ -17,7 +17,12 @@ Comprehensive Test Suite for UmerOS /opt Package Management System
 
 This test script verifies the functionality of the /opt implementation
 according to Linux Filesystem Hierarchy standards.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
+
+from __future__ import annotations
 
 import sys
 import os
@@ -61,7 +66,13 @@ def test_opt_package():
             from opt.package import OptPackage
             
             # Create package
-            package = OptPackage("testapp", opt_root=str(opt_root))
+            # keep the demo inside its temp root
+            package = OptPackage(
+                "testapp",
+                opt_root=str(opt_root),
+                etc_opt_root=str(Path(tmpdir) / "etc" / "opt"),
+                var_opt_root=str(Path(tmpdir) / "var" / "opt"),
+            )
             
             # Verify directory structure
             assert package.base_path.exists(), "Package base path not created"

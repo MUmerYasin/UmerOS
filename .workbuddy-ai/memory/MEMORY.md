@@ -21,15 +21,17 @@
 - **Full-suite temp dir:** redirecting `TMP`/`TEMP` *into the project* causes **15 false failures** (9 `test_legal_scan`/`test_legal_security`, 6 `test_mnt`): `legal/licenses.py:scan_directory` skips any `.`-prefixed path component; `mnt/fstab.py` whitespace-splits fstab lines so a space in the path (`F:\Pension Person Details\UmerOS`) corrupts field offsets. **Use `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`** (space-free, dot-free) — **and `mkdir -p /f/umeros_tmp` FIRST**: `tempfile.gettempdir()` silently falls back to the space-containing Windows temp dir (`…\Temp\pytest-of-MC Raja Jang`) if the target does not exist, which reintroduces the 6 `test_mnt` false failures. Use `--junitxml` (basetemp cleanup trips the safe-delete guard and kills the terminal summary). **H140:** the full/CI run now targets `tests/ legal/ opt/ sources/ srv/ tmp/` (in-package suites included).
 - Shared guards: `core/path_guard.py` (`safe_child`/`safe_join`/`PathTraversalError`); `core/capability_gate.py` (`gate`/`require(cap)`, fail-closed when wired).
 - Project: ~735 Python modules; CI in `.github/workflows/` (`ci.yml`, `security_scan.yml`); `Old Linux Code/` (~93k) reference-only (out of scope).
-- Skip pre-existing broken `tests/test_ai.py` (collection error — `ai.providers` missing `AIConfigManager`); `home` package-shadow (`bin/home.py`/`root/home.py`) — load `home_backup.py` by file path under a unique module name in tests.
+- **Corrected session 185:** `tests/test_ai*.py` (61 cases) collect and pass again — the old "skip broken test_ai.py" note is STALE. `home` package-shadow (`bin/home.py`/`root/home.py`) — load `home_backup.py` by file path under a unique module name in tests.
 - CWE-22 / zero-trust norm: fail-closed path traversal + signature verification; many "leaky/dummy-crypto" items were already fixed or false premises.
 
 ## Remediation status
 - **RED blockers: ALL CLOSED (sessions 1–33). YELLOW sweep in progress (session 36+).**
-- **Current pointer (session 185):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/ kernel/ legal/` COMPLETE; `lib/`/`liboqs/` COMPLETE; `media/` COMPLETE (H156–H165); `mnt/` **COMPLETE** (H166–H176, 11 items); **`network/` IN PROGRESS** (H177,H178 ✅ from s13; H179 ✅ XOR fallback now opt-in; H180 ✅ DoH fail-open closed + DNSSEC visible; **H181 ✅ — canonical H7 `License: GPL-3.0 (GNU General Public License v3)` + `Author:` trailer added to all six module docstrings, and `network/__init__.py` (the only package `__init__` in the tree without one) gained `from __future__ import annotations`**). Next 💭 **H182** — no `_selftest()` in `network/` (partially pre-empted: `vpn_tunnel.py` got one in H179); leaves `dns_resolver.py`, `http_client.py`, `network_stack.py`, `tcp_server.py`. Say **'continues'** for H182.
+- **Current pointer (session 188):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/ kernel/ legal/` COMPLETE; `lib/`/`liboqs/` COMPLETE; `media/` COMPLETE (H156–H165); `mnt/` **COMPLETE** (H166–H176, 11 items); **`network/` COMPLETE (H177–H182, 6 items)**; **`opt/` license baseline done (H183)** — all 15 modules now carry the canonical H7 `License: GPL-3.0 (GNU General Public License v3)` + `Author:` trailer, the verbose `Version 3` spellings are gone, 9 modules gained `from __future__`, and the two prose-header `__init__.py` files (which the fail-closed scanner rejected — `opt/` was 13/15 compliant) now carry the canonical block, so `scan_directory("opt")` is 15/15. `opt/` security items H184–H187 (🔴 capability gate, path traversal, command injection) were fixed in earlier sessions. Next 🟡 **H188** — `opt/env.py:251` / `opt/integration.py:222`: a discovered `bin_path` is interpolated unescaped into a shell `export PATH=` snippet written to `/etc/profile.d/opt-paths.sh` and `~/.bashrc` (login-sourced, runs for all users). Say **'continues'** for H188.
 - **⚠ Standard §9 REVERTED (session 84):** live standard = 973 lines / 217 rows (39🔴 63🟢 115🟡) — the 🟢-removal was reverted/replaced externally (file grew 736→673→973). H46 duplicated (stale 🔴 L356 + resolved 🟢 L549). Backup: `Code Review Standards and Process.md.pre-green-removal.bak`. Awaiting user decision on re-removing 🟢 rows.
 - **⚠ H62 REGRESSION (found s117):** `drivers/` has **0/75** `[TODAY]` tier labels despite H62 RESOLVED (s76); the labels still hold in `boot/` (23), `bin/` (44), `kernel/` (6), `core/` (1), `etc/` (81). Re-apply on request (same mechanical op as H70).
 - H1 (user action, not mine): rotate the leaked OpenRouter key + purge git history.
+
+- **Known-UNRELATED full-run failures (do NOT re-investigate):** 6 failures from *externally rewritten* files — 5 × `tests/test_legal_pii_h137` (the committed `legal/creator_accounts.example.json` was re-saved mid-session and now carries what looks like real personal data: a PK IBAN, a Gmail address, a phone number) and 1 × `tests/test_lib_pam_h150` (`lib/security.py` lost its "Fail-open modules (H150)" docstring marker). They reproduce standalone in <1s with zero coupling to the folder under study; first observed session 186, still present session 188. Both folders are closed — flagged for the user, not fixed.
 
 ## Folder scope map — hotspots (🟢 fixed / 🟡 yellow / 💭 nit)
 - boot/ 🟢 H27–H34 | bin/ 🟢 H4,H5,H6,H8,H35–H40 | build/ 🟢 H41–H45
@@ -44,8 +46,8 @@
 - lib/ 🟢 H3,H146,H147,H148,H149,H150 | liboqs/ 🟢 H151,H155
 - media/ 🟢 H156–H165 **COMPLETE** (H156,H157,H158,H159,H160,H161,H162,H163,H164,H165)
 - mnt/ 🟢 H166–H176 (H166,H167,H168,H169,H170,H171,H172,H173,H174,H175,H176) **COMPLETE**
-- network/ 🟢 H177,H178,H179,H180,H181; 💭 H182
-- opt/ 🟢 H184–H187; 🟡 H188–H193,H200; 💭 H183
+- network/ 🟢 H177,H178,H179,H180,H181,H182 — **COMPLETE**
+- opt/ 🟢 H183–H188; 🟡 H189–H193,H200
 - packages/ 🟢 H194–H198; 🟡 H199,H201,H204 | proc/ 🟢 H205–H208; 🟡 H209–H211; 💭 H212–H214
 - quantum/ 🟢 H152,H215–H217,H221; 🟡 H218–H220; 💭 H222–H225
 - root/ 🟢 H227; 🟡 H226,H228; 💭 H229–H231 | sbin/ 🟢 H233; 🟡 H232; 💭 H234,H235

@@ -16,7 +16,12 @@ Development Tools Installation Script for /opt
 
 This script demonstrates proper installation of development tools
 to /opt following Linux Filesystem Hierarchy standards.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
+
+from __future__ import annotations
 
 import os
 import sys

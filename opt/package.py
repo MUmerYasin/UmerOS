@@ -17,10 +17,13 @@ UmerOS /opt Package Management
 This module implements the core package management functionality for /opt
 as per Filesystem Hierarchy standards.
 
-License: GPL-3.0
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 # Add canonical GPL-3.0 licence tag (repo is GPL-3.0 per LICENSE/setup.py/README).
+
+from __future__ import annotations
 
 import os
 import re
@@ -63,7 +66,14 @@ class OptPackage:
     - Manual pages are in /opt/'package'/man
     """
     
-    def __init__(self, name: str, provider: str = "", opt_root: str = "/opt"):
+    def __init__(
+        self,
+        name: str,
+        provider: str = "",
+        opt_root: str = "/opt",
+        etc_opt_root: str = "/etc/opt",
+        var_opt_root: str = "/var/opt",
+    ):
         """
         Initialize OptPackage.
         
@@ -71,10 +81,16 @@ class OptPackage:
             name: Package name
             provider: Optional provider name
             opt_root: Root directory for opt packages
+            etc_opt_root: Root directory for opt configurations
+            var_opt_root: Root directory for opt variable data
         """
         self.name = name
         self.provider = provider
         self.opt_root = Path(opt_root)
+        # The etc/var roots are constructor-injectable so a
+        # temp-root run cannot resolve them to the real system dirs.
+        self.etc_opt_root = Path(etc_opt_root)
+        self.var_opt_root = Path(var_opt_root)
         self._ensure_root()
         self._setup_paths()
     
@@ -101,12 +117,15 @@ class OptPackage:
         self.man_path = self.base_path / "man"
         self.src_path = self.base_path / "src"
         # etc/var roots are also contained against provider/name.
+        # contained against provider/name *and* honouring the
+        # constructor overrides, so a temp-root run cannot resolve the
+        # package's etc/var trees to the real system directories.
         if self.provider:
-            etc_root = safe_child(Path("/etc/opt"), self.provider)
-            var_root = safe_child(Path("/var/opt"), self.provider)
+            etc_root = safe_child(self.etc_opt_root, self.provider)
+            var_root = safe_child(self.var_opt_root, self.provider)
         else:
-            etc_root = Path("/etc/opt")
-            var_root = Path("/var/opt")
+            etc_root = Path(self.etc_opt_root)
+            var_root = Path(self.var_opt_root)
         self.etc_path = safe_child(etc_root, self.name)
         self.var_path = safe_child(var_root, self.name)
 
@@ -381,14 +400,25 @@ class OptManager:
     - Managing package dependencies
     """
     
-    def __init__(self, opt_root: str = "/opt"):
+    def __init__(
+        self,
+        opt_root: str = "/opt",
+        etc_opt_root: str = "/etc/opt",
+        var_opt_root: str = "/var/opt",
+    ):
         """
         Initialize OptManager.
         
         Args:
             opt_root: Root directory for opt packages
+            etc_opt_root: Root directory for opt configurations
+            var_opt_root: Root directory for opt variable data
         """
         self.opt_root = Path(opt_root)
+        # forward the overrides so every OptPackage this manager
+        # builds stays inside the caller's roots.
+        self.etc_opt_root = Path(etc_opt_root)
+        self.var_opt_root = Path(var_opt_root)
         self._ensure_root()
     
     def _ensure_root(self) -> None:
@@ -410,7 +440,9 @@ class OptManager:
             OptPackage instance
         """
         gate.require(CAP_FS_ADMIN)  # privileged /opt install
-        package = OptPackage(name, provider, str(self.opt_root))
+        package = OptPackage(
+            name, provider, str(self.opt_root), str(self.etc_opt_root), str(self.var_opt_root)
+        )
         
         # Install binary if provided
         if binary_path:
@@ -459,7 +491,9 @@ class OptManager:
         Returns:
             OptPackage instance
         """
-        return OptPackage(name, provider, str(self.opt_root))
+        return OptPackage(
+            name, provider, str(self.opt_root), str(self.etc_opt_root), str(self.var_opt_root)
+        )
     
     def list_packages(self) -> List[Dict[str, Any]]:
         """
@@ -479,7 +513,13 @@ class OptManager:
                 if item.is_dir():
                     for subitem in item.iterdir():
                         if subitem.is_dir() and not subitem.name.startswith('.'):
-                            package = OptPackage(subitem.name, item.name, str(self.opt_root))
+                            package = OptPackage(
+                                subitem.name,
+                                item.name,
+                                str(self.opt_root),
+                                str(self.etc_opt_root),
+                                str(self.var_opt_root),
+                            )
                             packages.append({
                                 "name": subitem.name,
                                 "provider": item.name,
@@ -487,7 +527,13 @@ class OptManager:
                                 "integrity": package.verify_integrity()
                             })
                 else:
-                    package = OptPackage(item.name, "", str(self.opt_root))
+                    package = OptPackage(
+                        item.name,
+                        "",
+                        str(self.opt_root),
+                        str(self.etc_opt_root),
+                        str(self.var_opt_root),
+                    )
                     packages.append({
                         "name": item.name,
                         "provider": "",

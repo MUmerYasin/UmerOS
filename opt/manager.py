@@ -15,7 +15,12 @@
 UmerOS /opt Package Manager - Main Interface
 
 This module provides a high-level interface for managing /opt packages
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
+
+from __future__ import annotations
 
 import os
 import sys
@@ -73,7 +78,11 @@ class OptManager:
         # Initialize sub-managers
         self.config_manager = OptConfig(str(opt_root), str(etc_opt_root))
         self.integration = OptIntegration(str(opt_root), str(etc_opt_root), str(var_opt_root))
-        self.package_manager = PackageOptManager(str(opt_root))
+        # forward the etc/var overrides into the package layer,
+        # whose OptPackage used to hardcode /etc/opt and /var/opt.
+        self.package_manager = PackageOptManager(
+            str(opt_root), str(etc_opt_root), str(var_opt_root)
+        )
         
         # Ensure directories exist
         self._ensure_directories()
@@ -141,7 +150,13 @@ class OptManager:
 
         try:
             # Create package structure
-            package = OptPackage(name, provider, str(self.opt_root))
+            package = OptPackage(
+                name,
+                provider,
+                str(self.opt_root),
+                str(self.etc_opt_root),
+                str(self.var_opt_root),
+            )
             result["paths"]["package"] = str(package.base_path)
             
             # Install binaries

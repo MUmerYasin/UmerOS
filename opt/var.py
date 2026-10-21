@@ -23,7 +23,7 @@ No structure is imposed on the internal arrangement.  Packages may use
 this space for caches, databases, spools, logs, or any other mutable state.
 
 Author:  Umer OS Project
-License: GPL-3.0
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 # Normalize licence header to canonical "License: GPL-3.0" (drop redundant

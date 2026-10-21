@@ -16,10 +16,13 @@ UmerOS /opt Configuration Management
 
 This module handles configuration files for /opt packages in /etc/opt
 
-License: GPL-3.0
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 # Add canonical GPL-3.0 licence tag (repo is GPL-3.0 per LICENSE/setup.py/README).
+
+from __future__ import annotations
 
 import os
 import sys

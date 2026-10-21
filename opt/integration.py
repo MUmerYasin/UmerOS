@@ -15,13 +15,60 @@
 UmerOS /opt Integration Modules
 
 This module provides integration points between /opt and the rest of the UmerOS system.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
+from __future__ import annotations
+
+import logging
 import os
+import shlex
 import shutil
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
+
+log = logging.getLogger("UmerOS.Opt.Integration")
+
+
+# a newline would let an attacker-controlled path escape a
+# "#" comment line in a login-sourced script, so comments are flattened.
+def _comment_safe(text: str) -> str:
+    """Collapse CR/LF so *text* cannot escape a ``#`` comment line."""
+    return text.replace("\r", " ").replace("\n", " ")
+
+
+#  characters with no legitimate use in an /opt package directory
+# name.  A name reaching a shell snippet as *code* instead of *data* is what
+# made the old ``export PATH="{bin_path}:$PATH"`` interpolation exploitable.
+_UNSAFE_NAME_CHARS = frozenset("\"'`$\\;&|<>()\n\r\t*?[]{}!#~")
+
+
+def _drop_shell_unsafe(dirs: List[Path], root: Path) -> List[Path]:
+    """
+    Return *dirs* without any package whose name below *root* is shell-hostile.
+
+    Only the components below *root* are inspected: the root is chosen by the
+    administrator and every path that survives is still ``shlex.quote``-d, so
+    this is defence in depth on the one segment a package install controls.
+    """
+    safe: List[Path] = []
+    for directory in dirs:
+        try:
+            relative = directory.relative_to(root)
+        except ValueError:
+            log.warning("ignoring /opt path %r: not below %s", directory, root)
+            continue
+        if any(_UNSAFE_NAME_CHARS & set(part) for part in relative.parts):
+            log.warning(
+                "ignoring /opt path %r: a component contains shell metacharacters",
+                directory,
+            )
+            continue
+        safe.append(directory)
+    return safe
 
 
 class OptEnvironment:
@@ -176,40 +223,67 @@ class OptPathManager:
     Creates wrapper scripts and updates system PATH to include /opt packages.
     """
     
-    def __init__(self, opt_root: str = "/opt", profile_path: str = None):
+    def __init__(
+        self,
+        opt_root: str = "/opt",
+        profile_path: str = None,
+        *,
+        allow_home_profile: bool = False,
+    ):
         """
         Initialize OptPathManager.
         
         Args:
             opt_root: Root directory for opt packages
             profile_path: Path to shell profile (default: ~/.bashrc)
+            allow_home_profile: opt-in required before the user's
+                default dotfile may be mutated (H188).
         """
         self.opt_root = Path(opt_root)
+        self._explicit_profile = profile_path is not None
+        self.allow_home_profile = allow_home_profile
         self.profile_path = Path(profile_path) if profile_path else Path.home() / ".bashrc"
         self._bin_paths = []
+
+    def _require_profile_consent(self) -> None:
+        """Refuse to touch the user's login file implicitly."""
+        if self._explicit_profile or self.allow_home_profile:
+            return
+        raise PermissionError(
+            "OptPathManager would append to "
+            + str(self.profile_path)
+            + ", the user's login file. Pass profile_path=... explicitly or "
+            "set allow_home_profile=True. The supported route is "
+            "/etc/profile.d via opt.env.OptEnvManager.write_profile_d(), "
+            "which is capability-gated (CAP_FS_ADMIN)."
+        )
     
     def _discover_packages(self) -> List[Path]:
         """Discover all installed packages with bin directories."""
         packages = []
-        
+
         if not self.opt_root.exists():
             return packages
-        
-        for item in self.opt_root.iterdir():
-            if item.is_dir() and not item.name.startswith('.'):
-                # Check if it's a provider directory or a package
-                if item.is_dir():
-                    for subitem in item.iterdir():
-                        if subitem.is_dir() and not subitem.name.startswith('.'):
-                            bin_path = subitem / "bin"
-                            if bin_path.exists():
-                                packages.append(bin_path)
-                else:
-                    bin_path = item / "bin"
-                    if bin_path.exists():
-                        packages.append(bin_path)
-        
-        return packages
+
+        for item in sorted(self.opt_root.iterdir()):
+            if not (item.is_dir() and not item.name.startswith('.')):
+                continue
+            # the previous `if item.is_dir():` was always true
+            # (the enclosing test had already checked it), so the flat
+            # /opt/<pkg>/bin layout was never discovered - only the
+            # /opt/<prov>/<pkg>/bin one was.
+            if (item / "bin").is_dir():
+                packages.append(item / "bin")
+                continue
+            for subitem in sorted(item.iterdir()):
+                if not (subitem.is_dir() and not subitem.name.startswith('.')):
+                    continue
+                bin_path = subitem / "bin"
+                if bin_path.is_dir():
+                    packages.append(bin_path)
+
+        # drop hostile package names before they can be interpolated
+        return _drop_shell_unsafe(packages, self.opt_root)
     
     def generate_profile_script(self) -> str:
         """
@@ -224,7 +298,7 @@ class OptPathManager:
             "#!/bin/bash",
             "# UmerOS /opt PATH Integration",
             f"# Generated: {datetime.now().isoformat()}",
-            f"# Opt root: {self.opt_root}",
+            f"# Opt root: {_comment_safe(str(self.opt_root))}",
             "",
             "# Add /opt package binaries to PATH",
             "if [ -d \"$OPT_ROOT\" ]; then",
@@ -232,13 +306,21 @@ class OptPathManager:
         ]
         
         for bin_path in packages:
-            script_lines.append(f'    export PATH="{bin_path}:$PATH"')
+            # shlex.quote every path: this script is sourced
+            # by every interactive shell
+            script_lines.append(
+                "    export PATH="
+                + shlex.quote(str(bin_path).replace("\\", "/"))
+                + ":$PATH"
+            )
         
         script_lines.extend([
             "fi",
             "",
-            "export OPT_ROOT=\"{self.opt_root}\"",
-            "export OPT_PATH=\"{self.opt_root}\"",
+            # the two lines below were missing their `f`
+            # prefix, so they emitted the literal text "{self.opt_root}".
+            f"export OPT_ROOT={shlex.quote(str(self.opt_root))}",
+            f"export OPT_PATH={shlex.quote(str(self.opt_root))}",
             ""
         ])
         
@@ -251,6 +333,7 @@ class OptPathManager:
         Returns:
             True if successful
         """
+        self._require_profile_consent()
         script = self.generate_profile_script()
         
         # Check if already installed
@@ -263,8 +346,8 @@ class OptPathManager:
                 f.write(script)
                 f.write('\n')
             return True
-        except Exception as e:
-            print(f"Failed to install profile integration: {e}")
+        except OSError as exc:
+            log.error("Failed to install profile integration in %s: %s", self.profile_path, exc)
             return False
     
     def _is_installed(self) -> bool:
@@ -283,6 +366,7 @@ class OptPathManager:
         Returns:
             True if successful
         """
+        self._require_profile_consent()
         if not self._is_installed():
             return True  # Not installed, nothing to remove
         
@@ -307,8 +391,10 @@ class OptPathManager:
                 f.writelines(new_lines)
             
             return True
-        except Exception as e:
-            print(f"Failed to uninstall profile integration: {e}")
+        except OSError as exc:
+            log.error(
+                "Failed to uninstall profile integration from %s: %s", self.profile_path, exc
+            )
             return False
     
     def get_package_paths(self) -> Dict[str, Path]:
@@ -414,7 +500,7 @@ class OptServiceManager:
         services = self.discover_services()
         
         if service_name not in services:
-            print(f"Service not found: {service_name}")
+            log.warning("Service not found: %s", service_name)
             return False
         
         service_path = services[service_name]
@@ -429,8 +515,8 @@ class OptServiceManager:
                                    capture_output=True, text=True)
             
             return result.returncode == 0
-        except Exception as e:
-            print(f"Failed to start service: {e}")
+        except Exception as exc:
+            log.error("Failed to start service %s: %s", service_name, exc)
             return False
     
     def stop_service(self, service_name: str) -> bool:
@@ -446,7 +532,7 @@ class OptServiceManager:
         services = self.discover_services()
         
         if service_name not in services:
-            print(f"Service not found: {service_name}")
+            log.warning("Service not found: %s", service_name)
             return False
         
         service_path = services[service_name]
@@ -457,8 +543,8 @@ class OptServiceManager:
                                    capture_output=True, text=True)
             
             return result.returncode == 0
-        except Exception as e:
-            print(f"Failed to stop service: {e}")
+        except Exception as exc:
+            log.error("Failed to stop service %s: %s", service_name, exc)
             return False
     
     def restart_service(self, service_name: str) -> bool:
