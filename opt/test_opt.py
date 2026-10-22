@@ -114,9 +114,27 @@ def test_opt_package():
             
             print("✓ Launcher script creation successful")
             
-            # Verify integrity
+            # Write the integrity manifest, then verify against it
+            package.write_manifest()
             integrity = package.verify_integrity()
             assert all(integrity.values()), f"Integrity check failed: {integrity}"
+            assert integrity["manifest"], "Integrity manifest not recorded"
+            assert integrity["unmodified"], "Digests were not verified"
+
+            # Tamper with the installed binary: it must be detected
+            installed_bin = package.bin_path / "demo"
+            original = installed_bin.read_bytes()
+            try:
+                installed_bin.write_bytes(original + b"# tampered\n")
+                tampered = package.verify_integrity()
+                assert not tampered["unmodified"], "Tampering not detected"
+                assert not all(tampered.values()), "Tampered package still verifies"
+                assert package.integrity_details()["modified"], "No diagnostic detail"
+            finally:
+                installed_bin.write_bytes(original)
+            assert all(package.verify_integrity().values()), "Not clean after restore"
+
+            print("✓ Integrity verification and tamper detection successful")
             
             print("✓ Integrity verification successful")
             
@@ -516,6 +534,45 @@ def test_integration():
             return False
 
 
+def test_module_selftests():
+    """Test 9: per-module _selftest() functions (H192)."""
+    print("\n" + "=" * 60)
+    print("Test 9: Module Selftests")
+    print("=" * 60)
+
+    from opt import config as opt_config
+    from opt import env as opt_env
+    from opt import fhs as opt_fhs
+    from opt import hierarchy as opt_hierarchy
+    from opt import integration as opt_integration
+    from opt import manager as opt_manager
+    from opt import package as opt_package
+    from opt import var as opt_var
+    from opt.installers import database, development, sample_app, web_server
+
+    modules = [
+        ("opt.env", opt_env),
+        ("opt.fhs", opt_fhs),
+        ("opt.hierarchy", opt_hierarchy),
+        ("opt.var", opt_var),
+        ("opt.config", opt_config),
+        ("opt.integration", opt_integration),
+        ("opt.manager", opt_manager),
+        ("opt.package", opt_package),
+        ("opt.installers.sample_app", sample_app),
+        ("opt.installers.web_server", web_server),
+        ("opt.installers.database", database),
+        ("opt.installers.development", development),
+    ]
+
+    for name, module in modules:
+        assert hasattr(module, "_selftest"), f"{name} has no _selftest()"
+        assert module._selftest() is True, f"{name} selftest failed"
+        print(f"\u2713 {name} selftest passed")
+
+    return True
+
+
 def run_all_tests():
     """Run all tests and report results."""
     print("\n" + "=" * 60)
@@ -533,6 +590,7 @@ def run_all_tests():
         ("OptEnvironment Class", test_opt_environment),
         ("Sample Installation Scripts", test_sample_installers),
         ("Full Integration", test_integration),
+        ("Module Selftests", test_module_selftests),
     ]
     
     results = []

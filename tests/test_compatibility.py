@@ -500,6 +500,168 @@ class TestWineShim(unittest.TestCase):
 class TestX86Runner(unittest.TestCase):
     """Smoke-tests for the pure-Python emulator."""
 
+    # ----------------------------------------------------------------
+    # Basic-block JIT
+    # ----------------------------------------------------------------
+
+    def _run_both_ways(self, code: bytes, *, steps: int = 64,
+                       setup=None):
+        """Execute ``code`` once through the interpreter and once
+        through the JIT and assert both produce the same final state.
+
+        This is the regression test for the whole class of "JIT decodes
+        a different instruction length than the interpreter" bugs that
+        silently desync the decoder.
+        """
+        from compatibility import x86_runner
+        results = []
+        for use_jit in (False, True):
+            emu = x86_runner.Emulator()
+            emu.mem.write(emu.base, code)
+            emu.regs.set(15, emu.base)
+            if setup is not None:
+                setup(emu)
+            emu.run(max_steps=steps, use_jit=use_jit,
+                    hot_loop_min_steps=10 ** 9)
+            results.append((
+                list(emu.regs.r),
+                emu.regs.get(15),
+                (emu.regs.cf, emu.regs.zf, emu.regs.sf, emu.regs.of),
+            ))
+        self.assertEqual(results[0][1], results[1][1],
+                         "interpreter and JIT disagree on final RIP")
+        self.assertEqual(results[0][0], results[1][0],
+                         "interpreter and JIT disagree on registers")
+        self.assertEqual(results[0][2], results[1][2],
+                         "interpreter and JIT disagree on flags")
+        return results[0]
+
+    def test_jit_matches_interpreter_on_alu_block(self) -> None:
+        """A block of mov/add/sub/cmp/xor/test must behave identically
+        whether it is interpreted or JIT-compiled."""
+        code = (
+            b"\x48\xB8\x2A\x00\x00\x00\x00\x00\x00\x00"  # mov rax, 42
+            b"\x48\x83\xC0\x05"                        # add rax, 5
+            b"\x48\x89\xC3"                            # mov rbx, rax
+            b"\x48\x83\xEB\x0A"                        # sub rbx, 10
+            b"\x48\x31\xD2"                            # xor rdx, rdx
+            b"\x48\x85\xC3"                            # test rbx, rbx
+            b"\xF4"                                    # hlt
+        )
+        regs, rip, flags = self._run_both_ways(code)
+        self.assertEqual(regs[0], 47)     # rax
+        self.assertEqual(regs[3], 37)     # rbx
+        self.assertEqual(regs[2], 0)      # rdx
+        self.assertEqual(flags[1], 0)     # zf clear (rbx != 0)
+
+    def test_jit_matches_interpreter_on_stack_frame(self) -> None:
+        """Instructions that touch [rsp+disp] exercise the ModR/M
+        emitter's addressing-mode code (including the disp32 path)."""
+        code = (
+            b"\x48\x83\xEC\x20"                # sub rsp, 0x20
+            b"\x48\xC7\x44\x24\x08\x2A\x00\x00\x00"   # mov qword [rsp+8], 42
+            b"\x48\x8B\x44\x24\x08"            # mov rax, [rsp+8]
+            b"\x48\x8B\x4C\x24\x10"            # mov rcx, [rsp+0x10]
+            b"\xF4"                            # hlt
+        )
+        regs, rip, _flags = self._run_both_ways(code)
+        self.assertEqual(regs[0], 42)
+
+    def test_jit_matches_interpreter_on_rip_relative(self) -> None:
+        """RIP-relative loads must resolve against the *end* of the
+        instruction.  This is the regression test for the bug where
+        the JIT emitted a bare constant address instead."""
+        from compatibility import x86_runner
+        emu = x86_runner.Emulator()
+        # base+0 : 48 8B 05 <disp32>   mov rax, [rip+disp]
+        # base+7 : F4                  hlt
+        # base+8 : the qword we want to load lives here.
+        disp = 8 - 7                        # rip after insn == base+7
+        code = b"\x48\x8B\x05" + struct.pack("<i", disp) + b"\xF4"
+        emu.mem.write(emu.base, code)
+        emu.mem.write_u64(emu.base + 8, 0x1122334455667788)
+        emu.regs.set(15, emu.base)
+        emu.run(max_steps=8, use_jit=True, hot_loop_min_steps=10 ** 9)
+        self.assertEqual(emu.regs.get(0), 0x1122334455667788)
+
+    def test_jit_matches_interpreter_on_branches(self) -> None:
+        """Conditional and unconditional branches must land on the
+        same address from either execution path."""
+        #   +0  48 83 F8 05    cmp rax, 5        (4 bytes)
+        #   +4  74 06          je +6  -> +12     (2 bytes)
+        #   +6  90 90 90 90 90 90   padding     (6 bytes)
+        #   +12 F4             hlt
+        code = (
+            b"\x48\x83\xF8\x05"
+            b"\x74\x06"
+            b"\x90\x90\x90\x90\x90\x90"
+            b"\xF4"
+        )
+
+        def setup(emu):
+            emu.regs.set(0, 5)
+
+        regs, rip, flags = self._run_both_ways(code, setup=setup)
+        # The je is taken, so we resume at the hlt.
+        self.assertEqual(rip - 0x400000, 12)
+        self.assertEqual(flags[1], 1)     # zf set by cmp rax, 5
+
+    def test_jit_matches_interpreter_on_branch_not_taken(self) -> None:
+        """The not-taken path of the same branch must agree too."""
+        #   +0  48 83 F8 05    cmp rax, 5        (4 bytes)
+        #   +4  74 06          je +6  (not taken)
+        #   +6  F4             hlt
+        #   +7  90 90 90 90 90 90   skipped padding
+        code = (
+            b"\x48\x83\xF8\x05"
+            b"\x74\x06"
+            b"\xF4"
+            b"\x90\x90\x90\x90\x90\x90"
+        )
+
+        def setup(emu):
+            emu.regs.set(0, 9)
+
+        regs, rip, flags = self._run_both_ways(code, setup=setup)
+        self.assertEqual(rip - 0x400000, 6)
+        self.assertEqual(flags[1], 0)     # zf clear
+
+    def test_jit_rejects_blocks_that_do_not_decode_consistently(
+            self) -> None:
+        """``_validate_block`` must reject a block whose declared
+        length disagrees with an independent instruction-length walk.
+        """
+        from compatibility import x86_runner
+        emu = x86_runner.Emulator()
+        # mov rax, imm64 ; hlt -> a 10-byte block that should validate.
+        code = b"\x48\xB8\x01\x00\x00\x00\x00\x00\x00\x00\xF4"
+        emu.mem.write(emu.base, code)
+        self.assertTrue(emu._validate_block(emu.base, 11))
+        # Claiming the same block is 7 bytes long must be rejected.
+        self.assertFalse(emu._validate_block(emu.base, 7))
+
+    def test_jit_does_not_execute_blocks_during_validation(self) -> None:
+        """Validation must be side-effect free: it may not dispatch
+        Win32 thunks or mutate memory."""
+        from compatibility import x86_runner
+        emu = x86_runner.Emulator()
+        calls: list[str] = []
+
+        def spy(_emu):            # pragma: no cover - should not run
+            calls.append("thunk")
+            return 0
+
+        addr = emu.install_thunk("KERNEL32.dll!Test", spy)
+        emu.regs.set(15, addr)     # would call the thunk via 0xCC
+        # A block that starts exactly at the thunk's 0xCC byte.
+        emu._validate_block(addr, 1)
+        self.assertEqual(calls, [],
+                         "validation must not dispatch thunks")
+
+    # ----------------------------------------------------------------
+    # Existing interpreter tests
+    # ----------------------------------------------------------------
+
     def test_selftest_passes(self) -> None:
         from compatibility import x86_runner
         self.assertTrue(x86_runner._selftest())

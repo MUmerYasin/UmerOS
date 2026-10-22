@@ -454,6 +454,20 @@ def _selftest() -> bool:
         assert "total_packages" in s
         print("  [PASS] get_summary")
 
+        # 12  traversal names are refused (CWE-22, fail-closed)
+        try:
+            mgr.ensure_package_dir("../../evil")
+            raised = False
+        except PathTraversalError:
+            raised = True
+        assert raised, "ensure_package_dir accepted a traversal name"
+        assert not mgr.remove_package_dir("../../evil")
+        assert not mgr.write_file("../../evil", filename="x")
+        assert mgr.read_file("../../evil", filename="x") is None
+        assert mgr.get_package("../../evil") is None
+        assert not (root.parent / "evil").exists()
+        print("  [PASS] traversal package names are refused")
+
     print("[opt/var] selftest PASSED")
     return ok
 

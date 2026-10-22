@@ -282,5 +282,54 @@ UmerOS Development Team
     return result
 
 
+def _selftest() -> bool:
+    """Run basic self-tests for the sample-app installer."""
+    import tempfile
+
+    print("[opt/installers/sample_app] selftest \u2026")
+
+    with tempfile.TemporaryDirectory() as td:
+        opt = Path(td) / "opt"
+        etc = Path(td) / "etc-opt"
+        var_root = Path(td) / "var-opt"
+
+        # 1  a full install succeeds and creates the standard layout
+        result = install_sample_app(str(opt), str(etc), str(var_root), verbose=False)
+        assert result["success"] is True, result["errors"]
+        assert result["errors"] == []
+        assert (opt / "sample-app" / "bin" / "sample-app").exists()
+        for role in ("bin", "lib", "include", "doc", "info", "man", "src"):
+            assert (opt / "sample-app" / role).is_dir(), role
+        assert (etc / "sample-app" / "config.json").exists()
+        assert (var_root / "sample-app" / ".opt-integration").exists()
+        assert (opt / "sample-app" / "man" / "man1" / "sample-app.1").exists()
+        print("  [PASS] installer creates the full /opt layout")
+
+        # 2  idempotent
+        again = install_sample_app(str(opt), str(etc), str(var_root), verbose=False)
+        assert again["success"] is True, again["errors"]
+        print("  [PASS] installer is idempotent")
+
+        # 3  cap-gate: the installer's privileged writes fail closed
+        from core.capability_gate import gate as _gate
+        previous = _gate.strict
+        try:
+            _gate.set_strict(True)
+            gated = install_sample_app(
+                str(opt), str(etc), str(var_root), verbose=False
+            )
+            assert gated["success"] is False, "installer bypassed the capability gate"
+            assert gated["errors"], "gate denial not reported"
+        finally:
+            _gate.set_strict(previous)
+        print("  [PASS] installer is capability-gated")
+
+    print("[opt/installers/sample_app] selftest PASSED")
+    return True
+
+
 if __name__ == "__main__":
+    # Self-test first: fail fast if the installer regressed.
+    if not _selftest():
+        raise SystemExit(1)
     install_sample_app(verbose=True)

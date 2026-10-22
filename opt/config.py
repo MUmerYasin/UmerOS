@@ -79,13 +79,17 @@ class OptConfig:
         for directory in [self.etc_opt_root, self.opt_root]:
             directory.mkdir(parents=True, exist_ok=True)
     
-    def get_config_path(self, package_name: str, config_file: str = "") -> Path:
+    def get_config_path(self, package_name: str, config_file: str = "",
+                        provider: str = "") -> Path:
         """
         Get the path for a package's configuration file.
         
         Args:
             package_name: Name of the package
             config_file: Optional configuration file name
+            provider: Optional provider name (config lands in
+                /etc/opt/<provider>/<package>, matching where the package
+                itself is installed under /opt)
             
         Returns:
             Path to the configuration file
@@ -96,13 +100,17 @@ class OptConfig:
         """
         # Contain the package dir and (optional) nested config file
         # inside /etc/opt. A name like "../../etc/passwd" is refused.
-        base = safe_child(self.etc_opt_root, package_name)
+        if provider:
+            base = safe_child(safe_child(self.etc_opt_root, provider), package_name)
+        else:
+            base = safe_child(self.etc_opt_root, package_name)
         if config_file:
             return safe_join(base, config_file)
         return base
     
     def install_config(self, package_name: str, config_data: Dict[str, Any], 
-                       config_file: str = "config.json") -> Path:
+                       config_file: str = "config.json",
+                       provider: str = "") -> Path:
         """
         Install configuration for a package.
         
@@ -110,6 +118,7 @@ class OptConfig:
             package_name: Name of the package
             config_data: Dictionary containing configuration data
             config_file: Name of the configuration file
+            provider: Optional provider name (see get_config_path)
             
         Returns:
             Path to the installed configuration file
@@ -122,7 +131,7 @@ class OptConfig:
         gate.require(CAP_FS_ADMIN)
 
         try:
-            config_path = self.get_config_path(package_name, config_file)
+            config_path = self.get_config_path(package_name, config_file, provider)
         except PathTraversalError as exc:
             # Fail closed: never write outside /etc/opt.
             raise ValueError(f"Refusing unsafe /etc/opt config path: {exc}")
@@ -137,19 +146,21 @@ class OptConfig:
         
         return config_path
     
-    def get_config(self, package_name: str, config_file: str = "config.json") -> Optional[Dict[str, Any]]:
+    def get_config(self, package_name: str, config_file: str = "config.json",
+                   provider: str = "") -> Optional[Dict[str, Any]]:
         """
         Get configuration for a package.
         
         Args:
             package_name: Name of the package
             config_file: Name of the configuration file
+            provider: Optional provider name (see get_config_path)
             
         Returns:
             Configuration dictionary or None if not found
         """
         try:
-            config_path = self.get_config_path(package_name, config_file)
+            config_path = self.get_config_path(package_name, config_file, provider)
         except PathTraversalError:
             return None
         if config_path.exists():
@@ -158,12 +169,13 @@ class OptConfig:
                 return data.get("config", {})
         return None
     
-    def remove_config(self, package_name: str) -> bool:
+    def remove_config(self, package_name: str, provider: str = "") -> bool:
         """
         Remove all configuration for a package.
         
         Args:
             package_name: Name of the package
+            provider: Optional provider name (see get_config_path)
             
         Returns:
             True if removal was successful
@@ -172,7 +184,12 @@ class OptConfig:
         gate.require(CAP_FS_ADMIN)
 
         try:
-            config_path = safe_child(self.etc_opt_root, package_name)
+            if provider:
+                config_path = safe_child(
+                    safe_child(self.etc_opt_root, provider), package_name
+                )
+            else:
+                config_path = safe_child(self.etc_opt_root, package_name)
         except PathTraversalError:
             # Fail closed: never write outside /etc/opt.
             return False
@@ -197,18 +214,21 @@ class OptConfig:
         
         return [d.name for d in self.etc_opt_root.iterdir() if d.is_dir()]
     
-    def validate_config(self, package_name: str, schema: Optional[Dict[str, Any]] = None) -> bool:
+    def validate_config(self, package_name: str,
+                        schema: Optional[Dict[str, Any]] = None,
+                        provider: str = "") -> bool:
         """
         Validate package configuration.
         
         Args:
             package_name: Name of the package
             schema: Optional JSON schema for validation
+            provider: Optional provider name (see get_config_path)
             
         Returns:
             True if configuration is valid
         """
-        config = self.get_config(package_name)
+        config = self.get_config(package_name, provider=provider)
         if config is None:
             return False
         
@@ -254,7 +274,24 @@ class OptIntegration:
         """Create required directories if they don't exist."""
         for directory in [self.opt_root, self.etc_opt_root, self.var_opt_root]:
             directory.mkdir(parents=True, exist_ok=True)
-    
+
+    def _require_contained(self, package_name: str, provider: str = "") -> None:
+        """
+        Refuse names that would escape a managed root (CWE-22).
+
+        ``install_package``/``remove_package``/``get_package_paths`` used to
+        build their paths with plain ``/`` joins, so a traversal name made
+        them mkdir/rmtree *outside* /opt, /etc/opt and /var/opt.
+        """
+        try:
+            for root in (self.opt_root, self.etc_opt_root, self.var_opt_root):
+                if provider:
+                    safe_child(safe_child(root, provider), package_name)
+                else:
+                    safe_child(root, package_name)
+        except PathTraversalError as exc:
+            raise ValueError(f"Refusing unsafe package path: {exc}")
+
     def install_package(self, package_name: str, provider: str = "") -> Dict[str, Path]:
         """
         Create standard directory structure for a package.
@@ -270,7 +307,8 @@ class OptIntegration:
         gate.require(CAP_FS_ADMIN)
 
         self._ensure_directories()
-        
+        self._require_contained(package_name, provider)
+
         if provider:
             package_path = self.opt_root / provider / package_name
             etc_path = self.etc_opt_root / provider / package_name
@@ -341,7 +379,11 @@ class OptIntegration:
             
         Returns:
             Dictionary with all package paths
+
+        Raises:
+            ValueError: if package_name/provider would escape a managed root.
         """
+        self._require_contained(package_name, provider)
         if provider:
             package_path = self.opt_root / provider / package_name
             etc_path = self.etc_opt_root / provider / package_name
@@ -350,7 +392,7 @@ class OptIntegration:
             package_path = self.opt_root / package_name
             etc_path = self.etc_opt_root / package_name
             var_path = self.var_opt_root / package_name
-        
+
         return {
             "opt": package_path,
             "etc": etc_path,
@@ -377,8 +419,14 @@ class OptIntegration:
         # [FIX H184] privileged rmtree under /opt|/etc/opt|/var/opt -> require fs.admin.
         gate.require(CAP_FS_ADMIN)
 
+        try:
+            self._require_contained(package_name, provider)
+        except ValueError:
+            # Fail closed: never rmtree outside the managed roots.
+            return False
+
         import shutil
-        
+
         if provider:
             opt_path = self.opt_root / provider / package_name
             etc_path = self.etc_opt_root / provider / package_name
@@ -416,7 +464,142 @@ class OptIntegration:
         return sorted(packages)
 
 
+def _selftest() -> bool:
+    """Run basic self-tests for OptConfig and OptIntegration."""
+    import tempfile
+
+    print("[opt/config] selftest \u2026")
+
+    with tempfile.TemporaryDirectory() as td:
+        opt = Path(td) / "opt"
+        etc = Path(td) / "etc-opt"
+        var = Path(td) / "var-opt"
+        cfg = OptConfig(str(opt), str(etc))
+
+        # 1  install + read back a configuration
+        path = cfg.install_config("demo", {"version": "1.0.0", "debug": False})
+        # safe_child resolves paths while tempfile hands back Windows 8.3
+        # short names, so compare resolved forms (same trick as the H189 tests)
+        assert Path(str(path)).resolve() == (etc / "demo" / "config.json").resolve(), path
+        assert cfg.get_config("demo") == {"version": "1.0.0", "debug": False}
+
+        # 1b  provider-scoped config lands next to the package it belongs to
+        prov_path = cfg.install_config(
+            "demo", {"version": "2.0.0"}, provider="acme"
+        )
+        assert Path(str(prov_path)).resolve() == (
+            etc / "acme" / "demo" / "config.json"
+        ).resolve(), prov_path
+        assert cfg.get_config("demo", provider="acme") == {"version": "2.0.0"}
+        assert cfg.get_config("demo") == {"version": "1.0.0", "debug": False}
+        assert cfg.remove_config("demo", provider="acme") is True
+        assert cfg.get_config("demo", provider="acme") is None
+        print("  [PASS] provider-scoped configuration paths")
+        print("  [PASS] install_config / get_config round-trip")
+
+        # 2  unknown package reads as None, not an exception
+        assert cfg.get_config("absent") is None
+        print("  [PASS] unknown package reads as None")
+
+        # 3  schema validation
+        assert cfg.validate_config("demo") is True
+        assert cfg.validate_config("demo", {"required": ["version"]}) is True
+        assert cfg.validate_config("demo", {"required": ["nope"]}) is False
+        assert cfg.validate_config("absent") is False
+        print("  [PASS] validate_config with and without a schema")
+
+        # 4  listing and removal
+        assert "demo" in cfg.list_configs()
+        assert cfg.remove_config("demo") is True
+        assert cfg.get_config("demo") is None
+        assert cfg.remove_config("demo") is False
+        print("  [PASS] list_configs / remove_config")
+
+        # 5  traversal is refused, nothing is written outside /etc/opt (CWE-22)
+        for bad in ("../../etc", "..", "."):
+            try:
+                cfg.install_config(bad, {"x": 1})
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f"traversal package name accepted: {bad!r}")
+        try:
+            cfg.install_config("demo", {"x": 1}, config_file="../../../etc/passwd")
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("traversal config file name accepted")
+        assert cfg.get_config("../../etc") is None
+        print("  [PASS] traversal names and config files are refused")
+
+        # 6  OptIntegration: structure, markers, paths, listing, removal
+        integration = OptIntegration(str(opt), str(etc), str(var))
+        paths = integration.install_package("app", "acme")
+        assert (opt / "acme" / "app" / "bin").is_dir()
+        assert paths["etc"] == etc / "acme" / "app"
+        markers = integration.setup_integration("app", "acme")
+        assert markers == {"etc": True, "var": True}, markers
+        assert (etc / "acme" / "app" / ".opt-integration").exists()
+        assert (var / "acme" / "app" / ".opt-integration").exists()
+        got = integration.get_package_paths("app", "acme")
+        assert got["opt"] == opt / "acme" / "app"
+        assert "acme" in integration.list_packages()
+        print("  [PASS] OptIntegration structure / markers / paths / listing")
+
+        # 7  OptIntegration traversal guards (CWE-22)
+        for bad in ("../../etc", ".."):
+            try:
+                integration.install_package(bad)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f"integration install accepted {bad!r}")
+            assert integration.remove_package(bad) is False
+            try:
+                integration.get_package_paths(bad)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f"integration get_package_paths accepted {bad!r}")
+        print("  [PASS] OptIntegration refuses traversal names")
+
+        # 8  removal clears all three trees
+        assert integration.remove_package("app", "acme") is True
+        assert not (opt / "acme" / "app").exists()
+        assert not (etc / "acme" / "app").exists()
+        assert not (var / "acme" / "app").exists()
+        print("  [PASS] OptIntegration removal clears opt/etc/var")
+
+        # 9  cap-gate: privileged writes are fail-closed when strict
+        previous = gate.strict
+        try:
+            gate.set_strict(True)
+            try:
+                cfg.install_config("gated", {"x": 1})
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("install_config is not capability-gated")
+            try:
+                integration.install_package("gated")
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("integration install is not capability-gated")
+        finally:
+            gate.set_strict(previous)
+        assert cfg.get_config("gated") is None
+        print("  [PASS] install_config / install_package are capability-gated")
+
+    print("[opt/config] selftest PASSED")
+    return True
+
+
 if __name__ == "__main__":
+    # Self-test first: fail fast if the subsystem regressed.
+    if not _selftest():
+        raise SystemExit(1)
+
     # Demo usage
     import sys
     

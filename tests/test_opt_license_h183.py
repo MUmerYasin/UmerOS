@@ -69,7 +69,8 @@ AUTHOR = "Author:  Umer OS Project"
 #: First line of the canonical GPLv3 comment block.
 GPL_FIRST_LINE = "# This program is free software: you can redistribute it and/or modify"
 
-#: All 15 Python modules under ``opt/``.
+#: All 17 Python modules under ``opt/`` (15 originals + the two ``__main__``
+#: CLIs added by H192).
 ALL_FILES = tuple(
     str(p.relative_to(OPT)).replace("\\", "/")
     for p in sorted(OPT.rglob("*.py"))
@@ -103,8 +104,15 @@ class TestOptLicenseHeaders(unittest.TestCase):
     """Every ``opt/`` module carries the H7 canonical short form."""
 
     def test_opt_has_the_expected_modules(self):
-        self.assertEqual(len(ALL_FILES), 15, f"expected 15 modules, got {ALL_FILES}")
-        for want in ("__init__.py", "config.py", "manager.py", "installers/web_server.py"):
+        self.assertEqual(len(ALL_FILES), 17, f"expected 17 modules, got {ALL_FILES}")
+        for want in (
+            "__init__.py",
+            "config.py",
+            "manager.py",
+            "installers/web_server.py",
+            "__main__.py",
+            "installers/__main__.py",
+        ):
             self.assertIn(want, ALL_FILES)
 
     def test_every_module_carries_the_canonical_line(self):
@@ -223,7 +231,7 @@ class TestOptFutureAnnotations(unittest.TestCase):
 
 
 class TestOptScanner(unittest.TestCase):
-    """The real fail-closed audit must keep accepting all fifteen modules."""
+    """The real fail-closed audit must keep accepting all seventeen modules."""
 
     def test_fail_closed_scanner_accepts_every_module(self):
         from legal.licenses import LicenseManager
@@ -231,7 +239,7 @@ class TestOptScanner(unittest.TestCase):
         result = LicenseManager.scan_directory(OPT)
         self.assertEqual(result.missing_license_files, [], "a module is no longer recognised")
         self.assertTrue(result.is_fully_compliant)
-        self.assertEqual(result.total_files_scanned, 15)
+        self.assertEqual(result.total_files_scanned, 17)
 
     def test_scanner_markers_cover_the_canonical_line(self):
         """Sanity: the canonical line contains a marker the scanner accepts."""

@@ -194,11 +194,24 @@ class OptManager:
             result["paths"]["etc_integration"] = integration_results.get("etc", False)
             result["paths"]["var_integration"] = integration_results.get("var", False)
             
-            # Store configuration
+            # Store configuration (provider-scoped, so it lands next to
+            # the package it belongs to instead of a flat /etc/opt/<name>)
             if config:
-                config_path = self.config_manager.install_config(name, config)
+                config_path = self.config_manager.install_config(
+                    name, config, provider=provider
+                )
                 result["paths"]["config"] = str(config_path)
             
+            # Record the integrity manifest once every payload is in
+            # place, so verify() compares digests rather than merely
+            # checking that directories exist.
+            try:
+                package.write_manifest()
+            except OSError as exc:
+                result["errors"].append(
+                    f"Could not write integrity manifest: {exc}"
+                )
+
             # Update database
             db = self._read_database()
             package_key = self._get_package_db_key(name, provider)
@@ -280,8 +293,10 @@ class OptManager:
                 del db[package_key]
                 self._write_database(db)
             
-            result["success"] = True
-            
+            # A refused (traversal) or failed removal must not report
+            # success: callers gate on this flag.
+            result["success"] = not result["errors"]
+
         except Exception as e:
             result["errors"].append(f"Removal failed: {str(e)}")
         
@@ -317,7 +332,9 @@ class OptManager:
             
             # Update configuration if provided
             if config:
-                config_path = self.config_manager.install_config(name, config)
+                config_path = self.config_manager.install_config(
+                    name, config, provider=provider
+                )
                 db[package_key]["paths"]["config"] = str(config_path)
             
             db[package_key]["updated_at"] = result["updated_at"]
@@ -474,7 +491,121 @@ def get_package(name: str, provider: str = "") -> Optional[Dict[str, Any]]:
     return manager.get(name, provider)
 
 
+def _selftest() -> bool:
+    """Run basic self-tests for the high-level OptManager."""
+    import tempfile
+
+    print("[opt/manager] selftest \u2026")
+
+    with tempfile.TemporaryDirectory() as td:
+        opt = Path(td) / "opt"
+        etc = Path(td) / "etc-opt"
+        var = Path(td) / "var-opt"
+        manager = OptManager(str(opt), str(etc), str(var))
+
+        payload = Path(td) / "tool"
+        payload.write_bytes(b"tool-bytes")
+
+        # 1  install records package, binary and config
+        result = manager.install(
+            "demo", "acme", binaries=[str(payload)], config={"debug": False}
+        )
+        assert result["success"] is True, result["errors"]
+        assert (opt / "acme" / "demo" / "bin" / "tool").exists()
+        assert (etc / "acme" / "demo" / "config.json").exists()
+        print("  [PASS] install records package, binary and config")
+
+        # 2  database list / get
+        assert {p["name"] for p in manager.list()} == {"demo"}
+        info = manager.get("demo", "acme")
+        assert info["version"] == "1.0.0"
+        assert info["provider"] == "acme"
+        print("  [PASS] list / get read the package database")
+
+        # 3  integrity is real: the manifest is written and verifies (H190)
+        verification = manager.verify("demo", "acme")
+        assert all(verification["integrity"].values()), verification
+        print("  [PASS] verify checks the SHA3-512 manifest")
+
+        # 4  statistics
+        stats = manager.get_stats()
+        assert stats["total_packages"] == 1
+        assert stats["packages_with_provider"] == 1
+        assert stats["packages_without_provider"] == 0
+        print("  [PASS] get_stats")
+
+        # 5  update bumps the version
+        assert manager.update("demo", "acme", version="2.0.0")["success"] is True
+        assert manager.get("demo", "acme")["version"] == "2.0.0"
+        print("  [PASS] update bumps the version")
+
+        # 6  structure creation without installing
+        created = manager.create_package_structure("struct", "acme")
+        assert (opt / "acme" / "struct" / "bin").is_dir()
+        assert created["bin"] == opt / "acme" / "struct" / "bin"
+        print("  [PASS] create_package_structure")
+
+        # 7  traversal names are refused with no side effects (CWE-22)
+        for bad in ("../../etc", ".."):
+            bad_result = manager.install(bad)
+            assert bad_result["success"] is False, bad_result
+            assert bad_result["errors"]
+            assert manager.remove(bad)["success"] is False
+            try:
+                manager.create_package_structure(bad)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f"create_package_structure accepted {bad!r}")
+        print("  [PASS] traversal package names are refused")
+
+        # 8  install_binary_to_package reports errors instead of raising
+        assert manager.install_binary_to_package("demo", str(payload), "acme").endswith(
+            "tool"
+        )
+        assert manager.install_binary_to_package(
+            "demo", str(Path(td) / "missing"), "acme"
+        ).startswith("Error:")
+        print("  [PASS] install_binary_to_package")
+
+        # 9  cap-gate: install/remove are privileged, fail-closed when strict
+        previous = gate.strict
+        try:
+            gate.set_strict(True)
+            try:
+                manager.install("gated")
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("install is not capability-gated")
+            try:
+                manager.remove("demo", "acme")
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("remove is not capability-gated")
+        finally:
+            gate.set_strict(previous)
+        print("  [PASS] install / remove are capability-gated")
+
+        # 10  remove clears package, etc/var trees and the database entry
+        removed = manager.remove("demo", "acme")
+        assert removed["success"] is True, removed["errors"]
+        assert not (opt / "acme" / "demo").exists()
+        assert not (etc / "acme" / "demo").exists()
+        assert not (var / "acme" / "demo").exists()
+        assert manager.get("demo", "acme") is None
+        print("  [PASS] remove clears package, etc/var trees and database")
+
+    print("[opt/manager] selftest PASSED")
+    return True
+
+
 if __name__ == "__main__":
+    # Self-test first: fail fast if the subsystem regressed.
+    if not _selftest():
+        raise SystemExit(1)
+
     # Demo usage
     import tempfile
     import os

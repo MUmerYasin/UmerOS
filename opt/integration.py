@@ -101,15 +101,20 @@ class OptEnvironment:
         if not self.opt_root.exists():
             return packages
         
-        for item in self.opt_root.iterdir():
-            if item.is_dir() and not item.name.startswith('.'):
-                # Check if it's a provider directory or a package
-                if item.is_dir():
-                    for subitem in item.iterdir():
-                        if subitem.is_dir() and not subitem.name.startswith('.'):
-                            packages.append(subitem)
-                else:
-                    packages.append(item)
+        for item in sorted(self.opt_root.iterdir()):
+            if not (item.is_dir() and not item.name.startswith('.')):
+                continue
+            # The previous `if item.is_dir():` was always true (the
+            # enclosing test had already checked it), so the `else` was dead
+            # code: the flat /opt/<pkg>/ layout was never discovered and every
+            # *role* subdirectory (bin, lib, include, ...) was reported as a
+            # package in its own right.
+            if (item / "bin").is_dir():
+                packages.append(item)
+                continue
+            for subitem in sorted(item.iterdir()):
+                if subitem.is_dir() and not subitem.name.startswith('.'):
+                    packages.append(subitem)
         
         return packages
     
@@ -447,15 +452,17 @@ class OptServiceManager:
         if not self.opt_root.exists():
             return services
         
-        for item in self.opt_root.iterdir():
-            if item.is_dir() and not item.name.startswith('.'):
-                # Check if it's a provider directory or a package
-                if item.is_dir():
-                    for subitem in item.iterdir():
-                        if subitem.is_dir() and not subitem.name.startswith('.'):
-                            self._discover_package_services(subitem, services)
-                else:
-                    self._discover_package_services(item, services)
+        for item in sorted(self.opt_root.iterdir()):
+            if not (item.is_dir() and not item.name.startswith('.')):
+                continue
+            # Same dead `else` as OptEnvironment._discover_packages above:
+            # services in the flat /opt/<pkg>/ layout were never found.
+            if (item / "bin").is_dir() or (item / "sbin").is_dir():
+                self._discover_package_services(item, services)
+                continue
+            for subitem in sorted(item.iterdir()):
+                if subitem.is_dir() and not subitem.name.startswith('.'):
+                    self._discover_package_services(subitem, services)
         
         return services
     
@@ -587,7 +594,92 @@ class OptServiceManager:
             return f"Error getting status: {e}"
 
 
+def _selftest() -> bool:
+    """Run basic self-tests for the /opt integration helpers."""
+    import tempfile
+
+    print("[opt/integration] selftest \u2026")
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td) / "opt"
+        (root / "demo" / "bin").mkdir(parents=True)
+        (root / "demo" / "bin" / "demo").write_text("#!/bin/sh\n", encoding="utf-8")
+        (root / "prov" / "tool" / "bin").mkdir(parents=True)
+        (root / "prov" / "tool" / "bin" / "tool").write_text("#!/bin/sh\n", encoding="utf-8")
+
+        # 1  OptEnvironment: PATH wiring and package variables
+        env = OptEnvironment(str(root), system_path="/usr/bin")
+        assert env.add_to_path("demo") is True
+        assert env.add_to_path("missing") is False
+        assert env.get_path_string().startswith(str(root / "demo" / "bin"))
+        variables = env.setup_package_environment("demo")
+        assert variables["OPT_PACKAGE_ROOT"] == str(root / "demo")
+        assert variables["OPT_PACKAGE_BIN"] == str(root / "demo" / "bin")
+        print("  [PASS] OptEnvironment PATH and package variables")
+
+        # 2  discovery: flat AND provider layouts, no role dirs as packages
+        found = env._discover_packages()
+        assert sorted(p.name for p in found) == ["demo", "tool"], found
+        print("  [PASS] OptEnvironment discovers flat and provider layouts")
+
+        # 3  OptPathManager discovery
+        path_manager = OptPathManager(str(root))
+        assert set(path_manager.get_package_paths()) == {"demo", "tool"}
+        print("  [PASS] OptPathManager discovers flat and provider layouts")
+
+        # 4  generated profile script quotes every path (H188)
+        script = path_manager.generate_profile_script()
+        assert "export PATH=" in script
+        assert "$(id)" not in script and "`" not in script
+        assert str(root / "demo" / "bin").replace("\\", "/") in script
+        print("  [PASS] generate_profile_script quotes every path")
+
+        # 5  hostile package names are dropped, never interpolated (H188)
+        (root / "evil$(id)" / "bin").mkdir(parents=True)
+        assert "evil$(id)" not in path_manager.get_package_paths()
+        print("  [PASS] shell-hostile package names are dropped")
+
+        # 6  implicit mutation of the user's login file is refused (H188)
+        try:
+            OptPathManager(str(root)).install_profile_integration()
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError("implicit ~/.bashrc mutation was allowed")
+        print("  [PASS] implicit home-profile mutation refused")
+
+        # 7  explicit profile path installs and uninstalls cleanly
+        profile = Path(td) / "bashrc"
+        explicit = OptPathManager(str(root), profile_path=str(profile))
+        assert explicit.install_profile_integration() is True
+        assert "UmerOS /opt PATH integration" in profile.read_text(encoding="utf-8")
+        assert explicit._is_installed() is True
+        assert explicit.uninstall_profile_integration() is True
+        assert not explicit._is_installed()
+        print("  [PASS] profile install/uninstall with an explicit path")
+
+        # 8  OptServiceManager: flat-layout discovery + unknown services
+        (root / "svc" / "bin").mkdir(parents=True)
+        (root / "svc" / "bin" / "worker").write_text(
+            "#!/bin/sh\n# start stop restart status daemon\n", encoding="utf-8"
+        )
+        services = OptServiceManager(str(root)).discover_services()
+        assert "worker" in services, services
+        manager = OptServiceManager(str(root))
+        assert manager.start_service("nope") is False
+        assert manager.stop_service("nope") is False
+        assert manager.get_service_status("nope").startswith("Service not found")
+        print("  [PASS] OptServiceManager discovery and unknown-service handling")
+
+    print("[opt/integration] selftest PASSED")
+    return True
+
+
 if __name__ == "__main__":
+    # Self-test first: fail fast if the subsystem regressed.
+    if not _selftest():
+        raise SystemExit(1)
+
     # Demo usage
     import tempfile
     

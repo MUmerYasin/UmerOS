@@ -79,6 +79,13 @@ def install_web_server(
         for directory in [opt_root_path, etc_opt_path, var_opt_path]:
             directory.mkdir(parents=True, exist_ok=True)
         
+        # Contain the package name: it is used both as a directory and as a
+        # file name below it, so a traversal name would write outside the
+        # managed root (CWE-22).
+        if web_server_name in (".", "..") or "/" in web_server_name or "\\" in web_server_name:
+            result["errors"].append(f"Refusing unsafe package name: {web_server_name!r}")
+            return result
+
         result["installed_at"] = str(opt_root_path / web_server_name)
         
         # Create package structure
@@ -286,5 +293,73 @@ for software installed in /opt.
     return result
 
 
+def _selftest() -> bool:
+    """Run basic self-tests for the web server installer."""
+    import tempfile
+
+    print("[opt/installers/web_server] selftest \u2026")
+
+    with tempfile.TemporaryDirectory() as td:
+        opt = Path(td) / "opt"
+        etc = Path(td) / "etc-opt"
+        var_root = Path(td) / "var-opt"
+
+        # 1  a full install succeeds and creates the standard layout
+        result = install_web_server(str(opt), str(etc), str(var_root), verbose=False)
+        assert result["success"] is True, result["errors"]
+        assert result["errors"] == []
+        assert (opt / "webserver" / "bin" / "webserver").exists()
+        for role in ("bin", "lib", "include", "doc", "info", "man", "src"):
+            assert (opt / "webserver" / role).is_dir(), role
+        assert (etc / "webserver" / "config.json").exists()
+        assert (var_root / "webserver" / ".opt-integration").exists()
+        print("  [PASS] installer creates the full /opt layout")
+
+        # 2  a custom package name is honoured
+        named = install_web_server(
+            str(opt), str(etc), str(var_root),
+            web_server_name="custom-web", verbose=False,
+        )
+        assert named["success"] is True, named["errors"]
+        assert (opt / "custom-web" / "bin" / "custom-web").exists()
+        print("  [PASS] custom package name honoured")
+
+        # 3  idempotent
+        again = install_web_server(str(opt), str(etc), str(var_root), verbose=False)
+        assert again["success"] is True, again["errors"]
+        print("  [PASS] installer is idempotent")
+
+        # 4  traversal names are refused, nothing escapes the root (CWE-22)
+        escape = install_web_server(
+            str(opt), str(etc), str(var_root),
+            web_server_name="../../pwned-escape", verbose=False,
+        )
+        assert escape["success"] is False
+        assert escape["errors"]
+        assert not (opt / ".." / ".." / "pwned-escape").resolve().exists()
+        print("  [PASS] traversal package name refused")
+
+        # 5  cap-gate: the installer's privileged writes fail closed
+        from core.capability_gate import gate as _gate
+        previous = _gate.strict
+        try:
+            _gate.set_strict(True)
+            gated = install_web_server(
+                str(opt), str(etc), str(var_root),
+                web_server_name="gated-webserver", verbose=False,
+            )
+            assert gated["success"] is False, "installer bypassed the capability gate"
+            assert gated["errors"], "gate denial not reported"
+        finally:
+            _gate.set_strict(previous)
+        print("  [PASS] installer is capability-gated")
+
+    print("[opt/installers/web_server] selftest PASSED")
+    return True
+
+
 if __name__ == "__main__":
+    # Self-test first: fail fast if the installer regressed.
+    if not _selftest():
+        raise SystemExit(1)
     install_web_server(verbose=True)

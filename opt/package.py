@@ -30,6 +30,8 @@ import re
 import shlex
 import sys
 import shutil
+import hashlib
+import json
 from pathlib import Path
 from typing import Dict, Optional, Any, List
 from datetime import datetime
@@ -54,6 +56,25 @@ except Exception:  # pragma: no cover - standalone fallback
     if _proj not in sys.path:
         sys.path.insert(0, _proj)
     from core.path_guard import safe_child, PathTraversalError
+
+
+# Integrity manifest: SHA3-512 is the UmerOS design-mandate hash (the
+# same algorithm the installer and initrd builders use).  The manifest is
+# written *outside* the package tree it protects - under /etc/opt - so
+# tampering with installed files cannot rewrite the record they are
+# checked against.
+MANIFEST_NAME = "manifest.json"
+MANIFEST_VERSION = 1
+HASH_ALGORITHM = "sha3-512"
+
+
+def _sha3_512_file(path: Path) -> str:
+    """Return the streamed SHA3-512 hex digest of ``path``."""
+    digest = hashlib.sha3_512()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 class OptPackage:
@@ -348,6 +369,13 @@ class OptPackage:
         try:
             if self.base_path.exists():
                 shutil.rmtree(self.base_path)
+            # Drop the integrity manifest as well, so a later
+            # reinstall cannot inherit a stale record from this one.
+            try:
+                if self.manifest_path.exists():
+                    self.manifest_path.unlink()
+            except OSError:
+                pass
             return True
         except Exception:
             return False
@@ -368,14 +396,20 @@ class OptPackage:
         
         return files
     
-    def verify_integrity(self) -> Dict[str, bool]:
+    @property
+    def manifest_path(self) -> Path:
+        """Location of the integrity manifest (outside the package tree)."""
+        return self.etc_path / MANIFEST_NAME
+
+    def check_structure(self) -> Dict[str, bool]:
         """
-        Verify the package integrity by checking required directories.
-        
-        Returns:
-            Dictionary with verification results
+        Check that the standard FHS subdirectories exist.
+
+        This is the former ``verify_integrity`` body under an honest
+        name: it says nothing about file contents and cannot detect
+        tampering.
         """
-        results = {
+        return {
             "bin": self.bin_path.exists() and self.bin_path.is_dir(),
             "lib": self.lib_path.exists() and self.lib_path.is_dir(),
             "include": self.include_path.exists() and self.include_path.is_dir(),
@@ -384,9 +418,191 @@ class OptPackage:
             "man": self.man_path.exists() and self.man_path.is_dir(),
             "src": self.src_path.exists() and self.src_path.is_dir(),
         }
-        
+
+    def write_manifest(self) -> Path:
+        """
+        Record a SHA3-512 manifest of the package tree.
+
+        Every regular file is hashed (streamed), every symlink has its
+        target recorded, and every directory is listed, so content,
+        permission and layout tampering are all detectable.  Symlinks
+        are recorded as links instead of being followed, so the walk
+        never crosses a link out of the package tree.
+
+        The manifest is written under ``/etc/opt`` - *outside* the tree
+        it protects - so rewriting installed files cannot rewrite the
+        record they are verified against.
+
+        Returns:
+            Path to the written manifest.
+        """
+        entries: Dict[str, Any] = {}
+        if self.base_path.is_symlink():
+            # A package directory that is itself a link (the classic
+            # /opt/foo -> /opt/foo-1.2.3 layout) is recorded as the link
+            # it is; the target tree is verified when it is managed as a
+            # package in its own right.  Otherwise the walk could leave
+            # the package tree entirely.
+            entries["."] = {"type": "link", "target": os.readlink(self.base_path)}
+        elif self.base_path.exists():
+            for root, dirs, filenames in os.walk(self.base_path):
+                dirs.sort()
+                base = Path(root)
+                for dirname in list(dirs):
+                    path = base / dirname
+                    rel = path.relative_to(self.base_path).as_posix()
+                    if path.is_symlink():
+                        entries[rel] = {"type": "link", "target": os.readlink(path)}
+                        dirs.remove(dirname)
+                    else:
+                        entries[rel] = {"type": "dir"}
+                for filename in sorted(filenames):
+                    path = base / filename
+                    rel = path.relative_to(self.base_path).as_posix()
+                    if path.is_symlink():
+                        entries[rel] = {"type": "link", "target": os.readlink(path)}
+                    elif path.is_file():
+                        entries[rel] = {
+                            "type": "file",
+                            HASH_ALGORITHM: _sha3_512_file(path),
+                            "mode": oct(path.stat().st_mode & 0o7777),
+                        }
+        manifest = {
+            "manifest_version": MANIFEST_VERSION,
+            "algorithm": HASH_ALGORITHM,
+            "package": self.name,
+            "provider": self.provider,
+            "generated": datetime.now().isoformat(),
+            "entries": entries,
+        }
+        self.etc_path.mkdir(parents=True, exist_ok=True)
+        self.manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return self.manifest_path
+
+    def _read_manifest(self) -> Optional[Dict[str, Any]]:
+        """Load and shape-check the manifest; ``None`` when unusable."""
+        try:
+            raw = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        if not isinstance(raw, dict) or not isinstance(raw.get("entries"), dict):
+            return None
+        return raw
+
+    def verify_integrity(self) -> Dict[str, bool]:
+        """
+        Verify the package against its recorded manifest.
+
+        The previous implementation only checked that the seven standard
+        subdirectories existed, while every caller (``OptManager.verify``,
+        ``verify_all``, ``get_stats``, ``list_packages``) presented the
+        result as package "integrity" - false assurance with no tamper
+        detection.  It now compares the tree against the SHA3-512
+        manifest written by ``write_manifest()``.
+
+        Fails closed: with no manifest nothing can be confirmed, so
+        ``manifest``/``complete``/``unmodified``/``clean`` are all False.
+
+        Every value is a boolean so ``all(result.values())`` keeps
+        working for the aggregate callers.
+
+        Keys:
+            structure   - standard bin/lib/include/doc/info/man/src dirs exist
+            manifest    - a manifest exists and parses
+            complete    - no manifest-listed entry is missing
+            unmodified  - every entry matches its recorded digest/mode/target
+            clean       - nothing untracked was added afterwards
+        """
+        results = {
+            "structure": all(self.check_structure().values()),
+            "manifest": False,
+            "complete": False,
+            "unmodified": False,
+            "clean": False,
+        }
+        manifest = self._read_manifest()
+        if manifest is None:
+            return results
+        results["manifest"] = True
+
+        differences = self._compare_manifest(manifest)
+        results["complete"] = not differences["missing"]
+        results["unmodified"] = not differences["modified"]
+        results["clean"] = not differences["untracked"]
         return results
 
+    def _compare_manifest(self, manifest: Dict[str, Any]) -> Dict[str, List[str]]:
+        """Diff the live package tree against a parsed manifest."""
+        recorded = manifest.get("entries", {})
+        missing: List[str] = []
+        modified: List[str] = []
+        seen: set = set()
+
+        for rel, entry in sorted(recorded.items()):
+            if not isinstance(entry, dict):
+                modified.append(rel)
+                continue
+            path = self.base_path if rel == "." else self.base_path / rel
+            if not path.exists() and not path.is_symlink():
+                missing.append(rel)
+                continue
+            seen.add(rel)
+            kind = entry.get("type")
+            if kind == "link":
+                if not path.is_symlink() or os.readlink(path) != entry.get("target"):
+                    modified.append(rel)
+            elif kind == "file":
+                if path.is_symlink() or not path.is_file():
+                    modified.append(rel)
+                elif _sha3_512_file(path) != entry.get(HASH_ALGORITHM):
+                    modified.append(rel)
+                elif oct(path.stat().st_mode & 0o7777) != entry.get("mode"):
+                    modified.append(rel)
+            elif kind == "dir":
+                if path.is_symlink() or not path.is_dir():
+                    modified.append(rel)
+
+        untracked: List[str] = []
+        if self.base_path.exists() and not self.base_path.is_symlink():
+            for root, dirs, filenames in os.walk(self.base_path):
+                dirs.sort()
+                base = Path(root)
+                for dirname in dirs:
+                    rel = (base / dirname).relative_to(self.base_path).as_posix()
+                    if rel not in seen:
+                        untracked.append(rel)
+                for filename in sorted(filenames):
+                    rel = (base / filename).relative_to(self.base_path).as_posix()
+                    if rel not in seen:
+                        untracked.append(rel)
+
+        return {"missing": missing, "modified": modified, "untracked": untracked}
+
+    def integrity_details(self) -> Dict[str, Any]:
+        """
+        Diagnostic detail behind ``verify_integrity``.
+
+        Returns the per-category difference lists so an operator can see
+        *what* changed, not merely that something did.
+        """
+        details: Dict[str, Any] = {
+            "manifest_present": False,
+            "manifest_path": str(self.manifest_path),
+            "algorithm": HASH_ALGORITHM,
+            "missing": [],
+            "modified": [],
+            "untracked": [],
+            "structure": self.check_structure(),
+        }
+        manifest = self._read_manifest()
+        if manifest is None:
+            return details
+        details["manifest_present"] = True
+        details.update(self._compare_manifest(manifest))
+        return details
 
 class OptManager:
     """
@@ -451,7 +667,10 @@ class OptManager:
         # Install documentation if provided
         if doc_path:
             package.install_documentation(doc_path)
-        
+
+        # Record the integrity manifest so verify_integrity() has
+        # real digests to check against instead of directory names.
+        package.write_manifest()
         return package
     
     def remove_package(self, name: str, provider: str = "") -> bool:
@@ -583,7 +802,144 @@ class OptManager:
         return stats
 
 
+def _selftest() -> bool:
+    """Run basic self-tests for OptPackage and the /opt package manager."""
+    import tempfile
+
+    print("[opt/package] selftest \u2026")
+
+    with tempfile.TemporaryDirectory() as td:
+        opt = Path(td) / "opt"
+        etc = Path(td) / "etc-opt"
+        var = Path(td) / "var-opt"
+
+        # 1  constructor builds the standard FHS layout
+        pkg = OptPackage("demo", "acme", str(opt), str(etc), str(var))
+        # safe_child resolves paths while tempfile hands back Windows 8.3
+        # short names, so compare resolved forms (the H189 lesson)
+        assert Path(str(pkg.base_path)).resolve() == (opt / "acme" / "demo").resolve()
+        assert Path(str(pkg.etc_path)).resolve() == (etc / "acme" / "demo").resolve()
+        assert Path(str(pkg.var_path)).resolve() == (var / "acme" / "demo").resolve()
+        for path in (pkg.bin_path, pkg.lib_path, pkg.include_path, pkg.doc_path,
+                     pkg.info_path, pkg.man_path, pkg.src_path):
+            assert path.is_dir(), path
+        assert all(pkg.check_structure().values())
+        print("  [PASS] constructor builds the standard layout")
+
+        # 2  traversal names/providers fail closed (CWE-22)
+        for bad_name, bad_provider in (("../../etc", ""), ("ok", "../../etc"),
+                                       ("..", ""), ("a/../../b", "")):
+            try:
+                OptPackage(bad_name, bad_provider, str(opt), str(etc), str(var))
+            except PathTraversalError:
+                pass
+            else:
+                raise AssertionError(
+                    f"traversal accepted: {bad_name!r}/{bad_provider!r}"
+                )
+        print("  [PASS] traversal name/provider refused")
+
+        # 3  install helpers
+        source = Path(td) / "tool"
+        source.write_bytes(b"tool")
+        assert pkg.install_binary(str(source)) == pkg.bin_path / "tool"
+        library = Path(td) / "lib.so"
+        library.write_bytes(b"\x00")
+        assert pkg.install_library(str(library)) == pkg.lib_path / "lib.so"
+        documentation = Path(td) / "README.md"
+        documentation.write_text("# doc", encoding="utf-8")
+        assert pkg.install_documentation(str(documentation)) == pkg.doc_path / "README.md"
+        man_page = Path(td) / "tool.1"
+        man_page.write_text(".TH TOOL 1", encoding="utf-8")
+        assert pkg.install_man_page(str(man_page)) == pkg.man_path / "man1" / "tool.1"
+        assert len(pkg.get_installed_files()) == 4
+        print("  [PASS] install_binary/library/documentation/man_page")
+
+        # 4  launcher/wrapper scripts quote every token (H187)
+        launcher = pkg.create_launcher_script("run", "python3", ["-m", "demo; rm -rf /"])
+        exec_line = [ln for ln in launcher.read_text(encoding="utf-8").splitlines()
+                     if ln.startswith("exec ")][0]
+        tokens = shlex.split(exec_line)
+        assert tokens[1:3] == ["python3", "-m"], tokens
+        assert ";" not in tokens and "rm" not in tokens, tokens
+        assert tokens[-1] == "$@"
+        wrapper = pkg.create_wrapper_script(
+            "wrap", "python3", environment={"MODE": "1"}, pre_args=["--flag"]
+        )
+        wrapper_text = wrapper.read_text(encoding="utf-8")
+        assert "export MODE=1" in wrapper_text, wrapper_text
+        for bad_script in ("../escape.sh", "sub/dir.sh", "..", ""):
+            try:
+                pkg.create_launcher_script(bad_script, "true")
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f"unsafe script name accepted: {bad_script!r}")
+        print("  [PASS] launcher/wrapper scripts quote every token")
+
+        # 5  integrity: manifest verification detects tampering (H190)
+        pkg.write_manifest()
+        assert all(pkg.verify_integrity().values())
+        victim = pkg.bin_path / "tool"
+        original = victim.read_bytes()
+        try:
+            victim.write_bytes(b"evil")
+            result = pkg.verify_integrity()
+            assert result["unmodified"] is False, result
+            assert pkg.integrity_details()["modified"] == ["bin/tool"]
+        finally:
+            victim.write_bytes(original)
+        assert all(pkg.verify_integrity().values())
+        print("  [PASS] manifest verification detects tampering")
+
+        # 6  remove clears the tree and the manifest
+        assert pkg.remove() is True
+        assert not pkg.base_path.exists()
+        assert not pkg.manifest_path.exists()
+        print("  [PASS] remove clears package and manifest")
+
+        # 7  OptManager: install/list/verify_all/stats/remove
+        manager = OptManager(str(opt), str(etc), str(var))
+        manager.install_package("alpha")
+        manager.install_package("beta", "prov")
+        assert {e["name"] for e in manager.list_packages()} == {"alpha", "beta"}
+        assert manager.verify_all() == {"alpha": True, "prov/beta": True}
+        assert manager.get_stats()["total_packages"] == 2
+        assert manager.remove_package("alpha") is True
+        assert manager.remove_package("../../etc") is False
+        assert manager.remove_package("..") is False
+        print("  [PASS] OptManager install/list/verify_all/remove")
+
+        # 8  cap-gate: remove is privileged, fail-closed when strict
+        gated = OptPackage("gated", "", str(opt), str(etc), str(var))
+        previous = gate.strict
+        try:
+            gate.set_strict(True)
+            try:
+                gated.remove()
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("remove is not capability-gated")
+            try:
+                manager.install_package("gated")
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("install_package is not capability-gated")
+        finally:
+            gate.set_strict(previous)
+        print("  [PASS] remove / install_package are capability-gated")
+
+    print("[opt/package] selftest PASSED")
+    return True
+
+
 if __name__ == "__main__":
+    # Self-test first: fail fast if the subsystem regressed.
+    if not _selftest():
+        raise SystemExit(1)
+
     # Demo usage
     import tempfile
     
@@ -595,7 +951,11 @@ if __name__ == "__main__":
         opt_root = Path(tmpdir) / "opt"
         
         # Create manager
-        manager = OptManager(str(opt_root))
+        manager = OptManager(
+            str(opt_root),
+            str(Path(tmpdir) / "etc" / "opt"),
+            str(Path(tmpdir) / "var" / "opt"),
+        )
         print(f"\n1. Created /opt at: {opt_root}")
         
         # Install a package with binary
@@ -612,12 +972,28 @@ if __name__ == "__main__":
         launcher = package.create_launcher_script("editor-launch", "python3", ["-m", "editor"])
         print(f"   Launcher created: {launcher}")
         
+        # Record the integrity manifest (digests live outside /opt)
+        manifest_path = package.write_manifest()
+        print(f"   Manifest written: {manifest_path}")
+
         # Verify integrity
         print("\n4. Verifying package integrity...")
         integrity = package.verify_integrity()
-        for dir_name, exists in integrity.items():
-            status = "✓" if exists else "✗"
-            print(f"   {status} {dir_name}")
+        for check, ok in integrity.items():
+            status = "✓" if ok else "✗"
+            print(f"   {status} {check}")
+
+        # Tamper with the installed binary and show it is detected
+        installed_bin = package.bin_path / Path(__file__).name
+        original = installed_bin.read_bytes()
+        try:
+            installed_bin.write_bytes(original + b"# tampered\n")
+            detected = package.integrity_details()["modified"]
+            print(f"   tampered file detected: {detected}")
+        finally:
+            installed_bin.write_bytes(original)
+        restored = all(package.verify_integrity().values())
+        print(f"   restored and verified: {restored}")
         
         # List packages
         print("\n5. Listing packages...")

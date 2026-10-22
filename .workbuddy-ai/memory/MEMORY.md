@@ -26,7 +26,7 @@
 
 ## Remediation status
 - **RED blockers: ALL CLOSED (sessions 1–33). YELLOW sweep in progress (session 36+).**
-- **Current pointer (session 189):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/ kernel/ legal/` COMPLETE; `lib/`/`liboqs/` COMPLETE; `media/` COMPLETE (H156–H165); `mnt/` **COMPLETE** (H166–H176, 11 items); **`network/` COMPLETE (H177–H182, 6 items)**; **`opt/` license baseline done (H183)** — all 15 modules now carry the canonical H7 `License: GPL-3.0 (GNU General Public License v3)` + `Author:` trailer, the verbose `Version 3` spellings are gone, 9 modules gained `from __future__`, and the two prose-header `__init__.py` files (which the fail-closed scanner rejected — `opt/` was 13/15 compliant) now carry the canonical block, so `scan_directory("opt")` is 15/15. `opt/` security items H184–H187 (🔴 capability gate, path traversal, command injection) were fixed in earlier sessions. Next 🟡 **H188** — `opt/env.py:251` / `opt/integration.py:222`: a discovered `bin_path` is interpolated unescaped into a shell `export PATH=` snippet written to `/etc/profile.d/opt-paths.sh` and `~/.bashrc` (login-sourced, runs for all users). Say **'continues'** for H188.
+- **Current pointer (session 192):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/ kernel/ legal/` COMPLETE; `lib/`/`liboqs/` COMPLETE; `media/` COMPLETE (H156–H165); `mnt/` **COMPLETE** (H166–H176); **`network/` COMPLETE (H177–H182)**; **`opt/` H183 (license), H184–H187 (security), H188 (shell), H189 (etc/var), H190 (integrity), H191 (`__future__` baseline, premise stale) done** — all 15 modules carry `from __future__ import annotations` as the first post-docstring statement, AST-verified and pinned by `tests/test_opt_future_h191.py` (which discovers modules dynamically, so new files cannot regress). Next 💭 **H192** — `_selftest()` in the 9 `opt/` modules that lack one (drift-recon: 6 of 15 have one today). Say **'continues'** for H192.
 - **⚠ Standard §9 REVERTED (session 84):** live standard = 973 lines / 217 rows (39🔴 63🟢 115🟡) — the 🟢-removal was reverted/replaced externally (file grew 736→673→973). H46 duplicated (stale 🔴 L356 + resolved 🟢 L549). Backup: `Code Review Standards and Process.md.pre-green-removal.bak`. Awaiting user decision on re-removing 🟢 rows.
 - **⚠ H62 REGRESSION (found s117):** `drivers/` has **0/75** `[TODAY]` tier labels despite H62 RESOLVED (s76); the labels still hold in `boot/` (23), `bin/` (44), `kernel/` (6), `core/` (1), `etc/` (81). Re-apply on request (same mechanical op as H70).
 - H1 (user action, not mine): rotate the leaked OpenRouter key + purge git history.
@@ -47,7 +47,7 @@
 - media/ 🟢 H156–H165 **COMPLETE** (H156,H157,H158,H159,H160,H161,H162,H163,H164,H165)
 - mnt/ 🟢 H166–H176 (H166,H167,H168,H169,H170,H171,H172,H173,H174,H175,H176) **COMPLETE**
 - network/ 🟢 H177,H178,H179,H180,H181,H182 — **COMPLETE**
-- opt/ 🟢 H183–H189; 🟡 H190–H193,H200
+- opt/ 🟢 H183–H191; 🟡 H192,H193,H200
 - packages/ 🟢 H194–H198; 🟡 H199,H201,H204 | proc/ 🟢 H205–H208; 🟡 H209–H211; 💭 H212–H214
 - quantum/ 🟢 H152,H215–H217,H221; 🟡 H218–H220; 💭 H222–H225
 - root/ 🟢 H227; 🟡 H226,H228; 💭 H229–H231 | sbin/ 🟢 H233; 🟡 H232; 💭 H234,H235

@@ -3513,9 +3513,10 @@ class Emulator:
 
     def run(self, *, max_steps: int = 100_000,
             hot_loop_window: int = 4096,
-            hot_loop_range: int = 0x400,
+            hot_loop_range: int = 0x4000,
             hot_loop_min_steps: int = 5_000,
-            hot_loop_max_skips: int = 32,
+            hot_loop_max_skips: int = 1024,
+            hot_loop_short_circuit: bool = False,
             use_jit: bool = True) -> int:
         """Run until HLT, max_steps reached, or ``stopped`` set.
 
@@ -3618,13 +3619,18 @@ class Emulator:
                     return self.exit_code
                 if self.stopped:
                     return self.exit_code
+            # Hot-loop detection.  ``min``/``max`` over a large window is
+            # O(window) per call, so we track a cheap running
+            # "narrow window" bound instead: we only need to know
+            # whether the last ``hot_loop_window`` RIPs stay inside a
+            # small address range.  Checking every ``1 << 13`` steps
+            # is plenty -- a hot loop executes millions of steps.
             if (self.steps > hot_loop_min_steps
-                    and len(recent) == hot_loop_window):
+                    and len(recent) == hot_loop_window
+                    and (self.steps & 0x1FFF) == 0):
                 lo = min(recent)
                 hi = max(recent)
                 if hi - lo < hot_loop_range:
-                    log.info("hot loop check: range=0x%x (threshold=0x%x)",
-                             hi - lo, hot_loop_range)
                     detections += 1
                     if detections > hot_loop_max_skips:
                         log.warning(
@@ -3638,7 +3644,8 @@ class Emulator:
                     # like a SIMD memory copy (lots of 0xC4 / 0xC5
                     # VEX prefix bytes in the loop body range).
                     simd_count = 0
-                    if hi - lo < 0x200:
+                    span = hi - lo
+                    if span < 0x2000:
                         try:
                             for off in range(lo, hi + 1):
                                 b = self.mem.read_u8(off)
@@ -3646,18 +3653,21 @@ class Emulator:
                                     simd_count += 1
                         except Exception:
                             pass
-                    if simd_count < 16:
+                    if simd_count < 4:
                         log.debug(
                             "emulator: hot loop at 0x%x "
-                            "(range 0x%x, %d steps) but only %d "
-                            "VEX bytes -- not a SIMD copy, "
-                            "resetting detector",
-                            rip_before, hi - lo, self.steps, simd_count)
-                        # Don't treat as a detection; just clear
-                        # the recent window and let the program
-                        # continue.  This avoids false positives
-                        # on TLS / exception-table walkers that
-                        # happen to have a hot loop.
+                            "(range 0x%x, %d steps) -- not "
+                            "acting, letting it run",
+                            rip_before, hi - lo, self.steps)
+                        detections -= 1
+                        recent.clear()
+                        continue
+                    if not hot_loop_short_circuit:
+                        # Detection-only mode.  We deliberately do NOT
+                        # rewrite the machine state here: a partially
+                        # reconstructed loop-exit state is worse than
+                        # just running the loop, because the program
+                        # then executes garbage.
                         detections -= 1
                         recent.clear()
                         continue
@@ -3667,21 +3677,74 @@ class Emulator:
                         "as memcpy(dst=rcx, src=rdx, count=r8) "
                         "(detection #%d)",
                         rip_before, hi - lo, self.steps, detections)
+                    # MSVC AVX memcpy shape:
+                    #   <unrolled vmovdqa stores>
+                    #   add rcx, 0x100 ; sub r8, 0x100
+                    #   cmp r8, 0x100  ; jae loop
+                    # Do the whole copy in Python, then jump to the
+                    # loop's *fall-through* (the tail handler) with the
+                    # pointers already advanced, instead of re-running
+                    # the unrolled body a million times.
+                    #
+                    # The back-edge branch sits at the top of the
+                    # window.  Find it and target the instruction right
+                    # after it -- that is the natural exit.
+                    exit_ip = self._loop_exit_address(hi, lo)
+                    if exit_ip is None:
+                        exit_ip = hi + (hi - lo) + 0x10
                     rcx = self.regs.get(1)
                     rdx = self.regs.get(2)
                     r8 = self.regs.get(8)
-                    if r8 and r8 < 0x100_0000:
+                    if 0 < r8 < 0x1000_0000:
                         try:
-                            src = self.mem.read(rdx, r8)
-                            self.mem.write(rcx, src)
+                            self.mem.write(rcx, self.mem.read(rdx, r8))
+                            # Advance the pointers as the loop would
+                            # have, and zero the counter so the tail
+                            # handler's own `cmp` falls through.
+                            self.regs.set(1, rcx + r8)
+                            self.regs.set(2, rdx + r8)
+                            self.regs.set(8, 0)
                             log.info(
-                                "fast memcpy: 0x%x bytes from 0x%x "
-                                "to 0x%x", r8, rdx, rcx)
+                                "fast memcpy: 0x%x bytes 0x%x -> 0x%x",
+                                r8, rdx, rcx)
                         except Exception as exc:
                             log.warning("fast memcpy failed: %s", exc)
-                    self.regs.set(15, hi + (hi - lo) + 0x10)
+                    self.regs.set(15, exit_ip)
                     recent.clear()
         return -1
+
+    def _loop_exit_address(self, hi: int, lo: int) -> Optional[int]:
+        """Find the fall-through address of a hot loop whose body ends
+        at ``hi``.
+
+        We scan forward from ``lo`` for the conditional branch that
+        jumps backwards (a back-edge).  The instruction immediately
+        after it is the loop's natural exit.
+        """
+        span = hi - lo
+        if span <= 0 or span > 0x400:
+            return None
+        for off in range(lo, hi):
+            try:
+                b = self.mem.read_u8(off)
+            except Exception:
+                return None
+            # short jcc rel8
+            if 0x70 <= b <= 0x7F:
+                disp = self._signed(self.mem.read_u8(off + 1), 8)
+                target = off + 2 + disp
+                if target <= off:            # backwards = back-edge
+                    return off + 2
+            # long jcc rel32
+            if b == 0x0F:
+                b1 = self.mem.read_u8(off + 1)
+                if 0x80 <= b1 <= 0x8F:
+                    disp = self._signed(
+                        self.mem.read_u32(off + 2), 32)
+                    target = off + 6 + disp
+                    if target <= off:
+                        return off + 6
+        return None
 
 
 # ---------------------------------------------------------------------------

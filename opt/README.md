@@ -180,9 +180,16 @@ launcher = package.create_launcher_script(
     ["-m", "myapp"]
 )
 
-# Verify integrity
+# Record the integrity manifest, then verify against it
+package.write_manifest()
 integrity = package.verify_integrity()
 print(f"Integrity: {integrity}")
+
+# Diagnostics: what changed since the manifest was written
+details = package.integrity_details()
+print(f"Missing: {details['missing']}")
+print(f"Modified: {details['modified']}")
+print(f"Untracked: {details['untracked']}")
 ```
 
 ## Configuration
@@ -248,7 +255,10 @@ print(f"Data path: {paths['var']}")
 - `remove()` - Remove package
 - `exists()` - Check if package exists
 - `get_installed_files()` - Get installed files
-- `verify_integrity()` - Verify package integrity
+- `check_structure()` - Check the standard FHS subdirectories exist
+- `write_manifest()` - Record a SHA3-512 integrity manifest (stored under `/etc/opt`)
+- `integrity_details()` - Diagnostic detail behind `verify_integrity()`
+- `verify_integrity()` - Verify the package against its manifest (content, permissions, symlinks)
 
 ### OptConfig
 
