@@ -39,6 +39,7 @@ import '../apps/package_manager_app.dart';
 import '../apps/power_governor_app.dart';
 import '../apps/quantum_app.dart';
 import '../apps/security_app.dart';
+import '../apps/security_center_app.dart';
 import '../apps/settings_app.dart';
 import '../apps/system_monitor_app.dart';
 import '../apps/terminal_app.dart';
@@ -366,6 +367,15 @@ abstract final class AppRegistry {
       color: Colors.lightGreen,
       category: AppCategory.security,
       builder: (_) => const AntivirusApp(),
+    ),
+    AppDefinition(
+      id: 'security_center',
+      title: 'Security Center',
+      description: 'Zero-trust, crypto, firewall, Star Shield and sandbox.',
+      icon: Icons.shield,
+      color: Colors.red.shade700,
+      category: AppCategory.security,
+      builder: (_) => const SecurityCenterApp(),
     ),
 
     // ── Media ─────────────────────────────────────────────────────
