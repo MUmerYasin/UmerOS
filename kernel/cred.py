@@ -14,7 +14,7 @@
 """
 Umer OS Task Credentials
 ========================
-Inspired by ``kernel/cred.c`` (David Howells, 2008).
+Inspired by ``kernel/cred.c``.
 
 A **credential** bundles the identity of a task: its user id, group id,
 supplementary groups, and the capability set it may use.  Credentials are

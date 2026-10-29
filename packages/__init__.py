@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 # UmerOS /packages — Umer package manager (.umerpkg)
 # ===================================================
 # GPL-3.0 — see LICENSE and README for details.
@@ -12,11 +25,11 @@
 # repository  - PackageRepository, PackageInfo — local + remote repos.
 # format      - .umerpkg binary format reader/writer.
 # crypto      - Signed-payload verification (Dilithium / Ed25519).
-#
-# Author: UmerOS Project
-# License: GPL-3.0 (GNU General Public License Version 3)
 """
 UmerOS /packages — Umer package manager (.umerpkg).
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

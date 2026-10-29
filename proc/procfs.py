@@ -37,6 +37,9 @@ Usage::
     procfs = ProcFileSystem(adapter)
     procfs.read("/proc/meminfo")   # live memory stats
     procfs.list("/proc")           # [cpuinfo, meminfo, 1000, sys, net, ...]
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 from __future__ import annotations
 

@@ -256,7 +256,7 @@ Umer OS runs foreign apps via **containers and translation layers**:
 - **AI-Driven Adaptation:** Interface rearranges based on usage patterns. E.g. frequently used apps get pinned to taskbar. The system suggests layouts or automations (“You opened photo editor and browser frequently; create a ‘Photo Edit’ workspace.”).  
 - **Mobile/Touch UI:** On tablets/phones, use a responsive design with touch-friendly interface (larger buttons, swipe gestures). Support a “tablet mode” that adapts icons/layout.  
 
-**Figure: AI-Driven Adaptive OS Interface** (inspired by [Pandikumar et al. 2024]{31†L65-L73}): Umer OS’s UI learns user preferences, offers context menus, predictive file sorting, voice/gesture control, and personalized notifications.  
+**Figure: AI-Driven Adaptive OS Interface** : Umer OS’s UI learns user preferences, offers context menus, predictive file sorting, voice/gesture control, and personalized notifications.  
 
 ## Networking Stack
 

@@ -116,18 +116,34 @@ environments = env.setup_all_packages()
 
 ### Service Management
 
+Executing a discovered service script is arbitrary code execution, so the
+manager never runs one on discovery alone: a service must be
+**registered** first — recorded with its SHA3-512 digest in a registry under
+`/etc/opt` (outside the `/opt` tree it protects) — and re-verified against that
+digest, containment and mode checks on every call. `start`/`stop`/`status` also
+require the `fs.admin` capability.
+
 ```python
 from opt.integration import OptServiceManager
 
-# Discover services
+# Discover services (read-only listing)
 services = OptServiceManager().discover_services()
 
-# Control a service
+# Register the ones you trust, then control them
 service_manager = OptServiceManager()
+service_manager.register_service("myservice")
 service_manager.start_service("myservice")
 service_manager.stop_service("myservice")
 service_manager.restart_service("myservice")
+
+# A service modified after registration, an unregistered service, or a
+# script resolving outside /opt is refused - start/stop return False.
+service_manager.unregister_service("myservice")
 ```
+
+The registry defaults to `/etc/opt/services.json` (derived from `opt_root`:
+`/opt` → `/etc/opt`); pass `registry_path=` to override. A tampered or
+unreadable registry authorises nothing (fail-closed).
 
 ## Example: Installing a Custom Package
 

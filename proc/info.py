@@ -11,6 +11,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+"""/proc system information helpers — read real /proc data with fallback.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
+"""
+
+from __future__ import annotations
+
 import os
 import platform
 import time

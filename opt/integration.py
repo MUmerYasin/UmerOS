@@ -22,6 +22,8 @@ License: GPL-3.0 (GNU General Public License v3)
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 import shlex
@@ -31,6 +33,41 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 log = logging.getLogger("UmerOS.Opt.Integration")
+
+# Zero-trust gate for privileged /opt service operations: executing a
+# discovered script is arbitrary code execution by another name, so
+# register/unregister and every execution path require CAP_FS_ADMIN
+# (permissive-when-unwired / fail-closed-when-wired, matching the
+# mnt/ media/ usr/ var/ opt-manager cap-gate clusters).
+try:
+    from core.capability_gate import gate, CAP_FS_ADMIN
+except Exception:  # pragma: no cover - standalone fallback
+    import sys as _sys
+    _proj = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _proj not in _sys.path:
+        _sys.path.insert(0, _proj)
+    from core.capability_gate import gate, CAP_FS_ADMIN
+
+
+# ── Service registry (H193) ─────────────────────────────────────────────────
+# Executing a discovered script is arbitrary code execution, so a service
+# must first be *registered*: recorded with its streamed SHA3-512 digest
+# (the UmerOS design-mandate hash) in a registry file stored under
+# /etc/opt - outside the /opt tree it protects, mirroring the H190
+# package manifest - and re-verified against that digest on every
+# start/stop/status call.
+SERVICE_REGISTRY_NAME = "services.json"
+SERVICE_REGISTRY_VERSION = 1
+HASH_ALGORITHM = "sha3-512"
+
+
+def _sha3_512_file(path: Path) -> str:
+    """Return the streamed SHA3-512 hex digest of ``path``."""
+    digest = hashlib.sha3_512()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 # a newline would let an attacker-controlled path escape a
@@ -428,16 +465,34 @@ class OptServiceManager:
     
     Provides functionality for starting, stopping, and managing
     services installed in /opt packages.
+    
+    Executing a service script is arbitrary code execution, so the
+    manager never runs a discovered script on discovery alone (H193):
+    a service must be registered (``register_service``) - recorded
+    with its SHA3-512 digest in the registry under /etc/opt - and the
+    live file must still match that digest, be a regular file inside
+    the managed /opt tree and not be world-writable.  Every execution
+    path additionally requires CAP_FS_ADMIN.
     """
     
-    def __init__(self, opt_root: str = "/opt"):
+    def __init__(self, opt_root: str = "/opt", registry_path: str = None):
         """
         Initialize OptServiceManager.
         
         Args:
             opt_root: Root directory for opt packages
+            registry_path: Override for the service registry location
+                (default: /etc/opt/services.json, derived from opt_root)
         """
         self.opt_root = Path(opt_root)
+        if registry_path:
+            self.registry_path = Path(registry_path)
+        else:
+            # Mirrors the FHS layout (/opt -> /etc/opt) and keeps the
+            # registry outside the tree whose services it authorises.
+            self.registry_path = (
+                self.opt_root.resolve().parent / "etc" / "opt" / SERVICE_REGISTRY_NAME
+            )
         self._services = {}
     
     def discover_services(self) -> Dict[str, Path]:
@@ -494,9 +549,156 @@ class OptServiceManager:
         except Exception:
             return False
     
+    # ── registry (H193) ────────────────────────────────────────────────────────
+
+    def _load_registry(self) -> Dict[str, Dict[str, str]]:
+        """Read the service registry; a malformed file authorises nothing."""
+        try:
+            data = json.loads(self.registry_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError) as exc:
+            log.error("Service registry unreadable (%s): %s",
+                      self.registry_path, exc)
+            return {}
+        if not isinstance(data, dict) or data.get("version") != SERVICE_REGISTRY_VERSION:
+            log.error("Service registry has an unknown format: %s",
+                      self.registry_path)
+            return {}
+        services = data.get("services")
+        return services if isinstance(services, dict) else {}
+
+    def _save_registry(self, services: Dict[str, Dict[str, str]]) -> bool:
+        """Write the service registry (fail-closed on any I/O error)."""
+        payload = {"version": SERVICE_REGISTRY_VERSION, "services": services}
+        try:
+            self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+            self.registry_path.write_text(
+                json.dumps(payload, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            log.error("Cannot write service registry %s: %s",
+                      self.registry_path, exc)
+            return False
+        return True
+
+    def _validate_service_script(self, script_path: Path) -> Optional[str]:
+        """Return None when *script_path* may be executed, else the reason.
+
+        A service script must be a regular file that stays inside the
+        managed /opt tree once symlinks are resolved, carry no
+        shell-hostile name components, and not be world-writable.
+        """
+        try:
+            resolved = script_path.resolve()
+            resolved.relative_to(self.opt_root.resolve())
+        except (OSError, ValueError):
+            return f"{script_path} resolves outside {self.opt_root}"
+        if not resolved.is_file():
+            return f"{script_path} is not a regular file"
+        relative = resolved.relative_to(self.opt_root.resolve())
+        if any(_UNSAFE_NAME_CHARS & set(part) for part in relative.parts):
+            return f"{script_path} has a shell-hostile name component"
+        try:
+            mode = resolved.stat().st_mode
+        except OSError as exc:
+            return f"cannot stat {script_path}: {exc}"
+        # POSIX only: on Windows every regular file reports the other-write
+        # bit (mode 0o666) although ACLs - not mode bits - govern access,
+        # so the check would refuse every script there.  The digest,
+        # containment and registration checks still apply everywhere.
+        if os.name != "nt" and mode & 0o002:
+            return f"{script_path} is world-writable"
+        return None
+
+    def _authorized_service(self, service_name: str) -> Optional[Path]:
+        """Return the script for *service_name* only when it may run.
+
+        Discovery alone never authorises execution: the service must be
+        registered, still match its registered SHA3-512 digest, and pass
+        ``_validate_service_script``.  CAP_FS_ADMIN is required.
+        """
+        gate.require(CAP_FS_ADMIN)
+        services = self.discover_services()
+        if service_name not in services:
+            log.warning("Service not found: %s", service_name)
+            return None
+        script_path = services[service_name]
+        reason = self._validate_service_script(script_path)
+        if reason is not None:
+            log.error("Refusing service %s: %s", service_name, reason)
+            return None
+        entry = self._load_registry().get(service_name)
+        if entry is None:
+            log.warning(
+                "Service %s is not registered; run register_service() first",
+                service_name,
+            )
+            return None
+        try:
+            digest = _sha3_512_file(script_path)
+        except OSError as exc:
+            log.error("Cannot hash service %s: %s", service_name, exc)
+            return None
+        if digest != entry.get(HASH_ALGORITHM):
+            log.error(
+                "Service %s was modified after registration; refusing to execute",
+                service_name,
+            )
+            return None
+        return script_path
+
+    def register_service(self, service_name: str) -> bool:
+        """Register a discovered service so the manager may execute it."""
+        gate.require(CAP_FS_ADMIN)
+        services = self.discover_services()
+        if service_name not in services:
+            log.warning("Service not found: %s", service_name)
+            return False
+        script_path = services[service_name]
+        reason = self._validate_service_script(script_path)
+        if reason is not None:
+            log.error("Refusing to register service %s: %s",
+                      service_name, reason)
+            return False
+        try:
+            digest = _sha3_512_file(script_path)
+            relative = script_path.resolve().relative_to(self.opt_root.resolve())
+        except (OSError, ValueError) as exc:
+            log.error("Cannot register service %s: %s", service_name, exc)
+            return False
+        registry = self._load_registry()
+        registry[service_name] = {
+            "path": relative.as_posix(),
+            HASH_ALGORITHM: digest,
+            "registered_at": datetime.now().isoformat(),
+        }
+        if not self._save_registry(registry):
+            return False
+        log.info("Registered /opt service %s (%s)",
+                 service_name, relative.as_posix())
+        return True
+
+    def unregister_service(self, service_name: str) -> bool:
+        """Remove a service from the registry (execution is then refused)."""
+        gate.require(CAP_FS_ADMIN)
+        registry = self._load_registry()
+        if service_name not in registry:
+            return False
+        del registry[service_name]
+        return self._save_registry(registry)
+
+    def list_registered_services(self) -> List[str]:
+        """Names of every registered service."""
+        return sorted(self._load_registry())
+
     def start_service(self, service_name: str) -> bool:
         """
         Start a service.
+        
+        The service must be registered and unmodified since
+        registration, and CAP_FS_ADMIN is required (H193).
         
         Args:
             service_name: Name of the service
@@ -504,21 +706,13 @@ class OptServiceManager:
         Returns:
             True if successful
         """
-        services = self.discover_services()
-        
-        if service_name not in services:
-            log.warning("Service not found: %s", service_name)
+        service_path = self._authorized_service(service_name)
+        if service_path is None:
             return False
         
-        service_path = services[service_name]
-        
         try:
-            # Make executable if needed
-            service_path.chmod(0o755)
-            
-            # Execute the service start command
             import subprocess
-            result = subprocess.run([str(service_path), "start"], 
+            result = subprocess.run([str(service_path), "start"],
                                    capture_output=True, text=True)
             
             return result.returncode == 0
@@ -530,19 +724,18 @@ class OptServiceManager:
         """
         Stop a service.
         
+        The service must be registered and unmodified since
+        registration, and CAP_FS_ADMIN is required (H193).
+        
         Args:
             service_name: Name of the service
             
         Returns:
             True if successful
         """
-        services = self.discover_services()
-        
-        if service_name not in services:
-            log.warning("Service not found: %s", service_name)
+        service_path = self._authorized_service(service_name)
+        if service_path is None:
             return False
-        
-        service_path = services[service_name]
         
         try:
             import subprocess
@@ -582,7 +775,9 @@ class OptServiceManager:
         if service_name not in services:
             return f"Service not found: {service_name}"
         
-        service_path = services[service_name]
+        service_path = self._authorized_service(service_name)
+        if service_path is None:
+            return f"Service not available: {service_name}"
         
         try:
             import subprocess
@@ -670,6 +865,71 @@ def _selftest() -> bool:
         assert manager.stop_service("nope") is False
         assert manager.get_service_status("nope").startswith("Service not found")
         print("  [PASS] OptServiceManager discovery and unknown-service handling")
+
+        # 9  H193: discovery alone never authorises execution
+        assert manager.start_service("worker") is False, "unregistered service ran"
+        assert manager.stop_service("worker") is False, "unregistered service ran"
+        assert manager.get_service_status("worker").startswith(
+            "Service not available")
+        assert manager.list_registered_services() == []
+        print("  [PASS] unregistered services are refused")
+
+        # 10 H193: register -> tamper -> refuse (SHA3-512), restore -> allow
+        assert manager.register_service("worker") is True
+        assert manager.list_registered_services() == ["worker"]
+        worker = root / "svc" / "bin" / "worker"
+        original = worker.read_bytes()
+        worker.write_text(
+            "#!/bin/sh\n# start stop restart status daemon\necho pwned\n",
+            encoding="utf-8",
+        )
+        assert manager.start_service("worker") is False, "tampered service ran"
+        worker.write_bytes(original)
+        assert manager._authorized_service("worker") is not None
+        if os.name == "posix":
+            # a real execution round-trip (Windows cannot exec the script)
+            worker.chmod(0o755)
+            assert manager.start_service("worker") is True
+        print("  [PASS] tampered services are refused")
+
+        # 11 H193: a symlink escaping /opt is refused
+        outside = Path(td) / "outside.sh"
+        outside.write_text("#!/bin/sh\n# start stop\n", encoding="utf-8")
+        try:
+            (root / "svc" / "bin" / "escape").symlink_to(outside)
+        except (OSError, NotImplementedError):
+            pass  # platform without symlink support
+        else:
+            assert manager._authorized_service("escape") is None
+            assert manager.register_service("escape") is False
+            print("  [PASS] escaping symlinks are refused")
+
+        # 12 H193: registry lifecycle
+        assert manager.unregister_service("worker") is True
+        assert manager.unregister_service("worker") is False
+        assert manager.list_registered_services() == []
+        assert manager.start_service("worker") is False
+        print("  [PASS] register/unregister round-trip")
+
+        # 13 H193: cap-gate - registration and execution are fail-closed
+        previous = gate.strict
+        try:
+            gate.set_strict(True)
+            try:
+                manager.register_service("worker")
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("register_service is not capability-gated")
+            try:
+                manager.start_service("worker")
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("start_service is not capability-gated")
+        finally:
+            gate.set_strict(previous)
+        print("  [PASS] service execution is capability-gated")
 
     print("[opt/integration] selftest PASSED")
     return True

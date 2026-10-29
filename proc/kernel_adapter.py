@@ -27,6 +27,9 @@ Without a kernel the adapter still serves a coherent simulated
 system (idle task list, 4 GiB RAM, standard mounts), so the procfs is
 fully usable standalone — mirroring how /proc reflects the running
 kernel, whatever its state.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 from __future__ import annotations
 

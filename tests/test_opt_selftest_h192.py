@@ -78,6 +78,9 @@ SECURITY_LINES = {
     "opt.integration": (
         "shell-hostile package names are dropped",
         "implicit home-profile mutation refused",
+        "unregistered services are refused",
+        "tampered services are refused",
+        "service execution is capability-gated",
     ),
     "opt.manager": (
         "traversal package names are refused",

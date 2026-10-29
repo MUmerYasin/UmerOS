@@ -23,8 +23,20 @@ Each subdirectory under /proc/sys mirrors a kernel subsystem:
     sunrpc/ NFS/RPC debug toggles
 
 Writes are validated and persisted by the kernel's ``SysctlRegistry``.
+
+**Exception:** ``kernel.hostname`` and ``kernel.domainname`` are dynamic
+``KernelAdapter`` attributes, not ``SysctlRegistry`` entries — the
+kernel does not register them in the registry.  Writes go directly to
+``adapter.hostname`` / ``adapter._domainname`` (stripped, no trailing
+newline); reads append ``"\\n"`` to match the real ``/proc/sys/kernel/
+hostname`` output convention.  All other writable entries are registry-
+backed and go through the ``_rfile`` helper's validation path.
+
 Reads format values as plain strings (``cat`` style), exactly like
 the real /proc/sys on Linux.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 from __future__ import annotations
 
@@ -102,17 +114,23 @@ def register_sysctl_entries(fs: "ProcFileSystem") -> None:
     _rfile(kern, "warn_limit", "kernel.warn_limit", write=True)
     _rfile(kern, "panic_on_taint", "kernel.panic_on_taint", write=True)
 
-    # hostname / domainname — dynamic values, not from sysctl registry
+    # hostname / domainname — dynamic adapter attributes, not sysctl
+    # registry entries.  The kernel's SysctlRegistry does not register
+    # these; they live directly on the KernelAdapter so that the shell
+    # and network stack can read them without going through procfs.
+    # The value is stored stripped (no trailing newline); the read
+    # handler appends "\n" to match real /proc/sys/kernel/hostname
+    # output convention.
     def _hostname():
         return adapter.hostname + "\n"
 
     kern.add(ProcFile("hostname", _hostname,
                       write=lambda text: setattr(adapter, "hostname",
-                                                  text.strip() + "\n")))
+                                                  text.strip())))
     kern.add(ProcFile("domainname",
                       lambda: getattr(adapter, "_domainname", "(none)") + "\n",
                       write=lambda text: setattr(adapter, "_domainname",
-                                                  text.strip() + "\n")))
+                                                  text.strip())))
     kern.add(ProcFile("osrelease",
                       lambda: "2.1.0-quantum\n", mode="r--r--r--"))
     kern.add(ProcFile("ostype",
@@ -121,11 +139,11 @@ def register_sysctl_entries(fs: "ProcFileSystem") -> None:
                       lambda: "#1 SMP PREEMPT QUANTUM UmerOS\n",
                       mode="r--r--r--"))
     kern.add(ProcFile("ctrl-alt-del",
-                      lambda: "0\n", write=lambda text: None))
+                      lambda: "0\n"))
     kern.add(ProcFile("acct",
-                      lambda: "4 2 30\n", write=lambda text: None))
+                      lambda: "4 2 30\n"))
     kern.add(ProcFile("printk",
-                      lambda: "6 4 1 7\n", write=lambda text: None))
+                      lambda: "6 4 1 7\n"))
     kern.add(ProcFile("ngroups_max",
                       lambda: "65536\n", mode="r--r--r--"))
     kern.add(ProcFile("pid_max",
@@ -133,7 +151,7 @@ def register_sysctl_entries(fs: "ProcFileSystem") -> None:
     kern.add(ProcFile("threads-max",
                       lambda: "14626\n", write=True))
     kern.add(ProcFile("sem",
-                      lambda: "250\t32000\t32\t128\n", write=lambda text: None))
+                      lambda: "250\t32000\t32\t128\n"))
     kern.add(ProcFile("shmall",
                       lambda: "18446744073692774399\n", write=True))
     kern.add(ProcFile("shmmax",
@@ -147,9 +165,9 @@ def register_sysctl_entries(fs: "ProcFileSystem") -> None:
     kern.add(ProcFile("msgmni",
                       lambda: "32000\n", write=True))
     kern.add(ProcFile("auto_msgmni",
-                      lambda: "1\n", write=lambda text: None))
+                      lambda: "1\n"))
     kern.add(ProcFile("randomize_va_space",
-                      lambda: "2\n", write=lambda text: None))
+                      lambda: "2\n"))
 
     # ── /proc/sys/vm/ ──────────────────────────────────────────
     vm = ProcDir("vm")

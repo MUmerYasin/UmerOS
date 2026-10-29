@@ -25,6 +25,9 @@ for /proc:
   under /proc/sys and are root-owned ``rw-r--r--``.
 * Writing to a read-only entry raises PermissionError; reading a
   directory raises IsADirectoryError — exactly like the real procfs.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 from __future__ import annotations
 

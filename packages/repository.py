@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 #!/usr/bin/env python3
 """
 Umer OS Package Repository
@@ -7,7 +20,16 @@ a remote repository server; for now it provides a built-in catalog
 of available packages with version metadata and dependency info.
 
 Equivalent to /etc/apt/sources.list + package index in Debian.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
+
+from __future__ import annotations
+
+import logging
+
+log = logging.getLogger("UmerOS.PackageRepository")
 
 
 class PackageInfo:
@@ -30,7 +52,10 @@ class PackageRepository:
 
     def __init__(self):
         self._catalog = self._build_catalog()
-        print(f"[REPO] Package repository loaded ({len(self._catalog)} packages available).")
+        log.info(
+            "Package repository loaded (%d packages available).",
+            len(self._catalog),
+        )
 
     def _build_catalog(self) -> dict:
         pkgs = [
@@ -63,3 +88,58 @@ class PackageRepository:
 
     def list_all(self) -> list:
         return list(self._catalog.values())
+
+
+# ── Selftest ──────────────────────────────────────────────────────────────────────────
+
+def _selftest() -> bool:
+    """Run basic self-tests for the package catalog.
+
+    Exercises the catalog surface end-to-end: build, search (by name
+    and by description), get (hit and miss), list_all, and repr.
+    Returns True when every check passes; raises AssertionError
+    otherwise.
+    """
+    print("[packages/repository] selftest …")
+    ok = True
+
+    repo = PackageRepository()
+
+    # 1  catalog is non-empty with unique names
+    entries = repo.list_all()
+    assert entries, "catalog is empty"
+    names = [p.name for p in entries]
+    assert len(names) == len(set(names)), "duplicate package names in catalog"
+    print("  [PASS] catalog is non-empty with unique names")
+
+    # 2  search matches by name
+    hits = repo.search("umer-core")
+    assert any(p.name == "umer-core" for p in hits)
+    print("  [PASS] search matches by name")
+
+    # 3  search matches by description, case-insensitively
+    hits = repo.search("QUANTUM")
+    assert any(p.name == "umer-quantum" for p in hits), "description search failed"
+    print("  [PASS] search matches by description")
+
+    # 4  get returns the entry, None for an unknown package
+    assert repo.get("git") is not None
+    assert repo.get("no-such-package") is None
+    print("  [PASS] get returns the entry, None for unknown")
+
+    # 5  every entry carries a version and a list of dependencies
+    assert all(p.version for p in entries)
+    assert all(isinstance(p.dependencies, list) for p in entries)
+    print("  [PASS] every entry carries a version and dependency list")
+
+    # 6  repr round-trips name and version
+    shown = repr(repo.get("vim"))
+    assert shown.startswith("vim (") and shown.endswith(")")
+    print("  [PASS] PackageInfo repr")
+
+    print("[packages/repository] selftest PASSED")
+    return ok
+
+
+if __name__ == "__main__":
+    _selftest()

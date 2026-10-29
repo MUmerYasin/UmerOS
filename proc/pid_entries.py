@@ -24,6 +24,9 @@ separated, ``stat`` is the classic single-line field dump, ``status``
 is the human-readable key/value block, and ``cwd``/``exe``/``root``
 are symlinks.  PID 0 (the kernel itself) is addressable directly but
 hidden from the /proc listing, exactly like the idle task on Linux.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 from __future__ import annotations
 
@@ -47,6 +50,9 @@ def _cmdline_list(task: Dict[str, Any]) -> list:
 
 
 def _environ(task: Dict[str, Any]) -> Dict[str, str]:
+    # Simulated environment — UmerOS does not track per-process real
+    # environments.  The UMEROS_SIMULATED flag lets tooling and auditors
+    # distinguish simulated procfs from a real /proc (H211).
     return {
         "HOME": "/home/umer",
         "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -57,6 +63,7 @@ def _environ(task: Dict[str, Any]) -> Dict[str, str]:
         "LANG": "en_US.UTF-8",
         "UMEROS_VERSION": "2.1.0",
         "UMER_QUANTUM_SCHED": "1",
+        "UMEROS_SIMULATED": "1",
     }
 
 
@@ -127,7 +134,11 @@ def build_pid_dir(adapter, pid: int) -> ProcDir:
     def _status() -> str:
         threads = 1
         pending = "0000000000000000"
+        # Simulated capability mask — UmerOS does not track real per-process
+        # capabilities.  The full mask for uid==0 is a placeholder, not an
+        # authoritative grant; auditors must not treat it as real (H211).
         cap_full = "0000003fffffffff"
+        cap_eff = cap_full if uid == 0 else "0000000000000000"
         lines = [
             f"Name:\t{name}",
             f"Umask:\t0022",
@@ -165,10 +176,11 @@ def build_pid_dir(adapter, pid: int) -> ProcDir:
             f"SigIgn:\t{pending}",
             f"SigCgt:\t0000000180000000",
             f"CapInh:\t0000000000000000",
-            f"CapPrm:\t{cap_full if uid == 0 else '0000000000000000'}",
-            f"CapEff:\t{cap_full if uid == 0 else '0000000000000000'}",
+            f"CapPrm:\t{cap_eff}",
+            f"CapEff:\t{cap_eff}",
             f"CapBnd:\t{cap_full}",
             f"CapAmb:\t0000000000000000",
+            f"Note:\tCapEff/CapPrm/CapBnd are simulated (UMEROS_SIMULATED=1)",
             f"NoNewPrivs:\t0",
             f"Seccomp:\t0",
             f"Seccomp_filters:\t0",

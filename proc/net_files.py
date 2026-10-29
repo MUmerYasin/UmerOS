@@ -19,6 +19,9 @@ interfaces are merged; otherwise coherent simulated data is served.
 
 Covers: dev, tcp, udp, route, arp, unix, wireless, sockstat, icmp,
 ipv6 (partial — udp6, tcp6, if_inet6), and per-bond directories.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 from __future__ import annotations
 

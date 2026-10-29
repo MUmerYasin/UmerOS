@@ -631,20 +631,25 @@ class _DesktopGrid extends StatelessWidget {
   }
 
   Widget _buildAppIcon(BuildContext context, AppDefinition app) {
+    final appState = Provider.of<AppState>(context, listen: true);
+    final iconSize = appState.iconSize;
+    final containerSize = iconSize * 2.5; // 16->40, 24->60, 32->80, 48->120
+    final iconDisplaySize = iconSize * 1.5; // 16->24, 24->36, 32->48, 48->72
+
     return SizedBox(
-      width: 86,
+      width: containerSize + 22, // Add padding for label
       child: Draggable<String>(
         data: app.id,
         feedback: Material(
           color: Colors.transparent,
           child: Container(
-            width: 64,
-            height: 64,
+            width: containerSize,
+            height: containerSize,
             decoration: BoxDecoration(
               color: app.color.withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(app.icon, size: 34, color: Colors.white),
+            child: Icon(app.icon, size: iconDisplaySize * 0.8, color: Colors.white),
           ),
         ),
         child: MouseRegion(
@@ -658,8 +663,8 @@ class _DesktopGrid extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 64,
-                    height: 64,
+                    width: containerSize,
+                    height: containerSize,
                     decoration: BoxDecoration(
                       color: app.color.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(18),
@@ -674,7 +679,7 @@ class _DesktopGrid extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Icon(app.icon, size: 34, color: app.color),
+                    child: Icon(app.icon, size: iconDisplaySize, color: app.color),
                   )
                       .animate()
                       .scale(
@@ -707,20 +712,24 @@ class _DesktopGrid extends StatelessWidget {
 
   Widget _buildDesktopItem(BuildContext context, DesktopItemData item, AppState appState) {
     final itemColor = item.color ?? Colors.grey;
+    final iconSize = appState.iconSize;
+    final containerSize = iconSize * 2.5;
+    final iconDisplaySize = iconSize * 1.5;
+
     return SizedBox(
-      width: 86,
+      width: containerSize + 22,
       child: Draggable<String>(
         data: 'desktop:${item.id}',
         feedback: Material(
           color: Colors.transparent,
           child: Container(
-            width: 64,
-            height: 64,
+            width: containerSize,
+            height: containerSize,
             decoration: BoxDecoration(
               color: itemColor.withValues(alpha: 0.8),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: Icon(item.icon, size: 34, color: Colors.white),
+            child: Icon(item.icon, size: iconDisplaySize * 0.8, color: Colors.white),
           ),
         ),
         child: MouseRegion(
@@ -743,8 +752,8 @@ class _DesktopGrid extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 64,
-                    height: 64,
+                    width: containerSize,
+                    height: containerSize,
                     decoration: BoxDecoration(
                       color: itemColor.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(18),
@@ -759,7 +768,7 @@ class _DesktopGrid extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Icon(item.icon, size: 34, color: itemColor),
+                    child: Icon(item.icon, size: iconDisplaySize, color: itemColor),
                   )
                       .animate()
                       .scale(

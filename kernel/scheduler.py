@@ -43,7 +43,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from kernel.signals import SignalQueue, SIGKILL, SIGTERM, SIGCHLD, FATAL_SIGNALS
 
@@ -118,8 +118,12 @@ class Task:
     exited:         asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     # ── State-change tracking (for hung-task watchdog) ────────────────────────
     last_state_change: float = field(default_factory=time.monotonic)
+    qos:           Any   = field(default=None)
 
     def __post_init__(self) -> None:
+        if self.qos is None:
+            from kernel.qos import TaskQoS
+            self.qos = TaskQoS.UTILITY
         """Validate fields after construction.
 
         Raises:
@@ -145,7 +149,10 @@ class Task:
             superposition_probability * priority / (cpu_time + EPSILON)
         """
         sup = float(self.quantum_state.get("superposition", 0.5))
-        return (sup * self.priority) / (self.cpu_time + EPSILON)
+        from kernel.qos import qos_manager
+        qos_weight = getattr(self.qos, "value", 40) / 40.0
+        throttle = qos_manager.get_throttle_factor(self.qos)
+        return (sup * self.priority * qos_weight * throttle) / (self.cpu_time + EPSILON)
 
 
 # ---------------------------------------------------------------------------
@@ -372,6 +379,49 @@ class HybridScheduler:
         """
         async with self._lock:
             return list(self._tasks.values())
+
+    async def elevate_task_priority(self, pid: int, priority: float) -> bool:
+        """Temporarily elevate a task's priority (Priority Inheritance).
+
+        Args:
+            pid: Process ID of the task to elevate.
+            priority: New higher priority to set.
+
+        Returns:
+            True if task was found and elevated, False otherwise.
+        """
+        async with self._lock:
+            task = self._tasks.get(pid)
+            if task is None:
+                return False
+            if not hasattr(task, "_base_priority") or task._base_priority is None:
+                task._base_priority = task.priority
+            task.priority = max(task.priority, min(1.0, float(priority)))
+            log.debug("Scheduler: Elevated PID %d priority to %.3f (base: %.3f)",
+                      pid, task.priority, task._base_priority)
+            return True
+
+    async def restore_task_priority(self, pid: int, original_priority: Optional[float] = None) -> bool:
+        """Restore a task's base priority after releasing an inherited lock.
+
+        Args:
+            pid: Process ID of the task to restore.
+            original_priority: Optional explicit priority to restore to.
+
+        Returns:
+            True if task was found and restored, False otherwise.
+        """
+        async with self._lock:
+            task = self._tasks.get(pid)
+            if task is None:
+                return False
+            if original_priority is not None:
+                task.priority = max(0.0, min(1.0, float(original_priority)))
+            elif hasattr(task, "_base_priority") and task._base_priority is not None:
+                task.priority = task._base_priority
+            task._base_priority = None
+            log.debug("Scheduler: Restored PID %d priority to %.3f", pid, task.priority)
+            return True
 
     def __len__(self) -> int:
         """Return the number of currently registered tasks.

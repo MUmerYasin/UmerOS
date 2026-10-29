@@ -6,12 +6,15 @@
 # pseudo-filesystem.  See ``proc/procfs.py`` for the actual file
 # tree implementation.
 #
-# Author: UmerOS Project
-# License: GPL-3.0 (GNU General Public License Version 3)
+# Author:  Umer OS Project
+# License: GPL-3.0 (GNU General Public License v3)
 # [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
 
 """
 UmerOS /proc — Virtual /proc filesystem (procfs).
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

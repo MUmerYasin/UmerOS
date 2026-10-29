@@ -23,7 +23,7 @@ License: GPL-3.0
 from __future__ import annotations
 
 import logging
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 log = logging.getLogger("UmerOS.Compat.Gdi32")
 

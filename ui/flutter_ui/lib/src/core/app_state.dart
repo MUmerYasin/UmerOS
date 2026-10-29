@@ -125,6 +125,7 @@ class AppState extends ChangeNotifier {
   static const _kDockPins = 'umeros.state.dockPins';
   static const _kWorkspace = 'umeros.state.workspace';
   static const _kScratchpad = 'umeros.state.scratchpad';
+  static const _kIconSize = 'umeros.state.iconSize';
 
   final List<WindowData> _windows = [];
   final List<DesktopItemData> _desktopItems = [];
@@ -158,6 +159,10 @@ class AppState extends ChangeNotifier {
   bool _dnd = false;
   bool _performanceMode = true;
   String? _volumeToastMessage;
+
+  // Icon Size (desktop grid)
+  static const List<double> _iconSizes = [16.0, 24.0, 32.0, 48.0];
+  int _iconSizeIndex = 1; // Default: Medium (24)
 
   // Notifications list
   final List<SystemNotification> _notifications = [
@@ -204,6 +209,11 @@ class AppState extends ChangeNotifier {
   List<SystemNotification> get notifications => _notifications;
   int get unreadNotificationCount => _notifications.where((n) => !n.isRead).length;
 
+  // Icon Size
+  double get iconSize => _iconSizes[_iconSizeIndex];
+  int get iconSizeIndex => _iconSizeIndex;
+  List<double> get availableIconSizes => _iconSizes;
+
   /// Restore persisted system state. Call once at startup after
   /// [PrefsService.init]. Unknown dock pins are dropped via the
   /// registry so a renamed app can never wedge the dock.
@@ -219,6 +229,7 @@ class AppState extends ChangeNotifier {
     _performanceMode = prefs.getBool(_kPerformance) ?? _performanceMode;
     _currentWorkspace = prefs.getInt(_kWorkspace)?.clamp(1, _totalWorkspaces) ?? _currentWorkspace;
     _scratchpadText = prefs.getString(_kScratchpad) ?? '';
+    _iconSizeIndex = (prefs.getInt(_kIconSize) ?? 1).clamp(0, _iconSizes.length - 1);
 
     final pins = prefs.getStringList(_kDockPins);
     if (pins != null && pins.isNotEmpty) {
@@ -634,6 +645,12 @@ class AppState extends ChangeNotifier {
   void setBrightness(double val) {
     _brightness = val.clamp(0.0, 1.0);
     PrefsService.instance.setDouble(_kBrightness, _brightness);
+    notifyListeners();
+  }
+
+  void setIconSizeIndex(int index) {
+    _iconSizeIndex = index.clamp(0, _iconSizes.length - 1);
+    PrefsService.instance.setInt(_kIconSize, _iconSizeIndex);
     notifyListeners();
   }
 

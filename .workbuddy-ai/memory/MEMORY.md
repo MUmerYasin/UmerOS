@@ -26,12 +26,12 @@
 
 ## Remediation status
 - **RED blockers: ALL CLOSED (sessions 1–33). YELLOW sweep in progress (session 36+).**
-- **Current pointer (session 192):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/ kernel/ legal/` COMPLETE; `lib/`/`liboqs/` COMPLETE; `media/` COMPLETE (H156–H165); `mnt/` **COMPLETE** (H166–H176); **`network/` COMPLETE (H177–H182)**; **`opt/` H183 (license), H184–H187 (security), H188 (shell), H189 (etc/var), H190 (integrity), H191 (`__future__` baseline, premise stale) done** — all 15 modules carry `from __future__ import annotations` as the first post-docstring statement, AST-verified and pinned by `tests/test_opt_future_h191.py` (which discovers modules dynamically, so new files cannot regress). Next 💭 **H192** — `_selftest()` in the 9 `opt/` modules that lack one (drift-recon: 6 of 15 have one today). Say **'continues'** for H192.
+- **Current pointer (session 205):** `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/ kernel/ legal/` COMPLETE; `lib/`/`liboqs/` COMPLETE; `media/` COMPLETE; `mnt/` COMPLETE; `network/` COMPLETE; `opt/` H183–H193 done. **`packages/` COMPLETE** (H194–H204). **`proc/` COMPLETE — H205–H214 all done** (H205–H208 RED closed s101; H209 removed 7 no-op writes; H210 fixed hostname/domainname trailing newline + documented bypass; H211 labeled CapEff/environ as simulated — `UMEROS_SIMULATED=1` in environ, `Note:` line in status; H212 dangerous-call hygiene verified — 25 files, zero dangerous calls; H213 GPL-3.0 headers — all 25 modules now §1 compliant; H214 graceful simulated fallback confirmed + pinned — no action). Pinned by 6 new tests (6+10+12+104+201+10 passed). Full run **4822 nodes / 7 failed / 0 errors / 72 skipped** (6 pre-existing + 1 flaky compat). Next: **quantum/ H218** (🟡 — `quantum_sim.py` silent simulation downgrade).
 - **⚠ Standard §9 REVERTED (session 84):** live standard = 973 lines / 217 rows (39🔴 63🟢 115🟡) — the 🟢-removal was reverted/replaced externally (file grew 736→673→973). H46 duplicated (stale 🔴 L356 + resolved 🟢 L549). Backup: `Code Review Standards and Process.md.pre-green-removal.bak`. Awaiting user decision on re-removing 🟢 rows.
 - **⚠ H62 REGRESSION (found s117):** `drivers/` has **0/75** `[TODAY]` tier labels despite H62 RESOLVED (s76); the labels still hold in `boot/` (23), `bin/` (44), `kernel/` (6), `core/` (1), `etc/` (81). Re-apply on request (same mechanical op as H70).
 - H1 (user action, not mine): rotate the leaked OpenRouter key + purge git history.
 
-- **Known-UNRELATED full-run failures (do NOT re-investigate):** 6 failures from *externally rewritten* files — 5 × `tests/test_legal_pii_h137` (the committed `legal/creator_accounts.example.json` was re-saved mid-session and now carries what looks like real personal data: a PK IBAN, a Gmail address, a phone number) and 1 × `tests/test_lib_pam_h150` (`lib/security.py` lost its "Fail-open modules (H150)" docstring marker). They reproduce standalone in <1s with zero coupling to the folder under study; first observed session 186, still present session 188. Both folders are closed — flagged for the user, not fixed.
+- **Known-UNRELATED full-run failures (do NOT re-investigate):** 6 failures from *externally rewritten* files — 5 × `tests/test_legal_pii_h137` (the committed `legal/creator_accounts.example.json` was re-saved mid-session and now carries what looks like real personal data: a PK IBAN, a Gmail address, a phone number) and 1 × `tests/test_lib_pam_h150` (`lib/security.py` lost its "Fail-open modules (H150)" docstring marker). They reproduce standalone in <1s with zero coupling to the folder under study; first observed session 186, still present session 188. Both folders are closed — flagged for the user, not fixed. Additionally, `tests/test_compatibility.py::TestEnvironment::test_selftest_passes` occasionally fails in full-suite (order-dependent flake) but passes in isolation (115/115) — unrelated to any folder under study.
 
 ## Folder scope map — hotspots (🟢 fixed / 🟡 yellow / 💭 nit)
 - boot/ 🟢 H27–H34 | bin/ 🟢 H4,H5,H6,H8,H35–H40 | build/ 🟢 H41–H45
@@ -47,8 +47,8 @@
 - media/ 🟢 H156–H165 **COMPLETE** (H156,H157,H158,H159,H160,H161,H162,H163,H164,H165)
 - mnt/ 🟢 H166–H176 (H166,H167,H168,H169,H170,H171,H172,H173,H174,H175,H176) **COMPLETE**
 - network/ 🟢 H177,H178,H179,H180,H181,H182 — **COMPLETE**
-- opt/ 🟢 H183–H191; 🟡 H192,H193,H200
-- packages/ 🟢 H194–H198; 🟡 H199,H201,H204 | proc/ 🟢 H205–H208; 🟡 H209–H211; 💭 H212–H214
+- opt/ 🟢 H183–H193; 🟡 H200
+- packages/ 🟢 H194–H198,H199,H200,H201,H202,H203,H204 **COMPLETE** | proc/ 🟢 H205–H211; 💭 H212–H214 **COMPLETE**
 - quantum/ 🟢 H152,H215–H217,H221; 🟡 H218–H220; 💭 H222–H225
 - root/ 🟢 H227; 🟡 H226,H228; 💭 H229–H231 | sbin/ 🟢 H233; 🟡 H232; 💭 H234,H235
 - scripts/ 🟡 H236,H237; 💭 H238,H239 | sdk/ 🟡 H240,H241; 💭 H242,H243

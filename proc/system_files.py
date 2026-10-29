@@ -17,6 +17,9 @@
 Content is generated live by handlers bound to the kernel adapter —
 nothing here is stored, mirroring the real procfs "window into the
 kernel" behaviour described by the Linux Filesystem Hierarchy docs.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 from __future__ import annotations
 
@@ -619,7 +622,6 @@ def register_system_entries(fs: "ProcFileSystem") -> None:
                        "lp\nactive\n"))
     port0.add(ProcFile("hardware", lambda:
                        "base:\t0x0378\nirq:\t7\ndma:\tnone\nmodes:\tSPP,ECP\n"))
-    port0.add(ProcFile("irq", lambda: "7\n",
-                       write=lambda text: None, mode="rw-r--r--"))
+    port0.add(ProcFile("irq", lambda: "7\n"))
     parport.add(port0)
     root.add(parport)

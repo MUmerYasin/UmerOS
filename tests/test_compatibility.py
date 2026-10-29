@@ -1528,6 +1528,564 @@ class TestEnvironment(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Known folders (KNOWNFOLDERID / CSIDL)
+# ---------------------------------------------------------------------------
+
+class TestKnownFolders(unittest.TestCase):
+    """The Windows 10 Known Folder catalogue."""
+
+    def test_selftest_passes(self) -> None:
+        from compatibility import knownfolders
+        self.assertTrue(knownfolders._selftest())
+
+    def test_csidl_values_match_shlobj(self) -> None:
+        from compatibility.knownfolders import Csidl
+        expected = {
+            "DESKTOP": 0x0000, "INTERNET": 0x0001, "PROGRAMS": 0x0002,
+            "CONTROLS": 0x0003, "PRINTERS": 0x0004, "PERSONAL": 0x0005,
+            "FAVORITES": 0x0006, "STARTUP": 0x0007, "RECENT": 0x0008,
+            "SENDTO": 0x0009, "BITBUCKET": 0x000A, "STARTMENU": 0x000B,
+            "MYMUSIC": 0x000D, "MYVIDEO": 0x000E, "DESKTOPDIRECTORY": 0x0010,
+            "DRIVES": 0x0011, "NETWORK": 0x0012, "NETHOOD": 0x0013,
+            "FONTS": 0x0014, "TEMPLATES": 0x0015, "COMMON_STARTMENU": 0x0016,
+            "COMMON_PROGRAMS": 0x0017, "COMMON_STARTUP": 0x0018,
+            "COMMON_DESKTOPDIRECTORY": 0x0019, "APPDATA": 0x001A,
+            "PRINTHOOD": 0x001B, "LOCAL_APPDATA": 0x001C, "ALTSTARTUP": 0x001D,
+            "COMMON_ALTSTARTUP": 0x001E, "COMMON_FAVORITES": 0x001F,
+            "INTERNET_CACHE": 0x0020, "COOKIES": 0x0021, "HISTORY": 0x0022,
+            "COMMON_APPDATA": 0x0023, "WINDOWS": 0x0024, "SYSTEM": 0x0025,
+            "PROGRAM_FILES": 0x0026, "MYPICTURES": 0x0027, "PROFILE": 0x0028,
+            "SYSTEMX86": 0x0029, "PROGRAM_FILESX86": 0x002A,
+            "PROGRAM_FILES_COMMON": 0x002B, "PROGRAM_FILES_COMMONX86": 0x002C,
+            "COMMON_TEMPLATES": 0x002D, "COMMON_DOCUMENTS": 0x002E,
+            "COMMON_ADMINTOOLS": 0x002F, "ADMINTOOLS": 0x0030,
+            "CONNECTIONS": 0x0031, "COMMON_MUSIC": 0x0035,
+            "COMMON_PICTURES": 0x0036, "COMMON_VIDEO": 0x0037,
+            "RESOURCES": 0x0038, "RESOURCES_LOCALIZED": 0x0039,
+            "COMMON_OEM_LINKS": 0x003A, "CDBURN_AREA": 0x003B,
+            "COMPUTERSNEARME": 0x003D,
+        }
+        for name, value in expected.items():
+            self.assertEqual(int(getattr(Csidl, name)), value,
+                             f"CSIDL_{name} should be 0x{value:04X}")
+
+    def test_mydocuments_is_an_alias_of_personal(self) -> None:
+        from compatibility.knownfolders import Csidl
+        self.assertIs(Csidl.MYDOCUMENTS, Csidl.PERSONAL)
+
+    def test_catalogue_is_complete_and_unique(self) -> None:
+        from compatibility import knownfolders
+        self.assertGreaterEqual(len(knownfolders.KNOWN_FOLDERS), 120)
+        guids = [k.guid for k in knownfolders.KNOWN_FOLDERS.values()]
+        self.assertEqual(len(guids), len(set(guids)))
+        for guid in guids:
+            self.assertTrue(guid.startswith("{") and guid.endswith("}"))
+
+    def test_every_folder_type_is_represented(self) -> None:
+        from compatibility import knownfolders
+        for kind in knownfolders.KnownFolderType:
+            self.assertTrue(knownfolders.list_known_folders(kind),
+                            f"no folders of type {kind}")
+
+    def test_virtual_folders_have_no_path(self) -> None:
+        from compatibility import knownfolders
+        for kf in knownfolders.list_known_folders(
+                knownfolders.KnownFolderType.VIRTUAL):
+            self.assertIsNone(kf.default_path, kf.name)
+            self.assertTrue(kf.shell_path.startswith("::{"))
+
+    def test_physical_folders_have_a_template(self) -> None:
+        from compatibility import knownfolders
+        for kf in knownfolders.list_known_folders():
+            if kf.folder_type is knownfolders.KnownFolderType.VIRTUAL:
+                continue
+            self.assertTrue(kf.default_path, kf.name)
+            self.assertIn("%", kf.default_path, kf.name)
+
+    def test_resolve_by_name_and_by_guid(self) -> None:
+        from compatibility import knownfolders
+        by_name = knownfolders.resolve_known_folder("FOLDERID_Desktop")
+        by_guid = knownfolders.resolve_known_folder(
+            "{B4BFCC3A-DB2C-424C-B029-7FE99A87C641}")
+        self.assertEqual(by_name, by_guid)
+        self.assertTrue(by_name.lower().endswith(r"\desktop"))
+
+    def test_resolve_unknown_folder_raises(self) -> None:
+        from compatibility import knownfolders
+        with self.assertRaises(KeyError):
+            knownfolders.resolve_known_folder("FOLDERID_NotAThing")
+
+    def test_redirection_matrix(self) -> None:
+        from compatibility import knownfolders
+        p64 = knownfolders.resolve_known_folder(
+            "FOLDERID_ProgramFiles", app_is_32bit=False, os_is_64bit=True)
+        p32 = knownfolders.resolve_known_folder(
+            "FOLDERID_ProgramFiles", app_is_32bit=True, os_is_64bit=True)
+        self.assertNotIn("(x86)", p64)
+        self.assertIn("Program Files (x86)", p32)
+
+        c64 = knownfolders.resolve_known_folder(
+            "FOLDERID_ProgramFilesCommon", app_is_32bit=False,
+            os_is_64bit=True)
+        c32 = knownfolders.resolve_known_folder(
+            "FOLDERID_ProgramFilesCommon", app_is_32bit=True,
+            os_is_64bit=True)
+        self.assertNotIn("(x86)", c64)
+        self.assertIn("(x86)", c32)
+
+        s32 = knownfolders.resolve_known_folder(
+            "FOLDERID_System", app_is_32bit=False, os_is_64bit=True)
+        s86 = knownfolders.resolve_known_folder(
+            "FOLDERID_SystemX86", app_is_32bit=False, os_is_64bit=True)
+        self.assertTrue(s32.lower().endswith(r"\system32"))
+        self.assertTrue(s86.lower().endswith(r"\syswow64"))
+
+    def test_x64_only_folder_rejects_32bit_caller(self) -> None:
+        from compatibility import knownfolders
+        with self.assertRaises(ValueError):
+            knownfolders.resolve_known_folder("FOLDERID_ProgramFilesX64",
+                                             app_is_32bit=True,
+                                             os_is_64bit=True)
+        # A 64-bit caller on a 64-bit OS is fine.
+        path = knownfolders.resolve_known_folder("FOLDERID_ProgramFilesX64",
+                                                 app_is_32bit=False,
+                                                 os_is_64bit=True)
+        self.assertTrue(path)
+
+    def test_resolve_csidl(self) -> None:
+        from compatibility import knownfolders
+        profile = knownfolders.resolve_csidl(0x0028)     # CSIDL_PROFILE
+        self.assertTrue(profile)
+        sysdir = knownfolders.resolve_csidl(0x0025)      # CSIDL_SYSTEM
+        self.assertTrue(sysdir.lower().endswith(r"\system32"))
+
+    def test_virtual_csidl_resolves_to_shell_namespace(self) -> None:
+        from compatibility import knownfolders
+        bin = knownfolders.resolve_csidl(0x000A)         # CSIDL_BITBUCKET
+        self.assertTrue(bin.startswith("::{"))
+
+    def test_unknown_csidl_raises(self) -> None:
+        from compatibility import knownfolders
+        with self.assertRaises(KeyError):
+            knownfolders.resolve_csidl(0x7FFF)
+
+    def test_csidl_to_known_folder_mapping(self) -> None:
+        from compatibility import knownfolders
+        self.assertEqual(
+            knownfolders.csidl_to_known_folder(0x001A),
+            "FOLDERID_RoamingAppData")
+        self.assertEqual(
+            knownfolders.csidl_to_known_folder(0x0005),
+            "FOLDERID_Documents")
+        self.assertIsNone(knownfolders.csidl_to_known_folder(0x7FFF))
+
+
+# ---------------------------------------------------------------------------
+# shell32.dll folder-path API
+# ---------------------------------------------------------------------------
+
+class TestShell32(unittest.TestCase):
+    """``SHGetFolderPath`` / ``SHGetKnownFolderPath``."""
+
+    def test_selftest_passes(self) -> None:
+        from compatibility import win_shell32
+        self.assertTrue(win_shell32._selftest())
+
+    def test_shget_folder_path(self) -> None:
+        from compatibility import win_shell32
+        path = win_shell32.SHGetFolderPathA(0, 0x001A, 0, 0)
+        self.assertTrue(path.lower().endswith(r"appdata\roaming"))
+
+    def test_csidl_flags_are_masked_off(self) -> None:
+        from compatibility import win_shell32
+        plain = win_shell32.SHGetFolderPathA(0, 0x001A, 0, 0)
+        flagged = win_shell32.SHGetFolderPathA(0, 0x001A | 0x8000, 0, 0)
+        self.assertEqual(plain, flagged)
+
+    def test_known_folder_by_name_and_guid(self) -> None:
+        from compatibility import win_shell32
+        by_name = win_shell32.SHGetKnownFolderPath("FOLDERID_Documents")
+        by_guid = win_shell32.SHGetKnownFolderPath(
+            "{FDD39AD0-238F-46AF-ADB4-6C85480369C7}")
+        self.assertEqual(by_name, by_guid)
+        self.assertTrue(by_name)
+
+    def test_unknown_identifier_returns_empty_string(self) -> None:
+        from compatibility import win_shell32
+        self.assertEqual(
+            win_shell32.SHGetKnownFolderPath(
+                "{00000000-0000-0000-0000-000000000000}"), "")
+        self.assertEqual(win_shell32.SHGetFolderPathA(0, 0x7FFF, 0, 0), "")
+
+    def test_set_known_folder_path_is_observable(self) -> None:
+        from compatibility import win_shell32
+        try:
+            self.assertTrue(win_shell32.SHSetKnownFolderPath(
+                "FOLDERID_Documents", 0, 0, r"C:\Docs"))
+            self.assertEqual(
+                win_shell32.SHGetKnownFolderPath("FOLDERID_Documents"),
+                r"C:\Docs")
+        finally:
+            win_shell32.SHSetKnownFolderPath("FOLDERID_Documents", 0, 0, "")
+        self.assertNotEqual(
+            win_shell32.SHGetKnownFolderPath("FOLDERID_Documents"), r"C:\Docs")
+
+    def test_virtual_folder_returns_shell_path(self) -> None:
+        from compatibility import win_shell32
+        self.assertTrue(
+            win_shell32.SHGetKnownFolderPath(
+                "FOLDERID_RecycleBinFolder").startswith("::{"))
+
+    def test_exports_surface(self) -> None:
+        from compatibility import win_shell32
+        for name in ("SHGetFolderPathA", "SHGetKnownFolderPath",
+                     "SHSetKnownFolderPath"):
+            self.assertIn(name, win_shell32.EXPORTS)
+
+
+# ---------------------------------------------------------------------------
+# Environment variables: catalogue, scopes and inspection
+# ---------------------------------------------------------------------------
+
+class TestEnvironmentCatalogue(unittest.TestCase):
+    """The USMT-recognised variable catalogue."""
+
+    def test_usmt_context_sizes(self) -> None:
+        from compatibility import environment
+        self.assertEqual(len(environment.USMT_USER_AND_SYSTEM), 57)
+        self.assertEqual(len(environment.USMT_USER_ONLY), 40)
+        self.assertEqual(len(environment.USMT_RECOGNISED), 97)
+
+    def test_usmt_contexts_are_disjoint(self) -> None:
+        from compatibility import environment
+        overlap = (set(environment.USMT_USER_AND_SYSTEM)
+                   & set(environment.USMT_USER_ONLY))
+        self.assertEqual(overlap, set())
+
+    def test_recognised_is_a_superset_of_usmt(self) -> None:
+        from compatibility import environment
+        self.assertTrue(set(environment.USMT_RECOGNISED)
+                        <= set(environment.WIN10_RECOGNISED))
+        for name in ("PATH", "APPDATA", "ProgramFiles",
+                     "ProgramFiles(x86)", "SystemRoot", "ComSpec"):
+            self.assertIn(name, environment.WIN10_RECOGNISED)
+            self.assertTrue(environment.is_recognised(name))
+
+    def test_known_csidl_names_are_recognised(self) -> None:
+        from compatibility import environment
+        for name in ("CSIDL_APPDATA", "CSIDL_COMMON_APPDATA",
+                     "CSIDL_DEFAULT_DESKTOP", "CSIDL_SYSTEM",
+                     "CSIDL_WINDOWS", "CSIDL_PROGRAM_FILES"):
+            self.assertTrue(environment.is_recognised(name), name)
+
+    def test_usmt_context_lookup(self) -> None:
+        from compatibility import environment
+        self.assertIn("UserAndSystem",
+                      environment.usmt_context_for("CSIDL_APPDATA"))
+        self.assertIn("User", environment.usmt_context_for("CSIDL_APPDATA"))
+        self.assertNotIn("System",
+                         environment.usmt_context_for("CSIDL_APPDATA"))
+
+    def test_resolve_alias(self) -> None:
+        from compatibility import environment
+        self.assertEqual(environment.resolve_usmt_variable("PROGRAMFILES"),
+                         r"C:\Program Files")
+        self.assertEqual(environment.resolve_usmt_variable("PROGRAMFILES(X86)"),
+                         r"C:\Program Files (x86)")
+
+    def test_resolve_template(self) -> None:
+        from compatibility import environment
+        self.assertEqual(
+            environment.resolve_usmt_variable("CSIDL_DEFAULT_DESKTOP"),
+            r"C:\Users\Default\Desktop")
+        self.assertEqual(
+            environment.resolve_usmt_variable("CSIDL_COMMON_APPDATA"),
+            r"C:\ProgramData")
+
+    def test_resolve_csidl(self) -> None:
+        from compatibility import environment
+        self.assertEqual(
+            environment.resolve_usmt_variable("CSIDL_SYSTEM"),
+            r"C:\Windows\system32")
+        # CSIDL_DESKTOP maps to FOLDERID_Desktop, which is the *physical*
+        # Desktop folder -- the KNOWNFOLDERID CSIDL-equivalent column is
+        # authoritative here, not the "virtual" feel of the legacy name.
+        self.assertEqual(
+            environment.resolve_usmt_variable("CSIDL_DESKTOP"),
+            r"C:\Users\Default\Desktop")
+        # CSIDL_BITBUCKET maps to the virtual Recycle Bin.
+        self.assertTrue(
+            environment.resolve_usmt_variable("CSIDL_BITBUCKET").startswith("::{"))
+
+    def test_resolve_unknown_is_none(self) -> None:
+        from compatibility import environment
+        self.assertIsNone(
+            environment.resolve_usmt_variable("TOTALLY_NOT_A_VARIABLE"))
+
+    def test_build_usmt_context(self) -> None:
+        from compatibility import environment
+        table = environment.build_usmt_context("System")
+        self.assertGreaterEqual(len(table), 50)
+        self.assertIn("CSIDL_SYSTEM", table)
+        self.assertIn("WINDIR", table)
+        with self.assertRaises(KeyError):
+            environment.build_usmt_context("NoSuchContext")
+
+    def test_registry_paths_for_scope(self) -> None:
+        from compatibility import environment
+        self.assertTrue(environment.registry_path_for_scope(
+            environment.EnvScope.SYSTEM).startswith("HKLM"))
+        self.assertTrue(environment.registry_path_for_scope(
+            environment.EnvScope.USER).startswith("HKCU"))
+        self.assertIsNone(environment.registry_path_for_scope(
+            environment.EnvScope.PROCESS))
+
+
+class TestScopedEnvironment(unittest.TestCase):
+    """Machine / User / Process scoping with Windows precedence."""
+
+    def _env(self):
+        from compatibility import environment
+        return environment.ScopedEnvironment(host_fallback=False)
+
+    def test_precedence_is_process_user_system(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("Path", r"C:\System", environment.EnvScope.SYSTEM)
+        env.set("Path", r"C:\User", environment.EnvScope.USER)
+        self.assertEqual(env.get("PATH"), r"C:\User")
+        env.set("Path", r"C:\Process", environment.EnvScope.PROCESS)
+        self.assertEqual(env.get("PATH"), r"C:\Process")
+        self.assertIs(env.scope_of("PATH"), environment.EnvScope.PROCESS)
+
+    def test_get_from_reads_one_scope(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("X", "sys", environment.EnvScope.SYSTEM)
+        env.set("X", "usr", environment.EnvScope.USER)
+        self.assertEqual(env.get_from("X", environment.EnvScope.SYSTEM), "sys")
+        self.assertEqual(env.get_from("X", environment.EnvScope.USER), "usr")
+        self.assertIsNone(env.get_from("X", environment.EnvScope.PROCESS))
+
+    def test_unset_one_scope_falls_back_to_the_next(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("X", "sys", environment.EnvScope.SYSTEM)
+        env.set("X", "usr", environment.EnvScope.USER)
+        env.unset("X", environment.EnvScope.USER)
+        self.assertEqual(env.get("X"), "sys")
+
+    def test_unset_every_scope(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("X", "sys", environment.EnvScope.SYSTEM)
+        env.set("X", "usr", environment.EnvScope.USER)
+        self.assertTrue(env.unset("X"))
+        self.assertIsNone(env.get("X"))
+        self.assertFalse(env.unset("X"))
+
+    def test_set_none_unsets(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("X", "1", environment.EnvScope.USER)
+        env.set("X", None, environment.EnvScope.USER)
+        self.assertIsNone(env.get("X"))
+
+    def test_case_insensitive_but_case_preserving(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("MyVar", "1", environment.EnvScope.USER)
+        self.assertEqual(env.get("myvar"), "1")
+        self.assertEqual(env.get("MYVAR"), "1")
+        self.assertEqual(env.names(environment.EnvScope.USER), ["MyVar"])
+
+    def test_effective_block_flattens_scopes(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("Path", r"C:\System", environment.EnvScope.SYSTEM)
+        env.set("Path", r"C:\Process", environment.EnvScope.PROCESS)
+        blk = env.effective()
+        self.assertEqual(blk.get("PATH"), r"C:\Process")
+        self.assertIs(blk.scope_of("PATH"), environment.EnvScope.PROCESS)
+
+    def test_to_registry_omits_the_process_scope(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("A", "1", environment.EnvScope.SYSTEM)
+        env.set("B", "2", environment.EnvScope.USER)
+        env.set("C", "3", environment.EnvScope.PROCESS)
+        reg = env.to_registry()
+        self.assertNotIn(environment.EnvScope.PROCESS, reg)
+        self.assertEqual(reg[environment.EnvScope.SYSTEM], {"A": "1"})
+        self.assertEqual(reg[environment.EnvScope.USER], {"B": "2"})
+
+    def test_roundtrip_through_a_block(self) -> None:
+        from compatibility import environment
+        env = self._env()
+        env.set("A", "1", environment.EnvScope.SYSTEM)
+        env.set("B", "2", environment.EnvScope.USER)
+        again = environment.ScopedEnvironment.from_block(env.effective(),
+                                                         host_fallback=False)
+        self.assertEqual(again.get("A"), "1")
+        self.assertEqual(again.get("B"), "2")
+        self.assertIs(again.scope_of("B"), environment.EnvScope.USER)
+
+
+class TestEnvironmentInspection(unittest.TestCase):
+    """``set`` / ``echo`` / ``Get-ChildItem Env:`` equivalents."""
+
+    def _block(self):
+        from compatibility import environment
+        blk = environment.EnvironmentBlock()
+        blk["FOO"] = "bar"
+        blk["PATH"] = r"C:\Windows;C:\Tools"
+        blk["PATHEXT"] = ".COM;.EXE"
+        return blk
+
+    def test_cmd_set_output(self) -> None:
+        from compatibility import environment
+        blk = self._block()
+        out = environment.cmd_set_output(blk)
+        self.assertIn("FOO=bar", out)
+        self.assertIn("PATH=", out)
+        self.assertEqual(environment.cmd_set_output(blk, "FOO"), "FOO=bar")
+
+    def test_cmd_set_output_for_missing_name(self) -> None:
+        from compatibility import environment
+        out = environment.cmd_set_output(self._block(), "NOPE")
+        self.assertIn("not defined", out)
+
+    def test_cmd_expand_leaves_undefined_literal(self) -> None:
+        from compatibility import environment
+        blk = self._block()
+        self.assertEqual(environment.cmd_expand("%FOO%", blk), "bar")
+        self.assertEqual(environment.cmd_expand("%NOPE%", blk), "%NOPE%")
+
+    def test_cmd_expand_is_single_pass(self) -> None:
+        from compatibility import environment
+        blk = self._block()
+        blk["OUTER"] = "%INNER%"
+        blk["INNER"] = "value"
+        self.assertEqual(environment.cmd_expand("%OUTER%", blk), "%INNER%")
+
+    def test_cmd_echo_appends_a_space(self) -> None:
+        from compatibility import environment
+        blk = self._block()
+        self.assertEqual(environment.cmd_echo("%FOO%", blk), "bar ")
+        self.assertEqual(environment.cmd_echo("plain", blk), "plain ")
+
+    def test_powershell_get_env(self) -> None:
+        from compatibility import environment
+        blk = self._block()
+        self.assertEqual(environment.powershell_get_env("FOO", blk), "bar")
+        self.assertIsNone(environment.powershell_get_env("NOPE", blk))
+
+    def test_powershell_env_listing(self) -> None:
+        from compatibility import environment
+        listing = environment.powershell_env_listing(self._block())
+        self.assertIn("Name", listing)
+        self.assertIn("Value", listing)
+        self.assertIn("FOO", listing)
+        self.assertIn("bar", listing)
+
+    def test_search_path_prefers_the_current_directory(self) -> None:
+        from compatibility import environment
+        blk = self._block()
+        cand = environment.search_path("tool.exe", blk, cwd=r"C:\Here",
+                                       must_exist=False)
+        self.assertEqual(cand, r"C:\Here\tool.exe")
+
+    def test_search_path_falls_through_to_path(self) -> None:
+        from compatibility import environment
+        blk = self._block()
+        cand = environment.search_path("tool.exe", blk, cwd=r"C:\Here",
+                                       must_exist=False)
+        self.assertTrue(cand.startswith(r"C:\Here"))
+        # Nothing on PATH either -> the first candidate is returned.
+        blk2 = environment.EnvironmentBlock()
+        blk2["PATH"] = r"C:\Windows"
+        blk2["PATHEXT"] = ".EXE"
+        cand2 = environment.search_path("tool.exe", blk2, cwd=r"C:\Here",
+                                        must_exist=False)
+        self.assertEqual(cand2, r"C:\Here\tool.exe")
+
+    def test_which_finds_a_real_file(self) -> None:
+        import os
+        import sys
+        from compatibility import environment
+        exe_dir = os.path.dirname(sys.executable)
+        blk = environment.EnvironmentBlock()
+        blk["PATH"] = exe_dir
+        blk["PATHEXT"] = ".EXE"
+        found = environment.which(os.path.basename(sys.executable), blk)
+        self.assertIsNotNone(found)
+        self.assertTrue(os.path.isfile(found))
+
+
+class TestEnvironmentCommands(unittest.TestCase):
+    """``set`` / ``setx`` semantics and variable-name validation."""
+
+    def test_variable_name_validation(self) -> None:
+        from compatibility import environment
+        self.assertTrue(environment.is_valid_variable_name("PATH"))
+        self.assertTrue(environment.is_valid_variable_name("ProgramFiles(x86)"))
+        self.assertFalse(environment.is_valid_variable_name(""))
+        self.assertFalse(environment.is_valid_variable_name("A=B"))
+        self.assertFalse(environment.is_valid_variable_name("=LEADING"))
+
+    def test_cmd_set_defines_in_the_process_scope(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        self.assertTrue(environment.cmd_set(env, "FOO", "bar"))
+        self.assertEqual(env.get("FOO"), "bar")
+        self.assertIs(env.scope_of("FOO"), environment.EnvScope.PROCESS)
+
+    def test_cmd_set_with_an_empty_value_deletes(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        env.set("FOO", "bar", environment.EnvScope.PROCESS)
+        self.assertTrue(environment.cmd_set(env, "FOO", ""))
+        self.assertIsNone(env.get("FOO"))
+
+    def test_cmd_set_without_a_value_does_not_change_anything(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        env.set("FOO", "bar", environment.EnvScope.PROCESS)
+        self.assertFalse(environment.cmd_set(env, "FOO"))
+        self.assertEqual(env.get("FOO"), "bar")
+
+    def test_cmd_set_rejects_an_invalid_name(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        self.assertFalse(environment.cmd_set(env, "A=B", "x"))
+
+    def test_setx_writes_to_a_persistent_scope(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        self.assertTrue(environment.setx(env, "PERSIST", "v",
+                                         environment.EnvScope.USER))
+        self.assertEqual(env.get_from("PERSIST", environment.EnvScope.USER),
+                         "v")
+        # It must not leak into the process scope.
+        self.assertIsNone(env.get_from("PERSIST",
+                                        environment.EnvScope.PROCESS))
+
+    def test_setx_rejects_values_over_1024_characters(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        self.assertFalse(environment.setx(env, "BIG", "x" * 1025,
+                                          environment.EnvScope.USER))
+        self.assertTrue(environment.setx(env, "OK", "x" * 1024,
+                                         environment.EnvScope.USER))
+
+    def test_setx_cannot_target_the_process_scope(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        self.assertFalse(environment.setx(env, "X", "v",
+                                          environment.EnvScope.PROCESS))
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 

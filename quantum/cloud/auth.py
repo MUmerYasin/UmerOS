@@ -16,6 +16,13 @@ UMEROS Cloud Authentication
 ============================
 Credential management for quantum cloud providers.
 Implements real OAuth2 token exchange and refresh flows for all providers.
+
+All provider REST calls use a strict TLS context (CERT_REQUIRED,
+check_hostname=True, minimum TLS 1.2) with optional CA pinning via
+UMEROS_TLS_CAFILE.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -23,6 +30,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import ssl
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
@@ -78,6 +86,51 @@ _PROVIDER_AUTH_CONFIG: Dict[str, Dict[str, Any]] = {
 # HTTP helper (importable by other cloud modules)
 # ---------------------------------------------------------------------------
 
+# TLS context for provider auth/token calls.
+#
+# Provider OAuth2 and REST calls carry sensitive credentials (API tokens,
+# refresh tokens, access tokens).  By default urllib uses the system trust
+# store with no explicit verification -- this helper enforces:
+#
+#   * CERT_REQUIRED -- the server MUST present a valid certificate
+#   * check_hostname=True -- the certificate MUST match the URL hostname
+#   * Optional CA pinning via UMEROS_TLS_CAFILE env var for explicit CAs
+#
+# This prevents a rogue CA / MITM from capturing provider tokens .
+# The context is NEVER unverified -- there is no fallback to CERT_NONE.
+
+
+_tls_ctx: Optional[ssl.SSLContext] = None
+
+
+def _tls_context() -> ssl.SSLContext:
+    """Return a strict SSL context for provider REST calls.
+
+    If ``UMEROS_TLS_CAFILE`` is set, only the certificates in that file are
+    trusted (explicit CA pinning).  Otherwise the system trust store is used
+    with full verification.  The context never disables verification.
+    """
+    global _tls_ctx
+    if _tls_ctx is not None:
+        return _tls_ctx
+
+    cafile = os.environ.get("UMEROS_TLS_CAFILE")
+    if cafile:
+        ctx = ssl.create_default_context(
+            purpose=ssl.Purpose.SERVER_AUTH, cafile=cafile
+        )
+        logger.info("TLS CA pinning enabled (UMEROS_TLS_CAFILE=%s)", cafile)
+    else:
+        ctx = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
+
+    # Enforce strict verification -- never relax
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    ctx.check_hostname = True
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+
+    _tls_ctx = ctx
+    return ctx
+
 
 def _http_request(
     method: str,
@@ -87,7 +140,12 @@ def _http_request(
     body: Optional[Dict[str, Any]] = None,
     timeout: int = 30,
 ) -> Dict[str, Any]:
-    """Make an HTTP request and return parsed JSON.
+    """Make an HTTPS request and return parsed JSON.
+
+    All requests use a strict TLS context (``CERT_REQUIRED``,
+    ``check_hostname=True``, minimum TLS 1.2).  If
+    ``UMEROS_TLS_CAFILE`` is set, only certificates in that file are
+    trusted (explicit CA pinning).
 
     Raises RuntimeError on non-2xx and ConnectionError on network failures.
     """
@@ -102,7 +160,7 @@ def _http_request(
     req = urllib.request.Request(url, data=data, headers=default_headers, method=method)
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout, context=_tls_context()) as resp:
             raw = resp.read().decode("utf-8")
             if not raw.strip():
                 return {}

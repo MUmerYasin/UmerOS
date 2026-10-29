@@ -11,7 +11,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""DMA channel wrapper: ``get()`` → list of DMA lines."""
+"""DMA channel wrapper: ``get()`` → list of DMA lines.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
+"""
+
+from __future__ import annotations
 from proc.utils import _read_file
 
 def get() -> list:

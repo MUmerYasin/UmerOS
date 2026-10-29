@@ -31,12 +31,14 @@ Author:  Umer OS Project
 License: GPL-3.0 (GNU General Public License Version 3)
 """
 
+
+
 from __future__ import annotations
 
 import logging
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 log = logging.getLogger("UmerOS.MemoryManager")
 
@@ -90,6 +92,7 @@ class MemoryManager:
         self._allocs:         Dict[int, Tuple[int, int, int]] = {}
         self._next_address:   int            = PAGE_SIZE  # skip null page (addr 0)
         self._lock:           threading.Lock = threading.Lock()
+        self._membox_pools:   Dict[str, Any] = {}
         log.info(
             "MemoryManager initialised: %d pages × %d B = %d MiB",
             self._total_pages, PAGE_SIZE, total_memory_bytes // (1024 * 1024),
@@ -99,7 +102,7 @@ class MemoryManager:
 
     def _pages_for(self, size: int) -> int:
         """Return the number of pages required to hold *size* bytes."""
-        return (size + PAGE_SIZE - 1) // PAGE_SIZE
+       return (size + PAGE_SIZE - 1) // PAGE_SIZE
 
     def _free_pages(self) -> int:
         """Count pages that are currently unallocated."""
@@ -180,49 +183,159 @@ class MemoryManager:
                 for i in range(n_pages):
                     live_addrs.add(base + i * PAGE_SIZE)
 
+
+
             orphans = [addr for addr in self._pages if addr not in live_addrs]
+
             for addr in orphans:
+
                 del self._pages[addr]
 
+
+
         if orphans:
+
             log.info("Compact: removed %d orphan page(s).", len(orphans))
+
         return len(orphans)
 
+
+
     def predict_usage(self, pid: int) -> int:
+
         """Return an AI-hinted byte estimate for a process's next allocation.
 
+
+
         Stub today: returns the current live byte count for pid × 1.2.
+
         TODO: QPU integration — replace with LSTM-based prefetch hints.
 
+
+
         Args:
+
             pid: Process ID.
 
+
+
         Returns:
+
             Estimated bytes the process will allocate next.
+
         """
+
         with self._lock:
+
             live = sum(
+
                 size
+
                 for _, (p, _, size) in self._allocs.items()
+
                 if p == pid
+
             )
+
         return int(live * 1.2) if live else PAGE_SIZE
 
+
+
     def stats(self) -> dict:
+
         """Return memory usage statistics.
 
+
+
         Returns:
+
             Dict with total_pages, free_pages, used_pages, live_allocations,
+
             and page_size fields.
+
         """
+
         with self._lock:
+
             n_allocs = len(self._allocs)
+
             used = sum(n for _, (_, n, _) in self._allocs.items())
+
         free = self._total_pages - 1 - used
+
         return {
+
             "total_pages":      self._total_pages,
+
             "free_pages":       max(free, 0),
+
             "used_pages":       used,
+
             "live_allocations": n_allocs,
+
             "page_size":        PAGE_SIZE,
+
         }
+
+
+
+    # ── Membox Static Pool API  ───────────────────────────
+
+
+
+    def create_membox_pool(self, name: str, block_size: int, total_blocks: int):
+
+        """Create a named fixed-size static Membox pool."""
+
+        from kernel.membox import MemboxPool
+
+        with self._lock:
+
+            if name in self._membox_pools:
+
+                raise ValueError(f"MemboxPool '{name}' already exists.")
+
+            pool = MemboxPool(block_size=block_size, total_blocks=total_blocks, name=name)
+
+            self._membox_pools[name] = pool
+
+            return pool
+
+
+
+    def get_membox_pool(self, name: str):
+
+        """Look up a named MemboxPool."""
+
+        with self._lock:
+
+            return self._membox_pools.get(name)
+
+
+
+    def list_membox_pools(self) -> Dict[str, dict]:
+
+        """Return status summary of all active Membox pools."""
+
+        with self._lock:
+
+            return {
+
+                name: {
+
+                    "block_size": pool.block_size,
+
+                    "total_blocks": pool.total_blocks,
+
+                    "free_blocks": pool.free_blocks,
+
+                    "allocated_blocks": pool.allocated_blocks,
+
+                    "total_bytes": pool.total_memory_bytes,
+
+                }
+
+                for name, pool in self._membox_pools.items()
+
+            }
+

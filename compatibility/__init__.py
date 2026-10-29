@@ -255,7 +255,39 @@ _IMPORT_PLAN = {
                              "GetEnvironmentStringsA",
                              "get_default_block", "get_default_var",
                              "build_block", "parse_path", "join_path",
-                             "set_errorlevel", "set_cmdcmdline"),
+                             "set_errorlevel", "set_cmdcmdline",
+                             # -- USMT / Win10 catalogue --
+                             "USMT_RECOGNISED", "USMT_USER_AND_SYSTEM",
+                             "USMT_USER_ONLY", "USMT_CONTEXTS",
+                             "CSIDL_ENV_ALIASES", "CSIDL_ENV_TEMPLATES",
+                             "WIN10_SYSTEM_VARS",
+                             # -- three-scope store --
+                             "ScopedEnvironment", "registry_path_for_scope",
+                             # -- resolution + inspection --
+                             "resolve_usmt_variable", "build_usmt_context",
+                             "is_recognised", "usmt_context_for",
+                             "cmd_set_output", "cmd_expand", "cmd_echo",
+                             "powershell_get_env", "powershell_env_listing",
+                             "cmd_set", "setx", "is_valid_variable_name",
+                             "search_path", "which"),
+    # ---- Known folders (KNOWNFOLDERID / CSIDL) ----
+    "knownfolders":          ("Csidl", "CsidlFlag", "KnownFolderFlag",
+                             "KnownFolder", "KnownFolderType",
+                             "KNOWN_FOLDERS", "KNOWN_FOLDERS_BY_GUID",
+                             "CSIDL_TO_KNOWN_FOLDER", "CSIDL_TEMPLATES",
+                             "SHELL_NAMESPACE_CSIDLS",
+                             "known_folder", "list_known_folders",
+                             "resolve_known_folder", "resolve_csidl",
+                             "csidl_to_known_folder"),
+    # ---- shell32.dll folder-path API ----
+    "win_shell32":          ("SHGetFolderPathA", "SHGetFolderPathW",
+                             "SHGetSpecialFolderPathA",
+                             "SHGetSpecialFolderPathW",
+                             "SHGetKnownFolderPath", "SHSetKnownFolderPath",
+                             "SHGetKnownFolderIDList",
+                             "set_known_folder_override",
+                             "clear_known_folder_overrides",
+                             "EXPORTS"),
 }
 
 

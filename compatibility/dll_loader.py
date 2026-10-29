@@ -67,6 +67,7 @@ from .win_user32 import EXPORTS as _USER32
 from .win_gdi32 import EXPORTS as _GDI32
 from .win_advapi32 import EXPORTS as _ADVAPI32
 from .win_ntdll import EXPORTS as _NTDLL
+from .win_shell32 import EXPORTS as _SHELL32
 
 HOST_LIBRARIES: Dict[str, ExportTable] = {
     "KERNEL32.DLL": _KERNEL32,
@@ -79,6 +80,8 @@ HOST_LIBRARIES: Dict[str, ExportTable] = {
     "advapi32.dll": _ADVAPI32,
     "NTDLL.DLL": _NTDLL,
     "ntdll.dll": _NTDLL,
+    "SHELL32.DLL": _SHELL32,
+    "shell32.dll": _SHELL32,
 }
 
 

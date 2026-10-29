@@ -230,7 +230,13 @@ class TestNetworkScanner(unittest.TestCase):
             "the real scanner no longer recognises a network/ module",
         )
         self.assertTrue(result.is_fully_compliant)
-        self.assertEqual(result.total_files_scanned, 6)
+        # 6 original modules + network/softbus/ (__init__, discovery, session),
+        # added externally after H181 closed this folder; the three new modules
+        # carry the canonical GPL comment block (declaration form #1), so the
+        # scanner accepts them - only the count moved.  They are LF, not CRLF,
+        # and carry no Author/License trailer, so ALL_SIX above still pins the
+        # original six for the trailer/CRLF invariants.
+        self.assertEqual(result.total_files_scanned, 9)
 
     def test_scanner_markers_cover_the_canonical_line(self):
         """Sanity: the canonical line contains a marker the scanner accepts."""

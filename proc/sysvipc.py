@@ -15,6 +15,9 @@
 
 Mirrors the Linux ``ipcs -a`` data exposed via /proc:
     message queues, semaphore arrays, and shared memory segments.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 from __future__ import annotations
 

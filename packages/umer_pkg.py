@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """
 Umer OS Package Manager (umer-pkg)  [TODAY]
 ===========================================
@@ -29,11 +42,12 @@ Package format (.umerpkg):
                      SIGNATURE => install is REFUSED (fail-closed).
 
 Author:  Umer OS Project
-License: GPL-3.0
+License: GPL-3.0 (GNU General Public License v3)
 """
 
-# Normalize licence header to canonical "License: GPL-3.0" (drop redundant
-# "GNU General Public License Version 3" parenthetical; repo is GPL-3.0 per LICENSE/setup.py/README).
+# Canonical H7 form: the full GPLv3 comment block above plus the
+# "License: GPL-3.0 (GNU General Public License v3)" trailer (repo is
+# GPL-3.0 per LICENSE/setup.py/README).
 from __future__ import annotations
 
 import base64  # Ed25519 signature (de)serialisation
@@ -42,6 +56,7 @@ import hmac  # constant-time hash compare
 import json
 import logging
 import os
+import posixpath
 import shutil
 import sys
 import tarfile
@@ -73,8 +88,14 @@ except Exception:  # pragma: no cover - standalone fallback
 
 # Python < 3.12 lacks the fail-closed `filter=` argument on extractall();
 # on those interpreters the explicit `_safe_tar_members` name check is the guard,
-# so extraction still refuses absolute / ".." members (H194).
+# so extraction still refuses absolute / ".." members .
 _FILTER_KW = {} if sys.version_info < (3, 12) else {"filter": "data"}
+
+# Mode bits that must never be restored from an archive: setuid/setgid/sticky
+# plus group/other write.  tarfile's filter="data" strips these on
+# Python >= 3.12; clamping them in the member guard keeps the same policy on
+# interpreters where filter= is unavailable.
+_UNSAFE_MODE_BITS = 0o7000 | 0o022
 
 # Real Ed25519 signing + pinned chain-of-trust.  `cryptography` is a
 # hard dependency for package authenticity; fall back to a clear error only if
@@ -128,14 +149,31 @@ log = logging.getLogger("UmerOS.UmerPkg")
 
 
 def _safe_tar_members(tar: tarfile.TarFile, prefix: str) -> "list[tarfile.TarInfo]":
-    """Select archive members under *prefix*, rejecting tar-slip (H194).
+    """Select archive members under *prefix*, rejecting tar-slip  and
+    link/mode attacks.
 
     Version-independent guard against CVE-2007-4559: in addition to the
     Python >= 3.12 ``filter="data"`` extractall filter, this explicitly drops
     any member whose name is absolute or contains a ``..`` segment, so a
     ``files/../../etc/x`` member can never escape the destination even on
     interpreters where ``extractall(filter=...)`` is unavailable.
+
+    H204 extends the same name-only-checked guarantee to the two classes the
+    name check cannot see, so the policy holds on every interpreter:
+
+    * **link members** - a symlink whose target is absolute, or resolves
+      outside *prefix*, is dropped (a ``files/link -> /etc/shadow`` member
+      would otherwise be materialized as a link and dereferenced on later
+      reads); a hardlink must name another selected regular member.  Links
+      are deliberately held to the stricter *prefix* containment rule, not
+      merely destination containment - ``build()`` cannot produce link
+      members at all, so no first-party package is affected.
+    * **special files** - device and FIFO members are always dropped.
+    * **mode bits** - setuid/setgid/sticky and group/other write are clamped
+      off the members we return, matching ``filter="data"``'s policy, so a
+      member mode is never applied verbatim.
     """
+    by_name = {m.name: m for m in tar.getmembers()}
     safe: "list[tarfile.TarInfo]" = []
     for m in tar.getmembers():
         name = m.name
@@ -143,10 +181,87 @@ def _safe_tar_members(tar: tarfile.TarFile, prefix: str) -> "list[tarfile.TarInf
             continue
         norm = name.replace("\\", "/")
         if norm.startswith("/") or os.path.isabs(name) or ".." in norm.split("/"):
-            log.warning("Refusing tar-slip member (H194): %s", name)
+            log.warning("Refusing tar-slip member : %s", name)
             continue
+        if m.isdir():
+            m.mode &= ~_UNSAFE_MODE_BITS
+            safe.append(m)
+            continue
+        if not m.isreg():
+            # Symlink / hardlink / device / FIFO: validate or drop.
+            if m.issym():
+                target = m.linkname.replace("\\", "/")
+                base = norm.rsplit("/", 1)[0] if "/" in norm else ""
+                # posixpath alone misses Windows drive-absolute targets
+                # ("C:/x"); os.path.isabs is platform-aware, posixpath
+                # catches the POSIX/UNC forms on every interpreter.
+                if posixpath.isabs(target) or os.path.isabs(target):
+                    log.warning("Refusing absolute symlink member : %s -> %s",
+                                name, m.linkname)
+                    continue
+                resolved = posixpath.normpath(posixpath.join(base, target))
+                inside = (resolved == prefix.rstrip("/")
+                          or resolved.startswith(prefix))
+                if not inside:
+                    log.warning("Refusing escaping symlink member : %s -> %s",
+                                name, m.linkname)
+                    continue
+            elif m.islnk():
+                other = by_name.get(m.linkname)
+                if other is None or not other.isreg() or not m.linkname.startswith(prefix):
+                    log.warning("Refusing hardlink member : %s -> %s",
+                                name, m.linkname)
+                    continue
+            else:
+                log.warning("Refusing special-file member : %s (type %r)",
+                            name, m.type)
+                continue
+            safe.append(m)
+            continue
+        m.mode &= ~_UNSAFE_MODE_BITS
         safe.append(m)
     return safe
+
+
+# ---------------------------------------------------------------------------
+# Version ordering (H199)
+# ---------------------------------------------------------------------------
+
+def _version_key(version: str) -> Optional[tuple]:
+    """Parse a dotted-decimal version string into a comparable tuple.
+
+    ``UmerPackageManager.update`` used to compare version *strings*
+    lexicographically (``"1.10.0" <= "1.9.0"`` is True), so genuine
+    upgrades were silently skipped and the remove+reinstall path could
+    mis-fire.  This parses the dotted-decimal forms the .umerpkg format
+    uses (``"1"``, ``"1.10"``, ``"v1.10.0"``) into an integer tuple that
+    orders correctly.
+
+    Args:
+        version: Raw version string from a manifest or the install DB.
+
+    Returns:
+        Tuple of ints (trailing zero components normalised away), or
+        ``None`` when the string is not a plain dotted-decimal version
+        (pre-release suffixes, build metadata, free text) — callers
+        must then refuse to guess an ordering.
+    """
+    text = str(version).strip()
+    if text[:1] in ("v", "V"):
+        text = text[1:]
+    if not text:
+        return None
+    key = []
+    for part in text.split("."):
+        # isdigit() alone accepts Unicode digits int() rejects (e.g. "²").
+        if not (part.isascii() and part.isdigit()):
+            return None
+        key.append(int(part))
+    # Normalise trailing zeros so "1.0", "1.0.0" and "1" order equal
+    # (tuple prefix ordering would otherwise make "1.0" < "1.0.0").
+    while key and key[-1] == 0:
+        key.pop()
+    return tuple(key)
 
 
 # Default locations
@@ -285,6 +400,11 @@ class UmerPackageManager:
         self._db: Dict[str, dict] = {}
         # Local registry: name → PackageManifest
         self._registry: Dict[str, PackageManifest] = {}
+        # Registry path index: manifest-declared name → archive path.
+        # Built by _scan_registry(); _find_in_registry resolves through it
+        # so a package name can never be confused with a similarly-named
+        # file on disk (H201).
+        self._registry_paths: Dict[str, str] = {}
         # Snapshot of the chain-of-trust anchor at construction time.
         # Keyed by signer id; only keys present here may authentically sign
         # packages this manager installs.
@@ -357,6 +477,7 @@ class UmerPackageManager:
                 try:
                     manifest = self._read_manifest(path)
                     self._registry[manifest.name] = manifest
+                    self._registry_paths[manifest.name] = path
                 except Exception as exc:  # noqa: BLE001
                     log.debug("Skipping '%s': %s", fname, exc)
 
@@ -544,11 +665,48 @@ class UmerPackageManager:
         return True
 
     def _find_in_registry(self, name: str) -> Optional[str]:
-        """Return the path to a package's .umerpkg file, or None."""
-        for fname in os.listdir(self._registry_dir):
-            if fname.startswith(name) and fname.endswith(".umerpkg"):
-                return os.path.join(self._registry_dir, fname)
-        return None
+        """Return the path to a package's .umerpkg file, or None.
+
+        Resolution is by the **manifest-declared** package name (exact
+        match through the index ``_scan_registry`` builds).  The previous
+        ``fname.startswith(name)`` prefix match let ``umer-core`` resolve
+        to ``umer-core-evil.umerpkg`` — an attacker-named archive
+        shadowing a real package (H201).
+
+        Archives dropped into the registry after the last scan are still
+        found, but only by an exact filename match: the stem must be
+        exactly ``name`` or ``<name>-<version>`` with a suffix that
+        actually parses as a dotted-decimal version (reusing
+        ``_version_key``, H199).  Among several versioned candidates the
+        highest wins, so the result stays deterministic.
+        """
+        indexed = self._registry_paths.get(name)
+        if indexed is not None and os.path.isfile(indexed):
+            return indexed
+
+        try:
+            entries = os.listdir(self._registry_dir)
+        except OSError as exc:
+            log.warning("Cannot list registry dir: %s", exc)
+            return None
+
+        suffix = ".umerpkg"
+        best: Optional[str] = None
+        best_key: Optional[tuple] = None
+        for fname in entries:
+            if not fname.endswith(suffix):
+                continue
+            stem = fname[: -len(suffix)]
+            candidate = os.path.join(self._registry_dir, fname)
+            if not os.path.isfile(candidate):
+                continue
+            if stem == name:
+                return candidate
+            if stem.startswith(name + "-"):
+                key = _version_key(stem[len(name) + 1:])
+                if key is not None and (best_key is None or key > best_key):
+                    best, best_key = candidate, key
+        return best
 
     def _install_single(self, name: str, pkg_path: str) -> bool:
         """Install a single package without resolving dependencies.
@@ -678,10 +836,33 @@ class UmerPackageManager:
 
             manifest = self._read_manifest(pkg_path)
             current  = self._db.get(name, {}).get("version", "0.0.0")
-            if manifest.version <= current:
+            if manifest.version == current:
+                # Byte-identical — same release, nothing to do (this is
+                # also the correct answer when neither side parses as a
+                # version at all).
                 log.info("'%s' is up-to-date (v%s).", name, current)
                 results[name] = True
                 continue
+            new_key = _version_key(manifest.version)
+            cur_key = _version_key(current)
+            if new_key is not None and cur_key is not None:
+                if new_key <= cur_key:
+                    # Same or older than installed — an update must never
+                    # silently downgrade (semantic compare, H199).
+                    log.info("'%s' is up-to-date (v%s).", name, current)
+                    results[name] = True
+                    continue
+            else:
+                # Ordering genuinely unknowable (a side is not
+                # dotted-decimal): re-install rather than silently skip,
+                # and say so loudly.  The old string compare both skipped
+                # valid upgrades and mis-ordered these; the reinstall is
+                # idempotent and sits behind the same capability gate.
+                log.warning(
+                    "'%s': cannot order versions %r -> %r (not"
+                    " dotted-decimal); reinstalling instead of skipping.",
+                    name, current, manifest.version,
+                )
 
             log.info("Updating '%s': %s → %s", name, current, manifest.version)
             # Remove then re-install for atomic update
@@ -791,6 +972,13 @@ class UmerPackageManager:
         for root, _, files in os.walk(source_dir):
             for fname in files:
                 full = os.path.join(root, fname)
+                if os.path.islink(full):
+                    # H204: never archive through a symlink.  Reading one
+                    # dereferences it, so a source tree containing
+                    # ``x -> /etc/shadow`` would embed that file's content
+                    # in the package (and its integrity hash).
+                    log.warning("Skipping symlinked source file : %s", full)
+                    continue
                 #  Use POSIX forward-slash arcnames.  tarfile normalises
                 # member names to "/" on read, so a Windows backslash arcname here
                 # would diverge from the name re-read during _verify_hash and break
@@ -874,6 +1062,109 @@ class UmerPackageManager:
             "in_registry": len(self._registry),
             "install_dir": self._install_dir,
         }
+
+
+# ── Selftest ──────────────────────────────────────────────────────────────────────────
+
+def _selftest() -> bool:
+    """Run basic self-tests for the package manager (H203).
+
+    Exercises the full lifecycle in a throwaway temp root: a signed
+    build verifies against a freshly pinned key, installs, and removes
+    cleanly; an unsigned build is refused fail-closed; and the
+    privileged lifecycle ops stay behind the capability gate.  Returns
+    True when every check passes; raises AssertionError otherwise.
+    """
+    print("[packages/umer_pkg] selftest …")
+    ok = True
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        src = root / "src"
+        src.mkdir()
+        (src / "hello.txt").write_text("hi", encoding="utf-8")
+        install_dir = root / "installed"
+        registry = root / "registry"
+        cache = root / "cache"
+
+        # Throwaway signer pinned through the public trust_key() API;
+        # the private key never leaves this function.
+        key = Ed25519PrivateKey.generate()
+        mgr = UmerPackageManager(
+            install_dir=str(install_dir),
+            registry_dir=str(registry),
+            cache_dir=str(cache),
+        )
+        mgr.trust_key("umer-selftest", key.public_key().public_bytes_raw())
+
+        # 1  a signed build verifies against the pinned chain-of-trust
+        archive = mgr.build(
+            source_dir=str(src),
+            manifest={
+                "name": "demo",
+                "version": "1.0.0",
+                "description": "selftest",
+            },
+            output_dir=str(registry),
+            signing_key=key,
+            key_id="umer-selftest",
+        )
+        assert mgr.verify_package(archive) is True
+        print("  [PASS] signed build verifies against the pinned key")
+
+        # 2  install lands the payload inside the install dir
+        assert mgr.install("demo") is True
+        landed = install_dir / "demo" / "files" / "hello.txt"
+        assert landed.read_text(encoding="utf-8") == "hi"
+        assert mgr.info("demo")["installed"] is True
+        print("  [PASS] install lands the payload inside the install dir")
+
+        # 3  remove clears the package and its DB entry
+        assert mgr.remove("demo") is True
+        assert not (install_dir / "demo").exists()
+        # info() still reports the (never-installed-again) registry
+        # entry, but must no longer claim the package is installed.
+        assert mgr.info("demo")["installed"] is False
+        assert mgr.remove("demo") is False
+        print("  [PASS] remove clears the package and the DB entry")
+
+        # 4  an unsigned build is refused fail-closed (verify AND install)
+        unsigned = mgr.build(
+            source_dir=str(src),
+            manifest={
+                "name": "unsigned",
+                "version": "1.0.0",
+                "description": "selftest",
+            },
+            output_dir=str(registry),
+        )
+        assert mgr.verify_package(unsigned) is False
+        assert mgr.install("unsigned", unsigned) is False
+        assert not (install_dir / "unsigned").exists()
+        print("  [PASS] unsigned package is refused fail-closed")
+
+        # 5  cap-gate: privileged lifecycle ops fail closed when strict
+        previous = gate.strict
+        try:
+            gate.set_strict(True)
+            try:
+                mgr.install("demo", archive)
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("install is not capability-gated")
+            try:
+                mgr.remove("demo")
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("remove is not capability-gated")
+        finally:
+            gate.set_strict(previous)
+        print("  [PASS] install / remove are capability-gated")
+
+    print("[packages/umer_pkg] selftest PASSED")
+    return ok
 
 
 # ─── Command-line interface (umer-pkg) ──────────────────────────────────────
@@ -1067,4 +1358,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 
 if __name__ == "__main__":
+    # Self-test first: fail fast if the subsystem regressed.
+    if not _selftest():
+        raise SystemExit(1)
     sys.exit(main())

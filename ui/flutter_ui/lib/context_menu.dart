@@ -2460,10 +2460,14 @@ class _MenuItemState extends State<_MenuItem> {
   }
 
   Widget _buildIcon(BuildContext context, ContextMenuAction action, Color color) {
-    return Icon(
-      action.icon,
-      size: M3Theme.iconSize,
-      color: color,
+    return SizedBox(
+      width: M3Theme.iconSize,
+      height: M3Theme.iconSize,
+      child: Icon(
+        action.icon,
+        size: M3Theme.iconSize,
+        color: color,
+      ),
     );
   }
 
@@ -3025,10 +3029,10 @@ class RightClickArea extends StatelessWidget {
         onSortBySize: () {},
         onSortByType: () {},
         onSortByDate: () {},
-        onIconSmall: () {},
-        onIconMedium: () {},
-        onIconLarge: () {},
-        onIconExtraLarge: () {},
+        onIconSmall: () => appState.setIconSizeIndex(0),
+        onIconMedium: () => appState.setIconSizeIndex(1),
+        onIconLarge: () => appState.setIconSizeIndex(2),
+        onIconExtraLarge: () => appState.setIconSizeIndex(3),
         onCopy: () {},
         onCut: () {},
         onPaste: () {},

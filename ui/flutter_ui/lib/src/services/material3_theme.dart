@@ -166,7 +166,7 @@ class M3Theme {
   static const double itemHeight = 32.0;
   static const double itemPaddingH = 12.0;
   static const double itemPaddingV = 4.0;
-  static const double iconSize = 16.0;
+  static const double iconSize = 18.0;
   static const double separatorHeight = 1.0;
   static const double submenuArrowSize = 14.0;
 
