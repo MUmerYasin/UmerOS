@@ -49,6 +49,7 @@ import '../apps/var_manager_app.dart';
 import '../apps/usr_manager_app.dart';
 import '../apps/tools_manager_app.dart';
 import '../apps/tmp_manager_app.dart';
+import '../apps/srv_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -195,6 +196,15 @@ abstract final class AppRegistry {
       color: Colors.amber.shade700,
       category: AppCategory.system,
       builder: (_) => const TmpManagerApp(),
+    ),
+    AppDefinition(
+      id: 'srv',
+      title: 'Srv Manager',
+      description: 'Manage /srv services, protocols, permissions and backups.',
+      icon: Icons.dns,
+      color: Colors.indigo.shade700,
+      category: AppCategory.system,
+      builder: (_) => const SrvManagerApp(),
     ),
 
     // ── Tools ─────────────────────────────────────────────────────
