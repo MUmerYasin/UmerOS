@@ -46,6 +46,7 @@ import '../apps/text_editor_app.dart';
 import '../apps/python_interpreter_app.dart';
 import '../apps/virt_kvm_app.dart';
 import '../apps/var_manager_app.dart';
+import '../apps/usr_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -278,6 +279,15 @@ abstract final class AppRegistry {
       color: Colors.indigo,
       category: AppCategory.development,
       builder: (_) => const VirtKvmApp(),
+    ),
+    AppDefinition(
+      id: 'usr',
+      title: 'Usr Manager',
+      description: 'Manage /usr syscalls, io_uring, seccomp, libraries and more.',
+      icon: Icons.code,
+      color: Colors.deepPurple,
+      category: AppCategory.development,
+      builder: (_) => const UsrManagerApp(),
     ),
     AppDefinition(
       id: 'packages',
