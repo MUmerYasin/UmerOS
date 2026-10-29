@@ -50,6 +50,7 @@ import '../apps/usr_manager_app.dart';
 import '../apps/tools_manager_app.dart';
 import '../apps/tmp_manager_app.dart';
 import '../apps/srv_manager_app.dart';
+import '../apps/sources_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -262,6 +263,15 @@ abstract final class AppRegistry {
       color: Colors.deepOrange,
       category: AppCategory.tools,
       builder: (_) => const DocsApp(),
+    ),
+    AppDefinition(
+      id: 'sources',
+      title: 'Sources Manager',
+      description: 'Manage /sources signals, glossary, bibliography and docs.',
+      icon: Icons.library_books,
+      color: Colors.brown.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const SourcesManagerApp(),
     ),
 
     // ── Development ───────────────────────────────────────────────
