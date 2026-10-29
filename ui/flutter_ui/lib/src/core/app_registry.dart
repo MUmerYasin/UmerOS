@@ -45,6 +45,7 @@ import '../apps/terminal_app.dart';
 import '../apps/text_editor_app.dart';
 import '../apps/python_interpreter_app.dart';
 import '../apps/virt_kvm_app.dart';
+import '../apps/var_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -164,6 +165,15 @@ abstract final class AppRegistry {
       color: Colors.blue,
       category: AppCategory.system,
       builder: (_) => const CloudApp(),
+    ),
+    AppDefinition(
+      id: 'var',
+      title: 'Var Manager',
+      description: 'Manage /var logs, cache, spool, mail and directories.',
+      icon: Icons.folder_special,
+      color: Colors.brown,
+      category: AppCategory.system,
+      builder: (_) => const VarManagerApp(),
     ),
 
     // ── Tools ─────────────────────────────────────────────────────
