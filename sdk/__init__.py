@@ -43,6 +43,7 @@ def _try_import(module_name: str, names: tuple[str, ...]) -> None:
 for _mod, _names in (
     ("app_template", ("UmerApp",)),
     ("build_tool", ("BuildTool",)),
+    ("validator", ("AppValidator", "ValidationResult")),
 ):
     _try_import(_mod, _names)
 

@@ -52,6 +52,7 @@ import '../apps/tools_manager_app.dart';
 import '../apps/tmp_manager_app.dart';
 import '../apps/srv_manager_app.dart';
 import '../apps/sources_manager_app.dart';
+import '../apps/sdk_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -320,6 +321,15 @@ abstract final class AppRegistry {
       color: Colors.indigo,
       category: AppCategory.development,
       builder: (_) => const VirtKvmApp(),
+    ),
+    AppDefinition(
+      id: 'sdk',
+      title: 'SDK Manager',
+      description: 'Scaffold, build, validate and package UmerOS apps.',
+      icon: Icons.code,
+      color: Colors.deepPurple,
+      category: AppCategory.development,
+      builder: (_) => const SdkManagerApp(),
     ),
     AppDefinition(
       id: 'usr',
