@@ -48,6 +48,7 @@ import '../apps/virt_kvm_app.dart';
 import '../apps/var_manager_app.dart';
 import '../apps/usr_manager_app.dart';
 import '../apps/tools_manager_app.dart';
+import '../apps/tmp_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -185,6 +186,15 @@ abstract final class AppRegistry {
       color: Colors.grey.shade700,
       category: AppCategory.system,
       builder: (_) => const ToolsManagerApp(),
+    ),
+    AppDefinition(
+      id: 'tmp',
+      title: 'Tmp Manager',
+      description: 'Manage /tmp files, sockets, locks, reaper and tmpfs.',
+      icon: Icons.folder_open,
+      color: Colors.amber.shade700,
+      category: AppCategory.system,
+      builder: (_) => const TmpManagerApp(),
     ),
 
     // ── Tools ─────────────────────────────────────────────────────
