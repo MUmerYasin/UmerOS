@@ -54,6 +54,7 @@ import '../apps/srv_manager_app.dart';
 import '../apps/sources_manager_app.dart';
 import '../apps/sdk_manager_app.dart';
 import '../apps/scripts_manager_app.dart';
+import '../apps/sbin_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -191,6 +192,15 @@ abstract final class AppRegistry {
       color: Colors.grey.shade700,
       category: AppCategory.system,
       builder: (_) => const ToolsManagerApp(),
+    ),
+    AppDefinition(
+      id: 'sbin',
+      title: 'Sbin Manager',
+      description: 'System binaries: boot, filesystem, modules, network, mount.',
+      icon: Icons.terminal,
+      color: Colors.deepOrange.shade700,
+      category: AppCategory.system,
+      builder: (_) => const SbinManagerApp(),
     ),
     AppDefinition(
       id: 'tmp',
