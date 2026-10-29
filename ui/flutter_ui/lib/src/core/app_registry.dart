@@ -47,6 +47,7 @@ import '../apps/python_interpreter_app.dart';
 import '../apps/virt_kvm_app.dart';
 import '../apps/var_manager_app.dart';
 import '../apps/usr_manager_app.dart';
+import '../apps/tools_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -175,6 +176,15 @@ abstract final class AppRegistry {
       color: Colors.brown,
       category: AppCategory.system,
       builder: (_) => const VarManagerApp(),
+    ),
+    AppDefinition(
+      id: 'tools',
+      title: 'Tools Manager',
+      description: 'System info, disk, network, processes and installer.',
+      icon: Icons.build,
+      color: Colors.grey.shade700,
+      category: AppCategory.system,
+      builder: (_) => const ToolsManagerApp(),
     ),
 
     // ── Tools ─────────────────────────────────────────────────────
