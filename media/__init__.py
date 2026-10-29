@@ -110,6 +110,29 @@ from .udisks2 import (
     get_removable_media_info,
 )
 
+# Network media
+from .network import (
+    ShareProtocol,
+    NetworkShare,
+    ShareCredentials,
+    ShareStatus,
+    NetworkShareManager,
+    NetworkMountResult,
+    mount_share,
+    unmount_share,
+    is_share_mounted,
+    list_mounted_shares,
+    NetworkBrowser,
+    DiscoveredShare,
+    discover_smb_shares,
+    discover_nfs_exports,
+    CredentialStore,
+    NetworkCredential,
+    save_credential,
+    load_credential,
+    delete_credential,
+)
+
 __all__ = [
     # media_types
     "MediaType",
@@ -183,6 +206,26 @@ __all__ = [
     "UDisks2Object",
     "UDisks2ObjectType",
     "get_removable_media_info",
+    # network
+    "ShareProtocol",
+    "NetworkShare",
+    "ShareCredentials",
+    "ShareStatus",
+    "NetworkShareManager",
+    "NetworkMountResult",
+    "mount_share",
+    "unmount_share",
+    "is_share_mounted",
+    "list_mounted_shares",
+    "NetworkBrowser",
+    "DiscoveredShare",
+    "discover_smb_shares",
+    "discover_nfs_exports",
+    "CredentialStore",
+    "NetworkCredential",
+    "save_credential",
+    "load_credential",
+    "delete_credential",
 ]
 
 

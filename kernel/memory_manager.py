@@ -102,7 +102,7 @@ class MemoryManager:
 
     def _pages_for(self, size: int) -> int:
         """Return the number of pages required to hold *size* bytes."""
-       return (size + PAGE_SIZE - 1) // PAGE_SIZE
+        return (size + PAGE_SIZE - 1) // PAGE_SIZE
 
     def _free_pages(self) -> int:
         """Count pages that are currently unallocated."""
