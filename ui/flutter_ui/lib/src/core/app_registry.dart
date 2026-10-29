@@ -55,6 +55,7 @@ import '../apps/sources_manager_app.dart';
 import '../apps/sdk_manager_app.dart';
 import '../apps/scripts_manager_app.dart';
 import '../apps/sbin_manager_app.dart';
+import '../apps/root_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -201,6 +202,15 @@ abstract final class AppRegistry {
       color: Colors.deepOrange.shade700,
       category: AppCategory.system,
       builder: (_) => const SbinManagerApp(),
+    ),
+    AppDefinition(
+      id: 'root',
+      title: 'Root Manager',
+      description: 'Manage /root home, dotfiles, users, mail and safety.',
+      icon: Icons.home,
+      color: Colors.red.shade700,
+      category: AppCategory.system,
+      builder: (_) => const RootManagerApp(),
     ),
     AppDefinition(
       id: 'tmp',
