@@ -375,6 +375,42 @@ class IBMQuantumProvider(BackendProvider):
         self._backends_cache: List[BackendTarget] = []
         self._backends_cache_ts: float = 0.0
 
+    # -- Properties -----------------------------------------------------------
+
+    @property
+    def name(self) -> str:
+        """Canonical provider name."""
+        return "ibm"
+
+    @property
+    def version(self) -> str:
+        """API version string."""
+        return "1.0"
+
+    # -- Abstract method implementations --------------------------------------
+
+    def backend_properties(self, name: str) -> BackendProperties:
+        """Return calibration and error properties for a backend."""
+        return self.get_backend_properties(name)
+
+    def backend_status(self, name: str) -> BackendStatus:
+        """Return the current status of a backend."""
+        return self.get_backend_status(name)
+
+    def cancel_job(self, job_id: str) -> None:
+        """Cancel a queued or running job."""
+        try:
+            self._api_delete(f"/jobs/{job_id}")
+            logger.info("Cancelled IBM job %s", job_id)
+        except Exception as e:
+            logger.warning("Failed to cancel IBM job %s: %s", job_id, e)
+
+    def refresh_backends(self) -> None:
+        """Refresh the local cache of available backends."""
+        self._backends_cache = []
+        self._backends_cache_ts = 0.0
+        self.backends()
+
     # -- BackendProvider interface --------------------------------------------
 
     def authenticate(self) -> None:
