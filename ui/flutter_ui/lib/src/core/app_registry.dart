@@ -53,6 +53,7 @@ import '../apps/tmp_manager_app.dart';
 import '../apps/srv_manager_app.dart';
 import '../apps/sources_manager_app.dart';
 import '../apps/sdk_manager_app.dart';
+import '../apps/scripts_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -330,6 +331,15 @@ abstract final class AppRegistry {
       color: Colors.deepPurple,
       category: AppCategory.development,
       builder: (_) => const SdkManagerApp(),
+    ),
+    AppDefinition(
+      id: 'scripts',
+      title: 'Scripts Manager',
+      description: 'Run reachability, README drift, deps and endpoint checks.',
+      icon: Icons.terminal,
+      color: Colors.grey.shade800,
+      category: AppCategory.development,
+      builder: (_) => const ScriptsManagerApp(),
     ),
     AppDefinition(
       id: 'usr',

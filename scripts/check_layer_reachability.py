@@ -69,11 +69,11 @@ REFERENCE: Set[str] = {
     "ai", "backup", "bin", "cloud", "compatibility", "dev", "drivers", "etc",
     "feedback", "fs", "home", "initrd", "installer", "legal",
     "media", "mnt", "network", "opt", "proc", "quantum", "root", "sbin",
-    "sdk", "security", "sources", "srv", "tmp", "ui", "usr", "var",
+    "sdk", "security", "sources", "srv", "tmp", "tools", "ui", "usr", "var",
     "virt",
 }
 # Reference material that is a plain script directory, not an importable package.
-REFERENCE_SCRIPT_DIRS: Set[str] = {"examples", "tools"}
+REFERENCE_SCRIPT_DIRS: Set[str] = {"examples"}
 
 # Marker every reference package's __init__.py must carry, so a reader opening
 # any corpus package sees the classification immediately.  Applied by
