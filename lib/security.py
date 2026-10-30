@@ -61,7 +61,7 @@ UmerOS ships the same set as stub metadata so the security subsystem
 (``security/`` + ``kernel/cred.py``) can ask "is PAM module X available?"
 without needing the C code.
 
-Fail-open modules:
+Fail-open modules (H150):
 -------------------------
 ``pam_permit.so`` unconditionally *succeeds*, so selecting it for an
 authentication or password stack fails open.  Such modules are flagged with

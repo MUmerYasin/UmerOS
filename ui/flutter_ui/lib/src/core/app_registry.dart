@@ -59,6 +59,7 @@ import '../apps/sbin_manager_app.dart';
 import '../apps/root_manager_app.dart';
 import '../apps/proc_manager_app.dart';
 import '../apps/mnt_manager_app.dart';
+import '../apps/lib_manager_app.dart';
 import '../apps/pqc_manager_app.dart';
 import '../apps/media_manager_app.dart';
 
@@ -234,6 +235,15 @@ abstract final class AppRegistry {
       color: Colors.brown.shade700,
       category: AppCategory.system,
       builder: (_) => const MntManagerApp(),
+    ),
+    AppDefinition(
+      id: 'lib',
+      title: 'Library Manager',
+      description: 'Manage /lib shared libraries, kernel modules, linker and firmware.',
+      icon: Icons.library_books,
+      color: Colors.brown.shade700,
+      category: AppCategory.system,
+      builder: (_) => const LibManagerApp(),
     ),
     AppDefinition(
       id: 'media',

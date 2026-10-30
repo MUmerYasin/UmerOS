@@ -24,7 +24,7 @@
 
 ## Status
 - **Pointer: `quantum/` COMPLETE** (H152, H215–H225). H225 added `quantum/tls.py` — one strict TLS policy (`CERT_REQUIRED` + `check_hostname` + TLS1.2 floor + optional `UMEROS_TLS_CAFILE`, fail-closed) now used by all **22** provider REST call sites; `cloud/auth.py::_tls_context` is a thin alias.
-- **Next: `root/` H229** (💭 `root/passwd.py:136` `PasswdManager.write` writes the `.bak` with default umask perms — a world-readable copy of `/etc/passwd`), then H230–H231, `sbin/` H232–H235. H226 ✅ (canonical GPL header across 9 `root/*.py` + `README.md`; the row's "Apache-2.0/`Licence`" framing was stale — the real defect was the spelled-out `Version 3`). H228 ✅ (root home created 0700 + `.forward` written 0600 via `os.open`; `HOME_MODE`/`FORWARD_MODE` constants).
+- **Next: `root/` H230** (💭 `root/home.py:384-393` `RootHomeManager.ensure` chmods through a symlink and the CLI accepts an arbitrary path), then H231, `sbin/` H232–H235. H226 ✅ (canonical GPL header across 9 `root/*.py` + `README.md`; the row's "Apache-2.0/`Licence`" framing was stale — the real defect was the spelled-out `Version 3`). H228 ✅ (root home created 0700 + `.forward` written 0600 via `os.open`). H229 ✅ (`.bak` written 0600 via `_write_backup`; **found a real bug — `os.write` is text-mode on Windows, so it corrupted CRLF backups; fixed with `O_BINARY` in both `passwd._write_backup` and `mail._write_forward`**).
 - Done: `compatibility/ core/ dev/ drivers/ etc/ feedback/ fs/ home/ initrd/ installer/ kernel/ legal/ lib/ liboqs/ media/ mnt/ network/ opt/ packages/ proc/ quantum/`.
 - After `root/`: `sbin/`, then scripts/sdk/security/sources/srv/tmp/tools/ui/usr/var.
 - ⚠ H62 regression: `drivers/` has 0/75 `[TODAY]` labels (boot 23, bin 44, kernel 6, core 1, etc 81 still fine). Re-apply on request.
@@ -44,7 +44,7 @@
 - mnt 🟢H166–176 | network 🟢H177–182 | opt 🟢H183–193,🟡H200
 - packages 🟢H194–204 | proc 🟢H205–211,💭H212–214
 - quantum 🟢H152,H215–217,H221,🟡H218✅H219✅H220✅,💭H222✅H223✅H224✅H225✅ — **COMPLETE**
-- root 🟢H227,🟡H226✅H228✅,💭H229–231 | sbin 🟢H233,🟡H232,💭H234,H235
+- root 🟢H227,🟡H226✅H228✅,💭H229✅,H230,H231 | sbin 🟢H233,🟡H232,💭H234,H235
 - scripts 🟡H236,H237,💭H238,H239 | sdk 🟡H240,H241,💭H242,H243
 - security 🟢H17,H244–246,🟡H247–254,💭H255–258 | sources 🟡H259–262,💭H263,H264
 - srv 🟢H265–268,H271,H273,🟡H269,H270,H272,💭H274–277

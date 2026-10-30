@@ -265,7 +265,13 @@ class RootMailForwarder:
         with the target mode, and re-chmod-ed to cover a pre-existing file
         (``os.open``'s mode argument only applies on creation).
         """
-        fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, FORWARD_MODE)
+        fd = os.open(
+            self.path,
+            # O_BINARY keeps Windows from rewriting "\n" as "\r\n": a Unix
+            # ``.forward`` should hold the bytes we asked for.
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0),
+            FORWARD_MODE,
+        )
         try:
             os.write(fd, text.encode("utf-8"))
         finally:
