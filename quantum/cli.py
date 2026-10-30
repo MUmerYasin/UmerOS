@@ -27,14 +27,34 @@ Command-line interface for quantum computing operations:
 Usage:
     python -m quantum.cli <command> [options]
     python quantum/cli.py <command> [options]
+
+Credentials
+-----------
+Provider tokens are **not** meant to be passed on the command line, where they
+end up in ``ps`` output, ``/proc/<pid>/cmdline`` and shell history.  Use one of:
+
+    --token-file PATH     read the token from a credential file
+    --token-stdin         read one line from stdin
+    --token-prompt        interactive prompt (input not echoed)
+    UMEROS_IBM_TOKEN / UMEROS_IONQ_API_KEY / UMEROS_BRAKET_ACCESS_KEY /
+    UMEROS_RIGETTI_API_KEY                        environment variables
+
+``--token`` still works for backward compatibility but is deprecated and emits
+a warning.  The token value is never printed.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
+import os
 import sys
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
@@ -121,6 +141,73 @@ def cmd_providers(args: argparse.Namespace) -> int:
     return 0
 
 
+#: Environment variables that can carry a provider token, keyed by provider.
+_PROVIDER_TOKEN_ENV = {
+    "ibm": "UMEROS_IBM_TOKEN",
+    "ibm_quantum": "UMEROS_IBM_TOKEN",
+    "ionq": "UMEROS_IONQ_API_KEY",
+    "braket": "UMEROS_BRAKET_ACCESS_KEY",
+    "aws_braket": "UMEROS_BRAKET_ACCESS_KEY",
+    "rigetti": "UMEROS_RIGETTI_API_KEY",
+    "qcs": "UMEROS_RIGETTI_API_KEY",
+}
+
+
+def _resolve_provider_token(
+    args: argparse.Namespace, provider_name: str
+) -> Optional[str]:
+    """Resolve a provider token without putting it on the command line.
+
+    Preference order (explicit flags beat the environment, and the secure
+    channels beat the deprecated one):
+
+    1. ``--token-file``   -- read the token from a credential file
+    2. ``--token-stdin``  -- read one line from stdin
+    3. ``--token-prompt`` -- interactive :func:`getpass` prompt (no echo)
+    4. ``--token``        -- DEPRECATED: argv is visible in ``ps``,
+       ``/proc/<pid>/cmdline`` and shell history; accepted with a warning
+    5. the provider's environment variable (see ``_PROVIDER_TOKEN_ENV``)
+
+    The token value is never printed or logged.
+    """
+    token_file = getattr(args, "token_file", None)
+    if token_file:
+        try:
+            value = Path(token_file).read_text(encoding="utf-8").strip()
+        except OSError as exc:
+            print(
+                f"Error: cannot read token file {token_file}: {exc}",
+                file=sys.stderr,
+            )
+            return None
+        return value or None
+
+    if getattr(args, "token_stdin", False):
+        return sys.stdin.readline().strip() or None
+
+    if getattr(args, "token_prompt", False):
+        return getpass.getpass(f"{provider_name} API token: ").strip() or None
+
+    env_name = _PROVIDER_TOKEN_ENV.get(provider_name)
+
+    legacy = getattr(args, "token", None)
+    if legacy:
+        print(
+            "Warning: --token exposes the credential in process listings and "
+            "shell history; prefer --token-file, --token-stdin, --token-prompt "
+            f"or {env_name or 'the provider environment variable'}.",
+            file=sys.stderr,
+        )
+        return legacy
+
+    if env_name:
+        value = os.environ.get(env_name)
+        if value:
+            return value.strip()
+
+    return None
+
+
 def cmd_backends(args: argparse.Namespace) -> int:
     """List backends for a provider."""
     provider_name = args.provider.lower()
@@ -128,7 +215,8 @@ def cmd_backends(args: argparse.Namespace) -> int:
     if provider_name in ("ibm", "ibm_quantum"):
         try:
             from .providers.ibm_provider import IBMQuantumProvider
-            p = IBMQuantumProvider(api_token=args.token)
+            p = IBMQuantumProvider(
+                api_token=_resolve_provider_token(args, provider_name))
             backends = p.list_backends()
             print(f"IBM Quantum Backends:")
             for b in backends:
@@ -141,7 +229,8 @@ def cmd_backends(args: argparse.Namespace) -> int:
     elif provider_name == "ionq":
         try:
             from .providers.ionq_provider import IonQProvider
-            p = IonQProvider(api_key=args.token)
+            p = IonQProvider(
+                api_key=_resolve_provider_token(args, provider_name))
             backends = p.list_backends()
             print(f"IonQ Backends:")
             for b in backends:
@@ -251,7 +340,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
 
         if provider_name in ("ibm", "ibm_quantum"):
             from .providers.ibm_provider import IBMQuantumProvider
-            p = IBMQuantumProvider(api_token=args.token)
+            p = IBMQuantumProvider(
+                api_token=_resolve_provider_token(args, provider_name))
             backend = p.get_backend(args.backend or "ibm_brisbane")
             job = backend.run(circuit, shots=shots)
             result = job.result()
@@ -260,7 +350,8 @@ def cmd_execute(args: argparse.Namespace) -> int:
 
         elif provider_name == "ionq":
             from .providers.ionq_provider import IonQProvider
-            p = IonQProvider(api_key=args.token)
+            p = IonQProvider(
+                api_key=_resolve_provider_token(args, provider_name))
             backend = p.get_backend(args.backend or "ionq_harmony")
             job = backend.run(circuit, shots=shots)
             result = job.result()
@@ -303,7 +394,8 @@ def cmd_jobs(args: argparse.Namespace) -> int:
     try:
         if provider_name in ("ibm", "ibm_quantum"):
             from .providers.ibm_provider import IBMQuantumProvider
-            p = IBMQuantumProvider(api_token=args.token)
+            p = IBMQuantumProvider(
+                api_token=_resolve_provider_token(args, provider_name))
             session = p.open_session()
             jobs = session.list_jobs(status=args.status)
             print(f"IBM Quantum Jobs:")
@@ -312,7 +404,8 @@ def cmd_jobs(args: argparse.Namespace) -> int:
 
         elif provider_name == "ionq":
             from .providers.ionq_provider import IonQProvider
-            p = IonQProvider(api_key=args.token)
+            p = IonQProvider(
+                api_key=_resolve_provider_token(args, provider_name))
             session = p.open_session()
             jobs = session.list_jobs(status=args.status)
             print(f"IonQ Jobs:")
@@ -490,7 +583,10 @@ def build_parser() -> argparse.ArgumentParser:
     # backends
     p_backends = subparsers.add_parser("backends", help="List backends")
     p_backends.add_argument("--provider", "-p", required=True, help="Provider name")
-    p_backends.add_argument("--token", "-t", help="API token")
+    p_backends.add_argument("--token", "-t", help="API token (DEPRECATED: visible in ps and shell history)")
+    p_backends.add_argument("--token-file", help="Read the API token from this file")
+    p_backends.add_argument("--token-stdin", action="store_true", help="Read the API token from stdin")
+    p_backends.add_argument("--token-prompt", action="store_true", help="Prompt for the API token (no echo)")
     p_backends.add_argument("--region", "-r", help="AWS region")
 
     # transpile
@@ -505,14 +601,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_exec.add_argument("--provider", "-p", required=True, help="Provider name")
     p_exec.add_argument("--backend", "-b", help="Backend name")
     p_exec.add_argument("--shots", "-s", type=int, help="Number of shots")
-    p_exec.add_argument("--token", "-t", help="API token")
+    p_exec.add_argument("--token", "-t", help="API token (DEPRECATED: visible in ps and shell history)")
+    p_exec.add_argument("--token-file", help="Read the API token from this file")
+    p_exec.add_argument("--token-stdin", action="store_true", help="Read the API token from stdin")
+    p_exec.add_argument("--token-prompt", action="store_true", help="Prompt for the API token (no echo)")
     p_exec.add_argument("--region", "-r", help="AWS region")
 
     # jobs
     p_jobs = subparsers.add_parser("jobs", help="List jobs")
     p_jobs.add_argument("--provider", "-p", required=True, help="Provider name")
     p_jobs.add_argument("--status", help="Filter by status")
-    p_jobs.add_argument("--token", "-t", help="API token")
+    p_jobs.add_argument("--token", "-t", help="API token (DEPRECATED: visible in ps and shell history)")
+    p_jobs.add_argument("--token-file", help="Read the API token from this file")
+    p_jobs.add_argument("--token-stdin", action="store_true", help="Read the API token from stdin")
+    p_jobs.add_argument("--token-prompt", action="store_true", help="Prompt for the API token (no echo)")
 
     # qrng
     p_qrng = subparsers.add_parser("qrng", help="Generate random numbers")

@@ -35,7 +35,8 @@ import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/games_app.dart';
 import '../apps/network_manager_app.dart';
-import '../apps/package_manager_app.dart';
+import '../apps/opt_manager_app.dart';
+import '../apps/packages_manager_app.dart';
 import '../apps/power_governor_app.dart';
 import '../apps/quantum_app.dart';
 import '../apps/security_app.dart';
@@ -387,7 +388,16 @@ abstract final class AppRegistry {
       icon: Icons.inventory_2,
       color: Colors.purple,
       category: AppCategory.development,
-      builder: (_) => const PackageManagerApp(),
+      builder: (_) => const PackagesManagerApp(),
+    ),
+    AppDefinition(
+      id: 'opt',
+      title: 'Opt Manager',
+      description: 'Manage /opt add-on software, FHS, environment and services.',
+      icon: Icons.folder_special,
+      color: Colors.orange.shade700,
+      category: AppCategory.system,
+      builder: (_) => const OptManagerApp(),
     ),
     AppDefinition(
       id: 'quantum',

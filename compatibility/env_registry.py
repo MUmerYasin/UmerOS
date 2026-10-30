@@ -74,6 +74,9 @@ SCOPE_KEYS: Dict[str, str] = {
 #: installers routinely add ``%ProgramFiles%\\MyApp\\bin`` to it.
 EXPANDABLE_BY_DEFAULT: Tuple[str, ...] = ("Path",)
 
+#: The registry value types that can hold an environment variable.
+_STRING_TYPES = (RegType.SZ, RegType.EXPAND_SZ)
+
 
 @dataclass
 class EnvEntry:
@@ -152,6 +155,28 @@ class EnvRegistryStore:
     def _get(self, path: str, name: str):
         return self.registry.get_value(path, name)
 
+    def _find(self, path: str, name: str) -> Tuple[Optional[str], object]:
+        """Locate a value by name, case-insensitively.
+
+        Environment-variable names are case-insensitive, but the
+        registry preserves the spelling they were defined with, so the
+        *stored* name is returned alongside the value.
+
+        Returns ``(None, None)`` when the name is not present.
+        """
+        exact = self._get(path, name)
+        if exact is not None:
+            return name, exact
+        target = name.upper()
+        try:
+            values = self._enum(path)
+        except Exception:    # noqa: BLE001 -- best effort
+            return None, None
+        for value in values:
+            if value.name.upper() == target:
+                return value.name, value
+        return None, None
+
     def _set(self, path: str, name: str, data: bytes, type_: int):
         return self.registry.set_value(path, name, data, type_)
 
@@ -163,7 +188,11 @@ class EnvRegistryStore:
     # ------------------------------------------------------------------
 
     def read(self, scope: str) -> Dict[str, EnvEntry]:
-        """Every variable stored in ``scope``, keyed by upper-case name."""
+        """Every variable stored in ``scope``, keyed by upper-case name.
+
+        Values that are not strings (``REG_DWORD``, ``REG_BINARY``, ...)
+        are not environment variables and are skipped.
+        """
         path = self.key_for(scope)
         out: Dict[str, EnvEntry] = {}
         try:
@@ -172,10 +201,11 @@ class EnvRegistryStore:
             log.debug("cannot enumerate %s: %s", path, exc)
             return out
         for value in values:
+            if value.type not in _STRING_TYPES:
+                continue
             try:
                 raw = value.as_string()
             except (ValueError, UnicodeDecodeError):
-                # REG_DWORD / REG_BINARY are not environment variables.
                 continue
             expand = value.type == RegType.EXPAND_SZ
             out[value.name.upper()] = EnvEntry(
@@ -183,17 +213,21 @@ class EnvRegistryStore:
         return out
 
     def get(self, scope: str, name: str) -> Optional[EnvEntry]:
-        """One variable from ``scope``, or ``None``."""
+        """One variable from ``scope``, or ``None``.
+
+        The lookup is case-insensitive, matching Windows' variable-name
+        semantics.
+        """
         path = self.key_for(scope)
-        value = self._get(path, name)
-        if value is None:
+        actual_name, value = self._find(path, name)
+        if value is None or value.type not in _STRING_TYPES:
             return None
         try:
             raw = value.as_string()
         except (ValueError, UnicodeDecodeError):
             return None
         return EnvEntry(
-            name=name,
+            name=actual_name or name,
             value=raw,
             raw=raw,
             expand=value.type == RegType.EXPAND_SZ,
@@ -229,29 +263,37 @@ class EnvRegistryStore:
         that already contains a ``%VAR%`` reference), ``REG_SZ``
         otherwise.
 
+        The lookup is case-insensitive and an existing variable keeps
+        the spelling it was defined with, so redefining ``Path`` does
+        not rename it to ``PATH``.
+
         Returns ``True`` when the stored value changed.
         """
         path = self.key_for(scope)
+        actual_name, existing = self._find(path, name)
+        if actual_name is not None:
+            name = actual_name
         if expand is None:
             expand = (name.lower() in {n.lower() for n in EXPANDABLE_BY_DEFAULT}
                       or "%" in value)
         type_ = RegType.EXPAND_SZ if expand else RegType.SZ
-        stored = value if expand else value
-        existing = self._get(path, name)
         if existing is not None:
             try:
-                if (existing.as_string() == stored
+                if (existing.as_string() == value
                         and existing.type == type_):
                     return False
             except (ValueError, UnicodeDecodeError):
                 pass
-        self._set(path, name, _encode(stored), type_)
+        self._set(path, name, _encode(value), type_)
         return True
 
     def unset(self, scope: str, name: str) -> bool:
         """Remove ``name`` from ``scope``.  Returns ``True`` on success."""
         path = self.key_for(scope)
-        return self._delete(path, name)
+        actual_name, _value = self._find(path, name)
+        if actual_name is None:
+            return False
+        return self._delete(path, actual_name)
 
     def write(self, scope: str, entries: Dict[str, str],
               *, expand: Optional[bool] = None) -> None:

@@ -60,9 +60,14 @@ def _try_import(module_name: str, names: tuple[str, ...]) -> None:
 
 
 for _mod, _names in (
-    ("manager", ("OptManager",)),
+    ("manager", ("OptManager", "PackageOptManager")),
     ("package", ("OptPackage",)),
-    ("config", ("OptConfig",)),
+    ("config", ("OptConfig", "OptIntegration")),
+    ("env", ("OptEnvManager",)),
+    ("fhs", ("OptFHSValidator",)),
+    ("hierarchy", ("OptHierarchy",)),
+    ("var", ("VarOptManager",)),
+    ("integration", ("OptEnvironment", "OptPathManager", "OptServiceManager")),
 ):
     _try_import(_mod, _names)
 

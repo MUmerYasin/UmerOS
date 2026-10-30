@@ -55,10 +55,10 @@ def _try_import(module_name: str, names: tuple[str, ...]) -> None:
 # module is named ``umer_pkg.py``; relative imports are fine, but we
 # keep a tolerant form here so a partial checkout still loads.
 for _mod, _names in (
-    ("umer_pkg", ("UmerPackageManager", "install", "uninstall", "upgrade")),
+    ("umer_pkg", ("UmerPackageManager", "PackageManifest", "DependencyResolver")),
     ("repository", ("PackageRepository", "PackageInfo")),
-    ("format", ("UmerPkg", "read_umerpkg", "write_umerpkg")),
-    ("crypto", ("verify_signature", "sign_payload")),
+    ("trusted_keys", ("TRUSTED_PUBLIC_KEYS", "pin_trusted_key", "unpin_trusted_key",
+                      "get_trusted_keys", "is_trusted", "UMER_RELEASE_PUBLIC_KEY")),
 ):
     _try_import(_mod, _names)
 

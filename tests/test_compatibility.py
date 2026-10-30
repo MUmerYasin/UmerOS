@@ -35,9 +35,13 @@ from compatibility import (  # noqa: E402
     memory_map, sync,
     version_info, delay_imports, signed_pe, winsock, timezone,
     shell_links, tokens, msi_runtime,
+    environment, knownfolders, win_shell32,
+    env_registry, env_dialog, installer_env,
 )
 from compatibility.pe_loader import PeFile, PeClass          # noqa: E402
 from compatibility.dll_loader import DllLoader, ResolvedImport  # noqa: E402
+from compatibility.env_dialog import DialogScope as DlgScope  # noqa: E402
+from compatibility.env_dialog import EnvironmentDialog        # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -2070,19 +2074,448 @@ class TestEnvironmentCommands(unittest.TestCase):
         self.assertIsNone(env.get_from("PERSIST",
                                         environment.EnvScope.PROCESS))
 
-    def test_setx_rejects_values_over_1024_characters(self) -> None:
+    def test_setx_crops_values_over_1024_characters(self) -> None:
         from compatibility import environment
         env = environment.ScopedEnvironment(host_fallback=False)
-        self.assertFalse(environment.setx(env, "BIG", "x" * 1025,
-                                          environment.EnvScope.USER))
-        self.assertTrue(environment.setx(env, "OK", "x" * 1024,
+        # setx crops the value rather than rejecting it.
+        self.assertTrue(environment.setx(env, "BIG", "x" * 1025,
                                          environment.EnvScope.USER))
+        self.assertEqual(len(env.get_from("BIG", environment.EnvScope.USER)),
+                         1024)
+        # Exactly 1024 characters is fine.
+        self.assertTrue(environment.setx(env, "EXACT", "x" * 1024,
+                                         environment.EnvScope.USER))
+        self.assertEqual(len(env.get_from("EXACT", environment.EnvScope.USER)),
+                         1024)
 
     def test_setx_cannot_target_the_process_scope(self) -> None:
         from compatibility import environment
         env = environment.ScopedEnvironment(host_fallback=False)
         self.assertFalse(environment.setx(env, "X", "v",
                                           environment.EnvScope.PROCESS))
+
+    def test_setx_crops_at_1024_characters(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        # setx crops, it does not reject.
+        self.assertTrue(environment.setx(env, "LONG", "x" * 2000,
+                                         environment.EnvScope.USER))
+        stored = env.get_from("LONG", environment.EnvScope.USER)
+        self.assertEqual(len(stored), 1024)
+
+    def test_setx_expands_variable_references(self) -> None:
+        from compatibility import environment
+        env = environment.ScopedEnvironment(host_fallback=False)
+        env.set("JAVADIR", r"C:\Java", environment.EnvScope.USER)
+        environment.setx(env, "MYPATH", r"%JAVADIR%\bin",
+                         environment.EnvScope.USER)
+        # setx flattens references before storing.
+        self.assertEqual(env.get_from("MYPATH", environment.EnvScope.USER),
+                         r"C:\Java\bin")
+
+
+class TestEnvRegistry(unittest.TestCase):
+    """Registry-backed persistence of the two persistent scopes."""
+
+    def test_selftest_passes(self) -> None:
+        from compatibility import env_registry
+        self.assertTrue(env_registry._selftest())
+
+    def test_scope_keys_match_windows(self) -> None:
+        from compatibility import env_registry
+        self.assertEqual(env_registry.USER_ENV_KEY, r"HKCU\Environment")
+        self.assertEqual(
+            env_registry.SYSTEM_ENV_KEY,
+            r"HKLM\SYSTEM\CurrentControlSet\Control"
+            r"\Session Manager\Environment")
+
+    def test_write_and_read_back(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        store = EnvRegistryStore()
+        self.assertTrue(store.set("user", "MYAPP", r"C:\Apps\MyApp"))
+        entry = store.get("user", "MYAPP")
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.value, r"C:\Apps\MyApp")
+        self.assertFalse(entry.expand)
+        self.assertEqual(entry.type_name, "REG_SZ")
+
+    def test_path_is_stored_expandable(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        store = EnvRegistryStore()
+        store.set("system", "Path", r"%SystemRoot%\system32;C:\Tools")
+        entry = store.get("system", "Path")
+        self.assertTrue(entry.expand)
+        self.assertEqual(entry.type_name, "REG_EXPAND_SZ")
+        # The reference is preserved verbatim in the registry.
+        self.assertEqual(entry.raw, r"%SystemRoot%\system32;C:\Tools")
+
+    def test_expandable_values_expand_on_read(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        from compatibility.environment import EnvironmentBlock
+        store = EnvRegistryStore()
+        store.set("system", "Path", r"%SystemRoot%\system32")
+        blk = EnvironmentBlock()
+        blk["SystemRoot"] = r"C:\Windows"
+        expanded = store.read_expanded("system", blk)
+        self.assertEqual(expanded["PATH"], r"C:\Windows\system32")
+
+    def test_scopes_are_independent(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        store = EnvRegistryStore()
+        store.set("user", "SHARED", "u")
+        store.set("system", "SHARED", "s")
+        self.assertEqual(store.get("user", "SHARED").value, "u")
+        self.assertEqual(store.get("system", "SHARED").value, "s")
+
+    def test_unset(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        store = EnvRegistryStore()
+        store.set("user", "GONE", "x")
+        self.assertTrue(store.unset("user", "GONE"))
+        self.assertIsNone(store.get("user", "GONE"))
+        self.assertFalse(store.unset("user", "GONE"))
+
+    def test_write_replaces_scope_contents(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        store = EnvRegistryStore()
+        store.set("user", "OLD", "1")
+        store.write("user", {"NEW": "2"})
+        names = set(store.read("user"))
+        self.assertNotIn("OLD", names)
+        self.assertIn("NEW", names)
+
+    def test_unknown_scope_is_rejected(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        store = EnvRegistryStore()
+        with self.assertRaises(KeyError):
+            store.key_for("nonsense")
+
+    def test_non_string_values_are_skipped(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        from compatibility.registry_hive import RegType
+        from compatibility.registry_view import InMemoryRegistry
+        reg = InMemoryRegistry()
+        reg.set_value(r"HKCU\Environment", "DWORDVAL",
+                      b"\x01\x00\x00\x00", RegType.DWORD)
+        store = EnvRegistryStore(reg)
+        self.assertIsNone(store.get("user", "DWORDVAL"))
+
+
+class TestEnvironmentDialog(unittest.TestCase):
+    """The two-section 'Environment Variables' dialog."""
+
+    def test_selftest_passes(self) -> None:
+        from compatibility import env_dialog
+        self.assertTrue(env_dialog._selftest())
+
+    def _dialog(self):
+        from compatibility import env_dialog
+        from compatibility.environment import EnvScope, ScopedEnvironment
+        env = ScopedEnvironment(host_fallback=False)
+        env.set("Machine", r"C:\Machine", EnvScope.SYSTEM)
+        env.set("OnlyMe", r"C:\User", EnvScope.USER)
+        return env, env_dialog.EnvironmentDialog(env)
+
+    def test_two_sections_are_separate(self) -> None:
+        _env, dlg = self._dialog()
+        self.assertEqual(dlg.get(DlgScope.SYSTEM, "Machine"), r"C:\Machine")
+        self.assertEqual(dlg.get(DlgScope.USER, "OnlyMe"), r"C:\User")
+        self.assertIsNone(dlg.get(DlgScope.USER, "Machine"))
+        self.assertIsNone(dlg.get(DlgScope.SYSTEM, "OnlyMe"))
+
+    def test_add_edit_remove(self) -> None:
+        _env, dlg = self._dialog()
+        self.assertTrue(dlg.add(DlgScope.USER, "NEWVAR", "v"))
+        self.assertEqual(dlg.get(DlgScope.USER, "NEWVAR"), "v")
+        # Adding an existing name is refused.
+        self.assertFalse(dlg.add(DlgScope.USER, "NEWVAR", "v2"))
+        self.assertTrue(dlg.edit(DlgScope.USER, "NEWVAR", "v2"))
+        self.assertEqual(dlg.get(DlgScope.USER, "NEWVAR"), "v2")
+        self.assertTrue(dlg.remove(DlgScope.USER, "NEWVAR"))
+        self.assertIsNone(dlg.get(DlgScope.USER, "NEWVAR"))
+
+    def test_invalid_names_are_refused(self) -> None:
+        _env, dlg = self._dialog()
+        self.assertFalse(dlg.add(DlgScope.USER, "A=B", "v"))
+        self.assertFalse(dlg.add(DlgScope.USER, "", "v"))
+
+    def test_cancel_discards_pending_changes(self) -> None:
+        _env, dlg = self._dialog()
+        dlg.add(DlgScope.USER, "GONE", "x")
+        self.assertEqual(dlg.pending_count(), 1)
+        dlg.cancel()
+        self.assertEqual(dlg.pending_count(), 0)
+        self.assertIsNone(dlg.get(DlgScope.USER, "GONE"))
+
+    def test_ok_commits_to_the_environment(self) -> None:
+        env, dlg = self._dialog()
+        dlg.add(DlgScope.USER, "KEPT", "yes")
+        result = dlg.apply()
+        self.assertTrue(result.changed)
+        self.assertEqual(env.get("KEPT"), "yes")
+        self.assertEqual(result.changes[0].kind, "added")
+
+    def test_ok_persists_to_the_registry(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        env, _dlg = self._dialog()
+        store = EnvRegistryStore()
+        dlg = EnvironmentDialog(env, store)
+        dlg.add(DlgScope.SYSTEM, "PERSISTED", "yes")
+        dlg.apply()
+        self.assertEqual(store.get("system", "PERSISTED").value, "yes")
+
+    def test_path_is_edited_as_a_directory_list(self) -> None:
+        _env, dlg = self._dialog()
+        editor = dlg.path_editor(DlgScope.SYSTEM)
+        self.assertEqual(editor.entries, [])
+        dlg.add(DlgScope.SYSTEM, "Path", r"C:\A;C:\B")
+        editor = dlg.path_editor(DlgScope.SYSTEM)
+        self.assertEqual(editor.entries, [r"C:\A", r"C:\B"])
+        self.assertTrue(editor.move_up(1))
+        self.assertEqual(editor.entries, [r"C:\B", r"C:\A"])
+        self.assertTrue(editor.move_down(0))
+        self.assertEqual(editor.entries, [r"C:\A", r"C:\B"])
+        self.assertTrue(editor.add(r"C:\C"))
+        self.assertFalse(editor.add(r"C:\C"))       # duplicate
+        dlg.set_path(DlgScope.SYSTEM, editor)
+        self.assertEqual(dlg.get(DlgScope.SYSTEM, "Path"),
+                         r"C:\A;C:\B;C:\C")
+
+    def test_blank_path_entries_survive_a_round_trip(self) -> None:
+        _env, dlg = self._dialog()
+        dlg.add(DlgScope.SYSTEM, "Path", r"C:\A;;C:\B")
+        editor = dlg.path_editor(DlgScope.SYSTEM)
+        self.assertEqual(len(editor.entries), 3)
+        self.assertEqual(editor.to_value(), r"C:\A;;C:\B")
+
+    def test_over_long_values_are_truncated(self) -> None:
+        from compatibility import env_dialog
+        _env, dlg = self._dialog()
+        dlg.add(DlgScope.USER, "LONG", "x" * 5000)
+        result = dlg.apply()
+        self.assertTrue(result.changes[0].truncated)
+        self.assertEqual(len(result.changes[0].new_value),
+                         env_dialog.MAX_DIALOG_VALUE_LENGTH)
+        self.assertTrue(result.warnings)
+
+    def test_a_very_long_path_warns(self) -> None:
+        from compatibility import env_dialog
+        _env, dlg = self._dialog()
+        long_path = ";".join(r"C:\Dir%03d" % i for i in range(300))
+        dlg.add(DlgScope.SYSTEM, "Path", long_path)
+        result = dlg.apply()
+        self.assertTrue(any("Path" in w for w in result.warnings))
+
+    def test_a_normal_path_does_not_warn(self) -> None:
+        _env, dlg = self._dialog()
+        dlg.add(DlgScope.SYSTEM, "Path", r"C:\A;C:\B")
+        result = dlg.apply()
+        self.assertFalse(any("Path" in w for w in result.warnings))
+
+
+class TestWow64Redirection(unittest.TestCase):
+    """The WOW64 environment rewrite a 32-bit child process receives."""
+
+    def _base(self):
+        from compatibility.environment import EnvironmentBlock
+        blk = EnvironmentBlock(host_fallback=False)
+        blk["ProgramFiles"] = r"C:\Program Files"
+        blk["ProgramFiles(x86)"] = r"C:\Program Files (x86)"
+        blk["CommonProgramFiles"] = r"C:\Program Files\Common Files"
+        blk["CommonProgramFiles(x86)"] = r"C:\Program Files (x86)\Common Files"
+        return blk
+
+    def test_64_bit_process(self) -> None:
+        from compatibility.environment import apply_wow64_redirection
+        blk = apply_wow64_redirection(self._base(), app_is_32bit=False)
+        self.assertEqual(blk.get("PROCESSOR_ARCHITECTURE"), "AMD64")
+        self.assertEqual(blk.get("ProgramFiles"), r"C:\Program Files")
+        self.assertEqual(blk.get("ProgramW6432"), r"C:\Program Files")
+        self.assertEqual(blk.get("CommonProgramFiles"),
+                         r"C:\Program Files\Common Files")
+        self.assertEqual(blk.get("CommonProgramW6432"),
+                         r"C:\Program Files\Common Files")
+        self.assertIsNone(blk.get("PROCESSOR_ARCHITEW6432"))
+
+    def test_32_bit_process(self) -> None:
+        from compatibility.environment import apply_wow64_redirection
+        blk = apply_wow64_redirection(self._base(), app_is_32bit=True)
+        self.assertEqual(blk.get("PROCESSOR_ARCHITECTURE"), "x86")
+        self.assertEqual(blk.get("PROCESSOR_ARCHITEW6432"), "AMD64")
+        self.assertEqual(blk.get("ProgramFiles"), r"C:\Program Files (x86)")
+        self.assertEqual(blk.get("ProgramW6432"), r"C:\Program Files")
+        self.assertEqual(blk.get("CommonProgramFiles"),
+                         r"C:\Program Files (x86)\Common Files")
+        self.assertEqual(blk.get("CommonProgramW6432"),
+                         r"C:\Program Files\Common Files")
+
+    def test_32_bit_os_is_not_redirected(self) -> None:
+        from compatibility.environment import apply_wow64_redirection
+        blk = apply_wow64_redirection(self._base(), app_is_32bit=True,
+                                      os_is_64bit=False)
+        self.assertIsNone(blk.get("PROCESSOR_ARCHITEW6432"))
+        self.assertEqual(blk.get("PROCESSOR_ARCHITECTURE"), "x86")
+
+    def test_arm64_native_architecture(self) -> None:
+        from compatibility.environment import apply_wow64_redirection
+        blk = apply_wow64_redirection(self._base(), app_is_32bit=True,
+                                      native_arch="ARM64")
+        self.assertEqual(blk.get("PROCESSOR_ARCHITEW6432"), "ARM64")
+        self.assertEqual(blk.get("PROCESSOR_ARCHITECTURE"), "x86")
+
+
+class TestShellSession(unittest.TestCase):
+    """A shell whose environment is backed by the registry."""
+
+    def _session(self):
+        from compatibility.environment import ShellSession
+        from compatibility.env_registry import EnvRegistryStore
+        return ShellSession(EnvRegistryStore())
+
+    def test_registry_change_is_invisible_until_refresh(self) -> None:
+        session = self._session()
+        session.store.set("user", "NEWVAR", "hello")
+        # The running shell still has the old value ...
+        self.assertIsNone(session.live.get("NEWVAR"))
+        # ... and knows it is out of date.
+        self.assertIn("NEWVAR", session.stale_names())
+        # A refresh picks it up.
+        self.assertTrue(session.refresh())
+        self.assertEqual(session.live.get("NEWVAR"), "hello")
+        self.assertEqual(session.stale_names(), [])
+
+    def test_a_new_shell_sees_the_registry(self) -> None:
+        session = self._session()
+        session.store.set("user", "NEWVAR", "hello")
+        # A shell launched by Explorer is built from the registry ...
+        fresh = session.new_shell_block()
+        self.assertEqual(fresh.get("NEWVAR"), "hello")
+        # ... while the live shell has not seen it yet.
+        self.assertIsNone(session.live.get("NEWVAR"))
+
+    def test_a_child_inherits_the_parent_block(self) -> None:
+        session = self._session()
+        session.store.set("user", "NEWVAR", "hello")
+        # A child of this shell inherits its (stale) block, so the
+        # installer keeps using the old value.
+        child = session.child_block()
+        self.assertIsNone(child.get("NEWVAR"))
+
+    def test_set_persistent_does_not_touch_the_live_environment(self) -> None:
+        from compatibility import environment
+        session = self._session()
+        session.set_persistent(environment.EnvScope.USER, "PERSIST", "v")
+        self.assertIsNone(session.live.get("PERSIST"))
+        self.assertEqual(session.store.get("user", "PERSIST").value, "v")
+
+    def test_setting_a_variable_broadcasts_the_change(self) -> None:
+        from compatibility import environment
+        from compatibility import win_user32
+        session = self._session()
+        before = len(win_user32.setting_change_log())
+        session.set_persistent(environment.EnvScope.SYSTEM, "BROADCAST", "v")
+        log = win_user32.setting_change_log()
+        self.assertEqual(len(log), before + 1)
+        self.assertEqual(log[-1][1], "Environment")
+
+    def test_unset_persistent(self) -> None:
+        from compatibility import environment
+        session = self._session()
+        session.store.set("user", "TEMP", "v")
+        self.assertTrue(session.unset_persistent(environment.EnvScope.USER,
+                                                 "TEMP"))
+        self.assertIsNone(session.store.get("user", "TEMP"))
+
+
+class TestInstallerEnv(unittest.TestCase):
+    """Where software is installed, per context and architecture."""
+
+    def test_selftest_passes(self) -> None:
+        from compatibility import installer_env
+        self.assertTrue(installer_env._selftest())
+
+    def _block(self):
+        from compatibility.environment import EnvironmentBlock
+        blk = EnvironmentBlock(host_fallback=False)
+        blk["ProgramFiles"] = r"C:\Program Files"
+        blk["ProgramFiles(x86)"] = r"C:\Program Files (x86)"
+        blk["CommonProgramFiles"] = r"C:\Program Files\Common Files"
+        blk["CommonProgramFiles(x86)"] = r"C:\Program Files (x86)\Common Files"
+        blk["LocalAppData"] = r"C:\Users\me\AppData\Local"
+        blk["AppData"] = r"C:\Users\me\AppData\Roaming"
+        blk["ProgramData"] = r"C:\ProgramData"
+        return blk
+
+    def test_per_machine_64bit_package(self) -> None:
+        from compatibility.installer_env import (InstallationContext,
+                                                 resolve_install_target)
+        target = resolve_install_target("MyApp", InstallationContext.PER_MACHINE,
+                                        app_is_32bit=False, os_is_64bit=True,
+                                        block=self._block())
+        self.assertEqual(target.app_dir, r"C:\Program Files\MyApp")
+        self.assertFalse(target.wow64)
+        self.assertTrue(target.uninstall_key.startswith("HKLM"))
+
+    def test_per_machine_32bit_package_on_64bit_windows(self) -> None:
+        from compatibility.installer_env import (InstallationContext,
+                                                 resolve_install_target)
+        target = resolve_install_target("MyApp", InstallationContext.PER_MACHINE,
+                                        app_is_32bit=True, os_is_64bit=True,
+                                        block=self._block())
+        self.assertEqual(target.app_dir, r"C:\Program Files (x86)\MyApp")
+        self.assertTrue(target.wow64)
+
+    def test_per_user_install(self) -> None:
+        from compatibility.installer_env import (InstallationContext,
+                                                 resolve_install_target)
+        target = resolve_install_target("MyApp", InstallationContext.PER_USER,
+                                        block=self._block())
+        self.assertEqual(target.app_dir,
+                         r"C:\Users\me\AppData\Local\Programs\MyApp")
+        self.assertEqual(target.common_files,
+                         r"C:\Users\me\AppData\Local\Programs\Common")
+        self.assertTrue(target.uninstall_key.startswith("HKCU"))
+        self.assertTrue(target.start_menu.startswith(
+            r"C:\Users\me\AppData\Roaming\Microsoft\Windows\Start Menu"))
+
+    def test_per_machine_start_menu_is_shared(self) -> None:
+        from compatibility.installer_env import (InstallationContext,
+                                                 resolve_install_target)
+        target = resolve_install_target("MyApp", InstallationContext.PER_MACHINE,
+                                        block=self._block())
+        self.assertTrue(target.start_menu.startswith(
+            r"C:\ProgramData\Microsoft\Windows\Start Menu"))
+
+    def test_msi_context_properties(self) -> None:
+        from compatibility.installer_env import (InstallationContext,
+                                                 msi_properties)
+        self.assertEqual(
+            msi_properties(InstallationContext.PER_MACHINE)["ALLUSERS"], "1")
+        self.assertEqual(
+            msi_properties(InstallationContext.PER_USER)["ALLUSERS"], "")
+
+    def test_installer_environment_carries_the_wow64_rewrite(self) -> None:
+        from compatibility.installer_env import (InstallationContext,
+                                                 installer_environment)
+        env = installer_environment(self._block(), app_is_32bit=True,
+                                    context=InstallationContext.PER_MACHINE)
+        self.assertEqual(env.get("ProgramFiles"), r"C:\Program Files (x86)")
+        self.assertEqual(env.get("ProgramW6432"), r"C:\Program Files")
+        self.assertEqual(env.get("ALLUSERS"), "1")
+
+    def test_path_entries_an_installer_adds(self) -> None:
+        from compatibility.installer_env import (InstallationContext,
+                                                 installer_path_entries,
+                                                 resolve_install_target)
+        target = resolve_install_target("MyApp", InstallationContext.PER_MACHINE,
+                                        block=self._block())
+        self.assertEqual(installer_path_entries(target),
+                         [r"C:\Program Files\MyApp\bin"])
+
+    def test_per_user_requires_no_elevation(self) -> None:
+        from compatibility.installer_env import InstallationContext
+        self.assertTrue(InstallationContext.PER_MACHINE.requires_elevation)
+        self.assertFalse(InstallationContext.PER_USER.requires_elevation)
 
 
 # ---------------------------------------------------------------------------

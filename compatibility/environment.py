@@ -1004,6 +1004,20 @@ def registry_path_for_scope(scope: EnvScope) -> Optional[str]:
     return None
 
 
+def scope_registry_name(scope: EnvScope) -> Optional[str]:
+    """The registry-scope name (``"user"`` / ``"system"``) for a scope.
+
+    :class:`EnvScope` is an ``IntEnum``, so ``scope.value`` is the
+    numeric precedence, not a name.  This helper is the single place
+    that maps a scope onto the name the registry store uses.
+    """
+    if scope is EnvScope.USER:
+        return "user"
+    if scope is EnvScope.SYSTEM:
+        return "system"
+    return None
+
+
 # ---------------------------------------------------------------------------
 # USMT variable resolution
 # ---------------------------------------------------------------------------
@@ -1423,18 +1437,44 @@ class ShellSession:
         """The environment this shell currently sees."""
         return self.live.effective()
 
-    def new_process_block(self) -> EnvironmentBlock:
-        """The environment a **new** child process would receive.
+    def child_block(self) -> EnvironmentBlock:
+        """The environment a **child** process of this shell receives.
 
-        A new process is started from the registry definition plus the
-        parent process scope, so it sees registry changes the parent
-        never saw.
+        ``CreateProcess`` hands the parent's environment block to the
+        child unchanged.  A child started from a shell that has not been
+        refreshed therefore inherits the *old* values -- which is why
+        starting the installer from a stale command prompt uses the old
+        ``PATH``.
         """
         blk = EnvironmentBlock(host_fallback=self.live.host_fallback)
         blk.update(self.live.system.to_dict(), scope=EnvScope.SYSTEM)
         blk.update(self.live.user.to_dict(), scope=EnvScope.USER)
         blk.update(self.live.process.to_dict(), scope=EnvScope.PROCESS)
         return blk
+
+    def new_shell_block(self) -> EnvironmentBlock:
+        """The environment a **newly launched shell** receives.
+
+        Explorer.exe is the process that handles ``WM_SETTINGCHANGE``:
+        it rebuilds its own block from the registry.  A shell launched
+        from a refreshed Explorer therefore starts with the registry
+        values, even though the shell you launched it from is still
+        showing the old ones.  This is the "open a new command prompt"
+        half of the Windows behaviour.
+        """
+        blk = EnvironmentBlock(host_fallback=self.live.host_fallback)
+        for scope in (EnvScope.SYSTEM, EnvScope.USER):
+            registry_name = scope_registry_name(scope)
+            if registry_name is None:
+                continue
+            for key, entry in self.store.read(registry_name).items():
+                blk[key] = entry.value
+        blk.update(self.live.process.to_dict(), scope=EnvScope.PROCESS)
+        return blk
+
+    def new_process_block(self) -> EnvironmentBlock:
+        """Alias of :meth:`new_shell_block` for readability at call sites."""
+        return self.new_shell_block()
 
     def stale_names(self) -> List[str]:
         """The variables the registry has but this shell has not seen.
@@ -1444,9 +1484,13 @@ class ShellSession:
         """
         out: List[str] = []
         for scope in (EnvScope.SYSTEM, EnvScope.USER):
-            for key in self.store.read(scope.value):
-                if self.live.table(scope).get(key) != \
-                        self.store.read(scope.value)[key].value:
+            registry_name = scope_registry_name(scope)
+            if registry_name is None:
+                continue
+            entries = self.store.read(registry_name)
+            live = self.live.table(scope)
+            for key, entry in entries.items():
+                if live.get(key) != entry.value:
                     if key not in {n.upper() for n in out}:
                         out.append(key)
         return sorted(out)
@@ -1462,7 +1506,10 @@ class ShellSession:
         """
         changed = False
         for scope in (EnvScope.SYSTEM, EnvScope.USER):
-            entries = self.store.read(scope.value)
+            registry_name = scope_registry_name(scope)
+            if registry_name is None:
+                continue
+            entries = self.store.read(registry_name)
             live = self.live.table(scope)
             for key, entry in entries.items():
                 if live.get(key) != entry.value:
@@ -1482,7 +1529,10 @@ class ShellSession:
         """
         if scope is EnvScope.PROCESS:
             return self.live.set(name, value, EnvScope.PROCESS)
-        changed = self.store.set(scope.value, name, value)
+        registry_name = scope_registry_name(scope)
+        if registry_name is None:
+            return False
+        changed = self.store.set(registry_name, name, value)
         if changed and notify:
             broadcast_environment_change()
         return changed
@@ -1492,7 +1542,10 @@ class ShellSession:
         """Remove a variable from the registry and notify the system."""
         if scope is EnvScope.PROCESS:
             return self.live.unset(name, EnvScope.PROCESS)
-        changed = self.store.unset(scope.value, name)
+        registry_name = scope_registry_name(scope)
+        if registry_name is None:
+            return False
+        changed = self.store.unset(registry_name, name)
         if changed and notify:
             broadcast_environment_change()
         return changed

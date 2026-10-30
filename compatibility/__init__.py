@@ -269,7 +269,31 @@ _IMPORT_PLAN = {
                              "cmd_set_output", "cmd_expand", "cmd_echo",
                              "powershell_get_env", "powershell_env_listing",
                              "cmd_set", "setx", "is_valid_variable_name",
-                             "search_path", "which"),
+                             "search_path", "which",
+                             # -- WOW64, notification, shell sessions --
+                             "apply_wow64_redirection",
+                             "broadcast_environment_change",
+                             "environment_change_log",
+                             "ShellSession", "scope_registry_name",
+                             # -- installer-facing --
+                             "INSTALLER_ENV_VARS", "installer_variables"),
+    # ---- Registry-backed environment persistence ----
+    "env_registry":          ("EnvRegistryStore", "EnvEntry",
+                             "USER_ENV_KEY", "SYSTEM_ENV_KEY",
+                             "SCOPE_KEYS", "EXPANDABLE_BY_DEFAULT"),
+    # ---- The "Environment Variables" dialog ----
+    "env_dialog":            ("EnvironmentDialog", "DialogScope",
+                             "PathEditor", "DialogResult", "VariableChange",
+                             "MAX_DIALOG_VALUE_LENGTH",
+                             "LEGACY_MAX_VALUE_LENGTH",
+                             "SHELL_SAFE_PATH_LENGTH"),
+    # ---- Software installation targets ----
+    "installer_env":         ("InstallationContext", "InstallTarget",
+                             "resolve_install_target",
+                             "program_files_folder",
+                             "common_files_folder",
+                             "msi_properties", "installer_environment",
+                             "installer_path_entries"),
     # ---- Known folders (KNOWNFOLDERID / CSIDL) ----
     "knownfolders":          ("Csidl", "CsidlFlag", "KnownFolderFlag",
                              "KnownFolder", "KnownFolderType",

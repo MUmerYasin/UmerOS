@@ -175,9 +175,15 @@ def get_apartment() -> ComApartment:
 
 
 def reset_apartment() -> None:
-    """Test helper — drop all COM state."""
+    """Test helper — drop all COM state.
+
+    That means both the apartment and the class-factory registry:
+    leaving a factory behind would make a later ``CoCreateInstance``
+    succeed where the caller expects ``E_NOINTERFACE``.
+    """
     global _APARTMENT
     _APARTMENT = ComApartment()
+    _CLASS_FACTORIES.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +287,11 @@ _CLASS_FACTORIES: Dict[Guid, ClassFactory] = {}
 
 def register_class_factory(clsid: Guid, factory: ClassFactory) -> None:
     _CLASS_FACTORIES[clsid] = factory
+
+
+def unregister_class_factory(clsid: Guid) -> bool:
+    """Remove a registered class factory.  Returns ``True`` if it existed."""
+    return _CLASS_FACTORIES.pop(clsid, None) is not None
 
 
 def CoCreateInstance(clsid: Guid, *, iid: Guid = IID_IUNKNOWN

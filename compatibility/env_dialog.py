@@ -264,6 +264,13 @@ class EnvironmentDialog:
             DialogScope.USER: {},
             DialogScope.SYSTEM: {},
         }
+        #: The spelling the user typed, per scope.  Windows keeps the
+        #: original case of a variable name in the registry, so a new
+        #: variable called ``Path`` must not be stored as ``PATH``.
+        self._spellings: Dict[DialogScope, Dict[str, str]] = {
+            DialogScope.USER: {},
+            DialogScope.SYSTEM: {},
+        }
         self._original = {
             DialogScope.USER: dict(self._env.user.to_dict()),
             DialogScope.SYSTEM: dict(self._env.system.to_dict()),
@@ -320,6 +327,7 @@ class EnvironmentDialog:
         if name.upper() in self.variables(scope):
             return False
         self._pending[scope][name.upper()] = (None, value)
+        self._spellings[scope][name.upper()] = name
         return True
 
     def edit(self, scope: DialogScope, name: str, value: str) -> bool:
@@ -331,6 +339,7 @@ class EnvironmentDialog:
         if current is None:
             return False
         self._pending[scope][name.upper()] = (current, value)
+        self._spellings[scope][name.upper()] = name
         return True
 
     def remove(self, scope: DialogScope, name: str) -> bool:
@@ -364,7 +373,7 @@ class EnvironmentDialog:
         broadcast is then issued so running applications can pick the
         new values up.
         """
-        from .environment import EnvScope   # local: avoid cycle
+        from .environment import EnvScope, scope_registry_name   # local: avoid cycle
         result = DialogResult()
 
         for scope in (DialogScope.USER, DialogScope.SYSTEM):
@@ -391,10 +400,13 @@ class EnvironmentDialog:
 
                 # Persist the two persistent scopes.
                 if self._store is not None:
-                    if new is None:
-                        self._store.unset(scope.value, key)
-                    else:
-                        self._store.set(scope.value, key, new)
+                    registry_name = scope_registry_name(env_scope)
+                    if registry_name is not None:
+                        spelling = self._spellings[scope].get(key, key)
+                        if new is None:
+                            self._store.unset(registry_name, spelling)
+                        else:
+                            self._store.set(registry_name, spelling, new)
 
             # Warn about the Shell32 long-PATH hazard.
             path_value = self.get(scope, "Path")
