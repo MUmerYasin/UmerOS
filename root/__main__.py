@@ -148,7 +148,13 @@ def _cmd_ensure(args: List[str]) -> int:
     from root.home import RootHomeManager
     home = args[0] if args else None
     hm = RootHomeManager(default_path=home or "/root")
-    info = hm.ensure(path=home)
+    try:
+        info = hm.ensure(path=home)
+    except (ValueError, OSError) as exc:
+        # A refused path (symlink, unwritable parent, ...) is a caller error,
+        # not a crash: report it and fail with a non-zero status.
+        print(f"ensure failed: {exc}", file=sys.stderr)
+        return 1
     print(hm.render_table(info))
     dm = RootDotfilesManager(home=info.path)
     report = dm.ensure_all(force=False)

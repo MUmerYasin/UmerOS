@@ -60,6 +60,7 @@ import '../apps/root_manager_app.dart';
 import '../apps/proc_manager_app.dart';
 import '../apps/mnt_manager_app.dart';
 import '../apps/lib_manager_app.dart';
+import '../apps/legal_manager_app.dart';
 import '../apps/pqc_manager_app.dart';
 import '../apps/media_manager_app.dart';
 
@@ -244,6 +245,15 @@ abstract final class AppRegistry {
       color: Colors.brown.shade700,
       category: AppCategory.system,
       builder: (_) => const LibManagerApp(),
+    ),
+    AppDefinition(
+      id: 'legal',
+      title: 'Legal Manager',
+      description: 'Manage legal disclaimers, consent, contributors and licenses.',
+      icon: Icons.gavel,
+      color: Colors.indigo.shade700,
+      category: AppCategory.system,
+      builder: (_) => const LegalManagerApp(),
     ),
     AppDefinition(
       id: 'media',

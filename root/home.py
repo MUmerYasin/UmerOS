@@ -390,11 +390,29 @@ class RootHomeManager:
         """Create the directory if it does not exist and tighten its
         permissions to the FHS-recommended value.
 
+        A symbolic link is **refused**, not followed: ``os.chmod`` resolves
+        links, so chmod-ing a symlinked "root home" would change the
+        permissions of whatever directory the link points at -- the exact
+        redirection an attacker who can influence the path wants.
+        ``os.lchmod`` would address the link itself but is unavailable on
+        Linux, so the link is rejected instead.  Parent components are allowed
+        to be links (``/var`` -> ``/private/var``); only the
+        final component is checked.
+
         Returns the resulting :class:`RootHomeInfo`.
+
+        Raises:
+            ValueError: If ``path`` is a symbolic link.
+            OSError: If the directory cannot be created.
         """
         if path is None:
             path, _ = self.resolve()
         root = Path(path)
+        if root.is_symlink():
+            raise ValueError(
+                f"{path} is a symbolic link; refusing to chmod through it "
+                "(os.chmod would change the link target's permissions)"
+            )
         if not root.exists():
             try:
                 root.mkdir(parents=True, exist_ok=False)
