@@ -11,9 +11,22 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""QRNG — Quantum Random Number Generator.
+"""QRNG — *simulated* quantum random number generation.
 
-Implements true random number generation using quantum circuits.
+**This is a simulator, not a hardware QRNG.**  Every "quantum" draw comes from
+sampling a statevector simulation, and that sampling is performed with
+``numpy.random.choice`` / ``random.random`` — classical Mersenne Twister PRNG
+output (see ``quantum/simulator.py`` and ``quantum/backend.py``, which even
+calls ``np.random.seed()``).  The output is therefore **seedable and
+deterministic** and must never be used as a cryptographic entropy source for
+real key material.
+
+:data:`IS_HARDWARE_QRNG` is ``False`` and :data:`ENTROPY_SOURCE` names the
+actual source, so callers can assert on provenance instead of trusting the
+class names.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
@@ -27,6 +40,17 @@ from typing import Optional, List, Tuple
 from .circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from .simulator import StatevectorSimulator
 from .backend import LocalBackend
+
+
+#: This module drives a classical PRNG through a quantum *simulator*; it is
+#: not a physical quantum random number generator.
+IS_HARDWARE_QRNG = False
+
+#: Human-readable description of where the bytes actually come from.
+ENTROPY_SOURCE = (
+    "numpy.random.choice / random.random (Mersenne Twister) over a "
+    "statevector-simulator measurement distribution -- NOT quantum hardware"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -52,10 +76,16 @@ class RandomBit:
 
 @dataclass
 class RandomBytes:
-    """Random byte sequence."""
+    """Random byte sequence.
+
+    ``simulated`` is always ``True`` today: the bytes come from a classical
+    PRNG driving a quantum *simulator* (see the module docstring), not from a
+    hardware quantum measurement.
+    """
     data: bytes
     num_bits: int
     method: str
+    simulated: bool = True
 
     def hex(self) -> str:
         return self.data.hex()
@@ -78,11 +108,17 @@ class RandomBytes:
 # ---------------------------------------------------------------------------
 
 class QRNG:
-    """Quantum Random Number Generator.
+    """Simulator-backed random number generator.
 
-    Uses quantum circuits to generate true random numbers
-    based on quantum mechanical principles.
+    Circuits run on a statevector simulator, so the measured distribution is
+    sampled with a classical PRNG.  The output is **not** true quantum
+    randomness and **not** cryptographically secure — see the module
+    docstring.  ``seed`` makes the sequence reproducible, which is precisely
+    why this is unsuitable as an entropy source.
     """
+
+    #: Always ``False``: this class never talks to quantum hardware.
+    is_hardware: bool = False
 
     def __init__(self, backend: Optional[LocalBackend] = None,
                  seed: Optional[int] = None):
@@ -97,9 +133,19 @@ class QRNG:
         self._count = 0
 
     def _run_circuit(self, circuit: QuantumCircuit) -> dict:
-        """Run a circuit and return measurement results."""
+        """Run a circuit and return measurement results.
+
+        When a ``seed`` was supplied it is passed through to the backend,
+        offset by the draw counter so successive samples differ while the
+        whole sequence stays reproducible.  That reproducibility is exactly
+        why this generator must not be treated as a hardware entropy source.
+
+        Before this change ``self._seed`` was stored but never read, so the
+        documented ``seed`` parameter silently did nothing.
+        """
         backend = self._backend or LocalBackend()
-        result = backend.run(circuit, shots=1)
+        seed = None if self._seed is None else self._seed + self._count
+        result = backend.run(circuit, shots=1, seed=seed)
         return result.counts
 
     def random_bit(self) -> RandomBit:
@@ -190,7 +236,7 @@ class QRNG:
         return RandomBytes(
             data=bytes(byte_array),
             num_bits=num_bytes * 8,
-            method="quantum_hadamard"
+            method="simulator_hadamard"
         )
 
     def random_string(self, length: int) -> str:
@@ -220,10 +266,12 @@ class QRNG:
 # ---------------------------------------------------------------------------
 
 class QuantumEntropy:
-    """Quantum entropy source for cryptographic applications.
+    """Entropy *simulator* — not suitable for real key material.
 
-    Uses quantum circuits to extract high-quality randomness
-    suitable for cryptographic key generation.
+    Draws from the same simulator-backed :class:`QRNG` pipeline, so the output
+    is classical PRNG randomness presented as quantum measurement.  Classical
+    entropy supplied through :meth:`seed` is mixed in with SHA3-256 so that
+    seeding actually contributes.
     """
 
     def __init__(self, num_qubits: int = 8, backend: Optional[LocalBackend] = None):
@@ -239,7 +287,13 @@ class QuantumEntropy:
         self._qrng = QRNG(backend)
 
     def _extract_entropy(self) -> bytes:
-        """Extract entropy from quantum measurements."""
+        """Extract entropy from a simulator measurement.
+
+        ``QuantumCircuit.measure`` takes a single qubit/classical-bit index, so
+        each wire is measured individually.  Passing the ``QuantumRegister``
+        objects (as this used to) raised ``TypeError`` and made
+        :meth:`get_random_bytes` unusable.
+        """
         qr = QuantumRegister(self._num_qubits, "q")
         cr = ClassicalRegister(self._num_qubits, "c")
         circuit = QuantumCircuit(qr, cr)
@@ -252,11 +306,11 @@ class QuantumEntropy:
         for q in range(self._num_qubits):
             circuit.ry(self._qrng.random_float() * 2 * math.pi, qr[q])
 
-        circuit.measure(qr, cr)
+        for q in range(self._num_qubits):
+            circuit.measure(q, q)
 
-        backend = self._backend or LocalBackend()
-        result = backend.run(circuit, shots=1)
-        key = list(result.counts.keys())[0]
+        counts = self._qrng._run_circuit(circuit)
+        key = list(counts.keys())[0]
 
         # Convert bitstring to bytes
         return int(key, 2).to_bytes((self._num_qubits + 7) // 8, 'big')
@@ -280,14 +334,23 @@ class QuantumEntropy:
         """
         result = bytearray()
 
-        # Mix quantum entropy
         while len(result) < num_bytes:
-            quantum_entropy = self._extract_entropy()
-            for b in quantum_entropy:
-                if len(result) < num_bytes:
-                    result.append(b)
+            result.extend(self._extract_entropy())
 
-        return bytes(result)
+        simulated = bytes(result[:num_bytes])
+        if not self._pool:
+            return simulated
+
+        # Mix the caller-supplied classical entropy in with SHA3-256.  Before
+        # this change ``seed()`` filled ``_pool`` but nothing ever read it, so
+        # seeding silently did nothing.
+        material = bytes(self._pool) + simulated
+        digest = hashlib.sha3_256(material).digest()
+        mixed = bytearray()
+        while len(mixed) < num_bytes:
+            mixed.extend(digest)
+            digest = hashlib.sha3_256(digest + material).digest()
+        return bytes(mixed[:num_bytes])
 
 
 # ---------------------------------------------------------------------------
@@ -445,6 +508,8 @@ def generate_random_string(length: int,
 # ---------------------------------------------------------------------------
 
 __all__ = [
+    "IS_HARDWARE_QRNG",
+    "ENTROPY_SOURCE",
     "RandomBit",
     "RandomBytes",
     "QRNG",

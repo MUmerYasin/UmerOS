@@ -165,6 +165,62 @@ def GetSystemMetrics(index: int) -> int:
 
 
 # ---------------------------------------------------------------------------
+# System-setting notifications
+# ---------------------------------------------------------------------------
+
+#: Broadcast to every top-level window.
+HWND_BROADCAST = 0xFFFF
+
+#: "A system-wide setting has changed."  ``lParam`` names the area.
+WM_SETTINGCHANGE = 0x001A
+
+#: ``SendMessageTimeout`` flags.
+SMTO_BLOCK = 0x0001
+SMTO_ABORTIFHUNG = 0x0002
+
+#: Every ``WM_SETTINGCHANGE`` broadcast this module has issued, newest
+#: last.  Kept so a caller (or a test) can assert that an installer
+#: notified the system after changing the environment.
+_BROADCAST_LOG: list = []
+
+
+def SendMessageTimeoutA(hwnd: int, msg: int, wparam: int, lparam: str,
+                        fuFlags: int = SMTO_ABORTIFHUNG,
+                        uTimeout: int = 1000,
+                        lpdwResult: Optional[int] = None) -> int:
+    """Send a message to one window (or the whole desktop) with a timeout.
+
+    The real function blocks until every recipient has processed the
+    message or the timeout expires.  The pure-Python version records the
+    broadcast and returns immediately, which is enough for the
+    environment-variable workflow: the point of the message is to *tell*
+    applications that the block changed, not to synchronise with them.
+    """
+    if hwnd == HWND_BROADCAST:
+        _BROADCAST_LOG.append((msg, lparam))
+        log.debug("broadcast message 0x%X lParam=%r", msg, lparam)
+    return 1
+
+
+def broadcast_setting_change(area: str = "Environment",
+                             timeout: int = 1000) -> bool:
+    """Broadcast ``WM_SETTINGCHANGE`` for ``area``.
+
+    ``"Environment"`` is the area name Windows uses when the
+    environment block has changed; ``"intl"`` and ``"Policy"`` are the
+    other documented values.
+    """
+    SendMessageTimeoutA(HWND_BROADCAST, WM_SETTINGCHANGE, 0, area,
+                        SMTO_ABORTIFHUNG, timeout, None)
+    return True
+
+
+def setting_change_log() -> list:
+    """The ``WM_SETTINGCHANGE`` broadcasts issued so far."""
+    return list(_BROADCAST_LOG)
+
+
+# ---------------------------------------------------------------------------
 # Aggregate public surface
 # ---------------------------------------------------------------------------
 
@@ -185,6 +241,8 @@ EXPORTS: Dict[str, Any] = {
     "SetCursorPos": SetCursorPos,
     "MessageBoxA": MessageBoxA,
     "GetSystemMetrics": GetSystemMetrics,
+    "SendMessageTimeoutA": SendMessageTimeoutA,
+    "broadcast_setting_change": broadcast_setting_change,
 }
 
 

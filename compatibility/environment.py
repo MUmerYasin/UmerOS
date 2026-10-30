@@ -1239,26 +1239,353 @@ def setx(env: "ScopedEnvironment", name: str, value: str,
          scope: EnvScope = EnvScope.USER) -> bool:
     """Apply the ``setx`` command (Windows XP SP2 and later).
 
-    ``setx`` differs from ``set`` in three ways that matter:
+    ``setx`` differs from ``set`` in four ways that matter:
 
     1. It writes to the **registry**, so the value persists for future
        sessions.  The default is the user scope; machine scope requires
        elevation.
     2. It does **not** affect the environment of the shell that ran it
        -- the change only shows up in *new* processes.
-    3. The value is limited to **1024 characters**.  Longer values are
-       rejected outright rather than truncated.
+    3. The value is limited to **1024 characters**.  Anything longer is
+       **cropped**, not rejected -- and because the crop is applied to
+       the value that is written, using ``setx`` on a long existing
+       variable can silently destroy the tail of it.
+    4. It **expands** any ``%VAR%`` reference in the value before
+       storing it, so the stored value has no references left in it.
+       Later changes to the referenced variable will no longer be
+       reflected.
     """
     if not is_valid_variable_name(name):
-        return False
-    if len(value) > 1024:
-        log.warning("setx: value for %s exceeds the 1024-character limit",
-                    name)
         return False
     if scope is EnvScope.PROCESS:
         # ``setx`` cannot write to the (non-persistent) process scope.
         return False
+    if len(value) > 1024:
+        log.warning("setx: cropping %s from %d to 1024 characters",
+                    name, len(value))
+        value = value[:1024]
+    # ``setx`` flattens variable references before storing.
+    value = ExpandEnvironmentStringsA(value, env.effective())
     return env.set(name, value, scope)
+
+
+# ---------------------------------------------------------------------------
+# WOW64 redirection
+# ---------------------------------------------------------------------------
+
+def apply_wow64_redirection(block: Optional[EnvironmentBlock] = None,
+                             *,
+                             app_is_32bit: bool = False,
+                             native_arch: str = "AMD64",
+                             os_is_64bit: bool = True
+                             ) -> EnvironmentBlock:
+    """Return the environment a WOW64 child process would receive.
+
+    When Windows starts a 32-bit process it rewrites a handful of
+    variables so the child sees the right directories for its own
+    bitness.  The official table is:
+
+    ================= ================================== ==========
+    Process           Variable                            Value
+    ================= ================================== ==========
+    64-bit            ``PROCESSOR_ARCHITECTURE``          AMD64
+                      ``ProgramFiles``                    the 64-bit dir
+                      ``ProgramW6432``                    the 64-bit dir
+                      ``CommonProgramFiles``              the 64-bit dir
+                      ``CommonProgramW6432``              the 64-bit dir
+    32-bit            ``PROCESSOR_ARCHITECTURE``          x86
+                      ``PROCESSOR_ARCHITEW6432``          the native arch
+                      ``ProgramFiles``                    ``(x86)`` dir
+                      ``ProgramW6432``                    the 64-bit dir
+                      ``CommonProgramFiles``              ``(x86)`` dir
+                      ``CommonProgramW6432``              the 64-bit dir
+    ================= ================================== ==========
+
+    On a 32-bit Windows there is no redirection at all.
+
+    Parameters
+    ----------
+    block:
+        The block holding the *canonical* (64-bit) values.  Defaults to
+        the process default block.
+    app_is_32bit:
+        ``True`` when the child process is a 32-bit application.
+    native_arch:
+        The machine's real architecture (``AMD64``, ``ARM64``, ...).
+    os_is_64bit:
+        ``True`` on a 64-bit Windows installation.
+    """
+    if block is None:
+        block = get_default_block()
+    out = EnvironmentBlock(_vars=dict(block._vars),
+                           _scopes=dict(block._scopes),
+                           host_fallback=block.host_fallback)
+
+    if not os_is_64bit:
+        # A 32-bit OS has no WOW64 layer: nothing is redirected.
+        out["PROCESSOR_ARCHITECTURE"] = "x86"
+        out._vars.pop("PROCESSOR_ARCHITEW6432", None)
+        return out
+
+    program_files = out.get("ProgramFiles") or r"C:\Program Files"
+    program_files_x86 = (out.get("ProgramFiles(x86)")
+                         or r"C:\Program Files (x86)")
+    common = out.get("CommonProgramFiles") or r"C:\Program Files\Common Files"
+    common_x86 = (out.get("CommonProgramFiles(x86)")
+                  or r"C:\Program Files (x86)\Common Files")
+
+    if app_is_32bit:
+        out["PROCESSOR_ARCHITECTURE"] = "x86"
+        out["PROCESSOR_ARCHITEW6432"] = native_arch
+        out["ProgramFiles"] = program_files_x86
+        out["ProgramW6432"] = program_files
+        out["CommonProgramFiles"] = common_x86
+        out["CommonProgramW6432"] = common
+    else:
+        out["PROCESSOR_ARCHITECTURE"] = native_arch
+        out._vars.pop("PROCESSOR_ARCHITEW6432", None)
+        out["ProgramFiles"] = program_files
+        out["ProgramW6432"] = program_files
+        out["CommonProgramFiles"] = common
+        out["CommonProgramW6432"] = common
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Change notification
+# ---------------------------------------------------------------------------
+
+def broadcast_environment_change(timeout: int = 1000) -> bool:
+    """Notify running applications that the environment block changed.
+
+    Windows does this by broadcasting ``WM_SETTINGCHANGE`` with
+    ``lParam`` set to the string ``"Environment"``::
+
+        SendMessageTimeout(HWND_BROADCAST, WM_SETTINGCHANGE, 0,
+                           "Environment", SMTO_ABORTIFHUNG, 1000, &result);
+
+    Only ``explorer.exe`` actually acts on it -- it rebuilds its own
+    environment block from the registry.  Other shells (cmd, PowerShell,
+    terminals) keep the block they were started with, which is why
+    Windows tells you to *restart* them for a new value to register.
+    """
+    from .win_user32 import broadcast_setting_change   # local: avoid cycle
+    return broadcast_setting_change("Environment", timeout)
+
+
+def environment_change_log() -> List[Tuple[int, str]]:
+    """Every ``WM_SETTINGCHANGE`` broadcast issued so far."""
+    from .win_user32 import setting_change_log   # local: avoid cycle
+    return setting_change_log()
+
+
+# ---------------------------------------------------------------------------
+# A shell session
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ShellSession:
+    """A shell whose environment is backed by the registry.
+
+    This models the behaviour that trips people up on Windows: the
+    registry holds the *definition*, but every running process keeps a
+    **snapshot**.  Writing a variable to the registry changes what a
+    *new* shell will see; the shell you are sitting in keeps the old
+    value until it is restarted.
+
+    Example
+    -------
+    >>> from compatibility.env_registry import EnvRegistryStore
+    >>> session = ShellSession(EnvRegistryStore())
+    >>> session.store.set("user", "NEWVAR", "hello")
+    True
+    >>> session.refresh()
+    True
+    >>> session.live.get("NEWVAR")
+    'hello'
+    >>> session.stale_names()
+    ['NEWVAR']
+    """
+
+    store: object
+    live: ScopedEnvironment = field(default_factory=ScopedEnvironment)
+    #: The block this session started with -- what a child process
+    #: inherits when it is spawned from this shell.
+    inherited: EnvironmentBlock = field(default_factory=EnvironmentBlock)
+
+    def __post_init__(self) -> None:
+        if self.live.host_fallback:
+            self.live.host_fallback = False
+
+    # -- reading -------------------------------------------------------
+
+    def live_block(self) -> EnvironmentBlock:
+        """The environment this shell currently sees."""
+        return self.live.effective()
+
+    def new_process_block(self) -> EnvironmentBlock:
+        """The environment a **new** child process would receive.
+
+        A new process is started from the registry definition plus the
+        parent process scope, so it sees registry changes the parent
+        never saw.
+        """
+        blk = EnvironmentBlock(host_fallback=self.live.host_fallback)
+        blk.update(self.live.system.to_dict(), scope=EnvScope.SYSTEM)
+        blk.update(self.live.user.to_dict(), scope=EnvScope.USER)
+        blk.update(self.live.process.to_dict(), scope=EnvScope.PROCESS)
+        return blk
+
+    def stale_names(self) -> List[str]:
+        """The variables the registry has but this shell has not seen.
+
+        These are exactly the ones the user is told to pick up by
+        restarting their command prompt.
+        """
+        out: List[str] = []
+        for scope in (EnvScope.SYSTEM, EnvScope.USER):
+            for key in self.store.read(scope.value):
+                if self.live.table(scope).get(key) != \
+                        self.store.read(scope.value)[key].value:
+                    if key not in {n.upper() for n in out}:
+                        out.append(key)
+        return sorted(out)
+
+    # -- writing -------------------------------------------------------
+
+    def refresh(self) -> bool:
+        """Re-read the registry into this shell's live environment.
+
+        Returns ``True`` when something changed.  A real shell cannot do
+        this -- it has to be restarted -- which is why
+        :meth:`stale_names` exists.
+        """
+        changed = False
+        for scope in (EnvScope.SYSTEM, EnvScope.USER):
+            entries = self.store.read(scope.value)
+            live = self.live.table(scope)
+            for key, entry in entries.items():
+                if live.get(key) != entry.value:
+                    live[key] = entry.value
+                    changed = True
+            for key in [k for k in live.keys() if k.upper() not in entries]:
+                del live[key]
+                changed = True
+        return changed
+
+    def set_persistent(self, scope: EnvScope, name: str, value: str,
+                       *, notify: bool = True) -> bool:
+        """Write a variable to the registry and notify the system.
+
+        The change does **not** alter this shell's own environment --
+        exactly like the Windows behaviour.
+        """
+        if scope is EnvScope.PROCESS:
+            return self.live.set(name, value, EnvScope.PROCESS)
+        changed = self.store.set(scope.value, name, value)
+        if changed and notify:
+            broadcast_environment_change()
+        return changed
+
+    def unset_persistent(self, scope: EnvScope, name: str,
+                         *, notify: bool = True) -> bool:
+        """Remove a variable from the registry and notify the system."""
+        if scope is EnvScope.PROCESS:
+            return self.live.unset(name, EnvScope.PROCESS)
+        changed = self.store.unset(scope.value, name)
+        if changed and notify:
+            broadcast_environment_change()
+        return changed
+
+
+# ---------------------------------------------------------------------------
+# Installer-relevant variables
+# ---------------------------------------------------------------------------
+
+#: The environment variables a Windows installer reads or writes, with a
+#: short note on what each one is for.  This is the working set for
+#: software installation: everything an installer needs in order to
+#: decide *where* to install and *how* to find its own files.
+INSTALLER_ENV_VARS: Dict[str, str] = {
+    # -- Where to install --
+    "ProgramFiles": "Native Program Files -- per-machine installs",
+    "ProgramFiles(x86)": "32-bit Program Files -- 32-bit per-machine installs",
+    "ProgramW6432": "Native Program Files, visible from a 32-bit process",
+    "CommonProgramFiles": "Shared components, native",
+    "CommonProgramFiles(x86)": "Shared components, 32-bit",
+    "CommonProgramW6432": "Native shared components, visible from 32-bit",
+    "LOCALAPPDATA": "Per-user application data -- per-user installs",
+    "APPDATA": "Roaming per-user application data",
+    "ProgramData": "Per-machine application data",
+    "ALLUSERSPROFILE": "Per-machine profile root (C:\\ProgramData)",
+    "USERPROFILE": "The signed-in user's profile root",
+    "PUBLIC": "The Public profile",
+    "SystemRoot": "The Windows directory (C:\\Windows)",
+    "SystemDrive": "The drive Windows is installed on",
+    # -- Working space --
+    "TEMP": "Per-user temporary directory",
+    "TMP": "Per-user temporary directory",
+    # -- Executable resolution --
+    "PATH": "The executable search path",
+    "PATHEXT": "The extensions treated as executable",
+    "ComSpec": "The command interpreter",
+    # -- Architecture --
+    "PROCESSOR_ARCHITECTURE": "x86 / AMD64 / ARM64",
+    "PROCESSOR_ARCHITEW6432": "Native architecture, seen from a 32-bit process",
+    "NUMBER_OF_PROCESSORS": "Logical processor count",
+    "PROCESSOR_IDENTIFIER": "CPU identification string",
+    "PROCESSOR_LEVEL": "CPU level",
+    "PROCESSOR_REVISION": "CPU revision",
+    # -- Installer plumbing --
+    "ALLUSERS": "MSI context: 1=per-machine, 2=dynamic, unset=per-user",
+    "MSIINSTALLPERUSER": "MSI 5.0+: force the per-user context",
+    "INSTALLDIR": "Target directory requested by the installer",
+    "TARGETDIR": "Target directory requested by the installer",
+    # -- Common toolchains --
+    "ChocolateyInstall": "Chocolatey package root",
+    "JAVA_HOME": "Java runtime root",
+    "GOROOT": "Go toolchain root",
+    "GOPATH": "Go workspace root",
+    "NUGET_PACKAGES": "NuGet package cache",
+    "DOTNET_ROOT": ".NET SDK / runtime root",
+    "PYTHONHOME": "Python installation root",
+    "PYTHONPATH": "Python module search path",
+    "NODE_PATH": "Node module search path",
+    "npm_config_prefix": "Global npm prefix",
+    "NVM_HOME": "nvm-windows installation root",
+    "NVM_SYMLINK": "nvm-windows symlink target",
+    # -- Visual Studio / Windows SDK --
+    "VSINSTALLDIR": "Visual Studio installation directory",
+    "VCINSTALLDIR": "Visual C++ toolchain directory",
+    "WindowsSdkDir": "Windows SDK root",
+    "WindowsSdkVerBinPath": "Windows SDK bin directory",
+    "WindowsSdkBinPath": "Windows SDK bin directory (x86)",
+    "VisualStudioVersion": "Visual Studio version number",
+    "Platform": "Target platform (x64, Win32, ARM64)",
+    "FrameworkDir": ".NET Framework directory",
+    "FrameworkVersion": ".NET Framework version",
+    "MSBuildExtensionsPath": "MSBuild extensions directory",
+    "MSBuildSDKsPath": "MSBuild SDKs directory",
+}
+
+
+def installer_variables(block: Optional[EnvironmentBlock] = None,
+                        names: Optional[Iterable[str]] = None
+                        ) -> Dict[str, str]:
+    """Resolve the installer-relevant variables of a block.
+
+    Only the variables that are actually defined are returned, so the
+    result is a direct answer to "what does the installer get to see?".
+    """
+    if block is None:
+        block = get_default_block()
+    wanted = names if names is not None else INSTALLER_ENV_VARS
+    out: Dict[str, str] = {}
+    for name in wanted:
+        value = block.get(name)
+        if value is not None:
+            out[name] = value
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1721,10 +2048,62 @@ def _selftest() -> bool:
         return False
     if env7.get_from("PERSIST", EnvScope.USER) != "v":
         return False
-    if setx(env7, "TOOLONG", "x" * 1025):
+    # ``setx`` CROPS at 1024 characters rather than rejecting.
+    if not setx(env7, "TOOLONG", "x" * 1025, EnvScope.USER):
+        return False
+    if len(env7.get_from("TOOLONG", EnvScope.USER) or "") != 1024:
         return False
     if setx(env7, "PROC", "v", EnvScope.PROCESS):
         return False
+
+    # 18. WOW64 redirection.
+    base = EnvironmentBlock(host_fallback=False)
+    base["ProgramFiles"] = r"C:\Program Files"
+    base["ProgramFiles(x86)"] = r"C:\Program Files (x86)"
+    base["CommonProgramFiles"] = r"C:\Program Files\Common Files"
+    base["CommonProgramFiles(x86)"] = r"C:\Program Files (x86)\Common Files"
+    w64 = apply_wow64_redirection(base, app_is_32bit=False)
+    if w64.get("PROCESSOR_ARCHITECTURE") != "AMD64":
+        return False
+    if w64.get("ProgramFiles") != r"C:\Program Files":
+        return False
+    if w64.get("ProgramW6432") != r"C:\Program Files":
+        return False
+    if w64.get("PROCESSOR_ARCHITEW6432") is not None:
+        return False
+    w32 = apply_wow64_redirection(base, app_is_32bit=True)
+    if w32.get("PROCESSOR_ARCHITECTURE") != "x86":
+        return False
+    if w32.get("PROCESSOR_ARCHITEW6432") != "AMD64":
+        return False
+    if w32.get("ProgramFiles") != r"C:\Program Files (x86)":
+        return False
+    if w32.get("ProgramW6432") != r"C:\Program Files":
+        return False
+    if w32.get("CommonProgramFiles") != r"C:\Program Files (x86)\Common Files":
+        return False
+    # On a 32-bit OS nothing is redirected.
+    w32os = apply_wow64_redirection(base, app_is_32bit=True,
+                                     os_is_64bit=False)
+    if w32os.get("PROCESSOR_ARCHITEW6432") is not None:
+        return False
+
+    # 19. The environment-change broadcast is recorded.
+    before = len(environment_change_log())
+    if not broadcast_environment_change():
+        return False
+    if len(environment_change_log()) != before + 1:
+        return False
+    if environment_change_log()[-1][1] != "Environment":
+        return False
+
+    # 20. The installer variable catalogue resolves.
+    ivars = installer_variables()
+    if "PATH" not in ivars or "SystemRoot" not in ivars:
+        return False
+    for name in INSTALLER_ENV_VARS:
+        if not name:
+            return False
 
     return True
 

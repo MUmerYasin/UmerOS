@@ -13,13 +13,24 @@
 
 """QKD — Quantum Key Distribution.
 
-Implements the BB84 quantum key distribution protocol and related
-quantum cryptography primitives.
+Implements the BB84 and E91 quantum key distribution protocols plus the
+classical post-processing they need (Cascade error reconciliation and
+privacy amplification).
+
+Reconciliation is *not* an oracle: :func:`cascade_reconcile` corrects Bob's
+key using **block parities only**, never Alice's individual bit values, so
+the QBER measured before reconciliation stays meaningful (a genuine
+eavesdropper raises it above :data:`QBER_SECURITY_THRESHOLD` and the
+session is rejected).
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
 
 import math
+import random
 import secrets
 from dataclasses import dataclass, field
 from typing import Optional, List, Tuple
@@ -28,6 +39,13 @@ from .circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from .simulator import StatevectorSimulator
 from .backend import LocalBackend
 from .qrng import QRNG
+
+
+#: Maximum tolerable quantum bit error rate.  Above ~11 % an eavesdropper
+#: (or channel noise) has leaked so much information that no amount of
+#: reconciliation plus privacy amplification yields a secret key, so the
+#: session is rejected outright.
+QBER_SECURITY_THRESHOLD = 0.11
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +205,7 @@ class BB84:
 
         # Step 7: Eavesdropper detection
         # QBER threshold for security (simplified)
-        qber_threshold = 0.11
+        qber_threshold = QBER_SECURITY_THRESHOLD
         is_secure = error_rate < qber_threshold
         eavesdropper_detected = error_rate >= qber_threshold
 
@@ -353,7 +371,7 @@ class E91:
             sifted_key_bob=sifted_bob,
             error_rate=error_rate,
             qber=error_rate,
-            is_secure=error_rate < 0.11,
+            is_secure=error_rate < QBER_SECURITY_THRESHOLD,
             basis_matching_rate=sum(matching_bases) / self._num_pairs,
             num_photons=self._num_pairs,
             num_rounds=self._num_pairs,
@@ -361,39 +379,199 @@ class E91:
 
 
 # ---------------------------------------------------------------------------
-# Key Reconciliation
+# Key Reconciliation (Cascade)
 # ---------------------------------------------------------------------------
 
-def key_reconciliation(alice_key: List[int], bob_key: List[int]) -> Tuple[List[int], List[int]]:
-    """Perform key reconciliation using Cascade-like protocol.
 
-    Args:
-        alice_key: Alice's sifted key
-        bob_key: Bob's sifted key
+@dataclass
+class ReconciliationResult:
+    """Outcome of a Cascade reconciliation run.
 
-    Returns:
-        Tuple of (reconciled_alice_key, reconciled_bob_key)
+    Attributes
+    ----------
+    alice_key:
+        Alice's key.  Reconciliation never modifies it.
+    bob_key:
+        Bob's key after error correction.
+    corrected_bits:
+        Number of bits Bob flipped.
+    parity_bits_leaked:
+        Number of parity bits exchanged over the classical channel.  This is
+        what an eavesdropper could learn *about the key* from reconciliation
+        itself, so privacy amplification must compress by at least
+        :attr:`leak_fraction`.
+    passes_used:
+        Number of Cascade passes actually executed.
+    residual_errors:
+        Bits still differing after the last pass.  **Simulator-only
+        diagnostic** -- in a real run neither party can compute this (it
+        needs the peer's secret); they only observe that the final parity
+        checks agree.
+    """
+
+    alice_key: List[int]
+    bob_key: List[int]
+    corrected_bits: int
+    parity_bits_leaked: int
+    passes_used: int
+    residual_errors: int
+
+    @property
+    def leak_fraction(self) -> float:
+        """Fraction of the key length revealed as parity bits."""
+        n = len(self.alice_key)
+        return (self.parity_bits_leaked / n) if n else 0.0
+
+    @property
+    def is_reconciled(self) -> bool:
+        """True when no residual errors remain (simulator diagnostic)."""
+        return self.residual_errors == 0
+
+
+def _xor_block(bits: List[int], positions: List[int]) -> int:
+    """Return the XOR (parity) of ``bits`` at ``positions``."""
+    acc = 0
+    for pos in positions:
+        acc ^= bits[pos]
+    return acc
+
+
+def _binary_locate_and_flip(
+    alice: List[int],
+    bob: List[int],
+    block: List[int],
+    leak: List[int],
+) -> None:
+    """Locate one error inside ``block`` by parity binary search, then flip it.
+
+    Only sub-block parities are compared -- Alice's individual bit values are
+    never read.  That is what makes this a legitimate reconciliation step
+    instead of an oracle that copies Alice's key onto Bob's.
+    """
+    lo, hi = 0, len(block)
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        a_parity = _xor_block(alice, block[lo:mid])
+        b_parity = _xor_block(bob, block[lo:mid])
+        leak[0] += 1
+        if a_parity != b_parity:
+            hi = mid
+        else:
+            lo = mid
+    bob[block[lo]] ^= 1
+
+
+def cascade_reconcile(
+    alice_key: List[int],
+    bob_key: List[int],
+    *,
+    block_size: int = 4,
+    passes: int = 4,
+    seed: Optional[int] = None,
+) -> ReconciliationResult:
+    """Reconcile two sifted keys with the Cascade protocol.
+
+    Cascade is the classical post-processing step of BB84/E91: Alice and Bob
+    exchange **parities only** over the classical channel and use them to
+    locate and correct discrepancies in Bob's key.
+
+    Each pass partitions the key into blocks, compares block parities and
+    binary-searches any block whose parity differs down to a single bit,
+    which Bob then flips.  After the first pass the key is randomly permuted,
+    so blocks that held an even number of errors (and were therefore
+    parity-invisible) get re-split on the next pass.
+
+    Parameters
+    ----------
+    alice_key, bob_key:
+        Sifted keys of equal length.  Alice's key is never modified.
+    block_size:
+        Size of the first-pass blocks; doubles on each subsequent pass.
+    passes:
+        Maximum number of Cascade passes.
+    seed:
+        Optional seed for the per-pass permutation (testing only).
+
+    Returns
+    -------
+    ReconciliationResult
+        Corrected keys plus the reconciliation statistics.
+
+    Raises
+    ------
+    ValueError
+        If the keys differ in length.
     """
     if len(alice_key) != len(bob_key):
         raise ValueError("Keys must be the same length")
 
     n = len(alice_key)
+    alice = list(alice_key)
+    bob = list(bob_key)
     if n == 0:
-        return [], []
+        return ReconciliationResult([], [], 0, 0, 0, 0)
 
-    # Simple reconciliation: XOR and correct
-    reconciled_alice = list(alice_key)
-    reconciled_bob = list(bob_key)
+    rng = random.Random(seed) if seed is not None else secrets.SystemRandom()
+    leak = [0]
+    corrected = 0
+    passes_used = 0
 
-    # Find and correct errors
-    errors_found = 0
-    for i in range(n):
-        if reconciled_alice[i] != reconciled_bob[i]:
-            # Flip Bob's bit
-            reconciled_bob[i] = 1 - reconciled_bob[i]
-            errors_found += 1
+    for pass_index in range(max(1, passes)):
+        size = min(n, max(2, block_size * (2 ** pass_index)))
+        order = list(range(n))
+        if pass_index > 0:
+            rng.shuffle(order)
 
-    return reconciled_alice, reconciled_bob
+        corrected_this_pass = False
+        for start in range(0, n, size):
+            block = order[start:start + size]
+            if len(block) < 2:
+                continue
+            leak[0] += 1
+            if _xor_block(alice, block) != _xor_block(bob, block):
+                _binary_locate_and_flip(alice, bob, block, leak)
+                corrected += 1
+                corrected_this_pass = True
+
+        passes_used = pass_index + 1
+        if not corrected_this_pass:
+            break
+
+    residual = sum(1 for a, b in zip(alice, bob) if a != b)
+    return ReconciliationResult(
+        alice_key=alice,
+        bob_key=bob,
+        corrected_bits=corrected,
+        parity_bits_leaked=leak[0],
+        passes_used=passes_used,
+        residual_errors=residual,
+    )
+
+
+def key_reconciliation(
+    alice_key: List[int],
+    bob_key: List[int],
+    *,
+    block_size: int = 4,
+    passes: int = 4,
+    seed: Optional[int] = None,
+) -> Tuple[List[int], List[int]]:
+    """Reconcile Bob's sifted key with Alice's using Cascade.
+
+    Returns ``(alice_key, reconciled_bob_key)``.  Alice's key comes back
+    unchanged -- only Bob corrects.  Use :func:`cascade_reconcile` when the
+    number of corrected bits or the parity bits leaked are also needed (the
+    latter is the input to privacy amplification).
+
+    Raises
+    ------
+    ValueError
+        If the keys differ in length.
+    """
+    result = cascade_reconcile(
+        alice_key, bob_key, block_size=block_size, passes=passes, seed=seed
+    )
+    return result.alice_key, result.bob_key
 
 
 def privacy_amplification(key: List[int], target_length: int) -> List[int]:
@@ -470,6 +648,9 @@ __all__ = [
     "BB84",
     "E91",
     "key_reconciliation",
+    "cascade_reconcile",
+    "ReconciliationResult",
+    "QBER_SECURITY_THRESHOLD",
     "privacy_amplification",
     "run_bb84",
     "run_e91",

@@ -56,6 +56,7 @@ import '../apps/sdk_manager_app.dart';
 import '../apps/scripts_manager_app.dart';
 import '../apps/sbin_manager_app.dart';
 import '../apps/root_manager_app.dart';
+import '../apps/proc_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -211,6 +212,15 @@ abstract final class AppRegistry {
       color: Colors.red.shade700,
       category: AppCategory.system,
       builder: (_) => const RootManagerApp(),
+    ),
+    AppDefinition(
+      id: 'proc',
+      title: 'Process Manager',
+      description: 'View /proc filesystem, processes, CPU, memory and kernel info.',
+      icon: Icons.memory,
+      color: Colors.teal.shade700,
+      category: AppCategory.system,
+      builder: (_) => const ProcManagerApp(),
     ),
     AppDefinition(
       id: 'tmp',

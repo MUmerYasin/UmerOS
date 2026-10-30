@@ -43,9 +43,14 @@ def _try_import(module_name: str, names: tuple[str, ...]) -> None:
 # ``proc``).
 for _mod, _names in (
     ("procfs", ("ProcFileSystem",)),
-    ("kernel_adapter", ("KernelAdapter",)),
-    ("process", ("ProcessInfo",)),
-    ("sysctl", ("SysctlView",)),
+    ("kernel_adapter", ("KernelAdapter", "KernelRingLog", "LoadAvgTracker")),
+    ("nodes", ("ProcNode", "ProcFile", "ProcDir", "ProcSymlink")),
+    ("info", ("cpuinfo", "meminfo", "uptime", "loadavg", "version",
+              "filesystems", "partitions", "swaps", "interrupts",
+              "ioports", "dma", "modules", "mounts", "all_pids",
+              "process_info", "process_cmdline", "process_environ",
+              "process_fd")),
+    ("utils", ("parse_key_value", "parse_key_value_multi")),
 ):
     _try_import(_mod, _names)
 
