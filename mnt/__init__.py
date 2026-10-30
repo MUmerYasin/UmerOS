@@ -65,8 +65,8 @@ from .mount_ops import (
     options_to_flags,
     parse_options,
 )
-from .mount_point import MNT_ROOT, MountPoint, MountPointManager
-from .user_mount import MtabEntry, UserMountManager
+from .mount_point import MNT_ROOT, MountPoint, MountPointError, MountPointManager
+from .user_mount import MtabEntry, UserMountError, UserMountManager
 from .validation import Finding, MntValidator, Severity
 
 __all__ = [
@@ -85,9 +85,11 @@ __all__ = [
     # mount_point
     "MNT_ROOT",
     "MountPoint",
+    "MountPointError",
     "MountPointManager",
     # user_mount
     "MtabEntry",
+    "UserMountError",
     "UserMountManager",
     # audit
     "AuditEvent",

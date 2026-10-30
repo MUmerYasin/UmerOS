@@ -58,6 +58,7 @@ import '../apps/scripts_manager_app.dart';
 import '../apps/sbin_manager_app.dart';
 import '../apps/root_manager_app.dart';
 import '../apps/proc_manager_app.dart';
+import '../apps/mnt_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -222,6 +223,15 @@ abstract final class AppRegistry {
       color: Colors.teal.shade700,
       category: AppCategory.system,
       builder: (_) => const ProcManagerApp(),
+    ),
+    AppDefinition(
+      id: 'mnt',
+      title: 'Mount Manager',
+      description: 'Manage /mnt mount points, fstab, user mounts and audit trail.',
+      icon: Icons.storage,
+      color: Colors.brown.shade700,
+      category: AppCategory.system,
+      builder: (_) => const MntManagerApp(),
     ),
     AppDefinition(
       id: 'tmp',

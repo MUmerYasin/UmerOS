@@ -27,10 +27,14 @@ Provides a common Backend interface that wraps:
     result = backend.run(circuit, shots=1024)
 
 Backend objects are compatible with noise models and can be composed.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 from typing import Optional, Dict, Any, List, Sequence
@@ -46,6 +50,9 @@ from .circuit import QuantumCircuit
 from .gates import Gate
 from .simulator import StatevectorSimulator, DensityMatrixSimulator, Statevector, MeasurementResult
 from .noise import NoiseModel
+
+
+log = logging.getLogger("UmerOS.Quantum.Backend")
 
 
 # ---------------------------------------------------------------------------
@@ -278,10 +285,51 @@ class AerBackend(Backend):
 # IBM Quantum Backend (stub - requires qiskit-ibm-runtime)
 # ---------------------------------------------------------------------------
 
+_SECRET_PLACEHOLDER = "***"
+
+# Secrets shorter than this are not scrubbed: replacing a one- or two-character
+# token would shred the surrounding diagnostic text for no confidentiality gain.
+_MIN_SECRET_LEN = 4
+
+
+def _redact_secrets(text: Any, *secrets: Optional[str]) -> str:
+    """Return ``text`` with every supplied secret replaced by ``***``.
+
+    Provider SDK exceptions cannot be trusted about what they echo: an
+    ``HTTPError`` raised deep inside ``requests`` carries the full request URL
+    (query string included), and some SDKs format the auth token straight into
+    the message.  Every diagnostic string that reaches a log record therefore
+    passes through this scrubber first.
+
+    Args:
+        text: The diagnostic text to sanitize.  ``None`` becomes ``""`` and
+            non-strings are coerced with ``str()`` -- this function never
+            raises.
+        *secrets: Secret values to remove.  ``None`` and empty strings are
+            ignored, and values shorter than ``_MIN_SECRET_LEN`` are skipped.
+
+    Returns:
+        The scrubbed text.
+    """
+    redacted = "" if text is None else str(text)
+    for secret in secrets:
+        if not isinstance(secret, str) or len(secret) < _MIN_SECRET_LEN:
+            continue
+        redacted = redacted.replace(secret, _SECRET_PLACEHOLDER)
+    return redacted
+
+
 class IBMBackend(Backend):
     """IBM Quantum backend via qiskit-ibm-runtime.
 
     Requires: pip install qiskit-ibm-runtime
+
+    Initialization is best-effort.  When the optional dependency is missing the
+    backend stays in offline mode (``status()`` -> ``OFFLINE``); when the
+    service rejects the credentials the failure is logged at WARNING through
+    ``logging`` -- never printed to stdout -- with the token scrubbed out of the
+    exception text by ``_redact_secrets``.  ``__repr__`` follows the
+    ``providers/base.py`` redaction pattern (``token='***'``).
     """
 
     def __init__(self, token: Optional[str] = None, instance: Optional[str] = None,
@@ -299,9 +347,24 @@ class IBMBackend(Backend):
             )
             self._backend = self._service.backend(backend_name)
         except ImportError:
-            pass
-        except Exception as e:
-            print(f"IBM Backend init warning: {e}")
+            log.debug(
+                "qiskit-ibm-runtime not installed; IBMBackend(%s) runs offline.",
+                backend_name,
+            )
+        except Exception as exc:
+            log.warning(
+                "IBM backend %r initialization failed (%s): %s",
+                backend_name,
+                type(exc).__name__,
+                _redact_secrets(exc, token),
+            )
+
+    def __repr__(self) -> str:
+        return (
+            f"IBMBackend(name={self._backend_name!r}, "
+            f"token={'***' if self._token else None}, "
+            f"online={self._backend is not None})"
+        )
 
     @property
     def name(self) -> str:
