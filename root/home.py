@@ -39,7 +39,7 @@ permissions (``0700``), and how to inventory what is inside so a
 caller can warn about mail/ application subdirs.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3) 
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

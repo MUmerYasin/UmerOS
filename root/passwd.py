@@ -24,7 +24,7 @@ a tiny adapter so the rest of the runtime can:
   filesystem (e.g. inside an installer).
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3) 
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

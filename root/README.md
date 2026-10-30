@@ -71,4 +71,4 @@ if not report.ok:
 
 ## License
 
-License: GPL-3.0 (GNU General Public License Version 3) - same as the rest of Umer OS.
+License: GPL-3.0 (GNU General Public License v3) - same as the rest of Umer OS.

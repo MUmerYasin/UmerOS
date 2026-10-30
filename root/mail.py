@@ -29,12 +29,13 @@ This module is a *policy* module: it does not talk to a real MTA.
 It generates, validates, and audits ``~/.forward``.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3) 
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -49,6 +50,12 @@ log = logging.getLogger("UmerOS.Root.Mail")
 
 #: Filename (relative to root's home) the MTA looks for.
 FORWARD_FILENAME: str = ".forward"
+
+#: FHS-recommended mode for root's home directory.
+HOME_MODE: int = 0o700
+
+#: ``.forward`` names an address outside the host -- owner-only.
+FORWARD_MODE: int = 0o600
 
 #: A reasonable local-part validation - good enough for ``.forward``
 #: sanity checks; the MTA does the real validation.
@@ -209,7 +216,12 @@ class RootMailForwarder:
     # -- write ---------------------------------------------------------
 
     def ensure(self, address: str, *, comment: Optional[str] = None) -> ForwardReport:
-        """Create or replace the ``.forward`` file with one entry."""
+        """Create or replace the ``.forward`` file with one entry.
+
+        The root home is created (if missing) with mode ``0700`` and the file
+        with mode ``0600``; see :meth:`_ensure_home` and
+        :meth:`_write_forward` for why neither relies on the process umask.
+        """
         if not address:
             raise ValueError("address must not be empty")
         lines = []
@@ -217,19 +229,51 @@ class RootMailForwarder:
             lines.append(f"# {comment}")
         lines.append(address)
         text = "\n".join(lines) + "\n"
-        self.home.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(text, encoding="utf-8")
-        try:
-            import stat
-            os_chmod = getattr(self.path, "chmod", None)
-            if os_chmod is None:
-                import os
-                os.chmod(self.path, 0o600)
-            else:
-                os_chmod(0o600)
-        except OSError as exc:
-            log.warning("could not chmod %s: %s", self.path, exc)
+        self._ensure_home()
+        self._write_forward(text)
         return self.audit()
+
+    def _ensure_home(self) -> None:
+        """Create root's home if missing and force it to ``0700``.
+
+        ``Path.mkdir()`` applies the process umask to ``mode``, so a plain
+        ``mkdir()`` leaves the directory at ~0755 -- world-readable and
+        world-executable, which is wrong for the admin home.  The mode is
+        therefore re-applied with an explicit ``chmod`` after creation.
+
+        An existing directory is tightened too: this class only ever manages
+        root's home and ``0700`` is the only acceptable mode for it (the
+        sibling :class:`RootHomeManager.ensure` behaves the same way).  A
+        chmod failure is logged rather than raised -- on a filesystem without
+        POSIX permissions the directory is still usable, and
+        :meth:`RootSafetyAuditor` reports the mode.
+        """
+        if not self.home.exists():
+            self.home.mkdir(parents=True, exist_ok=True, mode=HOME_MODE)
+            log.info("created root home at %s (mode %s)", self.home, oct(HOME_MODE))
+        try:
+            os.chmod(self.home, HOME_MODE)
+        except OSError as exc:
+            log.warning("could not chmod %s to %s: %s", self.home, oct(HOME_MODE), exc)
+
+    def _write_forward(self, text: str) -> None:
+        """Write ``.forward`` with its final ``0600`` mode from the start.
+
+        Creating the file under the default umask and chmod-ing afterwards
+        leaves a window in which ``.forward`` -- which names a delivery address
+        outside the host -- is world-readable.  The file is therefore opened
+        with the target mode, and re-chmod-ed to cover a pre-existing file
+        (``os.open``'s mode argument only applies on creation).
+        """
+        fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, FORWARD_MODE)
+        try:
+            os.write(fd, text.encode("utf-8"))
+        finally:
+            os.close(fd)
+        try:
+            os.chmod(self.path, FORWARD_MODE)
+        except OSError as exc:
+            log.warning("could not chmod %s to %s: %s", self.path, oct(FORWARD_MODE), exc)
 
     # -- admin role table ----------------------------------------------
 

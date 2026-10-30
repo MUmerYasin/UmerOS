@@ -38,7 +38,7 @@ Security note: root's history file is sensitive and we tighten its
 permissions to ``0600`` on creation.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3)
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

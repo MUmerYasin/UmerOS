@@ -116,6 +116,8 @@ def python_bindings_available() -> bool:
 
 def python_bindings_version() -> Optional[str]:
     """Return the ``liboqs-python`` bindings version, or ``None`` if absent."""
+    if not python_bindings_available():
+        return None
     try:
         import oqs  # type: ignore
         v = getattr(oqs, "__version__", None)

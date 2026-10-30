@@ -19,7 +19,7 @@ modules each cover one slice; this one wires them together and
 produces a single report.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3) 
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

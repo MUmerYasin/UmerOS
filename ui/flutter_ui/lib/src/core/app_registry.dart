@@ -59,6 +59,7 @@ import '../apps/sbin_manager_app.dart';
 import '../apps/root_manager_app.dart';
 import '../apps/proc_manager_app.dart';
 import '../apps/mnt_manager_app.dart';
+import '../apps/pqc_manager_app.dart';
 import '../apps/media_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
@@ -427,6 +428,15 @@ abstract final class AppRegistry {
       color: Colors.deepPurple,
       category: AppCategory.development,
       builder: (_) => const QuantumSimApp(),
+    ),
+    AppDefinition(
+      id: 'pqc',
+      title: 'PQC Manager',
+      description: 'Post-quantum cryptography, liboqs integration and provenance.',
+      icon: Icons.security,
+      color: Colors.indigo.shade700,
+      category: AppCategory.security,
+      builder: (_) => const PqcManagerApp(),
     ),
 
     // ── Security ──────────────────────────────────────────────────

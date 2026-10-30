@@ -41,7 +41,7 @@ The auditor reports each finding with a severity so the operator
 can decide which ones to fix immediately.
 
 Author:  Umer OS Project
-License: GPL-3.0 (GNU General Public License Version 3) 
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
