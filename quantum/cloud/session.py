@@ -24,12 +24,13 @@ import json
 import logging
 import time
 import uuid
-import urllib.error
-import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
+# All HTTP in this module goes through ``.job._http_request``, which applies
+# the package-wide TLS policy from ``quantum.tls``.  There is deliberately no
+# ``urllib`` import here: a local ``urlopen`` would bypass that policy.
 from .job import CloudJob, CloudJobStatus, _http_request
 
 if TYPE_CHECKING:

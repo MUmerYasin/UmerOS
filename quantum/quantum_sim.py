@@ -41,6 +41,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from .tls import tls_context
+
 log = logging.getLogger("UmerOS.QuantumSim")
 
 
@@ -513,7 +515,7 @@ class IBMQuantumDevice(QuantumDevice):
         url = f"{self._api_base}/Network/{self._hub}/Groups/{self._group}/Projects/{self._project}/devices/{self._device_name}"
         try:
             req = urllib.request.Request(url, headers=self._headers(), method="GET")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                 data = json.loads(resp.read())
                 status_str = data.get("status", "unknown")
                 if status_str == "active":
@@ -546,7 +548,7 @@ class IBMQuantumDevice(QuantumDevice):
                 url, data=json.dumps(payload).encode(),
                 headers=self._headers(), method="POST"
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=30, context=tls_context()) as resp:
                 job_data = json.loads(resp.read())
                 job_id = job_data.get("id", "")
         except urllib.error.URLError as e:
@@ -558,7 +560,7 @@ class IBMQuantumDevice(QuantumDevice):
             time.sleep(2)
             try:
                 req = urllib.request.Request(result_url, headers=self._headers(), method="GET")
-                with urllib.request.urlopen(req, timeout=10) as resp:
+                with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                     job_status = json.loads(resp.read())
                     if job_status.get("status") == "completed":
                         break
@@ -571,7 +573,7 @@ class IBMQuantumDevice(QuantumDevice):
         try:
             res_url = f"{result_url}/result"
             req = urllib.request.Request(res_url, headers=self._headers(), method="GET")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                 result_data = json.loads(resp.read())
                 counts = result_data.get("results", [{}])[0].get("data", {}).get("counts", {})
                 return counts
@@ -659,7 +661,7 @@ class IonQDevice(QuantumDevice):
         url = f"{self._api_base}/v1/backends/{self._device_name}"
         try:
             req = urllib.request.Request(url, headers=self._headers(), method="GET")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                 data = json.loads(resp.read())
                 if data.get("available", False):
                     return DeviceStatus.ONLINE
@@ -691,7 +693,7 @@ class IonQDevice(QuantumDevice):
                 url, data=json.dumps(payload).encode(),
                 headers=self._headers(), method="POST"
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=30, context=tls_context()) as resp:
                 job_data = json.loads(resp.read())
                 job_id = job_data.get("id", "")
         except urllib.error.URLError as e:
@@ -703,7 +705,7 @@ class IonQDevice(QuantumDevice):
             time.sleep(2)
             try:
                 req = urllib.request.Request(status_url, headers=self._headers(), method="GET")
-                with urllib.request.urlopen(req, timeout=10) as resp:
+                with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                     job_status = json.loads(resp.read())
                     if job_status.get("status") == "completed":
                         break
@@ -716,7 +718,7 @@ class IonQDevice(QuantumDevice):
         try:
             result_url = f"{self._api_base}/v1/apps/{job_id}"
             req = urllib.request.Request(result_url, headers=self._headers(), method="GET")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                 result_data = json.loads(resp.read())
                 counts_raw = result_data.get("result", {}).get("counts", {})
                 return {k: int(v) for k, v in counts_raw.items()}
@@ -786,7 +788,7 @@ class BraketDevice(QuantumDevice):
         url = f"{self._api_base}/devices/{self._device_arn}"
         try:
             req = urllib.request.Request(url, headers=self._headers(), method="GET")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                 data = json.loads(resp.read())
                 status_str = data.get("deviceStatus", "OFFLINE")
                 if status_str == "IDLE":
@@ -823,7 +825,7 @@ class BraketDevice(QuantumDevice):
                 url, data=json.dumps(payload).encode(),
                 headers=self._headers(), method="POST"
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=30, context=tls_context()) as resp:
                 job_data = json.loads(resp.read())
                 job_arn = job_data.get("jobArn", "")
         except urllib.error.URLError as e:
@@ -835,7 +837,7 @@ class BraketDevice(QuantumDevice):
             time.sleep(2)
             try:
                 req = urllib.request.Request(status_url, headers=self._headers(), method="GET")
-                with urllib.request.urlopen(req, timeout=10) as resp:
+                with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                     job_status = json.loads(resp.read())
                     if job_status.get("status") == "COMPLETED":
                         break
@@ -848,7 +850,7 @@ class BraketDevice(QuantumDevice):
         try:
             result_url = f"{self._api_base}/jobs/{job_arn}/result"
             req = urllib.request.Request(result_url, headers=self._headers(), method="GET")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                 result_data = json.loads(resp.read())
                 counts_raw = result_data.get("measurementProbabilities", {})
                 counts = {}
@@ -915,7 +917,7 @@ class RigettiDevice(QuantumDevice):
         url = f"{self._api_base}/v1/quantum-devices/{self._device_name}"
         try:
             req = urllib.request.Request(url, headers=self._headers(), method="GET")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                 data = json.loads(resp.read())
                 if data.get("online", False):
                     return DeviceStatus.ONLINE
@@ -944,7 +946,7 @@ class RigettiDevice(QuantumDevice):
                 url, data=json.dumps(payload).encode(),
                 headers=self._headers(), method="POST"
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=30, context=tls_context()) as resp:
                 job_data = json.loads(resp.read())
                 job_id = job_data.get("id", "")
         except urllib.error.URLError as e:
@@ -956,7 +958,7 @@ class RigettiDevice(QuantumDevice):
             time.sleep(2)
             try:
                 req = urllib.request.Request(status_url, headers=self._headers(), method="GET")
-                with urllib.request.urlopen(req, timeout=10) as resp:
+                with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                     job_status = json.loads(resp.read())
                     if job_status.get("status") == "completed":
                         break
@@ -968,7 +970,7 @@ class RigettiDevice(QuantumDevice):
         # Fetch results
         try:
             req = urllib.request.Request(status_url, headers=self._headers(), method="GET")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=10, context=tls_context()) as resp:
                 result_data = json.loads(resp.read())
                 counts_raw = result_data.get("result", {}).get("counts", {})
                 return {k: int(v) for k, v in counts_raw.items()}

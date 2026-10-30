@@ -14,6 +14,9 @@ UmerOS /media/network - Network Share Definitions
 
 Defines network share types, protocols, credentials, and management.
 Supports SMB/CIFS, NFS, SSHFS, FTP, WebDAV, and more.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

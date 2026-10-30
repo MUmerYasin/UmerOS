@@ -59,6 +59,7 @@ import '../apps/sbin_manager_app.dart';
 import '../apps/root_manager_app.dart';
 import '../apps/proc_manager_app.dart';
 import '../apps/mnt_manager_app.dart';
+import '../apps/media_manager_app.dart';
 
 /// Logical groupings used by Spotlight subtitles and future LaunchPad
 /// filters. Keep user-facing wording, never internal module names.
@@ -232,6 +233,15 @@ abstract final class AppRegistry {
       color: Colors.brown.shade700,
       category: AppCategory.system,
       builder: (_) => const MntManagerApp(),
+    ),
+    AppDefinition(
+      id: 'media',
+      title: 'Media Manager',
+      description: 'Manage removable media, mount points, network shares and auto-mount.',
+      icon: Icons.usb,
+      color: Colors.green.shade700,
+      category: AppCategory.media,
+      builder: (_) => const MediaManagerApp(),
     ),
     AppDefinition(
       id: 'tmp',

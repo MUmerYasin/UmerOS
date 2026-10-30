@@ -38,6 +38,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
+from ..tls import tls_context
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -89,47 +91,22 @@ _PROVIDER_AUTH_CONFIG: Dict[str, Dict[str, Any]] = {
 # TLS context for provider auth/token calls.
 #
 # Provider OAuth2 and REST calls carry sensitive credentials (API tokens,
-# refresh tokens, access tokens).  By default urllib uses the system trust
-# store with no explicit verification -- this helper enforces:
-#
-#   * CERT_REQUIRED -- the server MUST present a valid certificate
-#   * check_hostname=True -- the certificate MUST match the URL hostname
-#   * Optional CA pinning via UMEROS_TLS_CAFILE env var for explicit CAs
-#
-# This prevents a rogue CA / MITM from capturing provider tokens .
-# The context is NEVER unverified -- there is no fallback to CERT_NONE.
-
-
-_tls_ctx: Optional[ssl.SSLContext] = None
+# refresh tokens, access tokens).  The policy itself lives in
+# :mod:`quantum.tls` so that every REST call site in the package -- auth, job
+# polling, the four provider modules and ``quantum_sim`` -- shares one
+# implementation instead of drifting copies.  This name is kept as a thin
+# alias because it is the one the H218 regression suite pins.
 
 
 def _tls_context() -> ssl.SSLContext:
-    """Return a strict SSL context for provider REST calls.
+    """Return the package-wide strict SSL context for provider REST calls.
 
-    If ``UMEROS_TLS_CAFILE`` is set, only the certificates in that file are
-    trusted (explicit CA pinning).  Otherwise the system trust store is used
-    with full verification.  The context never disables verification.
+    Thin alias for :func:`quantum.tls.tls_context`; see that function for the
+    policy -- ``CERT_REQUIRED``, ``check_hostname``, a TLS 1.2 floor, optional
+    ``UMEROS_TLS_CAFILE`` pinning, and fail-closed behaviour when a pinned CA
+    file cannot be loaded.
     """
-    global _tls_ctx
-    if _tls_ctx is not None:
-        return _tls_ctx
-
-    cafile = os.environ.get("UMEROS_TLS_CAFILE")
-    if cafile:
-        ctx = ssl.create_default_context(
-            purpose=ssl.Purpose.SERVER_AUTH, cafile=cafile
-        )
-        logger.info("TLS CA pinning enabled (UMEROS_TLS_CAFILE=%s)", cafile)
-    else:
-        ctx = ssl.create_default_context(purpose=ssl.Purpose.SERVER_AUTH)
-
-    # Enforce strict verification -- never relax
-    ctx.verify_mode = ssl.CERT_REQUIRED
-    ctx.check_hostname = True
-    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-
-    _tls_ctx = ctx
-    return ctx
+    return tls_context()
 
 
 def _http_request(

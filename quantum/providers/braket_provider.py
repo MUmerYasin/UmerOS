@@ -27,6 +27,8 @@ from typing import Any, Dict, List, Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from ..tls import tls_context
+
 from .base import (
     BackendJob,
     BackendProperties,
@@ -198,7 +200,7 @@ def _api_request(
     req = Request(url, data=data, headers=headers, method=method)
 
     try:
-        with urlopen(req, timeout=30) as resp:
+        with urlopen(req, timeout=30, context=tls_context()) as resp:
             raw = resp.read().decode("utf-8")
             if not raw.strip():
                 return {}

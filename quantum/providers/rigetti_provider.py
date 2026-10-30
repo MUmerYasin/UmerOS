@@ -28,6 +28,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
+from ..tls import tls_context
+
 from .base import (
     BackendJob,
     BackendProperties,
@@ -110,7 +112,9 @@ def _http_request(
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            req, timeout=timeout, context=tls_context()
+        ) as resp:
             raw = resp.read()
             if raw:
                 return json.loads(raw)

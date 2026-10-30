@@ -21,10 +21,19 @@ from pathlib import Path
 import pytest
 
 AUTH_PATH = Path(__file__).resolve().parent.parent / "quantum" / "cloud" / "auth.py"
+#: H225 moved the TLS policy into ``quantum/tls.py`` so the 22 REST call sites
+#: in the package share one implementation.  The *policy* assertions below now
+#: point at that single source of truth; ``auth.py`` is asserted to delegate to
+#: it, which is the property H218 actually cares about.
+TLS_PATH = Path(__file__).resolve().parent.parent / "quantum" / "tls.py"
 
 
 def _source() -> str:
     return AUTH_PATH.read_text(encoding="utf-8")
+
+
+def _tls_source() -> str:
+    return TLS_PATH.read_text(encoding="utf-8")
 
 
 class TestSourceInvariants:
@@ -36,17 +45,24 @@ class TestSourceInvariants:
     def test_has_tls_context_helper(self) -> None:
         assert "_tls_context" in _source(), "auth.py must define _tls_context"
 
+    def test_delegates_to_shared_policy(self) -> None:
+        """H218's policy now lives in ``quantum/tls.py``; auth.py delegates."""
+        assert "from ..tls import tls_context" in _source()
+        assert "return tls_context()" in _source(), (
+            "auth.py::_tls_context must delegate to quantum.tls.tls_context"
+        )
+
     def test_cert_required(self) -> None:
-        assert "CERT_REQUIRED" in _source(), "must enforce CERT_REQUIRED"
+        assert "CERT_REQUIRED" in _tls_source(), "must enforce CERT_REQUIRED"
 
     def test_check_hostname(self) -> None:
-        assert "check_hostname = True" in _source(), "must check hostname"
+        assert "check_hostname = True" in _tls_source(), "must check hostname"
 
     def test_minimum_tls_1_2(self) -> None:
-        assert "TLSv1_2" in _source(), "must enforce minimum TLS 1.2"
+        assert "TLSv1_2" in _tls_source(), "must enforce minimum TLS 1.2"
 
     def test_cafile_pinning(self) -> None:
-        assert "UMEROS_TLS_CAFILE" in _source(), "must support CA pinning"
+        assert "UMEROS_TLS_CAFILE" in _tls_source(), "must support CA pinning"
 
     def test_urlopen_passes_context(self) -> None:
         """urlopen must be called with context=_tls_context()."""

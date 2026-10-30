@@ -33,6 +33,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from ..tls import tls_context
+
 from .base import (
     BackendJob,
     BackendProperties,
@@ -143,7 +145,9 @@ def _http_request(
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            req, timeout=timeout, context=tls_context()
+        ) as resp:
             raw = resp.read().decode("utf-8")
             if not raw:
                 return {}
@@ -403,7 +407,9 @@ class IonQJob(BackendJob):
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(
+                req, timeout=15, context=tls_context()
+            ) as resp:
                 # Success — 200 or 204
                 self._status = "CANCELLED"
         except urllib.error.HTTPError as exc:

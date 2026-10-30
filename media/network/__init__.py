@@ -40,6 +40,9 @@ Quick start::
     )
     mount_point = mgr.mount(share)
     print(f"Mounted at {mount_point}")
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

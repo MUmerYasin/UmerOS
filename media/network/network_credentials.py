@@ -9,6 +9,9 @@ UmerOS /media/network - Network Credential Management
 
 Secure storage and management of credentials for network shares.
 Uses simple file-based storage with basic obfuscation.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

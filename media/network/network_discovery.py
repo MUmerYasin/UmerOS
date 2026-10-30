@@ -9,6 +9,9 @@ UmerOS /media/network - Network Share Discovery
 
 Browse and discover available network shares (SMB, NFS, etc.)
 on the local network or specified hosts.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

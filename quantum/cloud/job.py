@@ -31,6 +31,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from ..tls import tls_context
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -84,7 +86,9 @@ def _http_request(
     req = urllib.request.Request(url, data=data, headers=default_headers, method=method)
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(
+            req, timeout=timeout, context=tls_context()
+        ) as resp:
             raw = resp.read().decode("utf-8")
             if not raw.strip():
                 return {}

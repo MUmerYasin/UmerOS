@@ -9,6 +9,9 @@ UmerOS /media/network - Network Mount Operations
 
 Mount and unmount network shares (SMB/CIFS, NFS, SSHFS, etc.)
 under /media/network with proper option handling and error reporting.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
