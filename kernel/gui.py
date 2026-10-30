@@ -23,13 +23,36 @@ Umer OS – Fluidic GUI (Kivy prototype) — **RETIRED / LEGACY**
    ``kernel/umer_kernel.start_gui_shell``, H116).
 """
 
-from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
-from kivy.uix.textinput import TextInput
-from kivy.uix.button import Button
-from kivy.uix.scrollview import ScrollView
-from kivy.clock import Clock
+try:
+    from kivy.app import App
+    from kivy.uix.boxlayout import BoxLayout
+    from kivy.uix.label import Label
+    from kivy.uix.textinput import TextInput
+    from kivy.uix.button import Button
+    from kivy.uix.scrollview import ScrollView
+    from kivy.clock import Clock
+    kivy_available = True
+except ImportError:
+    kivy_available = False
+    class App:
+        def run(self):
+            print('Kivy not installed.')
+    class BoxLayout:
+        def __init__(self, **kwargs): pass
+        def add_widget(self, w): pass
+    class Label:
+        def __init__(self, **kwargs): self.text = kwargs.get('text', '')
+    class TextInput:
+        def __init__(self, **kwargs): self.text = ''
+    class Button:
+        def __init__(self, **kwargs): pass
+        def bind(self, **kwargs): pass
+    class ScrollView:
+        def __init__(self, **kwargs): self.scroll_y = 0
+        def add_widget(self, w): pass
+    class Clock:
+        @staticmethod
+        def schedule_interval(fn, dt): pass
 import random
 
 # Try to import the AI assistant, fallback to a simple internal version

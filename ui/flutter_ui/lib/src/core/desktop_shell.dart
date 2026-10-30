@@ -10,6 +10,7 @@ import 'theme_provider.dart';
 import '../widgets/dock.dart';
 import '../widgets/draggable_window.dart';
 import '../widgets/auto_adjust_box.dart';
+import '../widgets/live_view_capsule.dart';
 import '../services/material3_theme.dart';
 import '../../services/clipboard_manager.dart';
 import 'package:file_picker/file_picker.dart';
@@ -463,6 +464,12 @@ class _MenuBar extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+
+          // HarmonyOS-style Live Task Status Capsule (实况窗)
+          LiveViewCapsule(
+            activeTasks: const [],
+            onTapTask: (_) => onOpenApp(AppRegistry.byId('kernel_manager')!),
           ),
 
           // Universal Clipboard History Trigger (Ctrl+Shift+V)

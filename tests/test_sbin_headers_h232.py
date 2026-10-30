@@ -42,15 +42,18 @@ SBIN = PROJ / "sbin"
 CANON = "License: GPL-3.0 (GNU General Public License v3)"
 AUTHOR = "Author:  Umer OS Project"
 
-#: The nine modules audited in session 218.  A tenth file is a conscious act.
+#: The nine modules audited in session 218, plus `command_guard.py` (H233) and
+#: `path_policy.py` (H234).  A further file is a conscious act.
 EXPECTED_MODULES = [
     "__init__.py",
     "boot.py",
+    "command_guard.py",
     "filesystem.py",
     "maintenance.py",
     "modules.py",
     "mount.py",
     "network.py",
+    "path_policy.py",
     "sbin_manager.py",
     "system.py",
 ]
@@ -203,11 +206,11 @@ class TestFailClosedAudit:
         from legal.licenses import LicenseManager
 
         result = LicenseManager.scan_directory(SBIN)
-        assert result.total_files_scanned == 9, (
-            f"expected 9 files scanned, got {result.total_files_scanned}"
+        assert result.total_files_scanned == 11, (
+            f"expected 11 files scanned, got {result.total_files_scanned}"
         )
-        assert result.compliant_files == 9, (
-            f"only {result.compliant_files}/9 sbin modules carry a GPL-3.0 "
+        assert result.compliant_files == 11, (
+            f"only {result.compliant_files}/11 sbin modules carry a GPL-3.0 "
             "declaration the fail-closed audit accepts"
         )
 

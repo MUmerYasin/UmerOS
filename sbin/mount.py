@@ -27,9 +27,31 @@ import sys
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
+# Zero-trust execution guard (H233): every command's `execute()` is
+# capability-gated and audit-logged the moment its class is defined.
+try:
+    from .command_guard import install_guard
+except ImportError:  # pragma: no cover - run as a standalone script
+    from command_guard import install_guard
+
+# Path + mount-option policy (H234): every path this module stores is
+# validated now, so wiring the simulation to a real syscall cannot turn
+# stored text into a traversing path.
+try:
+    from . import path_policy
+    from .path_policy import UnsafePathError
+except ImportError:  # pragma: no cover - run as a standalone script
+    import path_policy  # type: ignore[no-redef]
+    from path_policy import UnsafePathError  # type: ignore[no-redef]
+
 
 class SbinCommand:
     """Base class for /sbin commands."""
+
+    # Gate + audit every subclass's `execute()` at class-creation time
+    # (H233), so a direct `SomeCommand().execute()` cannot bypass the
+    # capability check that `SbinManager.execute()` performs.
+    __init_subclass__ = install_guard
 
     name: str = ""
     description: str = ""
@@ -61,6 +83,10 @@ _MOUNT_TABLE: List[Dict[str, Any]] = [
 _LOOP_DEVICES: Dict[str, str] = {}
 
 _DEVICE_NODES: Dict[str, Tuple[int, int]] = {}
+
+#: Mode bits requested with ``mknod -m``.  The parsed value used to be
+#: computed and discarded, so ``-m`` silently did nothing.
+_DEVICE_MODES: Dict[str, int] = {}
 
 
 # ─── Mount Commands ─────────────────────────────────────────────────────────
@@ -129,11 +155,25 @@ class MountCommand(SbinCommand):
                 i += 1
 
         if device and mount_point:
+            # Validate before storing: this text becomes a real mount(2)
+            # argument the moment the simulation is wired up (H234).
+            try:
+                device = path_policy.validate_source(device)
+                mount_point = path_policy.normalise(mount_point, "mount point")
+            except UnsafePathError as exc:
+                print(f"mount: {exc}", file=sys.stderr)
+                return 1
+
             # Check if already mounted at that mount_point
             for existing in _MOUNT_TABLE:
                 if existing["mount_point"] == mount_point:
                     print(f"mount: {mount_point} already mounted", file=sys.stderr)
                     return 1
+
+            # Hardened by default: a newly mounted filesystem must not honour
+            # setuid bits, device nodes or executable payloads planted on it
+            # -- the same flags mnt/mount_ops.harden_user_options applies.
+            options, _hardened = path_policy.harden_mount_options(options)
             entry = {
                 "device": device,
                 "mount_point": mount_point,
@@ -184,7 +224,12 @@ class UmountCommand(SbinCommand):
             print("umount from util-linux 2.37.2")
             return 0
 
-        target = args[0]
+        try:
+            target = path_policy.normalise(args[0], "mount point")
+        except UnsafePathError as exc:
+            print(f"umount: {exc}", file=sys.stderr)
+            return 1
+
         # Virtual paths are always considered mounted in UmerOS
         virtual_paths = {"/tmp", "/dev/shm", "/dev/pts", "/dev", "/proc", "/sys"}
         if target in virtual_paths:
@@ -236,8 +281,14 @@ class MknodCommand(SbinCommand):
             print("Try 'mknod --help' for more information.", file=sys.stderr)
             return 1
 
-        name = remaining[0]
         devtype = remaining[1]
+        try:
+            name = path_policy.require_under(
+                remaining[0], path_policy.DEV_PREFIX, "device node"
+            )
+        except UnsafePathError as exc:
+            print(f"mknod: {exc}", file=sys.stderr)
+            return 1
 
         if devtype not in ("b", "c", "u", "p"):
             print(f"mknod: invalid device type '{devtype}'", file=sys.stderr)
@@ -254,10 +305,13 @@ class MknodCommand(SbinCommand):
                 print("mknod: invalid major/minor number", file=sys.stderr)
                 return 1
             _DEVICE_NODES[name] = (major, minor)
-            print(f"[*] mknod: created {devtype} device '{name}' ({major}, {minor})")
+            _DEVICE_MODES[name] = mode
+            print(f"[*] mknod: created {devtype} device '{name}' "
+                  f"({major}, {minor}) mode {mode:04o}")
         else:
             _DEVICE_NODES[name] = (0, 0)
-            print(f"[*] mknod: created named pipe '{name}'")
+            _DEVICE_MODES[name] = mode
+            print(f"[*] mknod: created named pipe '{name}' mode {mode:04o}")
         return 0
 
 
@@ -312,7 +366,11 @@ class LosetupCommand(SbinCommand):
         i = 0
         while i < len(args):
             if args[i] == "-o" and i + 1 < len(args):
-                offset = int(args[i + 1])
+                try:
+                    offset = int(args[i + 1])
+                except ValueError:
+                    print(f"losetup: invalid offset '{args[i + 1]}'", file=sys.stderr)
+                    return 1
                 i += 2
             elif not args[i].startswith("-"):
                 if loopdev is None:
@@ -324,6 +382,12 @@ class LosetupCommand(SbinCommand):
                 i += 1
 
         if loopdev and filepath:
+            try:
+                loopdev = path_policy.require_loop_device(loopdev)
+                filepath = path_policy.normalise(filepath, "backing file")
+            except UnsafePathError as exc:
+                print(f"losetup: {exc}", file=sys.stderr)
+                return 1
             _LOOP_DEVICES[loopdev] = filepath
             print(f"[*] losetup: {loopdev} -> {filepath} (offset {offset})")
             return 0
@@ -342,8 +406,12 @@ class PivotRootCommand(SbinCommand):
         if not args or len(args) < 2:
             print("pivot_root: missing new_root or put_old", file=sys.stderr)
             return 1
-        new_root = args[0]
-        put_old = args[1]
+        try:
+            new_root = path_policy.normalise(args[0], "new root")
+            put_old = path_policy.normalise(args[1], "put_old directory")
+        except UnsafePathError as exc:
+            print(f"pivot_root: {exc}", file=sys.stderr)
+            return 1
         print(f"[*] pivot_root: changing root to {new_root}, old root moved to {put_old}")
         return 0
 
@@ -368,12 +436,14 @@ def _selftest() -> bool:
          "options": "rw,nosuid,relatime,size=4096k,mode=755", "dump": 0, "pass": 0},
     ]
     _DEVICE_NODES.clear()
+    _DEVICE_MODES.clear()
     _LOOP_DEVICES.clear()
 
     # Save so we can restore after selftest
     import copy
     saved_mount_table = copy.deepcopy(_MOUNT_TABLE)
     saved_device_nodes = copy.deepcopy(_DEVICE_NODES)
+    saved_device_modes = copy.deepcopy(_DEVICE_MODES)
     saved_loop_devices = copy.deepcopy(_LOOP_DEVICES)
 
     try:
@@ -533,6 +603,8 @@ def _selftest() -> bool:
         _MOUNT_TABLE[:] = saved_mount_table
         _DEVICE_NODES.clear()
         _DEVICE_NODES.update(saved_device_nodes)
+        _DEVICE_MODES.clear()
+        _DEVICE_MODES.update(saved_device_modes)
         _LOOP_DEVICES.clear()
         _LOOP_DEVICES.update(saved_loop_devices)
 

@@ -34,6 +34,7 @@ import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/games_app.dart';
+import '../apps/kernel_manager_app.dart';
 import '../apps/network_manager_app.dart';
 import '../apps/opt_manager_app.dart';
 import '../apps/packages_manager_app.dart';
@@ -128,6 +129,15 @@ abstract final class AppRegistry {
       color: Colors.green,
       category: AppCategory.system,
       builder: (_) => const SystemMonitorApp(),
+    ),
+    AppDefinition(
+      id: 'kernel_manager',
+      title: 'Kernel & QoS Manager',
+      description: 'HarmonyOS QoS scheduler, Membox pools, PI mutexes and SoftBus mesh.',
+      icon: Icons.developer_board,
+      color: Colors.cyan,
+      category: AppCategory.system,
+      builder: (_) => const KernelManagerApp(),
     ),
     AppDefinition(
       id: 'power',

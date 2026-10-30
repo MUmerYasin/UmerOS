@@ -27,9 +27,21 @@ import sys
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional
 
+# Zero-trust execution guard (H233): every command's `execute()` is
+# capability-gated and audit-logged the moment its class is defined.
+try:
+    from .command_guard import install_guard
+except ImportError:  # pragma: no cover - run as a standalone script
+    from command_guard import install_guard
+
 
 class SbinCommand:
     """Base class for /sbin commands."""
+
+    # Gate + audit every subclass's `execute()` at class-creation time
+    # (H233), so a direct `SomeCommand().execute()` cannot bypass the
+    # capability check that `SbinManager.execute()` performs.
+    __init_subclass__ = install_guard
 
     name: str = ""
     description: str = ""

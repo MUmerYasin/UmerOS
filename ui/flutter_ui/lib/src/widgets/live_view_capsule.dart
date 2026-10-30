@@ -1,5 +1,5 @@
 // UmerOS Live Window / Live View Status Capsule
-// NEXT Live Window.
+// HarmonyOS NEXT Live Window.
 // Provides a real-time, interactive glanceable status capsule in the top bar.
 
 import 'package:flutter/material.dart';
@@ -59,7 +59,24 @@ class _LiveViewCapsuleState extends State<LiveViewCapsule>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+    );
+    if (widget.activeTasks.isNotEmpty && widget.activeTasks.any((t) => !t.isCompleted)) {
+      _pulseController.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(LiveViewCapsule oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.activeTasks.isNotEmpty && widget.activeTasks.any((t) => !t.isCompleted)) {
+      if (!_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
+    } else {
+      if (_pulseController.isAnimating) {
+        _pulseController.stop();
+      }
+    }
   }
 
   @override
@@ -80,7 +97,7 @@ class _LiveViewCapsuleState extends State<LiveViewCapsule>
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.75),
@@ -118,40 +135,44 @@ class _LiveViewCapsuleState extends State<LiveViewCapsule>
             Text(
               primaryTask.title,
               style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
                 color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 44,
-              height: 5,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(3),
-                child: LinearProgressIndicator(
-                  value: primaryTask.progress,
-                  backgroundColor: Colors.white24,
-                  valueColor: AlwaysStoppedAnimation<Color>(accentColor),
-                ),
               ),
             ),
             const SizedBox(width: 6),
-            Text(
-              '${(primaryTask.progress * 100).toInt()}%',
-              style: TextStyle(
-                color: accentColor,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+            if (!primaryTask.isCompleted) ...[
+              SizedBox(
+                width: 36,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: LinearProgressIndicator(
+                    value: primaryTask.progress,
+                    backgroundColor: Colors.white24,
+                    color: accentColor,
+                    minHeight: 3,
+                  ),
+                ),
               ),
-            ),
-            if (_isExpanded && widget.onCancelTask != null) ...[
-              const SizedBox(width: 8),
-              GestureDetector(
+              const SizedBox(width: 4),
+              Text(
+                '${(primaryTask.progress * 100).toInt()}%',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: accentColor,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ] else ...[
+              const Icon(Icons.check_circle, size: 12, color: Colors.greenAccent),
+            ],
+            if (_isExpanded && widget.onCancelTask != null && !primaryTask.isCompleted) ...[
+              const SizedBox(width: 6),
+              InkWell(
                 onTap: () => widget.onCancelTask!(primaryTask.taskId),
-                child: const Icon(Icons.close, size: 13, color: Colors.redAccent),
+                child: const Icon(Icons.close, size: 12, color: Colors.white70),
               ),
-            ]
+            ],
           ],
         ),
       ),

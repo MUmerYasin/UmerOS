@@ -63,6 +63,7 @@ from .maintenance import (
     KbdrateCommand, LoadkeysCommand, DumpCommand, RestoreCommand,
     SlnCommand, MktempCommand, SetfdprmCommand, RdevCommand,
 )
+from .command_guard import audit, argv_summary
 
 
 # ─── Required /sbin entries ────────────────────────────────────────
@@ -220,13 +221,22 @@ class SbinManager:
         }
 
     def execute(self, command: str, args: Optional[List[str]] = None) -> int:
-        """Execute a /sbin command."""
+        """Execute a /sbin command.
+
+        The capability gate is enforced here, before the registry lookup, so an
+        unknown command is gated too; it is enforced *again* inside the command's
+        own ``execute()`` by :mod:`sbin.command_guard`, because this manager is
+        not the only way to reach a command class.  Both layers are deliberate.
+        Every dispatch produces an audit record.
+        """
         # Require the system-admin capability before running any
         # privileged /sbin command.  Enforced fail-closed when a CapabilityManager
         # is wired; permissive (warning) when running standalone.
         gate.require(CAP_SYS_ADMIN)
+        audit("DISPATCH", command or "<empty>", argv=argv_summary(args))
         cmd = self.get_command(command)
         if cmd is None:
+            audit("NOT-FOUND", command or "<empty>")
             print(f"{command}: not found", file=sys.stderr)
             return 127
         return cmd.execute(args)

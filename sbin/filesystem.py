@@ -27,9 +27,30 @@ import sys
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional
 
+# Zero-trust execution guard (H233): every command's `execute()` is
+# capability-gated and audit-logged the moment its class is defined.
+try:
+    from .command_guard import install_guard
+except ImportError:  # pragma: no cover - run as a standalone script
+    from command_guard import install_guard
+
+# Path policy (H234): `chroot` takes a root directory, so the value is
+# validated before it is echoed -- see sbin/path_policy.py.
+try:
+    from . import path_policy
+    from .path_policy import UnsafePathError
+except ImportError:  # pragma: no cover - run as a standalone script
+    import path_policy  # type: ignore[no-redef]
+    from path_policy import UnsafePathError  # type: ignore[no-redef]
+
 
 class SbinCommand:
     """Base class for /sbin commands."""
+
+    # Gate + audit every subclass's `execute()` at class-creation time
+    # (H233), so a direct `SomeCommand().execute()` cannot bypass the
+    # capability check that `SbinManager.execute()` performs.
+    __init_subclass__ = install_guard
 
     name: str = ""
     description: str = ""
@@ -178,7 +199,17 @@ class ChrootCommand(SbinCommand):
         if not args:
             print("chroot: missing operand", file=sys.stderr)
             return 1
-        newroot = args[0]
+        if args[0] in ("-h", "--help"):
+            print(self.help())
+            return 0
+        if args[0] in ("-V", "--version"):
+            print("chroot (UmerOS) 1.0")
+            return 0
+        try:
+            newroot = path_policy.normalise(args[0], "new root")
+        except UnsafePathError as exc:
+            print(f"chroot: {exc}", file=sys.stderr)
+            return 1
         command = args[1] if len(args) > 1 else "/bin/sh"
         print(f"[*] chroot: running '{command}' in {newroot}")
         return 0
