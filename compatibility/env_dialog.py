@@ -381,13 +381,14 @@ class EnvironmentDialog:
                          else EnvScope.SYSTEM)
             for key, (old, new) in self._pending[scope].items():
                 truncated = False
+                spelling = self._spellings[scope].get(key, key)
                 if new is not None:
                     new, truncated = self._truncate(scope, key, new)
                     if truncated:
                         result.warnings.append(
-                            f"{scope.title}: '{key}' was truncated to "
+                            f"{scope.title}: '{spelling}' was truncated to "
                             f"{MAX_DIALOG_VALUE_LENGTH} characters")
-                change = VariableChange(scope=scope, name=key,
+                change = VariableChange(scope=scope, name=spelling,
                                         old_value=old, new_value=new,
                                         truncated=truncated)
                 result.changes.append(change)

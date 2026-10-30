@@ -123,6 +123,8 @@ _IMPORT_PLAN = {
                              "GetEnvironmentVariableA", "SetEnvironmentVariableA",
                              "ExpandEnvironmentStringsA", "GetEnvironmentStringsA"),
     "com_support":          ("ComApartment", "ComObjectBase", "CoCreateInstance",
+                             "reset_apartment", "register_class_factory",
+                             "unregister_class_factory",
                              "EXPORTS_OLE32", "EXPORTS_OLEAUT32"),
     "file_attrs":           ("GetFileAttributesA", "SetFileAttributesA",
                              "GetFileAttributesExA", "FileAttributes",

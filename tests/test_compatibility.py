@@ -42,6 +42,8 @@ from compatibility.pe_loader import PeFile, PeClass          # noqa: E402
 from compatibility.dll_loader import DllLoader, ResolvedImport  # noqa: E402
 from compatibility.env_dialog import DialogScope as DlgScope  # noqa: E402
 from compatibility.env_dialog import EnvironmentDialog        # noqa: E402
+from compatibility.env_registry import EnvRegistryStore       # noqa: E402
+from compatibility.environment import ScopedEnvironment       # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -2199,6 +2201,31 @@ class TestEnvRegistry(unittest.TestCase):
                       b"\x01\x00\x00\x00", RegType.DWORD)
         store = EnvRegistryStore(reg)
         self.assertIsNone(store.get("user", "DWORDVAL"))
+
+    def test_lookup_is_case_insensitive(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        store = EnvRegistryStore()
+        store.set("system", "Path", r"C:\Windows")
+        self.assertIsNotNone(store.get("system", "PATH"))
+        self.assertIsNotNone(store.get("system", "path"))
+        self.assertEqual(store.get("system", "PATH").value, r"C:\Windows")
+
+    def test_redefining_keeps_the_original_spelling(self) -> None:
+        from compatibility.env_registry import EnvRegistryStore
+        store = EnvRegistryStore()
+        store.set("system", "Path", r"C:\Windows")
+        store.set("system", "PATH", r"C:\Windows;C:\Tools")
+        # The registry still calls it "Path", not "PATH".
+        self.assertEqual(store.get("system", "Path").name, "Path")
+
+    def test_the_dialog_preserves_the_typed_spelling(self) -> None:
+        store = EnvRegistryStore()
+        env = ScopedEnvironment(host_fallback=False)
+        dlg = EnvironmentDialog(env, store)
+        dlg.add(DlgScope.SYSTEM, "Path", r"C:\Windows")
+        dlg.apply()
+        self.assertEqual(store.get("system", "Path").name, "Path")
+        self.assertTrue(store.get("system", "Path").expand)
 
 
 class TestEnvironmentDialog(unittest.TestCase):

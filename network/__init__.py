@@ -33,6 +33,7 @@ from .network_stack import (
 )
 from .tcp_server import TCPClient, TCPServer
 from .vpn_tunnel import VPNTunnel
+from .softbus import SoftBusDiscovery, SoftBusPeer, SoftBusFrame, SoftBusSession
 
 __all__ = [
     "AINetworkQoS",
@@ -47,6 +48,10 @@ __all__ = [
     "TCPServer",
     "VPNClient",
     "VPNTunnel",
+    "SoftBusDiscovery",
+    "SoftBusPeer",
+    "SoftBusFrame",
+    "SoftBusSession",
 ]
 
 
