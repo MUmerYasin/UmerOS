@@ -16,6 +16,9 @@ UmerOS /sbin Boot Commands
 ==========================
 Boot and shutdown command implementations.
 halt, init, poweroff, reboot, shutdown, getty
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

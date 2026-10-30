@@ -1,6 +1,6 @@
 {
   "legacy_service": {
-    "base_path": "C:\\Users\\MC Raja Jang\\AppData\\Local\\Temp\\tmpwg8rp224\\srv\\legacy",
+    "base_path": "C:\\Users\\MC Raja Jang\\AppData\\Local\\Temp\\tmpo6cnjhjx\\srv\\legacy",
     "cgi_path": null,
     "conf_path": null,
     "config": {
@@ -18,8 +18,8 @@
       "quota_bytes": 0,
       "scheme": "by_protocol"
     },
-    "created_at": 1793354944.987499,
-    "data_path": "C:\\Users\\MC Raja Jang\\AppData\\Local\\Temp\\tmpwg8rp224\\srv\\legacy",
+    "created_at": 1793355960.7757835,
+    "data_path": "C:\\Users\\MC Raja Jang\\AppData\\Local\\Temp\\tmpo6cnjhjx\\srv\\legacy",
     "dir_count": 0,
     "file_count": 0,
     "is_fhs_compliant": false,
@@ -27,7 +27,7 @@
     "name": "legacy_service",
     "size_bytes": 0,
     "status": "active",
-    "updated_at": 1793354944.9874997,
+    "updated_at": 1793355960.7757838,
     "upload_path": null
   }
 }

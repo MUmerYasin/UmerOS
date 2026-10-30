@@ -17,10 +17,12 @@ UmerOS Distributed Soft Bus Subsystem (DSoftBus).
 
 from network.softbus.discovery import SoftBusDiscovery, SoftBusPeer
 from network.softbus.session import SoftBusFrame, SoftBusSession
+from network.softbus.softbus_manager import SoftBusManager
 
 __all__ = [
     "SoftBusDiscovery",
     "SoftBusPeer",
     "SoftBusFrame",
     "SoftBusSession",
+    "SoftBusManager",
 ]

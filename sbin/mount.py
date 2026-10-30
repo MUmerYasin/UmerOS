@@ -16,6 +16,9 @@ UmerOS /sbin Mount Commands
 ===========================
 Filesystem mounting and device management.
 mount, umount, mknod, losetup, pivot_root
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

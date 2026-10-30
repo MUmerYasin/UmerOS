@@ -15,6 +15,9 @@
 UmerOS /sbin Manager
 ====================
 Central registry for all /sbin commands, FHS compliance enforcement, and command routing.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

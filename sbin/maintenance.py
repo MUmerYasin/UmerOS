@@ -16,6 +16,9 @@ UmerOS /sbin Maintenance Commands
 ===================================
 System maintenance, filesystem repair/tuning, keyboard utilities.
 tune2fs, e2fsck, mke2fs, ctrlaltdel, kbdrate, loadkeys, dump, restore, sln, mktemp, setfdprm, rdev
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

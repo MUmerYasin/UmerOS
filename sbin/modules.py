@@ -16,6 +16,9 @@ UmerOS /sbin Module Commands
 ==============================
 Kernel module management command implementations.
 insmod, lsmod, modprobe, rmmod
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

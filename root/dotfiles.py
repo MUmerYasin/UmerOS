@@ -46,12 +46,54 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 import os
+import re
 import stat
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
 log = logging.getLogger("UmerOS.Root.Dotfiles")
+
+#: A dotfile name is a *single* path component inside root's home.
+#: ``[.\w][\w.-]*`` blocks separators, whitespace and control characters;
+#: ``..`` matches the pattern (a leading dot followed by dots) so it is
+#: rejected explicitly in :func:`validate_name`.  ``\Z`` rather than ``$``:
+#: ``$`` also matches before a trailing newline, which would let "x\n" in.
+_SAFE_NAME_RE = re.compile(r"^[.\w][\w.-]*\Z")
+
+
+def validate_name(name: str) -> str:
+    """Return ``name`` if it is a safe single component, else raise.
+
+    Dotfile names reach the filesystem as ``self.home / name``, so a name
+    containing a separator or a ``..`` hop would escape root's home --
+    ``ensure("../../etc/passwd")`` used to be a write primitive.  Names are
+    validated on registration *and* again at write time (defence in depth,
+    since the template map is reachable through the public API).
+
+    Args:
+        name: The candidate dotfile name.
+
+    Returns:
+        The name, unchanged.
+
+    Raises:
+        ValueError: If the name is empty, is ``.``, contains a path separator
+            or ``..``, or does not match ``_SAFE_NAME_RE``.
+    """
+    if not isinstance(name, str) or not name:
+        raise ValueError("dotfile name must be a non-empty string")
+    if name == "." or "/" in name or "\\" in name or ".." in name:
+        raise ValueError(
+            f"unsafe dotfile name {name!r}: must not be '.', or contain a "
+            "path separator or '..'"
+        )
+    if not _SAFE_NAME_RE.match(name):
+        raise ValueError(
+            f"unsafe dotfile name {name!r}: expected a single component "
+            r"matching [.\w][\w.-]*"
+        )
+    return name
 
 
 # ---------------------------------------------------------------------------
@@ -243,19 +285,26 @@ class RootDotfilesManager:
     # -- template registration -------------------------------------------
 
     def register_template(self, name: str, content: str) -> None:
-        self._templates[name] = content
+        """Register (or replace) a dotfile template.
+
+        ``name`` must be a single path component: see
+        :func:`validate_name`.
+        """
+        self._templates[validate_name(name)] = content
 
     def set_mode_override(self, name: str, mode: int) -> None:
-        self._mode_overrides[name] = mode
+        """Override the mode used for ``name`` (see :func:`validate_name`)."""
+        self._mode_overrides[validate_name(name)] = mode
 
     # -- ensure ----------------------------------------------------------
 
     def ensure(self, name: str, *, force: bool = False) -> DotfileResult:
         """Materialise one dotfile.  ``force=True`` overwrites an
         existing file (the default behaviour is "do not touch")."""
+        validate_name(name)
         if name not in self._templates:
             raise KeyError(f"no template registered for {name!r}")
-        path = self.home / name
+        path = self._dotfile_path(name)
         mode = self._mode_overrides.get(name, self.SHELL_MODE)
         body = self._render(self._templates[name])
         created = False
@@ -314,7 +363,8 @@ class RootDotfilesManager:
         """Materialise a private (mode ``0600``) file - typically
         ``.bash_history``, ``.viminfo`` or ``.lesshst``.
         """
-        path = self.home / name
+        validate_name(name)
+        path = self._dotfile_path(name)
         if not path.exists():
             path.write_text(content, encoding="utf-8")
             created = True
@@ -332,6 +382,28 @@ class RootDotfilesManager:
             mode=stat.S_IMODE(st.st_mode),
             size_bytes=st.st_size,
         )
+
+    # -- path containment -------------------------------------------------
+
+    def _dotfile_path(self, name: str) -> Path:
+        """Return ``home / name`` after proving the result stays inside home.
+
+        ``name`` is already a single safe component (see
+        :func:`validate_name`); this second check catches the remaining escape
+        -- a **symlink** at ``home/name`` pointing outside the home, which
+        ``write_text`` would otherwise follow and overwrite the target.
+
+        Raises:
+            ValueError: If the resolved path is not a direct child of home.
+        """
+        candidate = self.home / name
+        home_resolved = self.home.resolve()
+        target_resolved = candidate.resolve()
+        if target_resolved.parent != home_resolved:
+            raise ValueError(
+                f"refusing to write {candidate}: it resolves outside {self.home}"
+            )
+        return candidate
 
     # -- inventory -------------------------------------------------------
 

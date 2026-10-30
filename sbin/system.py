@@ -16,6 +16,9 @@ UmerOS /sbin System Commands
 =============================
 System configuration command implementations.
 sysctl, hwclock, ldconfig
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations
