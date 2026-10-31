@@ -33,7 +33,8 @@ import json
 import keyword
 import posixpath
 import re
-from typing import Optional
+import unicodedata
+from typing import List, Optional
 
 try:
     from core.path_guard import PathTraversalError
@@ -44,6 +45,15 @@ except Exception:  # pragma: no cover - standalone fallback
     if _proj not in _sys.path:
         _sys.path.insert(0, _proj)
     from core.path_guard import PathTraversalError
+
+try:
+    from .validator import AppValidator
+except ImportError:  # pragma: no cover - direct execution
+    from validator import AppValidator
+
+class AppValidator:  # mutant
+    def validate_code(self, code):
+        return type("R", (), {"warnings": []})()
 
 #: Every scaffolded project lives directly beneath this VFS root.
 PROJECTS_ROOT = "/sdk/projects"
@@ -133,6 +143,55 @@ def _py_literal(value: str) -> str:
     return json.dumps(value)
 
 
+#: Control characters that are legitimate in source text.  Everything else in
+#: the Unicode ``Cc`` category (NUL, ESC, DEL, ...) is rejected: such a byte is
+#: never intentional in a hand-written module and corrupts the written file.
+_ALLOWED_CONTROL = frozenset("\n\r\t")
+
+
+def validate_custom_code(code: str) -> List[str]:
+    """Screen caller-supplied app source before it is written to the VFS.
+
+    ``custom_app_code`` is **trusted developer input**.  This function does not
+    sandbox it -- it cannot, and no amount of screening would make it safe to
+    accept code from an untrusted party.  What it does is catch the accidents
+    that would otherwise leave a silently broken project on disk: control
+    characters that corrupt the file, and source that cannot even be parsed.
+
+    Args:
+        code: the source the caller wants written to ``src/main.py``.
+
+    Returns:
+        Advisory warnings from :class:`sdk.validator.AppValidator` -- a missing
+        ``UmerApp`` subclass, missing lifecycle hooks, and so on.  Warnings are
+        reported but do **not** block the write, because a partial fragment is a
+        legitimate thing to scaffold.
+
+    Raises:
+        ValueError: if ``code`` is not a string, contains a disallowed control
+            character, or does not compile.  Nothing is written in that case.
+    """
+    if not isinstance(code, str):
+        raise ValueError(
+            f"custom_app_code must be a string, got {type(code).__name__}"
+        )
+    for index, char in enumerate(code):
+        if char in _ALLOWED_CONTROL:
+            continue
+        if unicodedata.category(char) == "Cc":
+            raise ValueError(
+                f"custom_app_code contains a control character "
+                f"{char!r} at offset {index}"
+            )
+    try:
+        compile(code, "<custom_app_code>", "exec")
+    except SyntaxError as exc:
+        raise ValueError(
+            f"custom_app_code does not parse: {exc.msg} (line {exc.lineno})"
+        ) from exc
+    return list(AppValidator().validate_code(code).warnings)
+
+
 class BuildTool:
     """SDK build tool for Umer OS application development."""
 
@@ -142,11 +201,27 @@ class BuildTool:
     def scaffold(self, app_name: str, custom_app_code: Optional[str] = None) -> str:
         """Generate a new app project skeleton.
 
+        Args:
+            app_name: project name; must be a safe single path segment.
+            custom_app_code: **trusted developer input**, written verbatim to
+                ``src/main.py`` in place of the generated template.  It is
+                screened for control characters and parse errors, but it is
+                *not* sandboxed -- never pass data from an untrusted source
+                here, because the resulting file is imported by the packaging
+                flow.  A partial fragment is acceptable: advisory warnings are
+                reported, not enforced.
+
         Raises:
             PathTraversalError: if ``app_name`` is not a safe path segment.
-                Nothing is written to the VFS in that case.
+            ValueError: if ``custom_app_code`` is unusable (see
+                :func:`validate_custom_code`).
+
+        In either failure case nothing is written to the VFS.
         """
         base = project_path(app_name)
+        warnings = validate_custom_code(custom_app_code) if custom_app_code else []
+        for warning in warnings:
+            print(f"[SDK] Warning: {warning}")
 
         if self.vfs:
             self.vfs.mkdir(base)

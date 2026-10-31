@@ -12,10 +12,10 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
-from kernel.scheduler import Scheduler
-from kernel.ipc import IPCBroker, Message
+from kernel.scheduler import HybridScheduler as Scheduler
+from kernel.ipc import IPCBroker
 from kernel.hal import HAL
-from quantum.simulator import SimpleQuantumSimulator
+from quantum.simulator import StatevectorSimulator, QuantumCircuit
 from examples.tasks import simple_io_task, long_compute_task
 
 async def demo():
@@ -27,10 +27,13 @@ async def demo():
     print("[demo] HAL init device 1:", hal.init_device(1))
     print("[demo] HAL read reg:", hal.read_register(1, 10))
 
-    sim = SimpleQuantumSimulator()
-    # submit a sample job
-    job_id = await sim.submit_circuit({"gates": [("h",), ("x",)]}, shots=500)
-    print("[demo] submitted job", job_id)
+    sim = StatevectorSimulator()
+    # Build a sample circuit
+    circuit = QuantumCircuit(2)
+    circuit.h(0)
+    circuit.x(1)
+    result = sim.run(circuit, shots=500)
+    print("[demo] job result", result)
 
     # Scheduler
     sched = Scheduler(time_slice=0.05)
@@ -43,15 +46,6 @@ async def demo():
 
     # Let scheduler run for a bit
     await asyncio.sleep(1.0)
-
-    # Poll job status
-    st = await sim.status(job_id)
-    print("[demo] job status", st)
-    try:
-        res = await sim.result(job_id)
-        print("[demo] job result", res)
-    except RuntimeError:
-        print("[demo] job not ready yet")
 
     sched.stop()
     # wait a short while for graceful stop

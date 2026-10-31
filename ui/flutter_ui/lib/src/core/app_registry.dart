@@ -32,6 +32,7 @@ import '../apps/calendar_app.dart';
 import '../apps/cloud_app.dart';
 import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
+import '../apps/examples_manager_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/fs_manager_app.dart';
 import '../apps/feedback_manager_app.dart';
@@ -390,6 +391,15 @@ abstract final class AppRegistry {
       color: Colors.deepOrange,
       category: AppCategory.tools,
       builder: (_) => const DocsApp(),
+    ),
+    AppDefinition(
+      id: 'examples',
+      title: 'Examples',
+      description: 'Browse example scripts, demos and kernel extensions.',
+      icon: Icons.code,
+      color: Colors.green.shade700,
+      category: AppCategory.development,
+      builder: (_) => const ExamplesManagerApp(),
     ),
     AppDefinition(
       id: 'sources',
