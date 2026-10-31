@@ -16,7 +16,7 @@
 - `"…/envs/default/Scripts/python.exe" -m pytest tests/ legal/ opt/ sources/ srv/ tmp/ --junitxml=… -q` (quote the venv path — it has a space).
 - **`mkdir -p /f/umeros_tmp` FIRST**, then `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`. A TMP inside the project → 15 false failures. Parse `--junitxml` — basetemp cleanup trips the safe-delete guard and eats the summary.
 - Collapse to **1 node** ⇒ check `import requests` (`quantum/providers/ibm_provider.py`).
-- Baseline (s230): **6125 nodes / 0 errors / 95 skipped / 6 failed** = 5 known `test_legal_pii_h137` + 1 external (see below).
+- Baseline (s231): **6153 nodes / 0 errors / 95 skipped / 6 failed** = 5 known `test_legal_pii_h137` + 1 external (see below).
 - Guards: `core/path_guard.py`, `core/capability_gate.py`. ~735 modules; `Old Linux Code/` out of scope. `home` shadow: load `home_backup.py` by path under a unique name.
 
 ## Lessons
@@ -33,12 +33,14 @@
 - **Check the repo's own documented policy before applying a row's remedy.** H239's row said "hash-pin `requirements.txt`", but its header defines it as a bounded *range* spec (H15) with hashes in a generated lock — honour the policy.
 - **A documented API plus its tests decide the remedy, not the row.** H247 said "re-enable the commented-out nonce design", but that design returns a `dict` and breaks `developer_guide.md` + a determinism test — so replay defence went into the *verifier* (seen-MAC cache) and the envelope became opt-in.
 - **Authenticate before you remember.** A replay cache must be keyed on *verified* input: record first and a flood of distinct forged MACs evicts genuine entries under the memory cap, re-enabling replay of exactly those.
+- **`inspect.getsource` runs to EOF when only comments follow** (H248): `tokenize` skips comment tokens, so no DEDENT arrives and the "class source" swallows the dead code below. Slice the file region explicitly instead.
+- **A "quarantine" that only logs is not a quarantine** — and check it is *sticky*: H248's returned `True` on the next innocuous call. Give it observable state (`is_quarantined`/`release`) and revoke through the real `SecuritySandbox`, saying so in the record when nothing could be revoked.
 
 ## Status
-- **Pointer: `security/` — H247 ✅ (🟡 IPC anti-replay now real), next H248.** H248 = `AIBehavioralMonitor` (`:328-350`): 4-entry rule set labelled "AI-driven" + quarantine that only logs.
+- **Pointer: `security/` — H247 ✅, H248 ✅, next H249.** H249 = `security/sandbox.py:128` `verify_signature`: `sha3_512(payload)` equality, not a signature.
 - H244/H245/H246 already ticked (🔴 done). Checkpoint ticks are **not** in row order — scan tick state, not row numbers.
 - Done: every folder alphabetically before `security`; `sdk/` H240–H243 complete.
-- Remaining: `security` H248–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
+- Remaining: `security` H249–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
 
 ## Known-unrelated failures (do NOT re-investigate)
 - 5 × `tests/test_legal_pii_h137` (external re-save put PII in `legal/creator_accounts.example.json`; flip-flops).

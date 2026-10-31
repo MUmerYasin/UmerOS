@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import '../apps/ai_assistant_app.dart';
 import '../apps/antivirus_app.dart';
 import '../apps/bin_app.dart';
+import '../apps/bin_manager_app.dart';
 import '../apps/build_manager_app.dart';
 import '../apps/boot_manager_app.dart';
 import '../apps/backup_app.dart';
@@ -462,6 +463,15 @@ abstract final class AppRegistry {
       color: Colors.lightBlue,
       category: AppCategory.development,
       builder: (_) => const BinApp(),
+    ),
+    AppDefinition(
+      id: 'binmgr',
+      title: 'Bin Manager',
+      description: 'Manage /bin essential command binaries.',
+      icon: Icons.terminal,
+      color: Colors.green.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const BinManagerApp(),
     ),
     AppDefinition(
       id: 'build',
