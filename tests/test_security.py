@@ -82,14 +82,14 @@ class TestSecuritySandbox(unittest.TestCase):
         proc = self.sandbox.processes[self.pid]
         self.assertIn("42", repr(proc))
 
-    def test_verify_signature(self):
+    def test_verify_hash(self):
         payload = b"test executable"
         expected = hashlib.sha3_512(payload).hexdigest()
-        self.assertTrue(self.sandbox.verify_signature(self.pid, payload, expected))
+        self.assertTrue(self.sandbox.verify_hash(self.pid, payload, expected))
 
-    def test_verify_signature_bad_hash(self):
+    def test_verify_hash_rejects_a_bad_digest(self):
         payload = b"test executable"
-        self.assertFalse(self.sandbox.verify_signature(self.pid, payload, "0" * 128))
+        self.assertFalse(self.sandbox.verify_hash(self.pid, payload, "0" * 128))
 
     # ── H246: advisory sandbox hardening ─────────────────────────────────────
     def test_fs_root_never_defaults_to_root(self):

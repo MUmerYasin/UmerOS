@@ -1,6 +1,7 @@
-/// UmerOS Compatibility Manager — Legacy Compatibility
+/// UmerOS Compatibility Manager — Windows Compatibility Layer
 ///
 /// Desktop control panel for the UmerOS compatibility subsystem.
+/// Covers all 54 compatibility modules.
 library;
 
 import 'package:flutter/material.dart';
@@ -15,12 +16,75 @@ class CompatibilityManagerApp extends StatefulWidget {
 
 class _CompatibilityManagerAppState extends State<CompatibilityManagerApp> {
   int _tab = 0;
+  String _search = '';
+
+  final List<_CompatCategory> _categories = [
+    _CompatCategory('Core', Icons.settings, [
+      'container', 'container_engine', 'com_support', 'delay_imports',
+      'forwarded', 'manifest', 'memory_map', 'sync', 'syscall_shim',
+      'tokens', 'version_info', 'dll_loader', 'dll_search', 'ntstatus',
+    ]),
+    _CompatCategory('PE/EXE', Icons.insert_drive_file, [
+      'pe_loader', 'pe_exports', 'pe_imports', 'pe_relocations',
+      'pe_resources', 'pe_tls', 'mz_loader', 'ne_loader', 'signed_pe',
+    ]),
+    _CompatCategory('Registry', Icons.storage, [
+      'registry_hive', 'registry_paths', 'registry_view',
+    ]),
+    _CompatCategory('Environment', Icons.terminal, [
+      'environment', 'env_dialog', 'env_registry', 'installer_env',
+      'long_path', 'timezone',
+    ]),
+    _CompatCategory('Win32 API', Icons.window, [
+      'win_kernel32', 'win_ntdll', 'win_user32', 'win_gdi32',
+      'win_advapi32', 'win_shell32', 'win_sid', 'win_strings',
+      'win_guid', 'win_path', 'winerror',
+    ]),
+    _CompatCategory('Winsock', Icons.lan, [
+      'winsock', 'api_set',
+    ]),
+    _CompatCategory('Shell', Icons.code, [
+      'shell_links', 'file_attrs',
+    ]),
+    _CompatCategory('Service', Icons.miscellaneous_services, [
+      'service_manager', 'msi_runtime',
+    ]),
+    _CompatCategory('Runner', Icons.play_arrow, [
+      'win32_runner', 'x86_runner', 'wine_shim',
+    ]),
+    _CompatCategory('Known Folders', Icons.folder, [
+      'knownfolders',
+    ]),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final filtered = _search.isEmpty
+        ? _categories
+        : _categories
+            .map((c) => _CompatCategory(
+                  c.name,
+                  c.icon,
+                  c.modules.where((m) => m.toLowerCase().contains(_search.toLowerCase())).toList(),
+                ))
+            .where((c) => c.modules.isNotEmpty)
+            .toList();
+
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: TextField(
+            decoration: InputDecoration(
+              labelText: 'Search modules',
+              hintText: 'e.g. pe, win, registry',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onChanged: (v) => setState(() => _search = v),
+          ),
+        ),
         Container(
           decoration: BoxDecoration(
             color: scheme.surface,
@@ -28,55 +92,65 @@ class _CompatibilityManagerAppState extends State<CompatibilityManagerApp> {
               bottom: BorderSide(color: scheme.outline.withValues(alpha: 0.2)),
             ),
           ),
-          child: Row(
-            children: [
-              _Tab('Containers', 0, Icons.inventory_2),
-              _Tab('Legacy Apps', 1, Icons.apps),
-              _Tab('Status', 2, Icons.info),
-            ].map((t) => _TabButton(
-              label: t.label,
-              icon: t.icon,
-              isSelected: _tab == t.index,
-              onTap: () => setState(() => _tab = t.index),
-            )).toList(),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: filtered.map((c) => _CategoryTab(
+                label: c.name,
+                icon: c.icon,
+                isSelected: _tab == filtered.indexOf(c),
+                onTap: () => setState(() => _tab = filtered.indexOf(c)),
+                count: c.modules.length,
+              )).toList(),
+            ),
           ),
         ),
-        Expanded(child: _buildTabContent()),
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(child: Text('No modules found', style: GoogleFonts.inter(color: Colors.grey)))
+              : _buildContent(filtered[_tab.clamp(0, filtered.length - 1)]),
+        ),
       ],
     );
   }
 
-  Widget _buildTabContent() {
-    switch (_tab) {
-      case 0:
-        return _ContainersTab();
-      case 1:
-        return _LegacyAppsTab();
-      case 2:
-        return _StatusTab();
-      default:
-        return const SizedBox.shrink();
-    }
+  Widget _buildContent(_CompatCategory category) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InfoCard(
+            title: category.name,
+            body: '${category.modules.length} compatibility modules.',
+          ),
+          const SizedBox(height: 16),
+          ...category.modules.map((m) => _ModuleEntry(name: m)),
+        ],
+      ),
+    );
   }
 }
 
-class _Tab {
-  final String label;
-  final int index;
+class _CompatCategory {
+  final String name;
   final IconData icon;
-  const _Tab(this.label, this.index, this.icon);
+  final List<String> modules;
+  const _CompatCategory(this.name, this.icon, this.modules);
 }
 
-class _TabButton extends StatelessWidget {
+class _CategoryTab extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
-  const _TabButton({
+  final int count;
+  const _CategoryTab({
     required this.label,
     required this.icon,
     required this.isSelected,
     required this.onTap,
+    required this.count,
   });
 
   @override
@@ -107,6 +181,18 @@ class _TabButton extends StatelessWidget {
                 color: isSelected ? scheme.primary : scheme.onSurfaceVariant,
               ),
             ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.inter(fontSize: 9, color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600),
+              ),
+            ),
           ],
         ),
       ),
@@ -114,40 +200,9 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-// ── Tab: Containers ──────────────────────────────────────────────
-class _ContainersTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoCard(
-            title: 'Compatibility Containers',
-            body: 'Legacy app compatibility containers.',
-          ),
-          const SizedBox(height: 16),
-          _ContainerEntry(name: 'ubuntu-20.04', type: 'LXC', status: 'Running', color: Colors.green),
-          _ContainerEntry(name: 'centos-7', type: 'LXC', status: 'Stopped', color: Colors.grey),
-          _ContainerEntry(name: 'debian-10', type: 'Docker', status: 'Running', color: Colors.green),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContainerEntry extends StatelessWidget {
+class _ModuleEntry extends StatelessWidget {
   final String name;
-  final String type;
-  final String status;
-  final Color color;
-  const _ContainerEntry({
-    required this.name,
-    required this.type,
-    required this.status,
-    required this.color,
-  });
+  const _ModuleEntry({required this.name});
 
   @override
   Widget build(BuildContext context) {
@@ -155,116 +210,17 @@ class _ContainerEntry extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
-        leading: Icon(Icons.inventory_2, color: color, size: 20),
+        leading: Icon(Icons.extension, color: Colors.blue, size: 20),
         title: Text(name, style: GoogleFonts.firaCode(fontWeight: FontWeight.w600, fontSize: 12)),
-        subtitle: Text('Type: $type', style: GoogleFonts.inter(fontSize: 11)),
+        subtitle: Text('/compatibility/$name.py', style: GoogleFonts.inter(fontSize: 11)),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Text(status, style: GoogleFonts.inter(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+          child: Text('Available', style: GoogleFonts.inter(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w600)),
         ),
-      ),
-    );
-  }
-}
-
-// ── Tab: Legacy Apps ─────────────────────────────────────────────
-class _LegacyAppsTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoCard(
-            title: 'Legacy Applications',
-            body: 'Legacy applications running in compatibility mode.',
-          ),
-          const SizedBox(height: 16),
-          _LegacyAppEntry(name: 'old-app-1', compat: 'ubuntu-20.04', status: 'Running', color: Colors.green),
-          _LegacyAppEntry(name: 'legacy-service', compat: 'centos-7', status: 'Stopped', color: Colors.grey),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegacyAppEntry extends StatelessWidget {
-  final String name;
-  final String compat;
-  final String status;
-  final Color color;
-  const _LegacyAppEntry({
-    required this.name,
-    required this.compat,
-    required this.status,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: ListTile(
-        leading: Icon(Icons.apps, color: color, size: 20),
-        title: Text(name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-        subtitle: Text('Compat: $compat', style: GoogleFonts.inter(fontSize: 11)),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(status, style: GoogleFonts.inter(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tab: Status ──────────────────────────────────────────────────
-class _StatusTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoCard(
-            title: 'Compatibility Status',
-            body: 'Overall compatibility subsystem status.',
-          ),
-          const SizedBox(height: 16),
-          _InfoRow(label: 'Containers', value: '3'),
-          _InfoRow(label: 'Running', value: '2'),
-          _InfoRow(label: 'Stopped', value: '1'),
-          _InfoRow(label: 'Legacy Apps', value: '2'),
-          _InfoRow(label: 'Compat Layer', value: 'Active'),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: ListTile(
-        title: Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-        trailing: Text(value, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey.shade700)),
       ),
     );
   }

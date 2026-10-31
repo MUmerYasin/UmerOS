@@ -23,7 +23,10 @@ filters, or a real chroot. What it *does* provide, honestly:
     ``fs_root`` configured);
   * ``check_permission`` — consults the real zero-trust
     ``core.capability_gate`` in addition to the local grant set;
-  * ``verify_signature`` — SHA3-512 payload hash equality.
+  * ``verify_hash`` — SHA3-512 payload hash equality (integrity; no key,
+    so it says nothing about *who* produced the payload);
+  * ``verify_hmac`` — HMAC-SHA3-512 tag over the payload (authenticity via
+    a shared secret - symmetric, not asymmetric code signing).
 
 Real filesystem containment lives in ``kernel/umer_kernel.py``'s
 ``SecuritySandbox`` (which requires an explicit ``fs_root``); this module is
@@ -31,8 +34,10 @@ the user-space advisory layer. Callers MUST route through ``resolve_path``
 for the jail to apply.
 """
 import hashlib
+import hmac as _hmac
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Set
 
@@ -125,22 +130,80 @@ class SecuritySandbox:
         
         return target
 
-    def verify_signature(self, pid: int, executable_payload: bytes, expected_hash: str) -> bool:
+    def verify_hash(self, pid: int, executable_payload: bytes, expected_hash: str) -> bool:
+        """Return True when the payload's SHA3-512 digest matches *expected_hash*.
+
+        This is an **integrity** check, not a signature: no key is involved, so
+        anyone who can rewrite the payload can also rewrite the digest it is
+        compared against. Use :meth:`verify_hmac` when you need to establish
+        *who* produced the payload.
         """
-        IMPROVED: Verifies the cryptographic signature of a process executable.
-        Replaces the flawed PID-hashing with actual payload hashing (SHA3-512).
-        """
+        if not isinstance(expected_hash, str):
+            return False
         computed_hash = hashlib.sha3_512(executable_payload).hexdigest()
         # Constant-time comparison to prevent timing attacks
-        import hmac as _hmac
         is_valid = _hmac.compare_digest(computed_hash, expected_hash)
-        
+
         if not is_valid:
-            log.critical("CODE SIGNING FAILED: PID %d hash mismatch!", pid)
+            log.critical("INTEGRITY CHECK FAILED: PID %d payload hash mismatch!", pid)
         else:
-            log.info("Code signature verified for PID %d.", pid)
-            
+            log.info("Payload hash verified for PID %d.", pid)
+
         return is_valid
+
+    def verify_hmac(
+        self, pid: int, executable_payload: bytes, signature: str, key: bytes
+    ) -> bool:
+        """Verify an HMAC-SHA3-512 tag over *executable_payload*.
+
+        Unlike :meth:`verify_hash`, this really does establish authenticity: an
+        attacker who rewrites the payload cannot recompute the tag without the
+        key. It is **symmetric** - sender and verifier hold the same secret -
+        so it is not asymmetric code signing, and it is documented that way
+        rather than called one.
+
+        Args:
+            pid: Process the payload belongs to (used for logging only).
+            executable_payload: The bytes that were tagged.
+            signature: Hex HMAC-SHA3-512 tag.
+            key: Non-empty shared secret.
+
+        Returns:
+            True when the tag matches.
+
+        Raises:
+            ValueError: If *key* is empty or not bytes. A missing secret is a
+                caller error, and returning False would hide it.
+        """
+        if not isinstance(key, (bytes, bytearray)) or not key:
+            raise ValueError("verify_hmac requires a non-empty bytes key")
+        if not isinstance(signature, str):
+            return False
+        expected = _hmac.new(bytes(key), executable_payload, hashlib.sha3_512).hexdigest()
+        is_valid = _hmac.compare_digest(expected, signature)
+
+        if not is_valid:
+            log.critical("AUTHENTICITY CHECK FAILED: PID %d HMAC mismatch!", pid)
+        else:
+            log.info("HMAC verified for PID %d.", pid)
+
+        return is_valid
+
+    def verify_signature(self, pid: int, executable_payload: bytes, expected_hash: str) -> bool:
+        """Deprecated alias of :meth:`verify_hash`. This is **not** signing.
+
+        Kept so existing callers keep working. It performs the same keyless
+        digest comparison, which proves nothing about who produced the payload;
+        use :meth:`verify_hmac` for that.
+        """
+        warnings.warn(
+            "SecuritySandbox.verify_signature() is a keyless hash comparison, "
+            "not signature verification; use verify_hash() for integrity or "
+            "verify_hmac() for authenticity.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.verify_hash(pid, executable_payload, expected_hash)
 
 # -------------------------------------------------------------------
 

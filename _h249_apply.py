@@ -65,7 +65,7 @@ start = sb.index(START) + 1
 END_ANCHOR = "        return is_valid\r\n"
 end = sb.index(END_ANCHOR, start) + len(END_ANCHOR)
 region = sb[start:end]
-assert "# " not in region, "must not span dead code"
+assert "#     def" not in region and "# class" not in region, "must not span dead code"
 assert "sha3_512" in region and "compare_digest" in region
 
 NEW = crlf('''    def verify_hash(self, pid: int, executable_payload: bytes, expected_hash: str) -> bool:
@@ -147,11 +147,15 @@ NEW = crlf('''    def verify_hash(self, pid: int, executable_payload: bytes, exp
 sb = sb[:start] + NEW + sb[end:]
 
 assert sb != original
-assert "\n    def verify_hash" in sb
-assert "\n    def verify_hmac" in sb
-assert "Verifies the cryptographic signature" not in sb, "the lie must be gone"
-assert "CODE SIGNING FAILED" not in sb
-assert sb.count("\n    def verify_signature") == 1, "only the deprecated alias remains"
+# Everything after the first separator line is commented-out dead code, which
+# still contains the old wording; scope the claim checks to live code only.
+live = sb[: sb.index("\n# -----")]
+assert "\n    def verify_hash" in live
+assert "\n    def verify_hmac" in live
+assert "Verifies the cryptographic signature" not in live, "the lie must be gone"
+assert "CODE SIGNING FAILED" not in live
+assert "Code signature verified" not in live
+assert live.count("\n    def verify_signature") == 1, "only the deprecated alias remains"
 assert sb.count("\nimport hmac as _hmac\r\n") == 1
 write(SB, sb)
 print("sandbox.py: %d -> %d chars" % (len(original), len(sb)))
