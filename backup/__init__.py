@@ -29,3 +29,21 @@ __all__ = [
     "FactoryResetManager",
     "PathFilter",
 ]
+
+
+def _selftest() -> bool:
+    """Verify the public surface is importable."""
+    import importlib
+    import sys
+
+    pkg = importlib.import_module(__name__)
+    missing = [n for n in __all__ if not hasattr(pkg, n)]
+    if missing:
+        print(f"backup selftest FAIL: missing {missing}", file=sys.stderr)
+        return False
+    return True
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(0 if _selftest() else 1)

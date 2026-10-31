@@ -28,6 +28,7 @@ import '../apps/bin_manager_app.dart';
 import '../apps/build_manager_app.dart';
 import '../apps/boot_manager_app.dart';
 import '../apps/backup_app.dart';
+import '../apps/backup_manager_app.dart';
 import '../apps/browser_app.dart';
 import '../apps/calculator_app.dart';
 import '../apps/calendar_app.dart';
@@ -233,6 +234,15 @@ abstract final class AppRegistry {
       color: Colors.teal,
       category: AppCategory.system,
       builder: (_) => const BackupApp(),
+    ),
+    AppDefinition(
+      id: 'backupmgr',
+      title: 'Backup Manager',
+      description: 'Manage backups, snapshots, restore and factory reset.',
+      icon: Icons.backup,
+      color: Colors.teal.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const BackupManagerApp(),
     ),
     AppDefinition(
       id: 'cloud',
