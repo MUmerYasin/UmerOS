@@ -35,6 +35,7 @@ import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/games_app.dart';
 import '../apps/hostfiles_manager_app.dart';
+import '../apps/home_manager_app.dart';
 import '../apps/kernel_manager_app.dart';
 import '../apps/installer_manager_app.dart';
 import '../apps/initrd_manager_app.dart';
@@ -537,6 +538,15 @@ abstract final class AppRegistry {
       color: Colors.teal.shade700,
       category: AppCategory.system,
       builder: (_) => const HostFilesManagerApp(),
+    ),
+    AppDefinition(
+      id: 'home',
+      title: 'Home Manager',
+      description: 'Manage user home directories, dotfiles, SSH keys, mail and backup.',
+      icon: Icons.home,
+      color: Colors.blue.shade700,
+      category: AppCategory.system,
+      builder: (_) => const HomeManagerApp(),
     ),
   ];
 
