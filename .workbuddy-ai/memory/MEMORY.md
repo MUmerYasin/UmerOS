@@ -2,7 +2,7 @@
 
 ## Conventions
 - Python only; GPL-3.0 canonical (`Licence`→`License`, `Version 3`→`v3`). §1 baseline: 12-line GPL block; docstring ending `Author:  Umer OS Project` (2 spaces) + `License: GPL-3.0 (GNU General Public License v3)`; `from __future__ import annotations` first after the docstring.
-- **Drift-recon first** — verify the premise against live state before editing; most are stale or overstated (H232 stale 8/9, H236 both halves, H238 half). Trust `Read` over `Grep`.
+- **Drift-recon first** — verify the premise against live state before editing; most are stale or overstated (H232, H236, H238, H240 all were). Trust `Read` over `Grep`.
 - Never batch `Edit` on one file; use assert-first appliers. Bookkeeping (5): checkpoint box + RESOLVED + NEXT, standard §9 note, this file, daily `YYYY-MM-DD.md`, delete scratch scripts.
 
 ## Loop mechanics
@@ -14,29 +14,29 @@
 
 ## Test runner
 - `"…/envs/default/Scripts/python.exe" -m pytest tests/ legal/ opt/ sources/ srv/ tmp/ --junitxml=… -q` (quote the venv path — it has a space).
-- **`mkdir -p /f/umeros_tmp` FIRST**, then `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`. A TMP inside the project → 15 false failures (`legal/licenses.py` skips dot-prefixed components; `mnt/fstab.py` splits on the space in `F:\Pension Person Details`). Parse `--junitxml` — basetemp cleanup trips the safe-delete guard and eats the summary.
+- **`mkdir -p /f/umeros_tmp` FIRST**, then `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`. A TMP inside the project → 15 false failures (dot-prefix skips + the space in `F:\Pension Person Details`). Parse `--junitxml` — basetemp cleanup trips the safe-delete guard and eats the summary.
 - Collapse to **1 node** ⇒ check `import requests` (`quantum/providers/ibm_provider.py`).
-- Baseline (s225): **5833 nodes / 0 errors / 88 skipped / 5 failed** (`test_legal_pii_h137`).
+- Baseline (s226): **5938 nodes / 0 errors / 95 skipped / 5 failed** (`test_legal_pii_h137`).
 - Guards: `core/path_guard.py`, `core/capability_gate.py`. ~735 modules; `Old Linux Code/` out of scope. `home` shadow: load `home_backup.py` by path under a unique name.
 
 ## Lessons
 - **A gate on a façade is not a gate on the classes behind it.** H233: 7 duplicated `SbinCommand` bases × 45 commands bypassed `SbinManager.execute`; fixed with `__init_subclass__ = install_guard`.
-- **The repo's own audit is the authority, not a grep for "GPL".** `legal/licenses.py::scan_directory` accepts 3 declaration forms and reads only the top 2 KB.
-- **Applier pitfalls:** heredocs mangle `\r\n` into `/r/n` (use the Write tool), and an applier that `read()`s without `write()`ing back silently loses the edit — assert every intended write landed.
+- **The repo's own audit is the authority, not a grep for "GPL".** `scan_directory` accepts 3 declaration forms and reads only the top 2 KB — so it passes a **4-line stub** (H240 `validator.py`), while a case-sensitive grep for `GPL` misses the block ("GNU General Public License").
+- **Applier pitfalls:** heredocs mangle `\r\n` into `/r/n` (use the Write tool), and an applier that `read()`s without `write()`ing back silently loses the edit — assert every intended write landed. Same for mutations: assert the mutant **differs** from the original (H240's `stub + rest` rebuilt it byte-for-byte, faking a "missed" test).
 - **`gate.require()` inside a loop ⇒ warning spam** (63 PERMISSIVE lines). Call it only when `gate.enforcing`, else `log.debug`.
 - **Windows traps:** `os.write` is text-mode → corrupts CRLF backups, use `O_BINARY` (H229); `os.access(..., os.X_OK)` answers "readable", so POSIX-only tests need `os.name == "nt"` skips.
 - **Substring scans trip on legitimate docstring prose** (H236: `Author: Umer OS Project` inside a docstring *describing* the convention). Prefer AST or line-anchored checks.
-- **A harness that prints instead of asserting cannot fail** (H237 — the masking mechanism was the missing assertion, not the shared secret). **Prefer the existing auth contract to a new test-only bypass** (H237 rejected the row's `UMEROS_TEST=1` idea).
-- **Probe for the *gated* response, not a 200** (H238): a 401 proves the route is mounted *and* the gate is on. Also `stdout=subprocess.PIPE` with nobody draining it **deadlocks the child** — use a temp file.
-- **Check the repo's own documented policy before applying a row's remedy.** H239's row said "hash-pin `requirements.txt`", but that file's header defines it as a bounded *range* spec (H15) with hashes in a generated lock — honour the policy, don't overwrite it.
+- **A harness that prints instead of asserting cannot fail** (H237 — the masking mechanism was the missing assertion, not the shared secret). **Prefer the existing auth contract to a new test-only bypass.**
+- **Probe for the *gated* response, not a 200** (H238): a 401 proves the route is mounted *and* the gate is on. `stdout=subprocess.PIPE` with nobody draining it **deadlocks the child** — use a temp file.
+- **Check the repo's own documented policy before applying a row's remedy.** H239's row said "hash-pin `requirements.txt`", but its header defines it as a bounded *range* spec (H15) with hashes in a generated lock — honour the policy.
 
 ## Status
-- **Pointer: `scripts/` COMPLETE (H236–H239); next folder `sdk/` H240.** H239 made the installer honour H15: prefer `requirements.lock` + `--require-hashes`, warn on the loose file, `--require-hashes` fails closed, output streamed, paths resolved against the repo root not the cwd. `tests/test_scripts_install_deps_h239.py` (27).
-- Done: `build cloud compatibility core dev drivers etc feedback fs home initrd installer kernel legal lib liboqs media mnt network opt packages proc quantum root sbin scripts`.
-- Remaining: `sdk` H240–243, `security` H244–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
+- **Pointer: `sdk/` — H240 ✅, next H241.** 7 modules in 2 packages not 3; only `kernel_dsl/` was headerless. Now 7/7 + full §1. `tests/test_sdk_headers_h240.py` (98+7).
+- Done: every folder alphabetically before `sdk` (authority = the checkpoint).
+- Remaining: `sdk` H241–243, `security` H244–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
 - ⚠ H62 regression: `drivers/` 0/75 `[TODAY]` labels (boot 23, bin 44, kernel 6, core 1, etc 81 fine). Re-apply on request.
 
 ## Known-unrelated failures (do NOT re-investigate)
-- 5 × `tests/test_legal_pii_h137` (external re-save put PII in `legal/creator_accounts.example.json`; flip-flops). Absent recently: `test_lib_pam_h150`, `test_media_license_h160`.
-- **External additions land mid-session.** If scanner-compliant, bump the pinned count + note the timestamp; don't "fix" the folder. Seen: `media/network/` (s206), `network/softbus/softbus_manager.py` (s218), `tests/test_cloud_server.py` +4 (s224).
+- 5 × `tests/test_legal_pii_h137` (external re-save put PII in `legal/creator_accounts.example.json`; flip-flops).
+- **External additions land mid-session.** If scanner-compliant, bump the pinned count + timestamp; don't "fix" the folder (seen: `media/network/`, `network/softbus/`, `tests/test_cloud_server.py` +4).
 - Order-dependent flakes: `test_compatibility.py::test_selftest_passes` (the `setx` one), `test_opt_selftest_h192.py::test_package_selftests_run_their_children`.

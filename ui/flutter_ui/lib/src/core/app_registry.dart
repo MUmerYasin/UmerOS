@@ -36,6 +36,7 @@ import '../apps/file_manager_app.dart';
 import '../apps/games_app.dart';
 import '../apps/kernel_manager_app.dart';
 import '../apps/installer_manager_app.dart';
+import '../apps/initrd_manager_app.dart';
 import '../apps/network_manager_app.dart';
 import '../apps/opt_manager_app.dart';
 import '../apps/packages_manager_app.dart';
@@ -148,6 +149,15 @@ abstract final class AppRegistry {
       color: Colors.teal.shade700,
       category: AppCategory.system,
       builder: (_) => const InstallerManagerApp(),
+    ),
+    AppDefinition(
+      id: 'initrd',
+      title: 'Initrd Manager',
+      description: 'Manage initial RAM disk, boot phases, cpio archives and hooks.',
+      icon: Icons.memory,
+      color: Colors.purple.shade700,
+      category: AppCategory.system,
+      builder: (_) => const InitrdManagerApp(),
     ),
     AppDefinition(
       id: 'power',
