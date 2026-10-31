@@ -1,13 +1,11 @@
 /// UmerOS /etc Manager — System Configuration
 ///
 /// Desktop control panel for the UmerOS /etc subsystem.
-/// Manages system configuration files, services, and settings.
+/// Manages 81 system configuration files and services.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-import '../widgets/auto_adjust_box.dart';
 
 class EtcManagerApp extends StatefulWidget {
   const EtcManagerApp({super.key});
@@ -18,12 +16,86 @@ class EtcManagerApp extends StatefulWidget {
 
 class _EtcManagerAppState extends State<EtcManagerApp> {
   int _tab = 0;
+  String _search = '';
+
+  final List<_ConfigCategory> _categories = [
+    _ConfigCategory('System', Icons.settings, [
+      'ConfigManager', 'PasswdGroupManager', 'HostnameManager', 'OSReleaseManager',
+      'SkeletonManager', 'EnvironmentManager', 'DefaultConfigManager',
+      'InputRCManager', 'ProfileDManager', 'ShellProfileManager',
+      'ShellsManager', 'VConsoleManager', 'ManpathConfigManager',
+      'AdduserConfigManager', 'ShellConfigManager', 'SysconfigManager',
+      'get_config_manager', 'CshZshConfigManager', 'SysctlDManager',
+    ]),
+    _ConfigCategory('Network', Icons.lan, [
+      'NetworkConfigManager', 'NetworksManager', 'NetworkManagerConfigManager',
+      'HostsManager', 'HostsAccessManager', 'HostConfManager',
+      'DHCPConfigManager', 'NFSExportsManager', 'SambaConfigManager',
+      'OpenVPNConfigManager', 'WPASupplicantManager', 'PPPConfigManager',
+      'InetServicesManager',
+    ]),
+    _ConfigCategory('Security', Icons.security, [
+      'SecurityConfigManager', 'SudoersManager', 'PAMConfigManager',
+      'SSLConfigManager', 'SSLDirsManager', 'SecureTTYManager',
+      'HostsAccessManager', 'GSSConfigManager',
+    ]),
+    _ConfigCategory('Services', Icons.miscellaneous_services, [
+      'CronScheduleManager', 'CronDManager', 'CronAccessManager',
+      'InitScriptsManager', 'InitSystemManager', 'SyslogConfigManager',
+      'LogrotateConfigManager', 'DBusConfigManager',
+    ]),
+    _ConfigCategory('Hardware', Icons.memory, [
+      'HardwareConfigManager', 'LVMConfigManager', 'FontsConfigManager',
+      'USBConfigManager', 'ModprobeDManager', 'ModulesLoadManager',
+      'ModuleConfigManager', 'KernelConfigManager',
+    ]),
+    _ConfigCategory('Filesystem', Icons.storage, [
+      'FstabManager', 'TmpfilesManager', 'UdevRulesManager',
+      'E2fsckConfigManager', 'BinFmtManager',
+    ]),
+    _ConfigCategory('Desktop', Icons.desktop_windows, [
+      'XDGConfigManager', 'X11ExtraManager', 'KDEConfigManager',
+    ]),
+    _ConfigCategory('Mail & Misc', Icons.mail, [
+      'MailConfigManager', 'MailAliasesManager', 'MimeConfigManager',
+      'CUPSConfigManager', 'SANEConfigManager', 'ChronyConfigManager',
+      'HotplugConfigManager', 'UpdatedbConfigManager', 'GAIConfManager',
+      'ConfDManager', 'AlternativesManager', 'CriticalFilesManager',
+      'IssueMotdManager', 'LocaleTimezoneManager', 'LoginConfigManager',
+      'LoginEnvironmentManager', 'AptConfigManager', 'DpkgConfigManager',
+    ]),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final filtered = _search.isEmpty
+        ? _categories
+        : _categories
+            .map((c) => _ConfigCategory(
+                  c.name,
+                  c.icon,
+                  c.managers.where((m) => m.toLowerCase().contains(_search.toLowerCase())).toList(),
+                ))
+            .where((c) => c.managers.isNotEmpty)
+            .toList();
+
     return Column(
       children: [
+        // Search bar
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: TextField(
+            decoration: InputDecoration(
+              labelText: 'Search configurations',
+              hintText: 'e.g. hostname, ssh, cron',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onChanged: (v) => setState(() => _search = v),
+          ),
+        ),
+        // Category tabs
         Container(
           decoration: BoxDecoration(
             color: scheme.surface,
@@ -31,62 +103,66 @@ class _EtcManagerAppState extends State<EtcManagerApp> {
               bottom: BorderSide(color: scheme.outline.withValues(alpha: 0.2)),
             ),
           ),
-          child: AutoAdjustRow(
-            spacing: 0,
-            children: [
-              _Tab('Config', 0, Icons.settings),
-              _Tab('Users', 1, Icons.people),
-              _Tab('Network', 2, Icons.lan),
-              _Tab('Services', 3, Icons.miscellaneous_services),
-              _Tab('Security', 4, Icons.security),
-            ].map((t) => _TabButton(
-              label: t.label,
-              icon: t.icon,
-              isSelected: _tab == t.index,
-              onTap: () => setState(() => _tab = t.index),
-            )).toList(),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: filtered.map((c) => _CategoryTab(
+                label: c.name,
+                icon: c.icon,
+                isSelected: _tab == filtered.indexOf(c),
+                onTap: () => setState(() => _tab = filtered.indexOf(c)),
+                count: c.managers.length,
+              )).toList(),
+            ),
           ),
         ),
-        Expanded(child: _buildTabContent()),
+        // Content
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(child: Text('No configurations found', style: GoogleFonts.inter(color: Colors.grey)))
+              : _buildContent(filtered[_tab.clamp(0, filtered.length - 1)]),
+        ),
       ],
     );
   }
 
-  Widget _buildTabContent() {
-    switch (_tab) {
-      case 0:
-        return _ConfigTab();
-      case 1:
-        return _UsersTab();
-      case 2:
-        return _NetworkTab();
-      case 3:
-        return _ServicesTab();
-      case 4:
-        return _SecurityTab();
-      default:
-        return const SizedBox.shrink();
-    }
+  Widget _buildContent(_ConfigCategory category) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InfoCard(
+            title: category.name,
+            body: '${category.managers.length} configuration managers.',
+          ),
+          const SizedBox(height: 16),
+          ...category.managers.map((m) => _ConfigManagerEntry(name: m)),
+        ],
+      ),
+    );
   }
 }
 
-class _Tab {
-  final String label;
-  final int index;
+class _ConfigCategory {
+  final String name;
   final IconData icon;
-  const _Tab(this.label, this.index, this.icon);
+  final List<String> managers;
+  const _ConfigCategory(this.name, this.icon, this.managers);
 }
 
-class _TabButton extends StatelessWidget {
+class _CategoryTab extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool isSelected;
   final VoidCallback onTap;
-  const _TabButton({
+  final int count;
+  const _CategoryTab({
     required this.label,
     required this.icon,
     required this.isSelected,
     required this.onTap,
+    required this.count,
   });
 
   @override
@@ -117,6 +193,18 @@ class _TabButton extends StatelessWidget {
                 color: isSelected ? scheme.primary : scheme.onSurfaceVariant,
               ),
             ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.inter(fontSize: 9, color: scheme.onPrimaryContainer, fontWeight: FontWeight.w600),
+              ),
+            ),
           ],
         ),
       ),
@@ -124,104 +212,9 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-// ── Tab: Config ──────────────────────────────────────────────────
-class _ConfigTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoCard(
-            title: 'System Configuration',
-            body: 'Configuration files in /etc.',
-          ),
-          const SizedBox(height: 16),
-          _ConfigEntry(file: 'fstab', path: '/etc/fstab', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'hosts', path: '/etc/hosts', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'hostname', path: '/etc/hostname', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'resolv.conf', path: '/etc/resolv.conf', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'passwd', path: '/etc/passwd', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'group', path: '/etc/group', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'sudoers', path: '/etc/sudoers', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'os-release', path: '/etc/os-release', status: 'OK', color: Colors.green),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConfigEntry extends StatelessWidget {
-  final String file;
-  final String path;
-  final String status;
-  final Color color;
-  const _ConfigEntry({
-    required this.file,
-    required this.path,
-    required this.status,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: ListTile(
-        leading: Icon(Icons.description, color: color, size: 20),
-        title: Text(file, style: GoogleFonts.firaCode(fontWeight: FontWeight.w600, fontSize: 12)),
-        subtitle: Text(path, style: GoogleFonts.inter(fontSize: 11)),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(status, style: GoogleFonts.inter(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tab: Users ───────────────────────────────────────────────────
-class _UsersTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoCard(
-            title: 'User Accounts',
-            body: 'User accounts and groups from /etc/passwd and /etc/group.',
-          ),
-          const SizedBox(height: 16),
-          _UserEntry(name: 'root', uid: '0', gid: '0', shell: '/bin/bash', color: Colors.red),
-          _UserEntry(name: 'umer', uid: '1000', gid: '1000', shell: '/bin/bash', color: Colors.blue),
-          _UserEntry(name: 'nobody', uid: '65534', gid: '65534', shell: '/usr/sbin/nologin', color: Colors.grey),
-        ],
-      ),
-    );
-  }
-}
-
-class _UserEntry extends StatelessWidget {
+class _ConfigManagerEntry extends StatelessWidget {
   final String name;
-  final String uid;
-  final String gid;
-  final String shell;
-  final Color color;
-  const _UserEntry({
-    required this.name,
-    required this.uid,
-    required this.gid,
-    required this.shell,
-    required this.color,
-  });
+  const _ConfigManagerEntry({required this.name});
 
   @override
   Widget build(BuildContext context) {
@@ -229,115 +222,17 @@ class _UserEntry extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 6),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.15),
-          child: Text(name[0].toUpperCase(), style: GoogleFonts.inter(fontSize: 12, color: color, fontWeight: FontWeight.bold)),
-        ),
-        title: Text(name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-        subtitle: Text('UID: $uid · GID: $gid · Shell: $shell', style: GoogleFonts.inter(fontSize: 11)),
-      ),
-    );
-  }
-}
-
-// ── Tab: Network ─────────────────────────────────────────────────
-class _NetworkTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoCard(
-            title: 'Network Configuration',
-            body: 'Network configuration files in /etc.',
-          ),
-          const SizedBox(height: 16),
-          _ConfigEntry(file: 'networks', path: '/etc/networks', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'hosts', path: '/etc/hosts', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'resolv.conf', path: '/etc/resolv.conf', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'nsswitch.conf', path: '/etc/nsswitch.conf', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'hosts.allow', path: '/etc/hosts.allow', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'hosts.deny', path: '/etc/hosts.deny', status: 'OK', color: Colors.green),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Tab: Services ────────────────────────────────────────────────
-class _ServicesTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoCard(
-            title: 'Services',
-            body: 'System services and init scripts.',
-          ),
-          const SizedBox(height: 16),
-          _ServiceEntry(name: 'ssh', status: 'Running', color: Colors.green),
-          _ServiceEntry(name: 'nginx', status: 'Running', color: Colors.green),
-          _ServiceEntry(name: 'mysql', status: 'Stopped', color: Colors.grey),
-          _ServiceEntry(name: 'cron', status: 'Running', color: Colors.green),
-          _ServiceEntry(name: 'rsyslog', status: 'Running', color: Colors.green),
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceEntry extends StatelessWidget {
-  final String name;
-  final String status;
-  final Color color;
-  const _ServiceEntry({required this.name, required this.status, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: ListTile(
-        leading: Icon(Icons.miscellaneous_services, color: color, size: 20),
+        leading: Icon(Icons.settings, color: Colors.blue, size: 20),
         title: Text(name, style: GoogleFonts.firaCode(fontWeight: FontWeight.w600, fontSize: 12)),
+        subtitle: Text('/etc configuration manager', style: GoogleFonts.inter(fontSize: 11)),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Text(status, style: GoogleFonts.inter(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
+          child: Text('Active', style: GoogleFonts.inter(fontSize: 10, color: Colors.green, fontWeight: FontWeight.w600)),
         ),
-      ),
-    );
-  }
-}
-
-// ── Tab: Security ────────────────────────────────────────────────
-class _SecurityTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoCard(
-            title: 'Security Configuration',
-            body: 'Security-related configuration files.',
-          ),
-          const SizedBox(height: 16),
-          _ConfigEntry(file: 'sudoers', path: '/etc/sudoers', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'pam.d', path: '/etc/pam.d', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'ssh/sshd_config', path: '/etc/ssh/sshd_config', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'security', path: '/etc/security', status: 'OK', color: Colors.green),
-          _ConfigEntry(file: 'selinux', path: '/etc/selinux', status: 'OK', color: Colors.green),
-        ],
       ),
     );
   }

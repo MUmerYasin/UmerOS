@@ -16,13 +16,13 @@
 - `"…/envs/default/Scripts/python.exe" -m pytest tests/ legal/ opt/ sources/ srv/ tmp/ --junitxml=… -q` (quote the venv path — it has a space).
 - **`mkdir -p /f/umeros_tmp` FIRST**, then `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`. A TMP inside the project → 15 false failures. Parse `--junitxml` — basetemp cleanup trips the safe-delete guard and eats the summary.
 - Collapse to **1 node** ⇒ check `import requests` (`quantum/providers/ibm_provider.py`).
-- Baseline (s227): **6014 nodes / 0 errors / 95 skipped / 5 failed** (`test_legal_pii_h137`).
+- Baseline (s228): **6040 nodes / 0 errors / 95 skipped / 6 failed** = 5 known `test_legal_pii_h137` + 1 external (see below).
 - Guards: `core/path_guard.py`, `core/capability_gate.py`. ~735 modules; `Old Linux Code/` out of scope. `home` shadow: load `home_backup.py` by path under a unique name.
 
 ## Lessons
 - **A gate on a façade is not a gate on the classes behind it.** H233: 7 duplicated `SbinCommand` bases × 45 commands bypassed `SbinManager.execute`; fixed via `__init_subclass__ = install_guard`.
-- **The repo's own audit is the authority, not a grep for "GPL".** `scan_directory` accepts 3 declaration forms and reads only the top 2 KB — so it passes a **4-line stub** (H240), while a case-sensitive grep for `GPL` misses the block ("GNU General Public License").
-- **Applier pitfalls:** heredocs mangle `\r\n` into `/r/n` (use the Write tool); an applier that `read()`s without `write()`ing back silently loses the edit. Assert every intended write landed, and that a mutant **differs** from the original (H240's `stub + rest` rebuilt it byte-for-byte, faking a "missed" test).
+- **The repo's own audit is the authority, not a grep for "GPL".** `scan_directory` accepts 3 forms and reads only the top 2 KB — so it passes a **4-line stub** (H240), while a case-sensitive `GPL` grep misses the block.
+- **Applier pitfalls:** heredocs mangle `\r\n` into `/r/n` (use Write); an applier that `read()`s without `write()`ing back loses the edit. Assert each write landed, and that a mutant **differs** from the original (H240's `stub + rest` rebuilt it byte-for-byte).
 - **`gate.require()` inside a loop ⇒ warning spam** (63 PERMISSIVE lines). Call it only when `gate.enforcing`, else `log.debug`.
 - **Windows traps:** `os.write` is text-mode → corrupts CRLF backups, use `O_BINARY` (H229); `os.access(..., os.X_OK)` answers "readable", so POSIX-only tests need `os.name == "nt"` skips.
 - **Substring scans trip on legitimate docstring prose** (H236: `Author: Umer OS Project` inside a docstring *describing* the convention). Prefer AST or line-anchored checks.
@@ -33,11 +33,12 @@
 - **Check the repo's own documented policy before applying a row's remedy.** H239's row said "hash-pin `requirements.txt`", but its header defines it as a bounded *range* spec (H15) with hashes in a generated lock — honour the policy.
 
 ## Status
-- **Pointer: `sdk/` — H240 ✅ H241 ✅, next H242.** H241: `app_name` is a code sink too; validate charset, then `class_identifier()` + `json.dumps`. Both methods call `project_path()` before the VFS branch. `tests/test_sdk_build_tool_h241.py` (76).
+- **Pointer: `sdk/` — H240–H242 ✅, next H243.** H242: `custom_app_code` documented as trusted + screened (control chars, `compile()`) but **not** restricted — fragments still scaffold. `tests/test_sdk_custom_code_h242.py` (26).
 - Done: every folder alphabetically before `sdk` (authority = the checkpoint).
-- Remaining: `sdk` H242–243, `security` H244–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
+- Remaining: `sdk` H243, `security` H244–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
 
 ## Known-unrelated failures (do NOT re-investigate)
 - 5 × `tests/test_legal_pii_h137` (external re-save put PII in `legal/creator_accounts.example.json`; flip-flops).
+- ⚠ **`examples/` became an importable package** (external, 15:05 s228): `__init__.py` + `run_demo.py` appeared, so `test_layer_reachability` exits 1 — `reference_corpus.md:77` says "plain scripts, not importable packages". Untouched; fix by deleting it or moving `examples`→`REFERENCE` + marker.
 - **External additions land mid-session.** If scanner-compliant, bump the pinned count + timestamp; don't "fix" the folder (seen: `media/network/`, `network/softbus/`, `test_cloud_server.py` +4).
 - Order-dependent flakes: `test_compatibility.py::test_selftest_passes`, `test_opt_selftest_h192.py::test_package_selftests_run_their_children`. ⚠ H62: `drivers/` 0/75 `[TODAY]` labels — re-apply on request.
