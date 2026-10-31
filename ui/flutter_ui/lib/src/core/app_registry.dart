@@ -33,6 +33,7 @@ import '../apps/cloud_app.dart';
 import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
+import '../apps/fs_manager_app.dart';
 import '../apps/games_app.dart';
 import '../apps/hostfiles_manager_app.dart';
 import '../apps/home_manager_app.dart';
@@ -124,6 +125,15 @@ abstract final class AppRegistry {
       color: Colors.amber.shade700,
       category: AppCategory.system,
       builder: (_) => const FileManagerApp(),
+    ),
+    AppDefinition(
+      id: 'fs',
+      title: 'FS Manager',
+      description: 'Manage virtual filesystem, snapshots, distributed FS and CRDT.',
+      icon: Icons.folder_special,
+      color: Colors.green.shade700,
+      category: AppCategory.system,
+      builder: (_) => const FsManagerApp(),
     ),
     AppDefinition(
       id: 'monitor',

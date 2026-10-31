@@ -56,6 +56,9 @@ for _mod, _names in (
         "AIFileIndexer",
     )),
     ("vfs", ("VirtualFileSystem",)),
+    ("dfs", ("DistributedVFS", "DistributedDataObject", "LWWRegister")),
+    ("dfs.distributed_vfs", ("DistributedVFS",)),
+    ("dfs.crdt_object", ("DistributedDataObject", "LWWRegister")),
 ):
     _try_import(_mod, _names)
 

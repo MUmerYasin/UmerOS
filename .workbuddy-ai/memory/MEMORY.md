@@ -16,7 +16,7 @@
 - `"…/envs/default/Scripts/python.exe" -m pytest tests/ legal/ opt/ sources/ srv/ tmp/ --junitxml=… -q` (quote the venv path — it has a space).
 - **`mkdir -p /f/umeros_tmp` FIRST**, then `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`. A TMP inside the project → 15 false failures (dot-prefix skips + the space in `F:\Pension Person Details`). Parse `--junitxml` — basetemp cleanup trips the safe-delete guard and eats the summary.
 - Collapse to **1 node** ⇒ check `import requests` (`quantum/providers/ibm_provider.py`).
-- Baseline (s226): **5938 nodes / 0 errors / 95 skipped / 5 failed** (`test_legal_pii_h137`).
+- Baseline (s227): **6014 nodes / 0 errors / 95 skipped / 5 failed** (`test_legal_pii_h137`).
 - Guards: `core/path_guard.py`, `core/capability_gate.py`. ~735 modules; `Old Linux Code/` out of scope. `home` shadow: load `home_backup.py` by path under a unique name.
 
 ## Lessons
@@ -28,12 +28,14 @@
 - **Substring scans trip on legitimate docstring prose** (H236: `Author: Umer OS Project` inside a docstring *describing* the convention). Prefer AST or line-anchored checks.
 - **A harness that prints instead of asserting cannot fail** (H237 — the masking mechanism was the missing assertion, not the shared secret). **Prefer the existing auth contract to a new test-only bypass.**
 - **Probe for the *gated* response, not a 200** (H238): a 401 proves the route is mounted *and* the gate is on. `stdout=subprocess.PIPE` with nobody draining it **deadlocks the child** — use a temp file.
+- **A name safe as a path may still be unsafe as code** (H241: `my-app` produced `class my-app(UmerApp)`, unparseable — 4/4 plausible names failed to compile). Validate the charset, *then* derive an identifier and quote the literal for any code sink.
+- **`safe_child`/`safe_join` are for real filesystem paths** — they resolve via `pathlib.Path.resolve()`. For a logical VFS path (H241) use name validation + `posixpath.normpath` containment, but still raise `PathTraversalError`.
 - **Check the repo's own documented policy before applying a row's remedy.** H239's row said "hash-pin `requirements.txt`", but its header defines it as a bounded *range* spec (H15) with hashes in a generated lock — honour the policy.
 
 ## Status
-- **Pointer: `sdk/` — H240 ✅, next H241.** 7 modules in 2 packages not 3; only `kernel_dsl/` was headerless. Now 7/7 + full §1. `tests/test_sdk_headers_h240.py` (98+7).
+- **Pointer: `sdk/` — H240 ✅ H241 ✅, next H242.** H241: `app_name` is a code sink too, not just a path — validate charset, then `class_identifier()` + `json.dumps` the literal. Both methods call `project_path()` before the VFS branch. `tests/test_sdk_build_tool_h241.py` (76).
 - Done: every folder alphabetically before `sdk` (authority = the checkpoint).
-- Remaining: `sdk` H241–243, `security` H244–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
+- Remaining: `sdk` H242–243, `security` H244–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
 - ⚠ H62 regression: `drivers/` 0/75 `[TODAY]` labels (boot 23, bin 44, kernel 6, core 1, etc 81 fine). Re-apply on request.
 
 ## Known-unrelated failures (do NOT re-investigate)
