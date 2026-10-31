@@ -34,6 +34,7 @@ import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/fs_manager_app.dart';
+import '../apps/feedback_manager_app.dart';
 import '../apps/games_app.dart';
 import '../apps/hostfiles_manager_app.dart';
 import '../apps/home_manager_app.dart';
@@ -134,6 +135,15 @@ abstract final class AppRegistry {
       color: Colors.green.shade700,
       category: AppCategory.system,
       builder: (_) => const FsManagerApp(),
+    ),
+    AppDefinition(
+      id: 'feedback',
+      title: 'Feedback Manager',
+      description: 'Manage community feedback, bug reports and feature requests.',
+      icon: Icons.feedback,
+      color: Colors.purple.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const FeedbackManagerApp(),
     ),
     AppDefinition(
       id: 'monitor',
