@@ -34,6 +34,7 @@ import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/games_app.dart';
+import '../apps/hostfiles_manager_app.dart';
 import '../apps/kernel_manager_app.dart';
 import '../apps/installer_manager_app.dart';
 import '../apps/initrd_manager_app.dart';
@@ -527,6 +528,15 @@ abstract final class AppRegistry {
       color: Colors.pink,
       category: AppCategory.media,
       builder: (_) => const GamesApp(),
+    ),
+    AppDefinition(
+      id: 'hostfiles',
+      title: 'Host Files',
+      description: 'Manage host configuration files, welcome messages and chat logs.',
+      icon: Icons.folder_open,
+      color: Colors.teal.shade700,
+      category: AppCategory.system,
+      builder: (_) => const HostFilesManagerApp(),
     ),
   ];
 
