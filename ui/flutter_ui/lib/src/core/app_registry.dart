@@ -30,6 +30,7 @@ import '../apps/browser_app.dart';
 import '../apps/calculator_app.dart';
 import '../apps/calendar_app.dart';
 import '../apps/cloud_app.dart';
+import '../apps/core_manager_app.dart';
 import '../apps/dev_app.dart';
 import '../apps/dev_manager_app.dart';
 import '../apps/docs_manager_app.dart';
@@ -239,6 +240,15 @@ abstract final class AppRegistry {
       color: Colors.blue,
       category: AppCategory.system,
       builder: (_) => const CloudApp(),
+    ),
+    AppDefinition(
+      id: 'core',
+      title: 'Core Manager',
+      description: 'Manage core primitives, capability gates, path guard and UDMF.',
+      icon: Icons.memory,
+      color: Colors.grey.shade700,
+      category: AppCategory.system,
+      builder: (_) => const CoreManagerApp(),
     ),
     AppDefinition(
       id: 'var',
