@@ -31,6 +31,7 @@ import '../apps/calculator_app.dart';
 import '../apps/calendar_app.dart';
 import '../apps/cloud_app.dart';
 import '../apps/dev_app.dart';
+import '../apps/dev_manager_app.dart';
 import '../apps/docs_manager_app.dart';
 import '../apps/dist_manager_app.dart';
 import '../apps/drivers_manager_app.dart';
@@ -459,6 +460,15 @@ abstract final class AppRegistry {
       color: Colors.brown,
       category: AppCategory.development,
       builder: (_) => const DevApp(),
+    ),
+    AppDefinition(
+      id: 'devmgr',
+      title: 'Dev Manager',
+      description: 'Manage /dev device files, devtmpfs, udev and device drivers.',
+      icon: Icons.developer_board,
+      color: Colors.purple.shade700,
+      category: AppCategory.system,
+      builder: (_) => const DevManagerApp(),
     ),
     AppDefinition(
       id: 'terminal',
