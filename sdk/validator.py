@@ -116,3 +116,50 @@ class AppValidator:
         if not result.warnings:
             result.info.append("Code structure looks good")
         return result
+
+
+def _selftest() -> bool:
+    """Run self-tests for manifest and code validation."""
+    print("[sdk/validator] selftest …")
+    ok = True
+
+    def check(condition: bool, label: str) -> None:
+        nonlocal ok
+        if condition:
+            print(f"  [PASS] {label}")
+        else:
+            ok = False
+            print(f"  [FAIL] {label}")
+
+    validator = AppValidator()
+    good = {
+        "name": "MyApp",
+        "version": "1.0.0",
+        "author": "Dev",
+        "description": "Test",
+        "entry_point": "src/main.py",
+    }
+    result = validator.validate_manifest(dict(good))
+    check(result.valid is True, "complete manifest is valid")
+    check(result.errors == [], "complete manifest has no errors")
+
+    result = validator.validate_manifest({"name": "MyApp"})
+    check(result.valid is False, "missing fields make the manifest invalid")
+    check(any("version" in e for e in result.errors), "missing version is reported")
+
+    result = validator.validate_manifest({**good, "version": "1.0"})
+    check(result.valid is True, "non-semver version is only a warning")
+    check(len(result.warnings) > 0, "non-semver version warns")
+
+    result = validator.validate_code("class A(UmerApp):\n    def on_start(self): pass\n")
+    check(any("on_stop" in w for w in result.warnings), "missing on_stop hook warns")
+
+    result = validator.validate_code("# nothing\n")
+    check(len(result.warnings) >= 3, "empty code warns on every dimension")
+
+    print("[sdk/validator] selftest " + ("PASSED" if ok else "FAILED"))
+    return ok
+
+
+if __name__ == "__main__":
+    _selftest()

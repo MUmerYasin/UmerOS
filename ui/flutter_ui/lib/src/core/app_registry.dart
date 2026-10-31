@@ -32,6 +32,7 @@ import '../apps/calendar_app.dart';
 import '../apps/cloud_app.dart';
 import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
+import '../apps/drivers_manager_app.dart';
 import '../apps/examples_manager_app.dart';
 import '../apps/etc_manager_app.dart';
 import '../apps/file_manager_app.dart';
@@ -392,6 +393,15 @@ abstract final class AppRegistry {
       color: Colors.deepOrange,
       category: AppCategory.tools,
       builder: (_) => const DocsApp(),
+    ),
+    AppDefinition(
+      id: 'drivers',
+      title: 'Drivers Manager',
+      description: 'Manage kernel drivers, devices, buses and driver services.',
+      icon: Icons.extension,
+      color: Colors.orange.shade700,
+      category: AppCategory.system,
+      builder: (_) => const DriversManagerApp(),
     ),
     AppDefinition(
       id: 'examples',

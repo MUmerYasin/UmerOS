@@ -33,6 +33,7 @@ License: GPL-3.0 (GNU General Public License v3)
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import List
 
 __version__ = "1.0.0"
@@ -62,15 +63,45 @@ for _mod, _names in (
     _try_import(_mod, _names)
 
 
+# Modules whose own _selftest() the package selftest runs (H243).
+_SELFTEST_MODULES = ("app_template", "build_tool", "validator", "kernel_dsl")
+
+
 def _selftest() -> bool:
-    """Verify the public surface is importable."""
+    """Verify the public surface is importable and every child passes."""
     import importlib
     import sys
 
-    pkg = importlib.import_module(__name__)
+    # Executed as a file (`python sdk/__init__.py`) __name__ is __main__ and
+    # the repo root is not on sys.path - address the children by absolute
+    # name either way.
+    if __name__ == "__main__":
+        _root = str(Path(__file__).resolve().parent.parent)
+        if _root not in sys.path:
+            sys.path.insert(0, _root)
+        package = "sdk"
+    else:
+        package = __name__
+
+    pkg = importlib.import_module(package)
     missing = [n for n in __all__ if not hasattr(pkg, n)]
     if missing:
         print(f"sdk selftest FAIL: missing {missing}", file=sys.stderr)
+        return False
+    # Run each child so one command checks the SDK instead of only the
+    # import surface.
+    failures = []
+    for mod_name in _SELFTEST_MODULES:
+        try:
+            module = importlib.import_module(f"{package}.{mod_name}")
+        except ImportError as exc:
+            failures.append(f"{mod_name}: {exc}")
+            continue
+        child = getattr(module, "_selftest", None)
+        if child is not None and child() is not True:
+            failures.append(mod_name)
+    if failures:
+        print(f"sdk selftest FAIL: {failures}", file=sys.stderr)
         return False
     return True
 

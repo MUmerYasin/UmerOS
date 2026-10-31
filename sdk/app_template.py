@@ -90,3 +90,73 @@ class HelloWorldApp(UmerApp):
         print(f"[APP:{self.name}] Hello from Umer OS!")
         response = self.ask_ai("status")
         print(f"[APP:{self.name}] AI says: {response}")
+
+
+def _selftest() -> bool:
+    """Run self-tests for the ``UmerApp`` lifecycle and kernel binding."""
+    print("[sdk/app_template] selftest …")
+    ok = True
+
+    def check(condition: bool, label: str) -> None:
+        nonlocal ok
+        if condition:
+            print(f"  [PASS] {label}")
+        else:
+            ok = False
+            print(f"  [FAIL] {label}")
+
+    app = UmerApp("Selftest", "2.3.4")
+    check(app.name == "Selftest", "name recorded")
+    check(app.version == "2.3.4", "version recorded")
+    check(app.pid is None, "pid starts unbound")
+
+    app.on_start()
+    app.on_stop()
+    app.on_message(7, "hello")
+    check(True, "lifecycle hooks run without a kernel")
+
+    for method, args in (
+        (app.read_file, ("/x",)),
+        (app.write_file, ("/x", b"d")),
+        (app.send_ipc, (1, "d")),
+        (app.ask_ai, ("q",)),
+    ):
+        try:
+            method(*args)
+        except RuntimeError:
+            check(True, f"{method.__name__} refuses an unbound kernel")
+        else:
+            check(False, f"{method.__name__} should have raised RuntimeError")
+
+    class _Kernel:
+        def __init__(self) -> None:
+            self.vfs = self
+            self.ipc = self
+            self.ai_assistant = self
+
+        def read_file(self, path: str) -> bytes:
+            return b"content"
+
+        def write_file(self, path: str, data: bytes) -> bool:
+            return True
+
+        def send(self, sender: int, receiver: int, data: object) -> bool:
+            return True
+
+        def query(self, q: str) -> str:
+            return "response"
+
+    app.bind_kernel(_Kernel())
+    check(app.read_file("/x") == b"content", "read_file delegates to the bound kernel")
+    check(app.write_file("/x", b"d") is True, "write_file delegates to the bound kernel")
+    check(app.send_ipc(1, "d") is True, "send_ipc delegates to the bound kernel")
+    check(app.ask_ai("q") == "response", "ask_ai delegates to the bound kernel")
+
+    check(HelloWorldApp().name == "HelloWorld", "HelloWorldApp example constructs")
+
+    print("[sdk/app_template] selftest " + ("PASSED" if ok else "FAILED"))
+    return ok
+
+
+if __name__ == "__main__":
+    _selftest()

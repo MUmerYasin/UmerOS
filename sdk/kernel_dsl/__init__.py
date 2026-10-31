@@ -33,3 +33,40 @@ __all__ = [
     "Some",
     "None_",
 ]
+
+
+_SELFTEST_MODULES = ("types", "extension_base")
+
+
+def _selftest() -> bool:
+    """Verify the DSL surface imports and every child passes its own selftest."""
+    import importlib
+
+    print("[sdk/kernel_dsl] selftest …")
+    ok = True
+    package = importlib.import_module(__name__)
+    missing = [name for name in __all__ if not hasattr(package, name)]
+    if missing:
+        ok = False
+        print(f"  [FAIL] missing public names: {missing}")
+    else:
+        print("  [PASS] every public name is importable")
+
+    for mod_name in _SELFTEST_MODULES:
+        module = importlib.import_module(f"{__name__}.{mod_name}")
+        child = getattr(module, "_selftest", None)
+        if child is None:
+            ok = False
+            print(f"  [FAIL] {mod_name} has no _selftest()")
+        elif child() is not True:
+            ok = False
+            print(f"  [FAIL] {mod_name}._selftest() failed")
+        else:
+            print(f"  [PASS] {mod_name} selftest")
+
+    print("[sdk/kernel_dsl] selftest " + ("PASSED" if ok else "FAILED"))
+    return ok
+
+
+if __name__ == "__main__":
+    _selftest()

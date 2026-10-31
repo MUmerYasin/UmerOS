@@ -16,7 +16,7 @@
 - `"…/envs/default/Scripts/python.exe" -m pytest tests/ legal/ opt/ sources/ srv/ tmp/ --junitxml=… -q` (quote the venv path — it has a space).
 - **`mkdir -p /f/umeros_tmp` FIRST**, then `TMP=F:/umeros_tmp TEMP=F:/umeros_tmp`. A TMP inside the project → 15 false failures. Parse `--junitxml` — basetemp cleanup trips the safe-delete guard and eats the summary.
 - Collapse to **1 node** ⇒ check `import requests` (`quantum/providers/ibm_provider.py`).
-- Baseline (s228): **6040 nodes / 0 errors / 95 skipped / 6 failed** = 5 known `test_legal_pii_h137` + 1 external (see below).
+- Baseline (s229): **6096 nodes / 0 errors / 95 skipped / 6 failed** = 5 known `test_legal_pii_h137` + 1 external (see below).
 - Guards: `core/path_guard.py`, `core/capability_gate.py`. ~735 modules; `Old Linux Code/` out of scope. `home` shadow: load `home_backup.py` by path under a unique name.
 
 ## Lessons
@@ -33,9 +33,9 @@
 - **Check the repo's own documented policy before applying a row's remedy.** H239's row said "hash-pin `requirements.txt`", but its header defines it as a bounded *range* spec (H15) with hashes in a generated lock — honour the policy.
 
 ## Status
-- **Pointer: `sdk/` — H240–H242 ✅, next H243.** H242: `custom_app_code` documented as trusted + screened (control chars, `compile()`) but **not** restricted — fragments still scaffold. `tests/test_sdk_custom_code_h242.py` (26).
-- Done: every folder alphabetically before `sdk` (authority = the checkpoint).
-- Remaining: `sdk` H243, `security` H244–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
+- **Pointer: `sdk/` COMPLETE (H240–H243); next folder `security/` H244 (🔴).** H243 added per-module `_selftest()` to the 6 modules lacking one + wired `_SELFTEST_MODULES` in both packages (the `opt/` pattern, H192 precedent). `tests/test_sdk_selftest_h243.py` (56).
+- Done: every folder alphabetically before `security` (authority = the checkpoint).
+- Remaining: `security` H244–258, `sources` H259–264, `srv` H265–277, `tmp` H278–287, `tools` H288–295, `ui` H90, `usr` H296–302, `var` H303–307.
 
 ## Known-unrelated failures (do NOT re-investigate)
 - 5 × `tests/test_legal_pii_h137` (external re-save put PII in `legal/creator_accounts.example.json`; flip-flops).

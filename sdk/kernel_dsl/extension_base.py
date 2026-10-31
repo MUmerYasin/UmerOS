@@ -109,3 +109,82 @@ class KernelExtension:
 
     def __repr__(self) -> str:
         return f"KernelExtension(name={self.name}, caps={self._capabilities})"
+
+
+def _selftest() -> bool:
+    """Run self-tests for capability gating and extension registration."""
+    print("[sdk/kernel_dsl/extension_base] selftest …")
+    ok = True
+
+    def check(condition: bool, label: str) -> None:
+        nonlocal ok
+        if condition:
+            print(f"  [PASS] {label}")
+        else:
+            ok = False
+            print(f"  [FAIL] {label}")
+
+    ext = KernelExtension("selftest-ext")
+    check(ext.has_capability("CAP_TEST") is False, "capabilities start empty")
+    ext.grant_capability("CAP_TEST")
+    check(ext.has_capability("CAP_TEST") is True, "grant_capability adds")
+    check("CAP_TEST" in ext.capabilities, "capabilities exposes the granted set")
+    ext.revoke_capability("CAP_TEST")
+    check(ext.has_capability("CAP_TEST") is False, "revoke_capability removes")
+
+    class _Guarded(KernelExtension):
+        def __init__(self) -> None:
+            super().__init__("guarded-ext")
+            self.called = False
+
+        @system_capability("CAP_TEST")
+        def guarded(self) -> None:
+            self.called = True
+
+    guarded = _Guarded()
+    try:
+        guarded.guarded()
+    except PermissionError:
+        check(True, "system_capability denies without the capability")
+    else:
+        check(False, "system_capability should deny without the capability")
+    check(guarded.called is False, "a denied call does not run the body")
+
+    guarded.grant_capability("CAP_TEST")
+    guarded.guarded()
+    check(guarded.called is True, "system_capability allows with the capability")
+    check(
+        getattr(_Guarded.guarded, "_required_capability", None) == "CAP_TEST",
+        "the decorator records the required capability",
+    )
+
+    class _Untyped(KernelExtension):
+        def untyped(self, value):
+            return value
+
+    errors = _Untyped("untyped-ext").validate_types()
+    check(
+        any("untyped(value)" in e for e in errors),
+        "validate_types flags a missing parameter annotation",
+    )
+    check(
+        any("untyped()" in e for e in errors),
+        "validate_types flags a missing return annotation",
+    )
+    check(KernelExtension("clean-ext").validate_types() == [], "annotated methods validate cleanly")
+
+    reg = KernelExtension("selftest-reg")
+    check(reg.is_registered is False, "extensions start unregistered")
+    check(reg.register() is True, "register() succeeds once")
+    check(reg.register() is False, "register() is idempotent")
+    check(reg.is_registered is True, "is_registered reflects registration")
+    check(reg.unregister() is True, "unregister() succeeds once")
+    check(reg.unregister() is False, "unregister() is idempotent")
+    check("KernelExtension" in repr(reg), "__repr__ is informative")
+
+    print("[sdk/kernel_dsl/extension_base] selftest " + ("PASSED" if ok else "FAILED"))
+    return ok
+
+
+if __name__ == "__main__":
+    _selftest()

@@ -285,3 +285,71 @@ class {class_identifier(app_name)}(UmerApp):
 
         print(f"[SDK] Package created: {pkg_info['archive']}")
         return pkg_info
+
+
+def _selftest() -> bool:
+    """Run self-tests for name validation, scaffolding and packaging."""
+    print("[sdk/build_tool] selftest …")
+    ok = True
+
+    def check(condition: bool, label: str) -> None:
+        nonlocal ok
+        if condition:
+            print(f"  [PASS] {label}")
+        else:
+            ok = False
+            print(f"  [FAIL] {label}")
+
+    check(
+        project_path("MyApp") == "/sdk/projects/MyApp",
+        "project_path builds a child of the root",
+    )
+    check(class_identifier("my-app") == "my_app", "hyphenated name maps to an identifier")
+    check(class_identifier("1Bad") == "_1Bad", "leading digit is repaired")
+
+    for bad in ("../../evil", "a/b", "..", ""):
+        try:
+            project_path(bad)
+        except PathTraversalError:
+            check(True, f"project_path refuses {bad!r}")
+        else:
+            check(False, f"project_path accepted {bad!r}")
+
+    class _VFS:
+        def __init__(self) -> None:
+            self.files: dict = {}
+            self.dirs: list = []
+
+        def mkdir(self, path: str) -> None:
+            self.dirs.append(path)
+
+        def write_file(self, path: str, data: bytes) -> None:
+            self.files[path] = data
+
+    vfs = _VFS()
+    tool = BuildTool(vfs=vfs)
+    base = tool.scaffold("Selftest")
+    check(base == "/sdk/projects/Selftest", "scaffold returns the project path")
+    check(f"{base}/src/main.py" in vfs.files, "scaffold writes src/main.py")
+    check(f"{base}/manifest.json" in vfs.files, "scaffold writes manifest.json")
+    compile(vfs.files[f"{base}/src/main.py"].decode(), "<generated>", "exec")
+    check(True, "generated source parses")
+
+    info = tool.package("Selftest")
+    check(info["name"] == "selftest", "package lower-cases the name")
+    check(info["status"] == "packaged", "package reports status")
+
+    check(validate_custom_code("x = 1\n") != [], "a fragment warns but is not refused")
+    try:
+        validate_custom_code("x = 1\x00\n")
+    except ValueError:
+        check(True, "control character refused")
+    else:
+        check(False, "control character should be refused")
+
+    print("[sdk/build_tool] selftest " + ("PASSED" if ok else "FAILED"))
+    return ok
+
+
+if __name__ == "__main__":
+    _selftest()
