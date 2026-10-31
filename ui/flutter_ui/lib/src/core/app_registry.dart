@@ -22,6 +22,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../apps/ai_assistant_app.dart';
+import '../apps/ai_manager_app.dart';
 import '../apps/antivirus_app.dart';
 import '../apps/bin_app.dart';
 import '../apps/bin_manager_app.dart';
@@ -33,6 +34,8 @@ import '../apps/browser_app.dart';
 import '../apps/calculator_app.dart';
 import '../apps/calendar_app.dart';
 import '../apps/cloud_app.dart';
+import '../apps/cloud_manager_app.dart';
+import '../apps/compatibility_manager_app.dart';
 import '../apps/core_manager_app.dart';
 import '../apps/dev_app.dart';
 import '../apps/dev_manager_app.dart';
@@ -254,6 +257,24 @@ abstract final class AppRegistry {
       builder: (_) => const CloudApp(),
     ),
     AppDefinition(
+      id: 'cloudmgr',
+      title: 'Cloud Manager',
+      description: 'Manage cloud compute, server and status.',
+      icon: Icons.cloud,
+      color: Colors.blue.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const CloudManagerApp(),
+    ),
+    AppDefinition(
+      id: 'compat',
+      title: 'Compatibility Manager',
+      description: 'Manage legacy compatibility containers and apps.',
+      icon: Icons.apps,
+      color: Colors.orange.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const CompatibilityManagerApp(),
+    ),
+    AppDefinition(
       id: 'core',
       title: 'Core Manager',
       description: 'Manage core primitives, capability gates, path guard and UDMF.',
@@ -372,6 +393,15 @@ abstract final class AppRegistry {
       color: Color(0xFF7C4DFF),
       category: AppCategory.tools,
       builder: (_) => const AiAssistantApp(),
+    ),
+    AppDefinition(
+      id: 'aimgr',
+      title: 'AI Manager',
+      description: 'Manage AI assistant, models, providers and governance.',
+      icon: Icons.smart_toy,
+      color: Colors.purple.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const AiManagerApp(),
     ),
     AppDefinition(
       id: 'browser',
