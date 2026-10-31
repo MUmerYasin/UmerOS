@@ -2429,7 +2429,7 @@ class _MenuItemState extends State<_MenuItem> {
       type: MaterialType.transparency,
       child: Checkbox(
         value: action.isChecked,
-        onChanged: action.isEnabled ? (_) => action.onTap?.call() : null,
+        onChanged: action.isEnabled ? (bool? value) { action.onTap?.call(); } as ValueChanged<bool?>? : null,
         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         visualDensity: VisualDensity.compact,
         shape: RoundedRectangleBorder(
@@ -2446,15 +2446,18 @@ class _MenuItemState extends State<_MenuItem> {
   }
 
   Widget _buildRadio(BuildContext context, ContextMenuAction action) {
-    // ignore: deprecated_member_use
     return Material(
       type: MaterialType.transparency,
-      child: Radio<bool>(
-        value: true,
+      child: RadioGroup<bool>(
         groupValue: action.isChecked,
-        onChanged: action.isEnabled ? (_) => action.onTap?.call() : null,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: VisualDensity.compact,
+        onChanged: (bool? value) {
+          if (action.isEnabled) action.onTap?.call();
+        },
+        child: Radio<bool>(
+          value: true,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          visualDensity: VisualDensity.compact,
+        ),
       ),
     );
   }
@@ -2628,7 +2631,7 @@ List<ContextMenuCategory> _buildCategories(
       return ContextMenuBuilder.file(
         fileName: cb.targetName,
         onOpen: cb.onOpen,
-        onOpenWith: cb.onOpenWith ?? cb.onOpen,
+        onOpenWith: cb.onOpenWith,
         onOpenLocation: cb.onOpenLocation,
         onCopy: cb.onCopy,
         onCut: cb.onCut,
@@ -2638,38 +2641,38 @@ List<ContextMenuCategory> _buildCategories(
         onShare: cb.onShare,
         onRunAsAdmin: cb.onRunAsAdmin,
         onPrint: cb.onPrint,
-        onDuplicate: cb.onDuplicate ?? cb.onCopy,
-        onCopyPath: cb.onCopyPath ?? cb.onCopy,
-        onCopyAsPath: cb.onCopyAsPath ?? cb.onCopy,
-        onCompress: cb.onCompress ?? cb.onCopy,
-        onExtract: cb.onExtract ?? cb.onCopy,
-        onOpenInTerminal: cb.onOpenInTerminal ?? cb.onOpenTerminal,
-        onOpenInNewWindow: cb.onOpenInNewWindow ?? cb.onOpen,
-        onPinToStart: cb.onPinToStart ?? cb.onOpen,
-        onPinToTaskbar: cb.onPinToTaskbar ?? cb.onOpen,
-        onSendTo: cb.onSendTo ?? cb.onShare,
-        onSetAsWallpaper: cb.onSetAsWallpaper ?? cb.onOpen,
+        onDuplicate: cb.onDuplicate,
+        onCopyPath: cb.onCopyPath,
+        onCopyAsPath: cb.onCopyAsPath,
+        onCompress: cb.onCompress,
+        onExtract: cb.onExtract,
+        onOpenInTerminal: cb.onOpenInTerminal,
+        onOpenInNewWindow: cb.onOpenInNewWindow,
+        onPinToStart: cb.onPinToStart,
+        onPinToTaskbar: cb.onPinToTaskbar,
+        onSendTo: cb.onSendTo,
+        onSetAsWallpaper: cb.onSetAsWallpaper,
       );
     case MenuContext.folder:
       return ContextMenuBuilder.folder(
         folderName: cb.targetName,
         onOpen: cb.onOpen,
-        onOpenInNewWindow: cb.onOpenInNewWindow ?? cb.onOpen,
-        onOpenInTerminal: cb.onOpenInTerminal ?? cb.onOpenTerminal,
+        onOpenInNewWindow: cb.onOpenInNewWindow,
+        onOpenInTerminal: cb.onOpenInTerminal,
         onCopy: cb.onCopy,
         onCut: cb.onCut,
         onRename: cb.onRename,
         onDelete: cb.onDelete,
         onProperties: cb.onProperties,
         onShare: cb.onShare,
-        onDuplicate: cb.onDuplicate ?? cb.onCopy,
-        onCopyPath: cb.onCopyPath ?? cb.onCopy,
-        onCompress: cb.onCompress ?? cb.onCopy,
-        onExtract: cb.onExtract ?? cb.onCopy,
-        onPinToStart: cb.onPinToStart ?? cb.onOpen,
-        onPinToTaskbar: cb.onPinToTaskbar ?? cb.onOpen,
-        onSendTo: cb.onSendTo ?? cb.onShare,
-        onSetAsWallpaper: cb.onSetAsWallpaper ?? cb.onOpen,
+        onDuplicate: cb.onDuplicate,
+        onCopyPath: cb.onCopyPath,
+        onCompress: cb.onCompress,
+        onExtract: cb.onExtract,
+        onPinToStart: cb.onPinToStart,
+        onPinToTaskbar: cb.onPinToTaskbar,
+        onSendTo: cb.onSendTo,
+        onSetAsWallpaper: cb.onSetAsWallpaper,
         onPaste: cb.onPaste,
         onNewFolder: cb.onNewFolder,
         canPaste: cb.canPaste,
@@ -2680,33 +2683,33 @@ List<ContextMenuCategory> _buildCategories(
         onTaskManager: cb.onTaskManager,
         onDisplaySettings: cb.onDisplaySettings,
         onPersonalize: cb.onPersonalize,
-        onFileExplorer: cb.onFileExplorer ?? cb.onOpenTerminal,
-        onRun: cb.onRun ?? cb.onOpenTerminal,
-        onSettings: cb.onSettings ?? cb.onDisplaySettings,
+        onFileExplorer: cb.onFileExplorer,
+        onRun: cb.onRun,
+        onSettings: cb.onSettings,
       );
     case MenuContext.window:
       return ContextMenuBuilder.window(
         onMinimize: cb.onMinimize,
         onMaximize: cb.onMaximize,
         onClose: cb.onClose,
-        onMove: cb.onMove ?? cb.onMinimize,
-        onResize: cb.onResize ?? cb.onMinimize,
-        onAlwaysOnTop: cb.onAlwaysOnTop ?? cb.onMinimize,
-        onMoveToWorkspace: cb.onMoveToWorkspace ?? cb.onMinimize,
+        onMove: cb.onMove,
+        onResize: cb.onResize,
+        onAlwaysOnTop: cb.onAlwaysOnTop,
+        onMoveToWorkspace: cb.onMoveToWorkspace,
         isMaximized: cb.isMaximized,
       );
     case MenuContext.browser:
       return ContextMenuBuilder.browser(
-        onBack: cb.onBack ?? cb.onRefresh,
-        onForward: cb.onForward ?? cb.onRefresh,
+        onBack: cb.onBack,
+        onForward: cb.onForward,
         onReload: cb.onRefresh,
-        onNewTab: cb.onNewTab ?? cb.onNewFolder,
-        onNewWindow: cb.onNewWindow ?? cb.onOpenTerminal,
-        onBookmark: cb.onBookmark ?? cb.onNewFolder,
-        onSavePage: cb.onSavePage ?? cb.onCopy,
+        onNewTab: cb.onNewTab,
+        onNewWindow: cb.onNewWindow,
+        onBookmark: cb.onBookmark,
+        onSavePage: cb.onSavePage,
         onPrint: cb.onPrint,
-        onViewSource: cb.onViewSource ?? cb.onOpen,
-        onInspect: cb.onInspect ?? cb.onOpenTerminal,
+        onViewSource: cb.onViewSource,
+        onInspect: cb.onInspect,
       );
     case MenuContext.selection:
       return ContextMenuBuilder.selection(
@@ -2718,11 +2721,11 @@ List<ContextMenuCategory> _buildCategories(
         onRename: cb.onRename,
         onProperties: cb.onProperties,
         onShare: cb.onShare,
-        onCompress: cb.onCompress ?? cb.onCopy,
-        onExtract: cb.onExtract ?? cb.onCopy,
-        onSelectAll: cb.onSelectAll ?? cb.onCopy,
-        onInvertSelection: cb.onInvertSelection ?? cb.onCopy,
-        onDeselectAll: cb.onDeselectAll ?? cb.onCopy,
+        onCompress: cb.onCompress,
+        onExtract: cb.onExtract,
+        onSelectAll: cb.onSelectAll,
+        onInvertSelection: cb.onInvertSelection,
+        onDeselectAll: cb.onDeselectAll,
       );
     case MenuContext.text:
       return ContextMenuBuilder.text(
@@ -2730,10 +2733,10 @@ List<ContextMenuCategory> _buildCategories(
         onCopy: cb.onCopy,
         onCut: cb.onCut,
         onPaste: cb.onPaste,
-        onSelectAll: cb.onSelectAll ?? cb.onCopy,
-        onSearchWeb: cb.onSearchWeb ?? cb.onOpen,
-        onTranslate: cb.onTranslate ?? cb.onOpen,
-        onCopyAsMarkdown: cb.onCopyAsMarkdown ?? cb.onCopy,
+        onSelectAll: cb.onSelectAll,
+        onSearchWeb: cb.onSearchWeb,
+        onTranslate: cb.onTranslate,
+        onCopyAsMarkdown: cb.onCopyAsMarkdown,
       );
     case MenuContext.empty:
       return ContextMenuBuilder.desktop(
@@ -3058,7 +3061,7 @@ void showFileContextMenu(
   final categories = ContextMenuBuilder.file(
     fileName: fileName,
     onOpen: callbacks.onOpen,
-    onOpenWith: callbacks.onOpenWith ?? callbacks.onOpen,
+    onOpenWith: callbacks.onOpenWith,
     onOpenLocation: callbacks.onOpenLocation,
     onCopy: callbacks.onCopy,
     onCut: callbacks.onCut,
@@ -3068,17 +3071,17 @@ void showFileContextMenu(
     onShare: callbacks.onShare,
     onRunAsAdmin: callbacks.onRunAsAdmin,
     onPrint: callbacks.onPrint,
-    onDuplicate: callbacks.onDuplicate ?? callbacks.onCopy,
-    onCopyPath: callbacks.onCopyPath ?? callbacks.onCopy,
-    onCopyAsPath: callbacks.onCopyAsPath ?? callbacks.onCopy,
-    onCompress: callbacks.onCompress ?? callbacks.onCopy,
-    onExtract: callbacks.onExtract ?? callbacks.onCopy,
-    onOpenInTerminal: callbacks.onOpenInTerminal ?? callbacks.onOpenTerminal,
-    onOpenInNewWindow: callbacks.onOpenInNewWindow ?? callbacks.onOpen,
-    onPinToStart: callbacks.onPinToStart ?? callbacks.onOpen,
-    onPinToTaskbar: callbacks.onPinToTaskbar ?? callbacks.onOpen,
-    onSendTo: callbacks.onSendTo ?? callbacks.onShare,
-    onSetAsWallpaper: callbacks.onSetAsWallpaper ?? callbacks.onOpen,
+    onDuplicate: callbacks.onDuplicate,
+    onCopyPath: callbacks.onCopyPath,
+    onCopyAsPath: callbacks.onCopyAsPath,
+    onCompress: callbacks.onCompress,
+    onExtract: callbacks.onExtract,
+    onOpenInTerminal: callbacks.onOpenInTerminal,
+    onOpenInNewWindow: callbacks.onOpenInNewWindow,
+    onPinToStart: callbacks.onPinToStart,
+    onPinToTaskbar: callbacks.onPinToTaskbar,
+    onSendTo: callbacks.onSendTo,
+    onSetAsWallpaper: callbacks.onSetAsWallpaper,
   );
   final controller = context.read<UmerOSContextMenuController>();
   controller.show(
@@ -3099,22 +3102,22 @@ void showFolderContextMenu(
   final categories = ContextMenuBuilder.folder(
     folderName: folderName,
     onOpen: callbacks.onOpen,
-    onOpenInNewWindow: callbacks.onOpenInNewWindow ?? callbacks.onOpen,
-    onOpenInTerminal: callbacks.onOpenInTerminal ?? callbacks.onOpenTerminal,
+    onOpenInNewWindow: callbacks.onOpenInNewWindow,
+    onOpenInTerminal: callbacks.onOpenInTerminal,
     onCopy: callbacks.onCopy,
     onCut: callbacks.onCut,
     onRename: callbacks.onRename,
     onDelete: callbacks.onDelete,
     onProperties: callbacks.onProperties,
     onShare: callbacks.onShare,
-    onDuplicate: callbacks.onDuplicate ?? callbacks.onCopy,
-    onCopyPath: callbacks.onCopyPath ?? callbacks.onCopy,
-    onCompress: callbacks.onCompress ?? callbacks.onCopy,
-    onExtract: callbacks.onExtract ?? callbacks.onCopy,
-    onPinToStart: callbacks.onPinToStart ?? callbacks.onOpen,
-    onPinToTaskbar: callbacks.onPinToTaskbar ?? callbacks.onOpen,
-    onSendTo: callbacks.onSendTo ?? callbacks.onShare,
-    onSetAsWallpaper: callbacks.onSetAsWallpaper ?? callbacks.onOpen,
+    onDuplicate: callbacks.onDuplicate,
+    onCopyPath: callbacks.onCopyPath,
+    onCompress: callbacks.onCompress,
+    onExtract: callbacks.onExtract,
+    onPinToStart: callbacks.onPinToStart,
+    onPinToTaskbar: callbacks.onPinToTaskbar,
+    onSendTo: callbacks.onSendTo,
+    onSetAsWallpaper: callbacks.onSetAsWallpaper,
     onPaste: callbacks.onPaste,
     onNewFolder: callbacks.onNewFolder,
     canPaste: callbacks.canPaste,
@@ -3144,11 +3147,11 @@ void showSelectionContextMenu(
     onRename: callbacks.onRename,
     onProperties: callbacks.onProperties,
     onShare: callbacks.onShare,
-    onCompress: callbacks.onCompress ?? callbacks.onCopy,
-    onExtract: callbacks.onExtract ?? callbacks.onCopy,
-    onSelectAll: callbacks.onSelectAll ?? callbacks.onCopy,
-    onInvertSelection: callbacks.onInvertSelection ?? callbacks.onCopy,
-    onDeselectAll: callbacks.onDeselectAll ?? callbacks.onCopy,
+    onCompress: callbacks.onCompress,
+    onExtract: callbacks.onExtract,
+    onSelectAll: callbacks.onSelectAll,
+    onInvertSelection: callbacks.onInvertSelection,
+    onDeselectAll: callbacks.onDeselectAll,
   );
   final controller = context.read<UmerOSContextMenuController>();
   controller.show(
@@ -3171,10 +3174,10 @@ void showTextContextMenu(
     onCopy: callbacks.onCopy,
     onCut: callbacks.onCut,
     onPaste: callbacks.onPaste,
-    onSelectAll: callbacks.onSelectAll ?? callbacks.onCopy,
-    onSearchWeb: callbacks.onSearchWeb ?? callbacks.onOpen,
-    onTranslate: callbacks.onTranslate ?? callbacks.onOpen,
-    onCopyAsMarkdown: callbacks.onCopyAsMarkdown ?? callbacks.onCopy,
+    onSelectAll: callbacks.onSelectAll,
+    onSearchWeb: callbacks.onSearchWeb,
+    onTranslate: callbacks.onTranslate,
+    onCopyAsMarkdown: callbacks.onCopyAsMarkdown,
   );
   final controller = context.read<UmerOSContextMenuController>();
   controller.show(
@@ -3196,9 +3199,9 @@ void showTaskbarContextMenu(
     onTaskManager: callbacks.onTaskManager,
     onDisplaySettings: callbacks.onDisplaySettings,
     onPersonalize: callbacks.onPersonalize,
-    onFileExplorer: callbacks.onFileExplorer ?? callbacks.onOpenTerminal,
-    onRun: callbacks.onRun ?? callbacks.onOpenTerminal,
-    onSettings: callbacks.onSettings ?? callbacks.onDisplaySettings,
+    onFileExplorer: callbacks.onFileExplorer,
+    onRun: callbacks.onRun,
+    onSettings: callbacks.onSettings,
   );
   final controller = context.read<UmerOSContextMenuController>();
   controller.show(
@@ -3219,10 +3222,10 @@ void showWindowContextMenu(
     onMinimize: callbacks.onMinimize,
     onMaximize: callbacks.onMaximize,
     onClose: callbacks.onClose,
-    onMove: callbacks.onMove ?? callbacks.onMinimize,
-    onResize: callbacks.onResize ?? callbacks.onMinimize,
-    onAlwaysOnTop: callbacks.onAlwaysOnTop ?? callbacks.onMinimize,
-    onMoveToWorkspace: callbacks.onMoveToWorkspace ?? callbacks.onMinimize,
+    onMove: callbacks.onMove,
+    onResize: callbacks.onResize,
+    onAlwaysOnTop: callbacks.onAlwaysOnTop,
+    onMoveToWorkspace: callbacks.onMoveToWorkspace,
     isMaximized: callbacks.isMaximized,
   );
   final controller = context.read<UmerOSContextMenuController>();
@@ -3241,16 +3244,16 @@ void showBrowserContextMenu(
   required UmerOSContextMenuCallbacks callbacks,
 }) {
   final categories = ContextMenuBuilder.browser(
-    onBack: callbacks.onBack ?? callbacks.onRefresh,
-    onForward: callbacks.onForward ?? callbacks.onRefresh,
+    onBack: callbacks.onBack,
+    onForward: callbacks.onForward,
     onReload: callbacks.onRefresh,
-    onNewTab: callbacks.onNewTab ?? callbacks.onNewFolder,
-    onNewWindow: callbacks.onNewWindow ?? callbacks.onOpenTerminal,
-    onBookmark: callbacks.onBookmark ?? callbacks.onNewFolder,
-    onSavePage: callbacks.onSavePage ?? callbacks.onCopy,
+    onNewTab: callbacks.onNewTab,
+    onNewWindow: callbacks.onNewWindow,
+    onBookmark: callbacks.onBookmark,
+    onSavePage: callbacks.onSavePage,
     onPrint: callbacks.onPrint,
-    onViewSource: callbacks.onViewSource ?? callbacks.onOpen,
-    onInspect: callbacks.onInspect ?? callbacks.onOpenTerminal,
+    onViewSource: callbacks.onViewSource,
+    onInspect: callbacks.onInspect,
   );
   final controller = context.read<UmerOSContextMenuController>();
   controller.show(
