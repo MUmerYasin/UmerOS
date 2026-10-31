@@ -14,7 +14,7 @@
 ///
 /// Linux behaviors implemented
 /// * Triangle keep-up zone (24px) for safe submenu traversal
-/// * 350ms hover delay before submenu close (Baymard/Nielsen standard)
+/// * 350ms hover delay before submenu close
 /// * Click on parent item with children → opens submenu (GTK style)
 /// * Right-click on submenu item → opens nested submenu (recursive)
 /// * Keyboard: ← closes submenu, → opens submenu, Home/End jump
@@ -327,13 +327,13 @@ class ContextMenuBuilder {
         ),
         ContextMenuAction(
           id: 'new_spreadsheet',
-          label: 'Sprea&dsheet',
+          label: 'Spread sheet',
           icon: Icons.table_chart_rounded,
           onTap: () {},
         ),
         ContextMenuAction(
           id: 'new_presentation',
-          label: 'Pre&sentation',
+          label: 'Presentation',
           icon: Icons.slideshow_rounded,
           onTap: () {},
         ),
@@ -794,7 +794,7 @@ class ContextMenuBuilder {
         const ContextMenuAction(id: '_sep_prop', label: '', isSeparator: true),
         ContextMenuAction(
           id: 'properties',
-          label: 'P&roperties',
+          label: 'Properties',
           icon: Icons.info_outline_rounded,
           shortcut: 'Alt+Enter',
           onTap: onProperties,
@@ -1009,7 +1009,7 @@ class ContextMenuBuilder {
         const ContextMenuAction(id: '_sep_prop', label: '', isSeparator: true),
         ContextMenuAction(
           id: 'properties',
-          label: 'P&roperties',
+          label: 'Properties',
           icon: Icons.info_outline_rounded,
           shortcut: 'Alt+Enter',
           onTap: onProperties,
@@ -1123,7 +1123,7 @@ class ContextMenuBuilder {
           ),
           ContextMenuAction(
             id: 'properties',
-            label: 'P&roperties',
+            label: 'Properties',
             icon: Icons.info_outline_rounded,
             shortcut: 'Alt+Enter',
             onTap: onProperties,

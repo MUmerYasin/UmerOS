@@ -27,6 +27,19 @@ intentionally **excluded** from the GPL-3.0 header audit in `legal/licenses.py`
 (its sources are not required to carry the UmerOS GPL-3.0 header), and its
 license is **not** rewritten to GPL-3.0.
 
+## Provenance notes
+
+**No DeepSeek source is vendored.** `security/firewall.py` used to carry the
+docstring claim "AI-driven firewall (simple packet filter) merged from
+Deepseek code". No upstream URL, pinned revision or license was ever
+recorded alongside it, so the claim could not be substantiated: it appears
+to describe *AI-assisted authoring* (code drafted with a language model)
+rather than source copied from a DeepSeek repository. AI-assisted authoring
+does not vendor third-party source, so no additional license attaches to it
+and no row is needed in the table above. The claim has been removed from the
+module, which was rewritten in this tree and is covered by GPL-3.0 like the
+rest of UmerOS.
+
 ## Adding a vendored component
 
 When vendoring a new third-party component, add an entry here recording its
