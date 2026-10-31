@@ -32,6 +32,7 @@ import '../apps/calendar_app.dart';
 import '../apps/cloud_app.dart';
 import '../apps/dev_app.dart';
 import '../apps/docs_manager_app.dart';
+import '../apps/dist_manager_app.dart';
 import '../apps/drivers_manager_app.dart';
 import '../apps/examples_manager_app.dart';
 import '../apps/etc_manager_app.dart';
@@ -393,6 +394,15 @@ abstract final class AppRegistry {
       color: Colors.deepOrange,
       category: AppCategory.tools,
       builder: (_) => const DocsManagerApp(),
+    ),
+    AppDefinition(
+      id: 'dist',
+      title: 'Dist Manager',
+      description: 'Manage build artifacts, releases and distribution packages.',
+      icon: Icons.inventory_2,
+      color: Colors.teal.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const DistManagerApp(),
     ),
     AppDefinition(
       id: 'drivers',
