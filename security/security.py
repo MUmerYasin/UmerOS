@@ -18,7 +18,7 @@ Implements all security primitives for Umer OS:
 
   SecuritySandbox   — per-process capability isolation.
   SecureBoot        — image hash verification at startup.
-  IPCAuthenticator  — HMAC-SHA256 message signing & verification.
+  IPCAuthenticator  — HMAC-SHA3-256 signing, replay-protected verification.
 
 Zero-trust model:
   - No process is trusted by default.
@@ -32,7 +32,7 @@ Umer OS Security Subsystem [TODAY - zero-trust]
 Implements all security primitives for Umer OS:
 - SecuritySandbox (in sandbox.py)
 - SecureBoot (image hash verification at startup)
-- IPCAuthenticator (HMAC-SHA3-512 message signing & anti-replay)
+- IPCAuthenticator (HMAC-SHA3-256 message signing & anti-replay)
 - AIBehavioralMonitor (Real-time anomaly detection)
 """
 # CRITICAL: __future__ imports must be at the very top
@@ -154,26 +154,173 @@ class SecureBoot:
 # IPCAuthenticator (Upgraded with Anti-Replay Protection)
 # ---------------------------------------------------------------------------
 class IPCAuthenticator:
-    """Signs and verifies IPC messages with HMAC-SHA3-512."""
-    
-    def __init__(self, key: Optional[bytes] = None):
+    """Signs and verifies IPC messages with HMAC-SHA3-256 and blocks replays.
+
+    Wire format: :meth:`sign_message` returns a 64-character hex MAC over the
+    canonical JSON encoding of the payload, keyed with a 512-bit HMAC key.
+    The MAC is deliberately deterministic - the same message always yields the
+    same string - because callers cache and compare signatures.  That same
+    property is exactly why replay detection is required: an attacker who
+    captures a ``(message, MAC)`` pair can re-send it verbatim without ever
+    learning the key.
+
+    Replay defence therefore lives in the verifier, not in the MAC:
+
+    * :meth:`verify_message` remembers every MAC it accepts for
+      ``replay_window`` seconds and rejects a second presentation of the same
+      MAC, so a captured IPC frame cannot be re-delivered to this instance.
+    * The MAC is compared *before* anything is remembered.  An attacker must
+      not be able to poison the replay cache with forged MACs and thereby lock
+      legitimate traffic out of the accept path (a denial-of-service).
+    * :meth:`sign_envelope` / :meth:`verify_envelope` are the opt-in form for
+      callers that need replay protection to survive a restart or to hold
+      across receiver instances: the envelope binds a timestamp and a random
+      nonce into the signed bytes, so it is unique per call and valid only
+      inside its ``ttl``.
+
+    Both comparisons use :func:`hmac.compare_digest` (constant time).
+
+    Args:
+        key: Optional HMAC key.  64 random bytes are generated when omitted.
+        replay_window: Seconds an accepted MAC is remembered.  ``0`` disables
+            the per-instance cache (stateless callers only).
+        max_entries: Hard cap on remembered MACs; the oldest half is dropped
+            when a flood would otherwise exceed it.
+        envelope_ttl: Default validity of a signed envelope, in seconds.
+    """
+
+    DEFAULT_REPLAY_WINDOW = 300.0
+    DEFAULT_MAX_ENTRIES = 100_000
+    DEFAULT_ENVELOPE_TTL = 60.0
+
+    def __init__(
+        self,
+        key: Optional[bytes] = None,
+        *,
+        replay_window: float = DEFAULT_REPLAY_WINDOW,
+        max_entries: int = DEFAULT_MAX_ENTRIES,
+        envelope_ttl: float = DEFAULT_ENVELOPE_TTL,
+    ) -> None:
         # 64-byte key (512-bit) for quantum-resistant security margin
         self._key = key if key is not None else secrets.token_bytes(64)
+        self._replay_window = max(0.0, float(replay_window))
+        self._max_entries = max(1, int(max_entries))
+        self._envelope_ttl = max(0.0, float(envelope_ttl))
+        self._seen: Dict[str, float] = {}
+        self._lock = threading.Lock()
+        self._last_prune = time.monotonic()
 
-    def sign_message(self, msg: dict) -> str:
-        """Return HMAC-SHA3-256 hex digest of the JSON-encoded message."""
-        raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
+    # -- MAC ------------------------------------------------------------
+    def _mac(self, payload: dict) -> str:
+        """Return the hex HMAC-SHA3-256 of *payload*'s canonical JSON form."""
+        raw = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
         return _hmac.new(self._key, raw, hashlib.sha3_256).hexdigest()
 
+    # -- deterministic API (documented; signature kept stable) ----------
+    def sign_message(self, msg: dict) -> str:
+        """Return HMAC-SHA3-256 hex digest of the JSON-encoded message."""
+        return self._mac(msg)
+
     def verify_message(self, msg: dict, signature: str) -> bool:
-        """Return True only when *signature* matches the HMAC of *msg*."""
-        raw = json.dumps(msg, sort_keys=True, separators=(",", ":")).encode()
-        expected = _hmac.new(self._key, raw, hashlib.sha3_256).hexdigest()
-        return _hmac.compare_digest(expected, signature)
+        """Return True when *signature* is authentic and not a replay."""
+        if not isinstance(signature, str):
+            return False
+        expected = self._mac(msg)
+        # Constant-time compare FIRST: never remember an unauthenticated MAC.
+        if not _hmac.compare_digest(expected, signature):
+            return False
+        return self._remember(signature)
+
+    # -- envelope API (nonce + timestamp; survives a restart) -----------
+    def sign_envelope(self, msg: dict, *, ttl: Optional[float] = None) -> dict:
+        """Return a copy of *msg* carrying ``timestamp``, ``nonce`` and ``mac``.
+
+        The caller's dict is never mutated.  ``ttl`` defaults to
+        ``envelope_ttl`` and travels inside the signed bytes, so the receiver
+        validates against the sender's intent rather than its own default.
+        """
+        envelope = dict(msg)
+        envelope["timestamp"] = time.time()
+        envelope["nonce"] = secrets.token_hex(16)
+        envelope["ttl"] = self._envelope_ttl if ttl is None else max(0.0, float(ttl))
+        envelope["mac"] = self._mac(envelope)
+        return envelope
+
+    def verify_envelope(self, envelope: dict) -> bool:
+        """Return True when *envelope* is authentic, fresh and unused.
+
+        Total function: malformed input yields False rather than raising,
+        because envelopes arrive from untrusted peers.
+        """
+        if not isinstance(envelope, dict):
+            return False
+        mac = envelope.get("mac")
+        nonce = envelope.get("nonce")
+        timestamp = envelope.get("timestamp")
+        if not isinstance(mac, str) or not isinstance(nonce, str):
+            return False
+        if not isinstance(timestamp, (int, float)) or isinstance(timestamp, bool):
+            return False
+        try:
+            body = {k: v for k, v in envelope.items() if k != "mac"}
+            expected = self._mac(body)
+        except (TypeError, ValueError):
+            return False
+        if not _hmac.compare_digest(expected, mac):
+            return False
+        ttl = body.get("ttl", self._envelope_ttl)
+        if not isinstance(ttl, (int, float)) or isinstance(ttl, bool):
+            return False
+        age = time.time() - float(timestamp)
+        # Reject stale envelopes *and* ones stamped implausibly far in the
+        # future: otherwise a bad sender clock buys an attacker an unbounded
+        # validity period.
+        if age > float(ttl) or age < -float(ttl):
+            log.warning("IPC replay blocked: envelope outside its validity window.")
+            return False
+        return self._remember(nonce)
+
+    # -- shared replay cache --------------------------------------------
+    def _remember(self, key: str) -> bool:
+        """Record *key* as used; return False when it was already present."""
+        if self._replay_window <= 0:
+            return True
+        now = time.monotonic()
+        with self._lock:
+            self._prune(now)
+            if key in self._seen:
+                log.warning("IPC replay blocked: duplicate frame rejected.")
+                return False
+            self._seen[key] = now
+            return True
+
+    def _prune(self, now: float) -> None:
+        """Drop expired entries and enforce the hard cap.  Caller holds _lock."""
+        if not self._seen:
+            self._last_prune = now
+            return
+        overdue = now - self._last_prune >= self._replay_window
+        if not overdue and len(self._seen) < self._max_entries:
+            return
+        cutoff = now - self._replay_window
+        for key in [k for k, seen in self._seen.items() if seen <= cutoff]:
+            del self._seen[key]
+        if len(self._seen) >= self._max_entries:
+            # Bounded-memory fallback under a flood: forget the oldest half.
+            # Only ever reached once memory is already exhausted, and only
+            # costs accuracy for MACs still inside the window.
+            ordered = sorted(self._seen.items(), key=lambda item: item[1])
+            for key, _ in ordered[: len(ordered) // 2]:
+                del self._seen[key]
+        self._last_prune = now
 
     def rotate_key(self) -> None:
         """Replace the current key with a fresh random one (invalidates old sigs)."""
         self._key = secrets.token_bytes(64)
+        with self._lock:
+            self._seen.clear()
+            self._last_prune = time.monotonic()
+        log.info("IPCAuthenticator: HMAC key rotated.")
 
 # ---------------------------------------------------------------------------
 # AIBehavioralMonitor (New Feature)

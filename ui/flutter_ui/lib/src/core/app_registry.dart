@@ -31,7 +31,7 @@ import '../apps/calculator_app.dart';
 import '../apps/calendar_app.dart';
 import '../apps/cloud_app.dart';
 import '../apps/dev_app.dart';
-import '../apps/docs_app.dart';
+import '../apps/docs_manager_app.dart';
 import '../apps/drivers_manager_app.dart';
 import '../apps/examples_manager_app.dart';
 import '../apps/etc_manager_app.dart';
@@ -392,7 +392,7 @@ abstract final class AppRegistry {
       icon: Icons.menu_book,
       color: Colors.deepOrange,
       category: AppCategory.tools,
-      builder: (_) => const DocsApp(),
+      builder: (_) => const DocsManagerApp(),
     ),
     AppDefinition(
       id: 'drivers',

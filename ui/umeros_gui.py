@@ -1564,7 +1564,7 @@ class DocsWindow(_AppWindow):
             "Security": (
                 "Security modules:\n"
                 "• SecureBoot — boot chain verification\n"
-                "• IPCAuthenticator — HMAC-SHA3-512 sessions\n"
+                "• IPCAuthenticator — HMAC-SHA3-256 sessions (replay-protected)\n"
                 "• AIBehavioralMonitor — anomaly detection"
             ),
             "Boot Process": (
