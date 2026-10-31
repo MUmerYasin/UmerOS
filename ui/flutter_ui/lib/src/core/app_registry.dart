@@ -33,6 +33,7 @@ import '../apps/cloud_app.dart';
 import '../apps/dev_app.dart';
 import '../apps/docs_app.dart';
 import '../apps/examples_manager_app.dart';
+import '../apps/etc_manager_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/fs_manager_app.dart';
 import '../apps/feedback_manager_app.dart';
@@ -400,6 +401,15 @@ abstract final class AppRegistry {
       color: Colors.green.shade700,
       category: AppCategory.development,
       builder: (_) => const ExamplesManagerApp(),
+    ),
+    AppDefinition(
+      id: 'etc',
+      title: 'Etc Manager',
+      description: 'Manage system configuration files, users, services and security.',
+      icon: Icons.settings,
+      color: Colors.grey.shade700,
+      category: AppCategory.system,
+      builder: (_) => const EtcManagerApp(),
     ),
     AppDefinition(
       id: 'sources',

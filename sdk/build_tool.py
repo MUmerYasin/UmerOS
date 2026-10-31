@@ -51,10 +51,6 @@ try:
 except ImportError:  # pragma: no cover - direct execution
     from validator import AppValidator
 
-class AppValidator:  # mutant
-    def validate_code(self, code):
-        return type("R", (), {"warnings": []})()
-
 #: Every scaffolded project lives directly beneath this VFS root.
 PROJECTS_ROOT = "/sdk/projects"
 
