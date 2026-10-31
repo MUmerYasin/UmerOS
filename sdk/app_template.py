@@ -19,7 +19,12 @@ Base class for building apps that run on Umer OS. Provides lifecycle
 hooks and safe access to kernel services (VFS, IPC, AI).
 
 Developers subclass UmerApp and implement on_start/on_stop/on_message.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
+
+from __future__ import annotations
 
 
 class UmerApp:

@@ -1,3 +1,16 @@
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 # UmerOS /sdk — SDK for third-party UmerOS apps
 # =============================================
 # GPL-3.0 — see LICENSE and README for details.
@@ -8,12 +21,13 @@
 #   * ``app_template`` - ``UmerApp`` base class (lifecycle hooks).
 #   * ``build_tool``   - ``BuildTool`` (packaging, signing).
 #
-# Author: UmerOS Project
-# License: GPL-3.0 (GNU General Public License Version 3)
 # [REFERENCE-ONLY] Not reachable from main.py — see docs/reference_corpus.md
 
 """
 UmerOS /sdk — SDK for third-party UmerOS apps.
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
 
 from __future__ import annotations

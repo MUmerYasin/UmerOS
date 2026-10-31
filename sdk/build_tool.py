@@ -22,7 +22,12 @@ manifest file ready for distribution via umer-pkg.
 Usage:
     python -m sdk.build_tool scaffold MyApp
     python -m sdk.build_tool package MyApp
+
+Author:  Umer OS Project
+License: GPL-3.0 (GNU General Public License v3)
 """
+
+from __future__ import annotations
 
 import json
 

@@ -105,7 +105,7 @@ class SysctlCommand(SbinCommand):
             else:
                 print("sysctl: -w requires key=value or key value", file=sys.stderr)
                 return 1
-            print(f"[*] sysctl: setting '{key}' = '{value}'")
+            print(f"[simulated] sysctl: setting '{key}' = '{value}'")
             return 0
 
         if param in ("-n", "--values"):
@@ -138,10 +138,10 @@ class HwclockCommand(SbinCommand):
             print(f"System clock:   {now}")
             return 0
         if args[0] == "-w":
-            print(f"[*] hwclock: writing system time to hardware clock ({now})")
+            print(f"[simulated] hwclock: writing system time to hardware clock ({now})")
             return 0
         if args[0] == "-s":
-            print(f"[*] hwclock: setting system time from hardware clock")
+            print(f"[simulated] hwclock: setting system time from hardware clock")
             return 0
         if args[0] in ("-h", "--help"):
             print(self.help())
@@ -176,10 +176,10 @@ class LdconfigCommand(SbinCommand):
             print("ldconfig: cache updated")
             return 0
         if args[0] in ("-n", "--precache"):
-            print("[*] ldconfig: processing only named directories")
+            print("[simulated] ldconfig: processing only named directories")
             return 0
         if args[0] in ("-N", "--not-changed"):
-            print("[*] ldconfig: not changing cache")
+            print("[simulated] ldconfig: not changing cache")
             return 0
         if args[0] in ("-p", "--print-cache"):
             print("ldconfig: current cache:")
@@ -187,24 +187,24 @@ class LdconfigCommand(SbinCommand):
                 print(f"  {path}: {libs}")
             return 0
         if args[0] in ("-X", "--no-links"):
-            print("[*] ldconfig: skipping symlink creation")
+            print("[simulated] ldconfig: skipping symlink creation")
             return 0
         if args[0] in ("-V", "--version"):
             print("ldconfig (UmerOS) 1.0.0")
             return 0
         if args[0] in ("-f", "--file") and len(args) > 1:
-            print(f"[*] ldconfig: using config file '{args[1]}'")
+            print(f"[simulated] ldconfig: using config file '{args[1]}'")
             return 0
         if args[0] in ("-C", "--cache") and len(args) > 1:
-            print(f"[*] ldconfig: using cache file '{args[1]}'")
+            print(f"[simulated] ldconfig: using cache file '{args[1]}'")
             return 0
         if args[0] in ("-r", "--root") and len(args) > 1:
-            print(f"[*] ldconfig: using root directory '{args[1]}'")
+            print(f"[simulated] ldconfig: using root directory '{args[1]}'")
             return 0
         # Process directories
         for d in args:
             if not d.startswith("-"):
-                print(f"[*] ldconfig: processing directory '{d}'")
+                print(f"[simulated] ldconfig: processing directory '{d}'")
         return 0
 
 

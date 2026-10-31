@@ -68,7 +68,7 @@ class InsmodCommand(SbinCommand):
             print("insmod: missing module filename", file=sys.stderr)
             return 1
         module = args[0]
-        print(f"[*] insmod: inserting module '{module}'")
+        print(f"[simulated] insmod: inserting module '{module}'")
         return 0
 
 
@@ -110,9 +110,9 @@ class ModprobeCommand(SbinCommand):
         remove = "-r" in args
 
         if remove:
-            print(f"[*] modprobe: removing module '{module}'")
+            print(f"[simulated] modprobe: removing module '{module}'")
         else:
-            print(f"[*] modprobe: loading module '{module}'")
+            print(f"[simulated] modprobe: loading module '{module}'")
         return 0
 
 
@@ -127,7 +127,7 @@ class RmmodCommand(SbinCommand):
             print("rmmod: missing module name", file=sys.stderr)
             return 1
         module = args[0]
-        print(f"[*] rmmod: removing module '{module}'")
+        print(f"[simulated] rmmod: removing module '{module}'")
         return 0
 
 

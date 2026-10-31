@@ -104,7 +104,7 @@ class MountCommand(SbinCommand):
             return 0
 
         if args[0] == "-a":
-            print("[*] mount: mounting all from /etc/fstab")
+            print("[simulated] mount: mounting all from /etc/fstab")
             return 0
 
         if args[0] in ("-l", "--show-labels"):
@@ -121,7 +121,7 @@ class MountCommand(SbinCommand):
             return 0
 
         if args[0] in ("-f", "--fake"):
-            print("[*] mount: fake mount (dry run)")
+            print("[simulated] mount: fake mount (dry run)")
             return 0
 
         if args[0] in ("-v", "--verbose"):
@@ -183,7 +183,7 @@ class MountCommand(SbinCommand):
                 "pass": 0,
             }
             _MOUNT_TABLE.append(entry)
-            print(f"[*] mount: {device} on {mount_point} type {fstype} ({options})")
+            print(f"[simulated] mount: {device} on {mount_point} type {fstype} ({options})")
             return 0
 
         print("mount: missing device or mount point", file=sys.stderr)
@@ -213,7 +213,7 @@ class UmountCommand(SbinCommand):
                     removed.append(m)
             _MOUNT_TABLE = remaining
             for m in removed:
-                print(f"[*] umount: unmounted {m['mount_point']}")
+                print(f"[simulated] umount: unmounted {m['mount_point']}")
             return 0
 
         if args[0] in ("-h", "--help"):
@@ -233,7 +233,7 @@ class UmountCommand(SbinCommand):
         # Virtual paths are always considered mounted in UmerOS
         virtual_paths = {"/tmp", "/dev/shm", "/dev/pts", "/dev", "/proc", "/sys"}
         if target in virtual_paths:
-            print(f"[*] umount: unmounted {target}")
+            print(f"[simulated] umount: unmounted {target}")
             # Also remove from mount table if present
             new_table = [m for m in _MOUNT_TABLE if m["mount_point"] != target]
             _MOUNT_TABLE[:] = new_table
@@ -245,7 +245,7 @@ class UmountCommand(SbinCommand):
         for m in _MOUNT_TABLE:
             if m["mount_point"] == target or m["device"] == target:
                 found = True
-                print(f"[*] umount: unmounted {m['mount_point']}")
+                print(f"[simulated] umount: unmounted {m['mount_point']}")
             else:
                 new_table.append(m)
 
@@ -306,12 +306,12 @@ class MknodCommand(SbinCommand):
                 return 1
             _DEVICE_NODES[name] = (major, minor)
             _DEVICE_MODES[name] = mode
-            print(f"[*] mknod: created {devtype} device '{name}' "
+            print(f"[simulated] mknod: created {devtype} device '{name}' "
                   f"({major}, {minor}) mode {mode:04o}")
         else:
             _DEVICE_NODES[name] = (0, 0)
             _DEVICE_MODES[name] = mode
-            print(f"[*] mknod: created named pipe '{name}' mode {mode:04o}")
+            print(f"[simulated] mknod: created named pipe '{name}' mode {mode:04o}")
         return 0
 
 
@@ -342,13 +342,13 @@ class LosetupCommand(SbinCommand):
                 dev = args[1]
                 if dev in _LOOP_DEVICES:
                     del _LOOP_DEVICES[dev]
-                    print(f"[*] losetup: detached {dev}")
+                    print(f"[simulated] losetup: detached {dev}")
                     return 0
                 print(f"losetup: {dev}: not a loop device", file=sys.stderr)
                 return 1
             # Detach all
             _LOOP_DEVICES.clear()
-            print("[*] losetup: detached all loop devices")
+            print("[simulated] losetup: detached all loop devices")
             return 0
 
         if args[0] in ("-h", "--help"):
@@ -389,7 +389,7 @@ class LosetupCommand(SbinCommand):
                 print(f"losetup: {exc}", file=sys.stderr)
                 return 1
             _LOOP_DEVICES[loopdev] = filepath
-            print(f"[*] losetup: {loopdev} -> {filepath} (offset {offset})")
+            print(f"[simulated] losetup: {loopdev} -> {filepath} (offset {offset})")
             return 0
 
         print("losetup: missing arguments", file=sys.stderr)
@@ -412,7 +412,7 @@ class PivotRootCommand(SbinCommand):
         except UnsafePathError as exc:
             print(f"pivot_root: {exc}", file=sys.stderr)
             return 1
-        print(f"[*] pivot_root: changing root to {new_root}, old root moved to {put_old}")
+        print(f"[simulated] pivot_root: changing root to {new_root}, old root moved to {put_old}")
         return 0
 
 

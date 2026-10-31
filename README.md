@@ -416,6 +416,14 @@ uvicorn ai.server:app --host 127.0.0.1 --port 8421
 
 The service is intended to remain loopback-bound. Its documented endpoints include `/health`, AI status/provider/config routes, consent routes, chat, and local-model management. The port can be changed with `UMEROS_AI_PORT`.
 
+### Cloud Control API
+
+```bash
+python -m cloud.server
+```
+
+The loopback-only Cloud Control API runs on `127.0.0.1:8422` by default and backs the Flutter Cloud Control app. It exposes versioned snapshot, catalog, deployment, scaling, and autoscaling routes under `/api/cloud/v1/`. The service remains a simulation: it models placement and lifecycle state without creating host VMs, containers, disks, or network namespaces. Set `UMEROS_CLOUD_PORT` to choose another local port, and `UMEROS_CLOUD_API_TOKEN` to require an `X-UmerOS-Token` header.
+
 ### Compatibility CLI
 
 ```bash

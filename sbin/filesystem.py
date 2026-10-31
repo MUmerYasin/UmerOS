@@ -146,7 +146,7 @@ class SwaponCommand(SbinCommand):
         if args[0] == "-h":
             return 0
         if args[0] == "-a":
-            print("[*] swapon: enabling all swap devices")
+            print("[simulated] swapon: enabling all swap devices")
             return 0
         print(f"swapon: enabling '{args[0]}'")
         return 0
@@ -165,7 +165,7 @@ class SwapoffCommand(SbinCommand):
         if args[0] == "-h":
             return 0
         if args[0] == "-a":
-            print("[*] swapoff: disabling all swap devices")
+            print("[simulated] swapoff: disabling all swap devices")
             return 0
         print(f"swapoff: disabling '{args[0]}'")
         return 0
@@ -211,7 +211,7 @@ class ChrootCommand(SbinCommand):
             print(f"chroot: {exc}", file=sys.stderr)
             return 1
         command = args[1] if len(args) > 1 else "/bin/sh"
-        print(f"[*] chroot: running '{command}' in {newroot}")
+        print(f"[simulated] chroot: running '{command}' in {newroot}")
         return 0
 
 

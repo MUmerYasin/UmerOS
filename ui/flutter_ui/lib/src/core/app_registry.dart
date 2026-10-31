@@ -35,6 +35,7 @@ import '../apps/docs_app.dart';
 import '../apps/file_manager_app.dart';
 import '../apps/games_app.dart';
 import '../apps/kernel_manager_app.dart';
+import '../apps/installer_manager_app.dart';
 import '../apps/network_manager_app.dart';
 import '../apps/opt_manager_app.dart';
 import '../apps/packages_manager_app.dart';
@@ -138,6 +139,15 @@ abstract final class AppRegistry {
       color: Colors.cyan,
       category: AppCategory.system,
       builder: (_) => const KernelManagerApp(),
+    ),
+    AppDefinition(
+      id: 'installer',
+      title: 'Installer',
+      description: 'Manage UmerOS installation, EULA, partitions and rollback.',
+      icon: Icons.install_desktop,
+      color: Colors.teal.shade700,
+      category: AppCategory.system,
+      builder: (_) => const InstallerManagerApp(),
     ),
     AppDefinition(
       id: 'power',

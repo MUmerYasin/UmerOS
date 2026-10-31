@@ -45,6 +45,16 @@ Each invocation emits one ``AUDIT START`` and one ``AUDIT END`` record (or
 argument vector is summarised and bounded — never logged verbatim — so a long or
 secret-bearing argument list cannot bloat or leak into the log.
 
+Simulated, and labelled as such
+--------------------------------------
+These commands do not issue syscalls: they print what they *would* do and
+return an exit status, so ``halt`` prints "System halted" and returns 0
+without halting anything.  Every such output line is now prefixed
+``[simulated]`` instead of the old ``[*]``, every audit record carries
+``simulated=True``, and ``SbinManager.is_simulated()`` answers the question
+programmatically.  ``mktemp`` is the one exception -- it really creates a
+temp file -- and declares ``simulated = False``.
+
 Author:  Umer OS Project
 License: GPL-3.0 (GNU General Public License v3)
 """
@@ -71,6 +81,15 @@ log = logging.getLogger("UmerOS.Sbin.Audit")
 
 #: Capability required by a command that does not declare its own.
 CAPABILITY = CAP_SYS_ADMIN
+
+#: A command is a *simulation* unless it declares ``simulated = False``.
+#:
+#: Every command in this package prints what it would have done and returns
+#: an exit status; it does not issue the syscall.  The flag makes that
+#: machine-readable -- ``SbinManager.is_simulated()`` and the ``simulated=``
+#: field on every audit record -- so a printed success message cannot be
+#: mistaken for an accomplished privileged action.
+DEFAULT_SIMULATED = True
 
 #: How many argv entries an audit record may quote.
 MAX_ARGV_LOGGED = 8
@@ -113,6 +132,7 @@ def _guarded_execute(func: Callable[..., int]) -> Callable[..., int]:
         cls = type(self)
         name = getattr(cls, "name", "") or cls.__name__
         cap = getattr(cls, "capability", CAPABILITY)
+        simulated = bool(getattr(cls, "simulated", DEFAULT_SIMULATED))
         summary = argv_summary(args)
 
         if cap:
@@ -139,7 +159,10 @@ def _guarded_execute(func: Callable[..., int]) -> Callable[..., int]:
                     name, cap,
                 )
 
-        audit("START", name, capability=cap or "-", argv=summary)
+        audit(
+            "START", name,
+            capability=cap or "-", simulated=simulated, argv=summary,
+        )
         try:
             code = func(self, args)
         except Exception:

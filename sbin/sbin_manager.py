@@ -204,6 +204,28 @@ class SbinManager:
         """List FHS-optional /sbin entries."""
         return FHS_OPTIONAL_SBIN.copy()
 
+    def is_simulated(self, name: str) -> bool:
+        """True when ``name``'s ``execute()`` only *describes* its action.
+
+        Every command in this package prints what it would have done and
+        returns an exit status; it does not issue the syscall (H235).
+        ``mktemp`` is the one exception and declares ``simulated = False``.
+        An unknown command reports ``True`` -- the safe answer, because
+        nothing ran.
+        """
+        cmd_cls = self.registry.get(name)
+        if cmd_cls is None:
+            return True
+        return bool(getattr(cmd_cls, "simulated", True))
+
+    def list_simulated(self) -> List[str]:
+        """List registered commands whose effects are simulated."""
+        return [n for n in self.list_commands() if self.is_simulated(n)]
+
+    def list_real(self) -> List[str]:
+        """List registered commands that perform a real side effect."""
+        return [n for n in self.list_commands() if not self.is_simulated(n)]
+
     def check_compliance(self) -> Dict[str, Any]:
         """Check FHS /sbin compliance."""
         registered = set(self.registry.keys())
@@ -218,6 +240,13 @@ class SbinManager:
             "optional_present": len(FHS_OPTIONAL_SBIN) - len(missing_optional),
             "optional_missing": missing_optional,
             "compliant": len(missing_required) == 0,
+            # H235: how much of this package is a simulation rather than a
+            # real privileged tool.  A caller must be able to tell.
+            "simulated_commands": sum(
+                1 for cls in self.registry.values()
+                if getattr(cls, "simulated", True)
+            ),
+            "real_commands": self.list_real(),
         }
 
     def execute(self, command: str, args: Optional[List[str]] = None) -> int:

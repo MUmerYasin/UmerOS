@@ -23,6 +23,13 @@
 """
 UmerOS /sbin — System binaries.
 
+Every command in this package is a **simulation**: it prints what it would
+have done and returns an exit status, without issuing the syscall.
+Output lines are prefixed ``[simulated]``, each audit record carries
+``simulated=True``, and ``SbinManager.is_simulated(name)`` answers it
+programmatically.  ``mktemp`` is the sole exception -- it really creates a
+temp file.
+
 Author:  Umer OS Project
 License: GPL-3.0 (GNU General Public License v3)
 """

@@ -151,15 +151,15 @@ class Tune2fsCommand(SbinCommand):
         sb = _get_superblock(device)
         if max_mount is not None:
             sb["max_mount_count"] = max_mount
-            print(f"[*] tune2fs: max mount count set to {max_mount} on {device}")
+            print(f"[simulated] tune2fs: max mount count set to {max_mount} on {device}")
         if interval is not None:
-            print(f"[*] tune2fs: check interval set to {interval} on {device}")
+            print(f"[simulated] tune2fs: check interval set to {interval} on {device}")
         if label is not None:
             sb["label"] = label
-            print(f"[*] tune2fs: label set to '{label}' on {device}")
+            print(f"[simulated] tune2fs: label set to '{label}' on {device}")
         if uuid_val is not None:
             sb["uuid"] = uuid_val
-            print(f"[*] tune2fs: UUID set to {uuid_val} on {device}")
+            print(f"[simulated] tune2fs: UUID set to {uuid_val} on {device}")
 
         if max_mount is None and interval is None and label is None and uuid_val is None:
             print("tune2fs: nothing to do", file=sys.stderr)
@@ -211,16 +211,16 @@ class E2fsckCommand(SbinCommand):
 
         if force or sb["state"] == "clean":
             if preen or yes or readonly:
-                print(f"[*] e2fsck: {device}: clean, no errors")
+                print(f"[simulated] e2fsck: {device}: clean, no errors")
             else:
-                print(f"[*] e2fsck: {device}: clean, no errors")
+                print(f"[simulated] e2fsck: {device}: clean, no errors")
             sb["state"] = "clean"
             sb["last_check"] = time.time()
             sb["mount_count"] = 0
             return 0
         else:
             if yes:
-                print(f"[*] e2fsck: {device}: correcting errors")
+                print(f"[simulated] e2fsck: {device}: correcting errors")
                 sb["state"] = "clean"
                 sb["last_check"] = time.time()
                 return 0
@@ -228,7 +228,7 @@ class E2fsckCommand(SbinCommand):
                 print(f"e2fsck: {device}: errors detected (read-only, not corrected)")
                 return 1
             else:
-                print(f"[*] e2fsck: {device}: fixing errors")
+                print(f"[simulated] e2fsck: {device}: fixing errors")
                 sb["state"] = "clean"
                 sb["last_check"] = time.time()
                 return 0
@@ -263,7 +263,7 @@ class Mke2fsCommand(SbinCommand):
                 i += 2
             elif args[i] == "-n":
                 # dry run
-                print(f"[*] mke2fs: dry run for {args[i+1] if i+1 < len(args) else 'device'}")
+                print(f"[simulated] mke2fs: dry run for {args[i+1] if i+1 < len(args) else 'device'}")
                 return 0
             elif args[i] == "-h":
                 print(self.help())
@@ -285,11 +285,11 @@ class Mke2fsCommand(SbinCommand):
         sb["mount_count"] = 0
         sb["created"] = time.time()
 
-        print(f"[*] mke2fs: creating {fstype} filesystem on {device}")
+        print(f"[simulated] mke2fs: creating {fstype} filesystem on {device}")
         if label:
-            print(f"[*] mke2fs: label = '{label}'")
-        print(f"[*] mke2fs: block size = {block_size}")
-        print(f"[*] mke2fs: done")
+            print(f"[simulated] mke2fs: label = '{label}'")
+        print(f"[simulated] mke2fs: block size = {block_size}")
+        print(f"[simulated] mke2fs: done")
         return 0
 
 
@@ -306,10 +306,10 @@ class CtrlaltdelCommand(SbinCommand):
 
         mode = args[0].lower()
         if mode == "hard":
-            print("[*] ctrlaltdel: set to hard (immediate reboot)")
+            print("[simulated] ctrlaltdel: set to hard (immediate reboot)")
             return 0
         elif mode == "soft":
-            print("[*] ctrlaltdel: set to soft (init reboot)")
+            print("[simulated] ctrlaltdel: set to soft (init reboot)")
             return 0
         else:
             print(f"ctrlaltdel: invalid mode '{args[0]}'", file=sys.stderr)
@@ -346,7 +346,7 @@ class KbdrateCommand(SbinCommand):
                 i += 1
 
         if not silent:
-            print(f"[*] kbdrate: rate={rate} chars/sec, delay={delay}ms")
+            print(f"[simulated] kbdrate: rate={rate} chars/sec, delay={delay}ms")
         return 0
 
 
@@ -384,7 +384,7 @@ class LoadkeysCommand(SbinCommand):
             return 1
 
         if not silent:
-            print(f"[*] loadkeys: loading keymap '{keymap}'")
+            print(f"[simulated] loadkeys: loading keymap '{keymap}'")
         return 0
 
 
@@ -425,7 +425,7 @@ class DumpCommand(SbinCommand):
             return 1
 
         target = use_file or "tape"
-        print(f"[*] dump: level {level} dump of {filesystem} to {target}")
+        print(f"[simulated] dump: level {level} dump of {filesystem} to {target}")
         return 0
 
 
@@ -470,7 +470,7 @@ class RestoreCommand(SbinCommand):
                 i += 1
 
         target = use_file or "tape"
-        print(f"[*] restore: {mode} from {target} into {target_dir}")
+        print(f"[simulated] restore: {mode} from {target} into {target_dir}")
         return 0
 
 
@@ -486,13 +486,16 @@ class SlnCommand(SbinCommand):
             return 1
         source = args[0]
         target = args[1]
-        print(f"[*] sln: {source} -> {target}")
+        print(f"[simulated] sln: {source} -> {target}")
         return 0
 
 
 class MktempCommand(SbinCommand):
     """Create temporary files securely."""
     name = "mktemp"
+    # The only command in /sbin with a real side effect: it calls
+    # tempfile.mkstemp/mkdtemp, so it is not a simulation (H235).
+    simulated = False
     description = "Create a temporary file or directory"
     usage = "mktemp [-d] [-t template] [template]"
 
@@ -554,7 +557,7 @@ class SetfdprmCommand(SbinCommand):
             print("setfdprm: missing device or parameters", file=sys.stderr)
             return 1
         device = args[0]
-        print(f"[*] setfdprm: parameters set on {device}")
+        print(f"[simulated] setfdprm: parameters set on {device}")
         return 0
 
 
@@ -573,7 +576,7 @@ class RdevCommand(SbinCommand):
             return 0
         root_dev = args[0]
         kernel = args[1]
-        print(f"[*] rdev: root device set to {root_dev} in {kernel}")
+        print(f"[simulated] rdev: root device set to {root_dev} in {kernel}")
         return 0
 
 
