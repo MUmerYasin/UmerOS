@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import '../apps/ai_assistant_app.dart';
 import '../apps/antivirus_app.dart';
 import '../apps/bin_app.dart';
+import '../apps/build_manager_app.dart';
 import '../apps/boot_manager_app.dart';
 import '../apps/backup_app.dart';
 import '../apps/browser_app.dart';
@@ -461,6 +462,15 @@ abstract final class AppRegistry {
       color: Colors.lightBlue,
       category: AppCategory.development,
       builder: (_) => const BinApp(),
+    ),
+    AppDefinition(
+      id: 'build',
+      title: 'Build Manager',
+      description: 'Manage build scripts, signing and artifacts.',
+      icon: Icons.build,
+      color: Colors.orange.shade700,
+      category: AppCategory.tools,
+      builder: (_) => const BuildManagerApp(),
     ),
     AppDefinition(
       id: 'dev',
